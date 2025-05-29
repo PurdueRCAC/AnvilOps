@@ -6,25 +6,8 @@ metadata:
   namespace: anvilops-dev
 spec:
   interval: 1m0s
+  secretRef:
+    name: anvilops
   ref:
     branch: main
   url: ssh://git@github.rcac.purdue.edu/RCAC-Staff/AnvilOps
-  ignore: |
-    .github/
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: anvilops
-  namespace: anvilops-dev
-spec:
-  interval: 1m0s
-  path: ./
-  prune: true
-  retryInterval: 2m0s
-  sourceRef:
-    kind: GitRepository
-    name: anvilops
-  targetNamespace: anvilops-dev
-  timeout: 3m0s
-  wait: true
