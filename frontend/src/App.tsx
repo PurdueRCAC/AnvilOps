@@ -4,6 +4,7 @@ import LandingView from './pages/LandingView'
 import DashboardView from './pages/DashboardView'
 import ProjectView, { projectLoader } from './pages/ProjectView'
 import SignUpView from './pages/SignUpView'
+import CreateProjectView from './pages/CreateProjectView'
 function App() {
 
   return (
@@ -27,6 +28,10 @@ function App() {
           <Route
             path='/sign-up'
             element={<SignUpView/>}
+            />
+          <Route
+            path='/create-project'
+            element={<CreateProjectView/>}
             />
         </Routes>
       </BrowserRouter>

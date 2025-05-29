@@ -4,7 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@radix-ui/r
 import { DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 export default function Navbar() {
-    return <div className="w-full flex justify-end gap-5 pr-5">
+    return <div className="fixed top-0 left-0 w-full flex justify-end gap-5 pr-5">
         <Select defaultValue='org-1'>
             <SelectTrigger className='p-6'>
                 <SelectValue/>
