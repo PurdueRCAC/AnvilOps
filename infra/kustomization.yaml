@@ -6,4 +6,3 @@ resources:
 - harbor-receiver.yaml
 - load-balancer.yaml
 - notification-receiver.yaml
-- system.yaml
