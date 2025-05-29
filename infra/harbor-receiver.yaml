@@ -1,0 +1,15 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1
+kind: Receiver
+metadata:
+  name: harbor-receiver
+  namespace: anvilops-dev
+spec:
+  type: harbor
+  secretRef:
+    name: webhook-token
+  resources:
+    - apiVersion: image.toolkit.fluxcd.io/v1beta2
+      kind: ImageRepository
+      name: anvilops
+
