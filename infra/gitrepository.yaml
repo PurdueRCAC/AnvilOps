@@ -2,7 +2,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
-  name: podinfo
+  name: anvilops
   namespace: anvilops-dev
 spec:
   interval: 1m0s
@@ -24,7 +24,7 @@ spec:
   retryInterval: 2m0s
   sourceRef:
     kind: GitRepository
-    name: podinfo
+    name: anvilops
   targetNamespace: anvilops-dev
   timeout: 3m0s
   wait: true
