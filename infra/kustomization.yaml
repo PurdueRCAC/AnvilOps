@@ -5,4 +5,4 @@ resources:
 - anvilops-deployment.yaml
 - harbor-receiver.yaml
 - load-balancer.yaml
-- imagerepository.yaml
+- imageupdate.yaml

@@ -1,0 +1,44 @@
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: anvilops
+  namespace: anvilops-dev
+spec:
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops
+  interval: 1h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: anvilops-imagepolicy
+  namespace: default
+spec:
+  imageRepositoryRef:
+    name: anvilops
+  policy:
+    numerical:
+      order: asc
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: anvilops-update
+  namespace: anvilops-dev
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: anvilops
+  git:
+    commit:
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+    push:
+      branch: main
+  update:
+    path: ./
+
+
