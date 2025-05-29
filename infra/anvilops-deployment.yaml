@@ -14,9 +14,9 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:1.0
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 5172
+              containerPort: 3000
               protocol: TCP
