@@ -1,9 +1,9 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ConfigVar from "../components/ConfigVar";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Input } from "../components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type LoaderFunctionArgs } from "react-router-dom";
+import ConfigVar from "../components/ConfigVar";
 import { AlertDialogAction, AlertDialogFooter, AlertDialogHeader } from "../components/ui/alert-dialog";
-import { useLoaderData, type LoaderFunctionArgs } from "react-router-dom";
+import { Input } from "../components/ui/input";
 
 interface Project {
     name: string;
