@@ -1,17 +1,9 @@
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-metadata:
-  name: anvilops
-  namespace: anvilops-dev
-spec:
-  interval: 1m0s
-  path: ./
-  prune: true
-  retryInterval: 2m0s
-  sourceRef:
-    kind: GitRepository
-    name: podinfo
-  targetNamespace: anvilops-dev
-  timeout: 3m0s
-  wait: true
+resources:
+- anvilops-deployment.yaml
+- gitrepository.yaml
+- harbor-receiver.yaml
+- load-balancer.yaml
+- notification-receiver.yaml
+- system.yaml
