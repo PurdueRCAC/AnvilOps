@@ -28,7 +28,7 @@ export default function ProjectView() {
     const project: Project = {
         name: 'My Project',
         link: 'https://google.com',
-        info: 'TaskForge is a lightweight, modular task-management API built with Node.js, Express 5, and TypeScript. It exposes a RESTful interface for creating, updating, and tracking tasks, with optional real-time updates via WebSocket. The design emphasizes clean architecture, test-driven development, and zero-downtime deployments.',
+        info: 'taskforge is a lightweight, modular task-management API built with Node.js, Express 5, and TypeScript. It exposes a RESTful interface for creating, updating, and tracking tasks, with optional real-time updates via WebSocket. The design emphasizes clean architecture, test-driven development, and zero-downtime deployments.',
         env: { 'NODE_ENV': 'prod' },
         secrets: { 'POSTGRES_URL': 'postgres://db' },
         logs: [
