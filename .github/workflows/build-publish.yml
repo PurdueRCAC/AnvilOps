@@ -20,3 +20,7 @@ jobs:
 
       - name: Build and push Docker image
         run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops/anvilops:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops/anvilops:latest --cache-to=type=inline .
+
+      - name: Log out of container registry
+        if: always()
+        run: docker logout registry.anvil.rcac.purdue.edu
