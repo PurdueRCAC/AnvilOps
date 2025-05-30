@@ -20,3 +20,15 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: anvilops
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-password
+                  key: password
+            - name: POSTGRES_DB
+              value: anvilops
+            - name: POSTGRES_HOSTNAME
+              value: anvilops-postgres
