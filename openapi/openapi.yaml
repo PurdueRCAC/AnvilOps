@@ -90,6 +90,14 @@ paths:
                 schema:
                   $ref: "#/components/schemas/Error"
   /org/{orgId}:
+    parameters:
+    - name: orgId
+      in: path
+      description: Id of organization to return
+      required: true
+      schema:
+        type: integer
+        format: int64
     get:
       tags:
         - org
@@ -128,6 +136,14 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   /org/{orgId}/code:
+    parameters:
+    - name: orgId
+      in: path
+      description: Id of organization to return
+      required: true
+      schema:
+        type: integer
+        format: int64
     get:
       tags:
         - org
@@ -145,6 +161,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
   /org/{orgId}/apps:
+    parameters:
+    - name: orgId
+      in: path
+      description: Id of organization to return
+      required: true
+      schema:
+        type: integer
+        format: int64
     get:
       tags:
         - org
@@ -196,6 +220,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
   /app/{appId}:
+    parameters:
+        - name: appId
+          in: path
+          description: Id of app to return
+          required: true
+          schema:
+            type: integer
+            format: int64
     get:
       tags:
         - app
