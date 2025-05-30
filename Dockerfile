@@ -35,6 +35,7 @@ FROM node:24 AS backend_run
 
 WORKDIR /app
 COPY --from=frontend_build /app/dist ./public
+COPY --from=backend_deps /app/node_modules ./node_modules
 COPY --from=backend_build /app/src/generated/prisma ./src/generated/prisma
 COPY backend .
 
