@@ -1,5 +1,10 @@
 frontend/node_modules
 frontend/dist
+frontend/src/generated
 
 backend/node_modules
-backend/src/generated/prisma
+backend/src/generated
+
+openapi/node_modules
+
+infra/
