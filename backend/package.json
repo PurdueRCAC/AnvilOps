@@ -4,17 +4,20 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types index.ts",
-    "dev": "nodemon index.ts -x 'node --experimental-strip-types index.ts'"
+    "start": "node --experimental-strip-types src/index.ts",
+    "prisma:generate": "prisma generate",
+    "dev": "nodemon index.ts -x 'node --experimental-strip-types src/index.ts'"
   },
   "author": "",
   "license": "UNLICENSED",
   "description": "",
   "dependencies": {
+    "@prisma/client": "^6.8.2",
     "express": "^5.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "prisma": "^6.8.2"
   }
 }
