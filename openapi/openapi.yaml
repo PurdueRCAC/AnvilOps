@@ -6,10 +6,17 @@ info:
 tags:
   - name: user
     description: Operations about users
+  - name: org
+    description: Operations about organizations
+  - name: app
+    description: Operations about apps
 paths:
   /user/me:
     get:
+      tags:
+      - user
       description: Returns the current user
+      operationId: getUser
       responses:
         "200":
           description: Success
@@ -17,6 +24,230 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - user
+      description: Deletes the current user.
+      operationId: deleteUser
+      # parameters:
+      #   - name: access_token
+      #     in: header
+      #     required: true
+      #     schema:
+      #       type: string
+      responses:
+        '200':
+          description: User deleted
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /user/logout:
+    get: 
+      tags:
+        - user
+      description: Logs out current user
+      operationId: logoutUser
+      responses: 
+        '200':
+          description: Success
+        default:
+          description: Unexpected error
+          content:
+            application/json:   
+              schema:
+                $ref: "#/components/schemas/Error"
+  /user/joinOrg:
+      post:
+        tags:
+          - user
+          - org
+        description: Adds the current user to an organization
+        operationId: joinOrg
+        parameters: 
+          - name: inviteCode
+            in: query
+            required: true
+            schema: 
+              type: string
+        responses: 
+          '200':
+            description: Success
+          '401':
+            description: Unauthorized
+          default:
+            description: Unexpected error
+            content:
+              application/json:   
+                schema:
+                  $ref: "#/components/schemas/Error"
+  /org/{orgId}:
+    get:
+      tags:
+        - org
+      description: Get organization by id
+      operationId: getOrgByID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Org"
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - org
+      description: Deletes organization by id
+      operationId: deleteOrgByID
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /org/{orgId}/code:
+    get:
+      tags:
+        - org
+      description: Get invite code for org
+      operationId: getInviteCodeByID
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /org/{orgId}/apps:
+    get:
+      tags:
+        - org
+        - app
+      description: Get apps by org id
+      operationId: getAppsByOrgID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+                    name:
+                      type: string
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /app:
+    post:
+      tags:
+        - app
+      description: Create an app.
+      operationId: createApp
+      parameters:
+        - name: app
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/App"
+      responses:
+        '200':
+          description: Success
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /app/{appId}:
+    get:
+      tags:
+        - app
+      description: Get app detail by id.
+      operationId: getAppByID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/App"
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags:
+        - app
+      description: Update app by id.
+      operationId: updateAppByID
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - app
+      description: Delete an app.
+      operationId: deleteApp
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     User:
@@ -28,4 +259,61 @@ components:
         email:
           type: string
         name:
+          type: string
+        org:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            isOwner:
+              type: boolean
+    Org:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        apps:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+    App:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        orgId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        name:
+          type: string
+        repositoryURL:
+          type: string
+        port:
+          type: integer
+          format: int64
+        dockerfilePath:
+          type: string
+        log:
+          type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
           type: string
