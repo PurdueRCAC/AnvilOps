@@ -4,5 +4,6 @@ namespace: anvilops-dev
 resources:
 - anvilops-deployment.yaml
 - harbor-receiver.yaml
-- load-balancer.yaml
+- service.yaml
+- ingress.yaml
 - imageupdate.yaml
