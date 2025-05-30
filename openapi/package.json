@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "generate": "openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ../frontend/src/generated/openapi"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.20.2"
+  }
+}

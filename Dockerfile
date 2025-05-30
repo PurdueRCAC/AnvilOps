@@ -5,11 +5,19 @@ WORKDIR /app
 COPY frontend/package*.json .
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+# FRONTEND: generate API client from OpenAPI spec
+FROM openapitools/openapi-generator-cli:v7.13.0 AS frontend_codegen
+
+WORKDIR /app/openapi
+COPY openapi/openapi.yaml .
+RUN /usr/local/bin/docker-entrypoint.sh generate -i openapi.yaml -g typescript-fetch -o ../frontend/src/generated/openapi
+
 # FRONTEND: build for production
 FROM node:24 AS frontend_build
 
 WORKDIR /app
 COPY --from=frontend_deps /app/node_modules ./node_modules
+COPY --from=frontend_codegen /app/frontend/src/generated ./src/generated
 COPY frontend .
 
 RUN npm run build
