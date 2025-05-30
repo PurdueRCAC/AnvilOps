@@ -24,7 +24,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -44,7 +44,7 @@ paths:
       responses:
         '200':
           description: User deleted
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -59,7 +59,7 @@ paths:
       responses: 
         '200':
           description: Success
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:   
@@ -83,7 +83,7 @@ paths:
             description: Success
           '401':
             description: Unauthorized
-          default:
+          "500":
             description: Unexpected error
             content:
               application/json:   
@@ -112,7 +112,7 @@ paths:
                 $ref: "#/components/schemas/Org"
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -128,7 +128,7 @@ paths:
           description: Success
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -154,7 +154,7 @@ paths:
           description: Success
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -192,7 +192,7 @@ paths:
                       type: string
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -213,7 +213,7 @@ paths:
       responses:
         '200':
           description: Success
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -242,7 +242,7 @@ paths:
                 $ref: "#/components/schemas/App"
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -258,7 +258,7 @@ paths:
           description: Success
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:
@@ -274,7 +274,7 @@ paths:
           description: Success
         '401':
           description: Unauthorized
-        default:
+        "500":
           description: Unexpected error
           content:
             application/json:

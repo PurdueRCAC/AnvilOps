@@ -6,14 +6,15 @@
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
-    "dev": "nodemon index.ts -x 'node --experimental-strip-types src/index.ts'"
+    "dev": "nodemon src/index.ts -x 'node --experimental-strip-types src/index.ts'"
   },
   "author": "",
   "license": "UNLICENSED",
   "description": "",
   "dependencies": {
     "@prisma/client": "^6.8.2",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "openapi-backend": "^5.12.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
