@@ -1,51 +1,11 @@
-import { type Request as ExpressRequest, type Response as ExpressResponse, type NextFunction, Router } from "express";
-import { type components, type operations } from "../generated/openapi.ts";
-import { db } from "./db.ts";
-import path from "node:path";
-import { OpenAPIBackend, type Context, type Request} from "openapi-backend";
 import addFormats from "ajv-formats";
-
-type OptionalPromise<T> = void | Promise<T>;
-
-type apiOperations = Exclude<operations, { [key: `auth${string}`] : any }>;
-type HandlerMap = {
-  [O in keyof apiOperations]: (
-    ctx: Context<
-      apiOperations[O]["requestBody"],
-      apiOperations[O]["parameters"]["path"],
-      apiOperations[O]["parameters"]["header"],
-      apiOperations[O]["parameters"]["query"],
-      apiOperations[O]["parameters"]["cookie"]
-    >,
-    req: ExpressRequest,
-    res: ExpressResponse,
-    next: NextFunction,
-  ) => OptionalPromise<HandlerResponse<apiOperations[O]["responses"]>>;
-};
-
-type ResponseType = number | "default";
-type ResponseMap = {
-  [statusCode in ResponseType]?: {
-    headers: any;
-    content?: {
-      "application/json": any;
-    };
-  };
-};
-
-type HandlerResponse<T extends ResponseMap> = ExpressResponse;
-
-const json = <
-  ResMap extends ResponseMap,
-  Code extends keyof ResMap & number,
-  Content extends ResMap[Code] extends never ? ResMap["default"]["content"]["application/json"] : (ResMap[Code]["content"]["application/json"]),
->(
-  statusCode: Code,
-  res: ExpressResponse,
-  json: Content extends never ? {} : Required<Content>
-): HandlerResponse<ResMap> => {
-  return res.status(statusCode as number).json(json);
-};
+import { type Request as ExpressRequest, type Response as ExpressResponse } from "express";
+import path from "node:path";
+import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
+import { type components } from "../generated/openapi.ts";
+import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
+import { db } from "./db.ts";
+import { postGitHubWebhook } from "../handlers/postGitHubWebhook.ts";
 
 type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -184,6 +144,7 @@ const handlers = {
   deleteApp: function (ctx: Context<never, { appId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ResponseError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
+  postGitHubWebhook
 } satisfies HandlerMap;
 
 const api = new OpenAPIBackend({
