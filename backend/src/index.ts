@@ -5,7 +5,7 @@ import express from "express";
 import session from "express-session";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import apiHandler from "./lib/api.ts";
+import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import getProtectedApiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
@@ -71,6 +71,12 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
 }
 
 app.use(cors());
+
+app.use("/openapi.yaml", express.static(openApiSpecPath));
+app.use(
+  "/ghes-3.16.yaml",
+  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml"))
+);
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
