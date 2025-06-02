@@ -2,6 +2,42 @@
 
 When AnvilOps is built as a Docker image, this Node.js app serves the static files in the `frontend` directory.
 
+## Setup
+
+Create a GitHub App with the following settings:
+
+| Setting                                                | Value (local development)                        | Value (production)                                          |
+| ------------------------------------------------------ | ------------------------------------------------ | ----------------------------------------------------------- |
+| Homepage URL                                           | http://localhost:5173                            | https://anvilops.rcac.purdue.edu                            |
+| Callback URL                                           | http://localhost:5173/api/oauth2/github/callback | https://anvilops.rcac.purdue.edu/api/oauth2/github/callback |
+| Expire user authentication tokens                      | Yes                                              | Yes                                                         |
+| Request user authorization (OAuth) during installation | Yes                                              | Yes                                                         |
+| Setup URL                                              | http://localhost:5173/github-setup               | https://anvilops.rcac.purdue.edu/github-setup               |
+| Webhook: Active                                        | Yes                                              | Yes                                                         |
+| Webhook URL                                            | See note below                                   | https://anvilops.rcac.purude.edu/api/github-webhook         |
+
+Note on webhook URLs in development: To receive webhook payloads, you will need to create a publicly-accessible URL that forwards to your machine. The GitHub docs recommend using [`smee`](https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events#get-a-webhook-proxy-url) for this, or you could also use [`ngrok`](https://ngrok.com/) (account required).
+
+Generate a random string for the webhook secret (e.g. `openssl rand -hex 32`). In development, add it to your `.env` file as `GITHUB_WEBHOOK_SECRET`, and in production, create a Kubernetes `Secret` called `github-app` and the key `webhook-secret`.
+
+Repository Permissions:
+
+- Contents: read-only
+- Deployments: read and write
+- Metadata: read-only
+
+Leave all other permissions on "No access".
+
+Subscribe to events:
+
+- Push
+- Repository
+- Meta
+
+After you create the app, copy the Client ID. In development, add it to `.env` as `GITHUB_CLIENT_ID`, and in production, add it to a key called `client-id` in the Secret you created earlier.
+
+Scroll all the way down and click "Generate a private key". Copy it and save it as `GITHUB_PRIVATE_KEY` (`.env`) or `private-key` (K8s Secret).
+
 ## Running
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).
