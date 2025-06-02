@@ -49,13 +49,22 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
+# SWAGGER UI: install packages and build
+FROM base AS swagger_build
+WORKDIR /app
+COPY swagger-ui .
+RUN npm ci
+RUN npm run build
+
 # Combine frontend & backend and run the app
 FROM base AS backend_run
 
 WORKDIR /app
+COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
-COPY --from=backend_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY --from=backend_deps /app/node_modules ./node_modules
+COPY openapi/openapi.yaml /openapi/openapi.yaml
+COPY --from=backend_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY --from=backend_build /app/src/generated/prisma ./src/generated/prisma
 COPY backend .
 

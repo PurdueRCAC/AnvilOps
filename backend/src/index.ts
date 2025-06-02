@@ -1,13 +1,25 @@
 import express, { type Response as ExpressResponse } from "express";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import { OpenAPIBackend, type Context, type Document, type Request } from "openapi-backend";
-import { type components, type operations } from "./generated/openapi.ts";
+import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
+import { type operations } from "./generated/openapi.ts";
 
 const app = express();
 const port = 3000;
 
 const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
+
+const apiSpecPath = path.resolve(
+  path.dirname(path.dirname(import.meta.dirname)),
+  "openapi",
+  "openapi.yaml"
+);
+
+app.use("/openapi.yaml", express.static(apiSpecPath));
+
+app.use(/^\/api\//, (req, res) => {
+  api.handleRequest(req as Request, req, res);
+});
 
 if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   console.log("Serving static files from", publicDir);
@@ -55,7 +67,9 @@ type HandlerResponse<T extends ResponseMap> = ExpressResponse;
 const json = <
   ResMap extends ResponseMap,
   Code extends keyof ResMap & number,
-  Content extends ResMap[Code] extends never ? ResMap["default"]["content"]["application/json"] : (ResMap[Code]["content"]["application/json"]),
+  Content extends ResMap[Code] extends never
+    ? ResMap["default"]["content"]["application/json"]
+    : ResMap[Code]["content"]["application/json"]
 >(
   statusCode: Code,
   res: ExpressResponse,
@@ -69,11 +83,7 @@ const handlers = {
 } satisfies HandlerMap;
 
 const api = new OpenAPIBackend({
-  definition: path.resolve(
-    path.dirname(path.dirname(import.meta.dirname)),
-    "openapi",
-    "openapi.yaml"
-  ),
+  definition: apiSpecPath,
   handlers,
 });
 
