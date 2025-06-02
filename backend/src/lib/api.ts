@@ -159,7 +159,7 @@ const api = new OpenAPIBackend({
   handlers,
   ajvOpts: { coerceTypes: "array" },
   customizeAjv: (ajv) => {
-    addFormats(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
+    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
     return ajv;
   }
 });
