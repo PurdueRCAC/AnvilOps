@@ -121,11 +121,12 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.json#/components/schemas/webhook-push"
-                - $ref: "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.json#/components/schemas/webhook-installation-created"
-                - $ref: "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.json#/components/schemas/webhook-repository-renamed"
-                - $ref: "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.json#/components/schemas/webhook-repository-transferred"
-                - $ref: "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.json#/components/schemas/webhook-repository-deleted"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-push"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-created"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-deleted"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-renamed"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-transferred"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-deleted"
       responses:
         "200":
           description: Success
