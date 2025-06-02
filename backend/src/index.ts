@@ -1,5 +1,6 @@
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import express from "express";
 import session from "express-session";
 import { existsSync, statSync } from "node:fs";
@@ -68,6 +69,8 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
     }
   });
 }
+
+app.use(cors());
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);

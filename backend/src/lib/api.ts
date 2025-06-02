@@ -3,9 +3,9 @@ import { type Request as ExpressRequest, type Response as ExpressResponse } from
 import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
+import { postGitHubWebhook } from "../handlers/postGitHubWebhook.ts";
 import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
 import { db } from "./db.ts";
-import { postGitHubWebhook } from "../handlers/postGitHubWebhook.ts";
 
 type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -147,13 +147,15 @@ const handlers = {
   postGitHubWebhook
 } satisfies HandlerMap;
 
+export const openApiSpecPath = path.resolve(
+  path.dirname(path.dirname(import.meta.dirname)),
+  "..",
+  "openapi",
+  "openapi.yaml"
+);
+
 const api = new OpenAPIBackend({
-  definition: path.resolve(
-    path.dirname(path.dirname(import.meta.dirname)),
-    "..",
-    "openapi",
-    "openapi.yaml"
-  ),
+  definition: openApiSpecPath,
   handlers,
   ajvOpts: { coerceTypes: "array" },
   customizeAjv: (ajv) => {
