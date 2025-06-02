@@ -1,3 +1,4 @@
+import bodyParser from "body-parser";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -77,6 +78,9 @@ app.use(
   "/ghes-3.16.yaml",
   express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml"))
 );
+
+app.use("/api/github-webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
+app.use(/^\/api(?!\/github-webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
