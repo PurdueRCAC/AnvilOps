@@ -4,14 +4,15 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types src/index.ts",
+    "start": "node --env-file=.env --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
-    "dev": "nodemon src/index.ts -x 'node --experimental-strip-types src/index.ts'"
+    "dev": "nodemon src/index.ts -x 'node --env-file=.env --experimental-strip-types src/index.ts'"
   },
   "author": "",
   "license": "UNLICENSED",
   "description": "",
   "dependencies": {
+    "@octokit/webhooks": "^14.0.0",
     "@prisma/client": "^6.8.2",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
