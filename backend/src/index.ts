@@ -9,18 +9,6 @@ const port = 3000;
 
 const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
 
-const apiSpecPath = path.resolve(
-  path.dirname(path.dirname(import.meta.dirname)),
-  "openapi",
-  "openapi.yaml"
-);
-
-app.use("/openapi.yaml", express.static(apiSpecPath));
-
-app.use(/^\/api\//, (req, res) => {
-  api.handleRequest(req as Request, req, res);
-});
-
 if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   console.log("Serving static files from", publicDir);
   const index = path.resolve(publicDir, "index.html");
@@ -82,12 +70,20 @@ const handlers = {
   // TODO
 } satisfies HandlerMap;
 
+const apiSpecPath = path.resolve(
+  path.dirname(path.dirname(import.meta.dirname)),
+  "openapi",
+  "openapi.yaml"
+);
+
 const api = new OpenAPIBackend({
   definition: apiSpecPath,
   handlers,
 });
 
-app.use((req, res) => {
+app.use("/openapi.yaml", express.static(apiSpecPath));
+
+app.use(/^\/api\//, (req, res) => {
   api.handleRequest(req as Request, req, res);
 });
 
