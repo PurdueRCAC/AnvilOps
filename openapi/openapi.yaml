@@ -134,6 +134,8 @@ paths:
           description: Signature was not found (X-Hub-Signature-256 header not present)
         "403":
           description: Signature verification failed
+        "422":
+          description: Unknown webhook event type
         "500":
           description: Unexpected error
           content:
