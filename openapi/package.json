@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "generate:client": "openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ../frontend/src/generated/openapi",
+    "generate:client": "openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ../frontend/src/generated/openapi --additional-properties=prefixParameterInterfaces=true,withInterfaces=true",
     "generate:types": "openapi-typescript openapi.yaml -o ../backend/src/generated/openapi.ts",
     "generate": "npm run generate:client && npm run generate:types"
   },
