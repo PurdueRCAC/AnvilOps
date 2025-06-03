@@ -64,29 +64,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-  /github/install:
+  /github/installation-callback:
     get:
-      description: Redirect to GitHub to install the GitHub App on the user's organization
-      operationId: githubAppInstall
+      description: GitHub installation callback URL. Users are redirected here after they install the app. Then, we redrect them back to GitHub to generate a user access token to verify that they have access to the installation that they're requesting to link with their organization.
+      operationId: githubInstallCallback
+      parameters:
+        - name: state
+          in: query
+          description: The content that we provided in the `state` query parameter when redirecting to GitHub. Used to link the installation ID to the correct organization.
+          required: true
+          schema:
+            type: string
+        - name: installation_id
+          in: query
+          description: An identifier that allows us to authenticate with the GitHub API as our GitHub App and access the repositories that the person who installed the app has granted us access to.
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         "302":
-          description: Redirect
+          description: Success (redirecting back to GitHub for user authorization)
         "401":
-          description: Unauthorized
-  /github/callback:
+          description: User IDs don't match (the user signed in to a new account in the middle of the installation flow)
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /github/oauth2-callback:
     get:
-      description: GitHub OAuth callback URL
-      operationId: githubCallback
+      description: GitHub user authorization callback URL. Users are redirected here after they sign in with GitHub. This endpoint checks that they have access to the installation ID that they're trying to link to their organization and then saves that info in our DB.
+      operationId: githubOAuthCallback
       parameters:
+        - name: state
+          in: query
+          description: The content that we provided in the `state` query parameter when redirecting to GitHub. Used to link the installation ID to the correct organization.
+          required: true
+          schema:
+            type: string
         - name: code
           in: query
-          description: An authorization code to exchange for access and refresh token
+          description: A code that we exchange with GitHub for a user access token.
           required: true
           schema:
             type: string
       responses:
         "302":
           description: Success (redirecting back to the frontend)
+        "401":
+          description: User IDs don't match (the user signed in to a new account in the middle of the authorization flow)
+        "403":
+          description: Forbidden (invalid state or code)
         "500":
           description: Unknown error
           content:
@@ -341,6 +371,32 @@ paths:
           description: Not Found
         "500":
           description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+
+  /org/{orgId}/install-github-app:
+    get:
+      description: Redirect to GitHub to install the GitHub App on the user's organization
+      operationId: githubAppInstall
+      parameters:
+        - name: orgId
+          description: The ID of the organization to connect the app installation to.
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "302":
+          description: Redirect
+        "401":
+          description: Unauthorized
+        "404":
+          description: Organization not found
+        "500":
+          description: Unexpected error
           content:
             application/json:
               schema:
