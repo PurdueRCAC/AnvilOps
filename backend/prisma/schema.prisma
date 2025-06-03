@@ -41,12 +41,12 @@ enum PermissionLevel {
 }
 
 model Organization {
-  id        Int                      @id @default(autoincrement())
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
-  name      String
-  users     OrganizationMembership[]
-  apps      App[]
+  id         Int                      @id @default(autoincrement())
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  name       String
+  users      OrganizationMembership[]
+  apps       App[]
 }
 
 model App {

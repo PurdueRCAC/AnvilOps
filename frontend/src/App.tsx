@@ -1,16 +1,19 @@
 import Navbar from './components/Navbar'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import LandingView from './pages/LandingView'
 import DashboardView from './pages/DashboardView'
-import ProjectView, { projectLoader } from './pages/ProjectView'
+import ProjectView from './pages/ProjectView'
 import SignUpView from './pages/SignUpView'
 import CreateProjectView from './pages/CreateProjectView'
+import UserProvider, { UserContext } from './components/UserProvider'
+import { Toaster } from './components/ui/sonner'
+import { useContext } from 'react'
 function App() {
 
   return (
     <>
+    <UserProvider>
       <Navbar/>
-      <BrowserRouter>
         <Routes>
           <Route
             path='/'
@@ -18,12 +21,19 @@ function App() {
           />
           <Route
             path='/dashboard'
-            element={<DashboardView/>}
+            element={
+              <RequireAuth redirectTo='/sign-up'>
+                <DashboardView/>
+              </RequireAuth>
+            }
           />
           <Route
             path='/project/:id'
-            loader={projectLoader}
-            element={<ProjectView/>}
+            element={
+            <RequireAuth redirectTo='sign-up'>
+              <ProjectView/>
+            </RequireAuth>
+            }
           />
           <Route
             path='/sign-up'
@@ -31,12 +41,21 @@ function App() {
             />
           <Route
             path='/create-project'
-            element={<CreateProjectView/>}
+            element={
+              <RequireAuth redirectTo='sign-up'>
+              <CreateProjectView/>
+            </RequireAuth>
+            }
             />
         </Routes>
-      </BrowserRouter>
+      </UserProvider>
+      <Toaster/>
     </>
   )
 }
 
-export default App
+function RequireAuth({ children, redirectTo } : { children: React.ReactNode, redirectTo: string}) {
+  const { user } = useContext(UserContext);
+  return user ? children : <Navigate to={redirectTo}/>
+}
+export default App;
