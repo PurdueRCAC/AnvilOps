@@ -75,3 +75,8 @@ spec:
               value: https://github.rcac.purdue.edu
             - name: GITHUB_APP_NAME
               value: anvilops-development
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: client-secret
