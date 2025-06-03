@@ -3,7 +3,9 @@ import { type Request as ExpressRequest, type Response as ExpressResponse } from
 import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
-import { postGitHubWebhook } from "../handlers/postGitHubWebhook.ts";
+import { githubAppInstall } from "../handlers/githubAppInstall.ts";
+import { githubCallback } from "../handlers/githubCallback.ts";
+import { githubWebhook } from "../handlers/githubWebhook.ts";
 import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
 import { db } from "./db.ts";
 
@@ -144,7 +146,9 @@ const handlers = {
   deleteApp: function (ctx: Context<never, { appId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ResponseError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
-  postGitHubWebhook
+  githubWebhook,
+  githubAppInstall,
+  githubCallback,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(
