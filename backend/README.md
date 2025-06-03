@@ -36,6 +36,8 @@ Subscribe to events:
 
 After you create the app, copy the Client ID. In development, add it to `.env` as `GITHUB_CLIENT_ID`, and in production, add it to a key called `client-id` in the Secret you created earlier.
 
+Under "Client Secrets", click "Generate a new client secret". Copy the secret and save it as `GITHUB_CLIENT_SECRET` (`.env`) or `client-secret` (K8s Secret).
+
 Scroll all the way down and click "Generate a private key". Copy the content of the downloaded file, encode it as Base64, and save it as `GITHUB_PRIVATE_KEY` (`.env`) or `private-key` (K8s Secret).
 
 Finally, look at the URL in your browser. It should look something like this:
