@@ -50,3 +50,15 @@ export const json = <
 ): HandlerResponse<ResMap> => {
   return res.status(statusCode as number).json(json);
 };
+
+export const redirect = <
+  ResMap extends ResponseMap,
+  Code extends keyof ResMap & (301 | 302 | 307 | 308)
+>(
+  statusCode: Code,
+  res: ExpressResponse,
+  url: string
+): HandlerResponse<ResMap> => {
+  res.redirect(statusCode, url);
+  return res;
+};

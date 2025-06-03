@@ -38,6 +38,17 @@ After you create the app, copy the Client ID. In development, add it to `.env` a
 
 Scroll all the way down and click "Generate a private key". Copy the content of the downloaded file, encode it as Base64, and save it as `GITHUB_PRIVATE_KEY` (`.env`) or `private-key` (K8s Secret).
 
+Finally, look at the URL in your browser. It should look something like this:
+
+```
+{your GitHub base URL}/settings/apps/{your app name}
+```
+
+Add them as environment variables:
+
+- `GITHUB_APP_NAME`: Your app name (derived from the display name that you entered while creating the app)
+- `GITHUB_BASE_URL`: The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
+
 ## Running
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).

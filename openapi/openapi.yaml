@@ -34,7 +34,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-
   /oauth_callback:
     get:
       tags:
@@ -65,10 +64,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-  /github-webhook:
+  /github/install:
+    get:
+      description: Redirect to GitHub to install the GitHub App on the user's organization
+      operationId: githubAppInstall
+      responses:
+        "302":
+          description: Redirect
+        "401":
+          description: Unauthorized
+  /github/callback:
+    get:
+      description: GitHub OAuth callback URL
+      operationId: githubCallback
+      parameters:
+        - name: code
+          in: query
+          description: An authorization code to exchange for access and refresh token
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Success (redirecting back to the frontend)
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /github/webhook:
     post:
       description: GitHub App webhooks (see https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events) for more info
-      operationId: postGitHubWebhook
+      operationId: githubWebhook
       parameters:
         # Taken from https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.yaml under /x-webhooks/push/post/parameters
         - name: User-Agent

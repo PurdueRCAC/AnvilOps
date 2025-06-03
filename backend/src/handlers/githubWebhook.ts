@@ -3,7 +3,7 @@ import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
-export const postGitHubWebhook: HandlerMap["postGitHubWebhook"] = async (
+export const githubWebhook: HandlerMap["githubWebhook"] = async (
   ctx,
   req,
   res
