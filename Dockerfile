@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 FROM openapitools/openapi-generator-cli:v7.13.0 AS frontend_codegen
 
 WORKDIR /app/openapi
-COPY openapi/openapi.yaml .
+COPY openapi/*.yaml .
 RUN /usr/local/bin/docker-entrypoint.sh generate -i openapi.yaml -g typescript-fetch -o ../frontend/src/generated/openapi
 
 # FRONTEND: build for production
@@ -37,7 +37,7 @@ FROM base AS backend_codegen
 WORKDIR /app/openapi
 COPY openapi/package*.json .
 RUN npm install openapi-typescript@^7.8.0
-COPY openapi/openapi.yaml .
+COPY openapi/*.yaml .
 RUN npm run generate:types
 
 # BACKEND: generate Prisma client
