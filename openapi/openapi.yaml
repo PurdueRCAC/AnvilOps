@@ -396,8 +396,6 @@ components:
           format: int64
         dockerfilePath:
           type: string
-        log:
-          type: string
     ResponseError:
       type: object
       properties:

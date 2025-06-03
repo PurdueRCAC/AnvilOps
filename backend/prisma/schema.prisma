@@ -59,4 +59,5 @@ model App {
   repositoryURL  String
   webhookSecret  String
   dockerfilePath String
+  port           Int
 }
