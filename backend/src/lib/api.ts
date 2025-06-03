@@ -8,6 +8,8 @@ import { githubCallback } from "../handlers/githubCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
 import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
 import { db } from "./db.ts";
+import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
+import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 
 type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -148,7 +150,8 @@ const handlers = {
   },
   githubWebhook,
   githubAppInstall,
-  githubCallback,
+  githubOAuthCallback,
+  githubInstallCallback,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

@@ -21,6 +21,14 @@ model User {
   githubAccessToken String?
   ciLogonUserId     String?                  @unique
   orgs              OrganizationMembership[]
+
+  /**
+   * A temporary random value that we store to ensure OAuth URLs were created by us (CSRF prevention).
+   * When creating the URL, we store the state here, and when GitHub redirects back to us, we check it
+   * with the copy in the DB. If they match, the authorization request was initiated by us. Note that
+   * this doesn't mean the URL wasn't tampered with; we have to verify other parameters separately.
+   */
+  githubOAuthState String?
 }
 
 model OrganizationMembership {
@@ -41,12 +49,18 @@ enum PermissionLevel {
 }
 
 model Organization {
-  id         Int                      @id @default(autoincrement())
-  createdAt  DateTime                 @default(now())
-  updatedAt  DateTime                 @updatedAt
-  name       String
-  users      OrganizationMembership[]
-  apps       App[]
+  id                   Int                      @id @default(autoincrement())
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  name                 String
+  users                OrganizationMembership[]
+  apps                 App[]
+  githubInstallationId Int?
+
+  /**
+   * Temporary storage for an Installation ID that hasn't been verified to be accessible by the user who set it. See src/handlers/githubAppInstall.ts for more info on the installation/authorization process.
+   */
+  newInstallationId Int?
 }
 
 model App {
