@@ -36,7 +36,8 @@ async function main() {
         name: 'App 1',
         repositoryURL: 'https://github.com/octocat/repository1',
         webhookSecret: 'secret1',
-        dockerfilePath: './Dockerfile'
+        dockerfilePath: './Dockerfile',
+        port: 80,
     }
   });
   await prisma.app.upsert({
@@ -47,31 +48,34 @@ async function main() {
         name: 'App 2',
         repositoryURL: 'https://github.com/octocat/repository3',
         webhookSecret: 'secret2',
-        dockerfilePath: './Dockerfile'
+        dockerfilePath: './Dockerfile',
+        port: 80,
     }
   });
 
   await prisma.app.upsert({
-    where: { id: 1 },
+    where: { id: 3 },
     update: {},
     create: {
         orgId: 1,
         name: 'App 3',
         repositoryURL: 'https://github.com/octocat/repository3',
         webhookSecret: 'secret1',
-        dockerfilePath: ''
+        dockerfilePath: '',
+        port: 3001,
     }
   });
 
   await prisma.app.upsert({
-    where: { id: 1 },
+    where: { id: 4 },
     update: {},
     create: {
         orgId: 1,
         name: 'App 4',
         repositoryURL: 'https://github.com/octocat/repository4',
         webhookSecret: 'secret4',
-        dockerfilePath: ''
+        dockerfilePath: '',
+        port: 3000,
     }
   });
 }
