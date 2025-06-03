@@ -5,10 +5,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 
 export default function CreateProjectView(this: any) {
-    console.log("project")
     return <div className='w-screen h-screen flex flex-col items-center justify-center'>
         <div className="w-3/4 lg:w-1/3 min-h-1/2 md:min-h-3/4 bg-neutral-1 rounded-2xl shadow-md shadow-neutral-3 flex justify-center">  
-            <form className="space-y-8 w-3/4 flex flex-col justify-center items-center" onSubmit={() => {console.log('submit')}}>
+            <form className="space-y-8 w-3/4 h-full flex flex-col justify-center items-center" onSubmit={() => {console.log('submit')}}>
                 <h2 className="font-bold text-3xl text-main-5 mb-5">Create a Project</h2>
             <Select>
                     <SelectTrigger className='w-full' onSelect={e => e}>
