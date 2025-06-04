@@ -32,3 +32,20 @@ spec:
               value: anvilops
             - name: POSTGRES_HOSTNAME
               value: anvilops-postgres
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-id
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-secret
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: session-secret
+            - name: CALLBACK_URL
+              value: https://anvilops.rcac.purdue.edu/api/oauth_callback

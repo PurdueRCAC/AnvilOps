@@ -16,10 +16,10 @@ model User {
   id                Int                      @id @default(autoincrement())
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
-  email             String                   @unique
-  name              String
+  email             String?                  @unique
+  name              String?
   githubAccessToken String?
-  ciLogonUserId     String?
+  ciLogonUserId     String?                  @unique
   orgs              OrganizationMembership[]
 }
 
@@ -41,12 +41,12 @@ enum PermissionLevel {
 }
 
 model Organization {
-  id        Int                      @id @default(autoincrement())
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
-  name      String
-  users     OrganizationMembership[]
-  apps      App[]
+  id         Int                      @id @default(autoincrement())
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  name       String
+  users      OrganizationMembership[]
+  apps       App[]
 }
 
 model App {
@@ -59,4 +59,14 @@ model App {
   repositoryURL  String
   webhookSecret  String
   dockerfilePath String
+  port           Int
+}
+
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], name: "IDX_session_expire")
+  @@map("session")
 }

@@ -1,14 +1,59 @@
-import express, { type Response as ExpressResponse } from "express";
+import express from "express";
 import { existsSync, statSync } from "node:fs";
+import session from "express-session";
+import cookieParser from "cookie-parser";
+import getProtectedApiRouter, {SESSION_COOKIE_NAME } from './lib/auth.ts';
 import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type operations } from "./generated/openapi.ts";
 
+import dotenv from "dotenv";
+import apiHandler from "./lib/api.ts";
+import connectPgSimple from "connect-pg-simple";
+
+dotenv.config();
+
+if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
+    throw new Error("Credentials not set");
+}
+
+if (!process.env.SESSION_SECRET) {
+  throw new Error("Session secret not set");
+}
+
+const DB_URL = process.env.DATABASE_URL ?? `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
+if (!DB_URL) {
+  throw new Error("Database credentials not set");
+}
+
 const app = express();
+app.use(express.json());
 const port = 3000;
 
-const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
+app.use(cookieParser());
 
+const PgSession = connectPgSimple(session);
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  name: SESSION_COOKIE_NAME,
+  cookie: {
+    secure: process.env.NODE_ENV !== "development",
+    sameSite: 'lax',
+    maxAge: 18 * 60 * 60 * 1000, // 18 hr
+    httpOnly: true,
+  },
+  store: new PgSession({
+    conString: DB_URL,
+  })
+}));
+
+const apiRouter = await getProtectedApiRouter();
+apiRouter.use(apiHandler);
+app.use('/api', apiRouter);
+
+const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
 if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   console.log("Serving static files from", publicDir);
   const index = path.resolve(publicDir, "index.html");
@@ -26,66 +71,7 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   });
 }
 
-type OptionalPromise<T> = T | Promise<T>;
-type HandlerMap = {
-  [O in keyof operations]: (
-    req: Context<
-      operations[O]["requestBody"],
-      operations[O]["parameters"]["path"],
-      operations[O]["parameters"]["query"],
-      operations[O]["parameters"]["header"],
-      operations[O]["parameters"]["cookie"]
-    >,
-    res: ExpressResponse
-  ) => OptionalPromise<HandlerResponse<operations[O]["responses"]>>;
-};
-
-type ResponseType = number | "default";
-type ResponseMap = {
-  [statusCode in ResponseType]?: {
-    headers: any;
-    content?: {
-      "application/json": any;
-    };
-  };
-};
-
-type HandlerResponse<T extends ResponseMap> = ExpressResponse;
-
-const json = <
-  ResMap extends ResponseMap,
-  Code extends keyof ResMap & number,
-  Content extends ResMap[Code] extends never
-    ? ResMap["default"]["content"]["application/json"]
-    : ResMap[Code]["content"]["application/json"]
->(
-  statusCode: Code,
-  res: ExpressResponse,
-  json: Content extends never ? {} : Required<Content>
-): HandlerResponse<ResMap> => {
-  return res.status(statusCode as number).json(json);
-};
-
-const handlers = {
-  // TODO
-} satisfies HandlerMap;
-
-const apiSpecPath = path.resolve(
-  path.dirname(path.dirname(import.meta.dirname)),
-  "openapi",
-  "openapi.yaml"
-);
-
-const api = new OpenAPIBackend({
-  definition: apiSpecPath,
-  handlers,
-});
-
 app.use("/openapi.yaml", express.static(apiSpecPath));
-
-app.use(/^\/api\//, (req, res) => {
-  api.handleRequest(req as Request, req, res);
-});
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
