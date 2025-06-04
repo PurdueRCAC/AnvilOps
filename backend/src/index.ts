@@ -4,6 +4,9 @@ import session from "express-session";
 import cookieParser from "cookie-parser";
 import getProtectedApiRouter, {SESSION_COOKIE_NAME } from './lib/auth.ts';
 import path from "node:path";
+import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
+import { type operations } from "./generated/openapi.ts";
+
 import dotenv from "dotenv";
 import apiHandler from "./lib/api.ts";
 import connectPgSimple from "connect-pg-simple";
@@ -67,6 +70,8 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
     }
   });
 }
+
+app.use("/openapi.yaml", express.static(apiSpecPath));
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
