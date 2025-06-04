@@ -1,15 +1,13 @@
-import express from "express";
-import { existsSync, statSync } from "node:fs";
-import session from "express-session";
 import cookieParser from "cookie-parser";
-import getProtectedApiRouter, {SESSION_COOKIE_NAME } from './lib/auth.ts';
+import express from "express";
+import session from "express-session";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
-import { type operations } from "./generated/openapi.ts";
+import getProtectedApiRouter, { SESSION_COOKIE_NAME } from './lib/auth.ts';
 
+import connectPgSimple from "connect-pg-simple";
 import dotenv from "dotenv";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
-import connectPgSimple from "connect-pg-simple";
 
 dotenv.config();
 
@@ -46,8 +44,11 @@ app.use(session({
   },
   store: new PgSession({
     conString: DB_URL,
-  })
+  }),
+  proxy: true,
 }));
+
+app.set("trust proxy", true);
 
 const apiRouter = await getProtectedApiRouter();
 apiRouter.use(apiHandler);

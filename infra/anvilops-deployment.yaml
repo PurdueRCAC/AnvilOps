@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-42-154e770ba1a0067e40e8055c854564ed607f7fb6 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-52-c3cc988fd1ff1f9c24ca5091e545aef4e5d504a6 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -49,3 +49,5 @@ spec:
                   key: session-secret
             - name: CALLBACK_URL
               value: https://anvilops.rcac.purdue.edu/api/oauth_callback
+            - name: DEBUG
+              value: "*"
