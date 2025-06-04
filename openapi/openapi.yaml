@@ -13,6 +13,58 @@ tags:
   - name: app
     description: Operations about apps
 paths:
+  /login:
+    get:
+      tags:
+        - user
+      description: Log in user
+      operationId: auth_loginUser
+      responses:
+        '302':
+          description: Redirect to identity provider
+          headers:
+            Location:
+              content:
+                text/plain:
+                  schema:
+                    type: string
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:   
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  
+  /oauth_callback:
+    get:
+      tags:
+        - user
+      description: Handle callback
+      operationId: auth_handleCallback
+      responses:
+        '302':
+          description: Redirect to application
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:   
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /logout:
+    post: 
+      tags:
+        - user
+      description: Logs out current user
+      operationId: auth_logoutUser
+      responses: 
+        '200':
+          description: Success
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:   
+              schema:
+                $ref: "#/components/schemas/ResponseError"
   /user/me:
     get:
       tags:
@@ -52,21 +104,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-  /user/logout:
-    get: 
-      tags:
-        - user
-      description: Logs out current user
-      operationId: logoutUser
-      responses: 
-        '200':
-          description: Success
-        "500":
-          description: Unexpected Error
-          content:
-            application/json:   
-              schema:
-                $ref: "#/components/schemas/ResponseError"
+      
   /user/joinOrg:
       post:
         tags:
@@ -400,6 +438,6 @@ components:
       type: object
       properties:
         code:
-          type: string
+          type: integer
         message:
           type: string
