@@ -8,6 +8,7 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import getProtectedApiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
+import { DATABASE_URL } from "./lib/db.ts";
 
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
   throw new Error("Credentials not set");
@@ -17,10 +18,7 @@ if (!process.env.SESSION_SECRET) {
   throw new Error("Session secret not set");
 }
 
-const DB_URL =
-  process.env.DATABASE_URL ??
-  `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
-if (!DB_URL) {
+if (!DATABASE_URL) {
   throw new Error("Database credentials not set");
 }
 
@@ -44,7 +42,7 @@ app.use(
       httpOnly: true,
     },
     store: new PgSession({
-      conString: DB_URL,
+      conString: DATABASE_URL,
     }),
   })
 );

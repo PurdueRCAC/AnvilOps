@@ -4,6 +4,8 @@ When AnvilOps is built as a Docker image, this Node.js app serves the static fil
 
 ## Setup
 
+### GitHub App
+
 Create a GitHub App with the following settings:
 
 | Setting                                                | Value (local development)                              | Value (production)                                                |
@@ -50,6 +52,15 @@ Add them as environment variables:
 
 - `GITHUB_APP_NAME`: Your app name (derived from the display name that you entered while creating the app)
 - `GITHUB_BASE_URL`: The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
+
+### CILogon
+
+Environment variables:
+
+- `CLIENT_ID`
+- `CLIENT_SECRET`
+- `SESSION_SECRET`: generate a random value, e.g. `openssl rand -hex 32`
+- `CALLBACK_URL`: the URL to redirect to after authorization, e.g. `http://localhost:3000/api/oauth_callback`
 
 ## Running
 

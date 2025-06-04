@@ -4,7 +4,6 @@ import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
-import { githubCallback } from "../handlers/githubCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
 import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
 import { db } from "./db.ts";
@@ -166,7 +165,7 @@ const api = new OpenAPIBackend({
   handlers,
   ajvOpts: { coerceTypes: "array" },
   customizeAjv: (ajv) => {
-    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
+    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64', 'uri-template']});
     return ajv;
   }
 });
