@@ -20,7 +20,7 @@ paths:
       description: Log in user
       operationId: auth_loginUser
       responses:
-        '302':
+        "302":
           description: Redirect to identity provider
           headers:
             Location:
@@ -28,13 +28,13 @@ paths:
                 text/plain:
                   schema:
                     type: string
-        '500':
+        "500":
           description: Unexpected Error
           content:
-            application/json:   
+            application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-  
+
   /oauth_callback:
     get:
       tags:
@@ -42,33 +42,33 @@ paths:
       description: Handle callback
       operationId: auth_handleCallback
       responses:
-        '302':
+        "302":
           description: Redirect to application
-        '500':
+        "500":
           description: Unexpected Error
           content:
-            application/json:   
+            application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
   /logout:
-    post: 
+    post:
       tags:
         - user
       description: Logs out current user
       operationId: auth_logoutUser
-      responses: 
-        '200':
+      responses:
+        "200":
           description: Success
         "500":
           description: Unexpected Error
           content:
-            application/json:   
+            application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
   /user/me:
     get:
       tags:
-      - user
+        - user
       description: Returns the current user
       operationId: getUser
       responses:
@@ -96,7 +96,7 @@ paths:
       #     schema:
       #       type: string
       responses:
-        '200':
+        "200":
           description: User deleted
         "500":
           description: Unexpected Error
@@ -104,40 +104,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-      
+
   /user/joinOrg:
-      post:
-        tags:
-          - user
-          - org
-        description: Adds the current user to an organization
-        operationId: joinOrg
-        requestBody:
-          required: true
+    post:
+      tags:
+        - user
+      description: Adds the current user to an organization
+      operationId: joinOrg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inviteCode:
+                  type: string
+              required:
+                - inviteCode
+      responses:
+        "200":
+          description: Success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  inviteCode:
-                    type: string
-                required:
-                  - inviteCode
-        responses: 
-          '200':
-            description: Success
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/UserOrg"
-          '401':
-            description: Unauthorized
-          "500":
-            description: Unexpected Error
-            content:
-              application/json:   
-                schema:
-                  $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/UserOrg"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
   /org:
     post:
       tags:
@@ -156,18 +155,18 @@ paths:
               required:
                 - name
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserOrg"
-        '500':
-            description: Unexpected Error
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/ResponseError"
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
   /org/me:
     get:
       tags:
@@ -176,7 +175,7 @@ paths:
       description: Get organizations current user belongs to
       operationId: getOrgs
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -184,7 +183,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UserOrg"
-        '500':
+        "500":
           description: Unexpected Error
           content:
             application/json:
@@ -193,28 +192,28 @@ paths:
 
   /org/{orgId}:
     parameters:
-    - name: orgId
-      in: path
-      description: Id of organization to return
-      required: true
-      schema:
-        type: integer
-        format: int64
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
     get:
       tags:
         - org
       description: Get organization by id
       operationId: getOrgByID
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Org"
-        '401':
+        "401":
           description: Unauthorized
-        '404':
+        "404":
           description: Not Found
         "500":
           description: Unexpected Error
@@ -228,11 +227,11 @@ paths:
       description: Deletes organization by id
       operationId: deleteOrgByID
       responses:
-        '200':
+        "200":
           description: Success
-        '401':
+        "401":
           description: Unauthorized
-        '404':
+        "404":
           description: Not Found
         "500":
           description: Unexpected Error
@@ -243,24 +242,24 @@ paths:
 
   /org/{orgId}/code:
     parameters:
-    - name: orgId
-      in: path
-      description: Id of organization to return
-      required: true
-      schema:
-        type: integer
-        format: int64
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
     get:
       tags:
         - org
       description: Get invite code for org
       operationId: getInviteCodeByID
       responses:
-        '200':
+        "200":
           description: Success
-        '401':
+        "401":
           description: Unauthorized
-        '404':
+        "404":
           description: Not Found
         "500":
           description: Unexpected Error
@@ -281,7 +280,7 @@ paths:
             schema:
               $ref: "#/components/schemas/App"
       responses:
-        '200':
+        "200":
           description: Success
         "500":
           description: Unexpected Error
@@ -291,26 +290,26 @@ paths:
                 $ref: "#/components/schemas/ResponseError"
   /app/{appId}:
     parameters:
-        - name: appId
-          in: path
-          description: Id of app to return
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: appId
+        in: path
+        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
     get:
       tags:
         - app
       description: Get app detail by id.
       operationId: getAppByID
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/App"
-        '401':
+        "401":
           description: Unauthorized
         "500":
           description: Unexpected Error
@@ -330,9 +329,9 @@ paths:
             schema:
               $ref: "#/components/schemas/App"
       responses:
-        '200':
+        "200":
           description: Success
-        '401':
+        "401":
           description: Unauthorized
         "500":
           description: Unexpected Error
@@ -346,9 +345,9 @@ paths:
       description: Delete an app.
       operationId: deleteApp
       responses:
-        '200':
+        "200":
           description: Success
-        '401':
+        "401":
           description: Unauthorized
         "500":
           description: Unexpected Error
@@ -389,7 +388,7 @@ components:
         - email
         - name
         - org
-    
+
     Org:
       type: object
       properties:
