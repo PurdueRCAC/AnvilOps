@@ -100,6 +100,7 @@ const getRouter = async () => {
         const loggedIn = req.isAuthenticated && req.isAuthenticated();
         if (!loggedIn) {
             res.sendStatus(401);
+            return;
         }
         next();
     })
