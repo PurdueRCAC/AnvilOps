@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 
-export default function CreateProjectView(this: any) {
+export default function CreateAppView(this: any) {
     return <div className='w-screen h-screen flex flex-col items-center justify-center'>
         <div className="w-3/4 lg:w-1/3 min-h-1/2 md:min-h-3/4 bg-neutral-1 rounded-2xl shadow-md shadow-neutral-3 flex justify-center">  
             <form className="space-y-8 w-3/4 h-full flex flex-col justify-center items-center" onSubmit={() => {console.log('submit')}}>

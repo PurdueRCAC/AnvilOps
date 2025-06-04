@@ -23,7 +23,7 @@ export async function projectLoader({ params }: LoaderFunctionArgs) : Promise<Pr
   return res.json();
 }
 
-export default function ProjectView() {
+export default function AppView() {
     // const project = useLoaderData();
     const project: Project = {
         name: 'My Project',
