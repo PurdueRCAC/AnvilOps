@@ -1,4 +1,5 @@
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState, verifyState } from "./githubAppInstall.ts";
@@ -12,7 +13,7 @@ import { createState, verifyState } from "./githubAppInstall.ts";
  * the installation ID can be linked to the organization and the user access token can be discarded.
  */
 export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
-  async (ctx, req, res) => {
+  async (ctx, req: AuthenticatedRequest, res) => {
     const state = ctx.request.query.state;
     const installationId = ctx.request.query.installation_id;
 
@@ -24,16 +25,15 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
       orgId = parsed.orgId;
     } catch (e) {
       return json(500, res, {
-        code: "500",
+        code: 500,
         message: "Failed to verify `state`",
       });
     }
 
     // 2) Verify the user ID hasn't changed
-    const currentUserId = -1; // <-- TODO
-    if (userId !== currentUserId) {
+    if (userId !== req.user.id) {
       return json(401, res, {
-        code: "500",
+        code: 500,
         message:
           "You signed in to a different account while connecting your GitHub account!",
       });
@@ -55,7 +55,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
 
     if (org === null) {
       return json(500, res, {
-        code: "500",
+        code: 500,
         message: "Couldn't find the requested organization",
       });
     }

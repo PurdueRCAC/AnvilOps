@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 
@@ -20,17 +21,16 @@ import { json, redirect, type HandlerMap } from "../types.ts";
  */
 export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   ctx,
-  req,
+  req: AuthenticatedRequest,
   res
 ) => {
-  const userId = -1; // TODO
   const orgId = ctx.request.params.orgId;
   const org = await db.organization.findUnique({
     where: {
       id: orgId,
       users: {
         some: {
-          userId,
+          userId: req.user.id,
           permissionLevel: {
             in: [PermissionLevel.OWNER],
           },
@@ -48,10 +48,10 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
 
   let state: string;
   try {
-    state = await createState(userId, orgId);
+    state = await createState(req.user.id, orgId);
   } catch (e) {
     return json(500, res, {
-      code: "500",
+      code: 500,
       message: "Failed to initialize `state`",
     });
   }

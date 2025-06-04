@@ -1,6 +1,7 @@
 import { createOAuthUserAuth } from "@octokit/auth-oauth-user";
 import { Octokit } from "octokit";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { verifyState } from "./githubAppInstall.ts";
@@ -15,7 +16,7 @@ import { verifyState } from "./githubAppInstall.ts";
  */
 export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   ctx,
-  req,
+  req: AuthenticatedRequest,
   res
 ) => {
   const state = ctx.request.query.state;
@@ -28,13 +29,11 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
     userId = parsed.userId;
     orgId = parsed.orgId;
   } catch (e) {
-    return json(500, res, { code: "500", message: "Failed to verify `state`" });
+    return json(500, res, { code: 500, message: "Failed to verify `state`" });
   }
 
   // 2) Verify that the user ID hasn't changed
-  const currentUserId = -1; // <-- TODO
-
-  if (userId !== currentUserId) {
+  if (userId !== req.user.id) {
     return json(401, res, {
       code: "401",
       message:
@@ -68,7 +67,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
 
   if (!org?.newInstallationId) {
     return json(500, res, {
-      code: "500",
+      code: 500,
       message: "Failed to look up Installation ID",
     });
   }

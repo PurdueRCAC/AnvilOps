@@ -11,7 +11,7 @@ import { db } from "./db.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 
-type AuthenticatedRequest = ExpressRequest & {
+export type AuthenticatedRequest = ExpressRequest & {
   user: {
     id: number,
     email?: string,
