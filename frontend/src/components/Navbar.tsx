@@ -5,13 +5,14 @@ import { DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { UserContext } from "./UserProvider";
 import React from "react";
-import { OrgApi } from "@/generated/openapi/apis";
-import { type UserOrg } from '@/generated/openapi/models'
+import { OrgApi, UserApi } from "@/generated/openapi/apis";
+import { type UserOrg, type ApiError } from '@/generated/openapi/models'
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { ResponseError } from "@/generated/openapi/runtime";
 
 export default function Navbar() {
-    const { user, setUser } = React.useContext(UserContext);
+    const { user, setUser, loading } = React.useContext(UserContext);
     const [orgs, setOrgs] = React.useState<UserOrg[] | null>(null);
     React.useEffect(() => {
         (async () => {
@@ -20,17 +21,28 @@ export default function Navbar() {
                 const orgs = await orgApi.getOrgs();
                 setOrgs(orgs);
             } catch (e) {
-                if (e instanceof Error) {
-                    toast("Nav: " + e.message, {
+                if (e instanceof ResponseError) {
+                    const response = e.response;
+                    if (response.status !== 401) {
+                        const apiErr = (await response.json()) as ApiError;
+                        toast("User: " + apiErr.message, {
+                            action: {
+                                label: 'Close',
+                                onClick: () => { },
+                            }
+                        });
+                    }
+                } else {
+                    toast("User: Something went wrong.", {
                         action: {
                             label: 'Close',
-                            onClick: () => {},
+                            onClick: () => { }
                         }
-                    })
+                    });
                 }
             }
         })();
-    }, [user]);
+    }, [loading]);
 
     const handleSelect = async (value: string) => {
         const orgId = parseInt(value);
@@ -39,7 +51,7 @@ export default function Navbar() {
             toast("Something went wrong", {
                 action: {
                     label: 'Close',
-                    onClick: () => {}
+                    onClick: () => { }
                 }
             });
             return;
@@ -50,34 +62,43 @@ export default function Navbar() {
         }) : null);
     };
 
-    return <div className="sticky top-0 left-0 w-full flex justify-end gap-5 pr-5">
-        { user ? 
-            <>
-            <Select defaultValue={user?.org.id.toString()} onValueChange={handleSelect}>
-                <SelectTrigger className='p-6'>
-                    <SelectValue placeholder='My Organizations'/>
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        {orgs?.map(
-                            org => <SelectItem
-                                    value={org.id.toString()}
-                                    >{org.name}</SelectItem>)}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
+    if (loading) {
+        return
+    }
 
-            <DropdownMenu>
-                <DropdownMenuTrigger>
-                    <img src={defaultPfp} alt='My Account Options' className='w-12 h-12'/>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuItem>My Organizations</DropdownMenuItem>
-                    <DropdownMenuItem>Log Out</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+    return <div className="sticky top-0 left-0 w-full flex justify-end gap-5 pr-5">
+        {user ?
+            <>
+                <Select defaultValue={user?.org.id.toString()} onValueChange={handleSelect}>
+                    <SelectTrigger className='p-6'>
+                        <SelectValue placeholder='My Organizations' />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            {orgs ? orgs.map(
+                                org => <SelectItem
+                                    value={org.id.toString()}
+                                >{org.name}</SelectItem>)
+                                : null}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger>
+                        <img src={defaultPfp} alt='My Account Options' className='w-12 h-12' />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem>My Organizations</DropdownMenuItem>
+                        <form action='/api/logout' method='POST'>
+                            <Button type='submit'>Sign Out</Button>
+                        </form>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </>
-        : <Link to='/sign-in'><Button>Sign In</Button></Link>
+            : <form action='/api/login' method='GET'>
+                <Button>Sign In</Button>
+            </form>
         }
     </div>
 }

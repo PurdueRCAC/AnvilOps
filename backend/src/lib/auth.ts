@@ -99,7 +99,7 @@ const getRouter = async () => {
     router.use((req, res, next) => {
         const loggedIn = req.isAuthenticated && req.isAuthenticated();
         if (!loggedIn) {
-            return res.sendStatus(401);
+            return res.status(401).json({ code: 401, message: "Not authenticated" });
         }
         return next();
     })
