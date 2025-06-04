@@ -45,10 +45,9 @@ app.use(session({
   store: new PgSession({
     conString: DB_URL,
   }),
-  proxy: true,
 }));
 
-app.set("trust proxy", true);
+app.set("trust proxy", ['loopback', 'linklocal', 'uniquelocal']);
 
 const apiRouter = await getProtectedApiRouter();
 apiRouter.use(apiHandler);
