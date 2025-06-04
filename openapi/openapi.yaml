@@ -33,7 +33,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /oauth_callback:
     get:
       tags:
@@ -48,7 +48,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /logout:
     post:
       tags:
@@ -63,7 +63,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /github/installation-callback:
     get:
       description: GitHub installation callback URL. Users are redirected here after they install the app. Then, we redrect them back to GitHub to generate a user access token to verify that they have access to the installation that they're requesting to link with their organization.
@@ -92,7 +92,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /github/oauth2-callback:
     get:
       description: GitHub user authorization callback URL. Users are redirected here after they sign in with GitHub. This endpoint checks that they have access to the installation ID that they're trying to link to their organization and then saves that info in our DB.
@@ -122,7 +122,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /github/webhook:
     post:
       description: GitHub App webhooks (see https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events) for more info
@@ -199,7 +199,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /user/me:
     get:
       tags:
@@ -218,7 +218,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
     delete:
       tags:
         - user
@@ -238,7 +238,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
 
   /user/joinOrg:
     post:
@@ -272,7 +272,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /org:
     post:
       tags:
@@ -302,7 +302,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /org/me:
     get:
       tags:
@@ -324,7 +324,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
 
   /org/{orgId}:
     parameters:
@@ -356,7 +356,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
     delete:
       tags:
         - org
@@ -374,7 +374,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
 
   /org/{orgId}/install-github-app:
     get:
@@ -400,7 +400,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
 
   /org/{orgId}/code:
     parameters:
@@ -428,7 +428,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /app:
     post:
       tags:
@@ -449,7 +449,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
   /app/{appId}:
     parameters:
       - name: appId
@@ -478,7 +478,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
     put:
       tags:
         - app
@@ -500,7 +500,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
     delete:
       tags:
         - app
@@ -516,7 +516,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResponseError"
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     UserOrg:
@@ -595,7 +595,7 @@ components:
           format: int64
         dockerfilePath:
           type: string
-    ResponseError:
+    ApiError:
       type: object
       properties:
         code:
