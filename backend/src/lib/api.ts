@@ -7,7 +7,7 @@ import addFormats from "ajv-formats";
 
 type OptionalPromise<T> = void | Promise<T>;
 
-type apiOperations = Exclude<operations, { [key: `auth${string}`] : any }>;
+type apiOperations = {[K in keyof operations as K extends `auth${string}` ? never : K] : operations[K]};
 type HandlerMap = {
   [O in keyof apiOperations]: (
     ctx: Context<
@@ -186,17 +186,19 @@ const handlers = {
   },
 } satisfies HandlerMap;
 
+export const openApiSpecPath = path.resolve(
+  path.dirname(path.dirname(import.meta.dirname)),
+  "..",
+  "openapi",
+  "openapi.yaml"
+);
+
 const api = new OpenAPIBackend({
-  definition: path.resolve(
-    path.dirname(path.dirname(import.meta.dirname)),
-    "..",
-    "openapi",
-    "openapi.yaml"
-  ),
+  definition: openApiSpecPath,
   handlers,
   ajvOpts: { coerceTypes: "array" },
   customizeAjv: (ajv) => {
-    addFormats(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
+    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
     return ajv;
   }
 });

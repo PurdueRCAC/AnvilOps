@@ -1,8 +1,8 @@
-import passport from "passport";
 import express from "express";
-import { type User } from '../generated/prisma/client.ts';
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
+import passport from "passport";
+import { type User } from '../generated/prisma/client.ts';
 import { db } from "./db.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
@@ -99,9 +99,9 @@ const getRouter = async () => {
     router.use((req, res, next) => {
         const loggedIn = req.isAuthenticated && req.isAuthenticated();
         if (!loggedIn) {
-            return res.sendStatus(401);
+            res.sendStatus(401);
         }
-        return next();
+        next();
     })
 
     return router;

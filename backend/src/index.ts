@@ -8,7 +8,7 @@ import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type operations } from "./generated/openapi.ts";
 
 import dotenv from "dotenv";
-import apiHandler from "./lib/api.ts";
+import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import connectPgSimple from "connect-pg-simple";
 
 dotenv.config();
@@ -71,7 +71,7 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   });
 }
 
-app.use("/openapi.yaml", express.static(apiSpecPath));
+app.use("/openapi.yaml", express.static(openApiSpecPath));
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
