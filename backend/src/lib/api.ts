@@ -162,7 +162,12 @@ export const openApiSpecPath = path.resolve(
 
 const api = new OpenAPIBackend({
   definition: openApiSpecPath,
-  handlers,
+  handlers: {
+    ...handlers,
+    validationFail: (ctx, req, res) => {
+      return res.status(400).json({ code:400, message: "Request validation failed", errors: ctx.validation.errors });
+    }
+  },
   ajvOpts: { coerceTypes: "array" },
   coerceTypes: true,
   customizeAjv: (ajv) => {
