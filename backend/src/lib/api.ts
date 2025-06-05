@@ -35,7 +35,8 @@ const handlers = {
         }
       });
     } catch (e) {
-      json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
   getOrgs: async function (ctx: Context, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["UserOrg"][]; }; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
@@ -54,21 +55,23 @@ const handlers = {
       const result = orgs.map(o => ({ id: o.id, name: o.name, isOwner: o.users[0].permissionLevel === 'OWNER' }));
       return json(200, res, result);
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  deleteUser: async function (ctx: Context, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  deleteUser: async function (ctx: Context, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     try {
-      await db.user.delete({ where: { id: 1 } });
+      await db.user.delete({ where: { id: req.user.id } });
       return res.status(200);
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  joinOrg: async function (ctx: Context<{ content: { "application/json": { inviteCode: string; }; }; }, never>, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["UserOrg"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  joinOrg: async function (ctx: Context<{ content: { "application/json": { inviteCode: string; }; }; }, never>, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["UserOrg"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
-  createOrg: async function (ctx: Context<{ content: { "application/json": { name: string; }; }; }, never>, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["Org"]; }; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  createOrg: async function (ctx: Context<{ content: { "application/json": { name: string; }; }; }, never>, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["Org"]; }; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     const orgName = ctx.request.requestBody.content["application/json"].name;
     try {
       const result = await db.organization.create({
@@ -78,7 +81,7 @@ const handlers = {
             create: {
               permissionLevel: 'OWNER',
               user: {
-                connect: { id: 1 }
+                connect: { id: req.user.id }
               }
             }
           }
@@ -90,14 +93,27 @@ const handlers = {
         isOwner: true,
       });
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  getOrgByID: async function (ctx: Context<{ orgId: number; }>, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["Org"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  getOrgByID: async function (ctx: Context<{ orgId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["Org"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     try {
-      const orgId = Number(ctx.request.params.orgId);
-      const result = await db.organization.findUnique({ where: { id: orgId } });
-      if (!result) return json(500, res, { code: 500, message: "Not found" });
+      const orgId: number = ctx.request.params.orgId;
+      const result = await db.organization.findFirst({
+        where: {
+          id: orgId,
+          users: {
+            some: {
+              userId: req.user.id,
+            }
+          }
+        }
+      });
+
+      if (!result) {
+        return json(401, res, {});
+      }
 
       const apps = await db.app.findMany({ where: { orgId } });
       return res.status(200).json({
@@ -106,45 +122,80 @@ const handlers = {
         apps
       });
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  deleteOrgByID: async function (ctx: Context<{ orgId: number; }>, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  deleteOrgByID: async function (ctx: Context<{ orgId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     try {
       const orgId = ctx.request.params.orgId;
+      const result = await db.organization.findFirst({
+        where: {
+          id: orgId,
+          users: {
+            some: {
+              userId: req.user.id,
+              permissionLevel: "OWNER",
+            }
+          }
+        }
+      });
+
+      if (!result) {
+        return json(401, res, {});
+      }
+
       await db.organization.delete({ where: { id: orgId } });
 
       await db.app.deleteMany({ where: { orgId } });
+
+      // TODO: delete resources
+
       return res.status(200);
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  getInviteCodeByID: function (ctx: Context<{ orgId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  getInviteCodeByID: function (ctx: Context<{ orgId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
-  getAppByID: async function (ctx: Context<{ appId: number; }>, req: ExpressRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["App"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  getAppByID: async function (ctx: Context<{ appId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): Promise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["App"]; }; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     try {
       const appId = ctx.request.params.appId;
-      const result = await db.app.findUnique({ where: { id: appId } });
-      if (!result) return res.status(404);
+      const app = await db.app.findUnique({ where: { id: appId } });
+      if (!app) return json(401, res, {});
+
+      const organization = await db.organization.findFirst({
+        where: {
+          id: app.orgId,
+          users: {
+            some: {
+              userId: req.user.id,
+            }
+          }
+        }
+      });
+
+      if (!organization) return json(401, res, {});
 
       return json(200, res, {
-        ...result,
-        createdAt: result.createdAt.toISOString(),
-        updatedAt: result.updatedAt.toISOString(),
+        ...app,
+        createdAt: app.createdAt.toISOString(),
+        updatedAt: app.updatedAt.toISOString(),
       });
     } catch (e) {
-      return json(500, res, { code: 500, message: (e as Error).message });
+      console.log((e as Error).message);
+      return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  createApp: function (ctx: Context<{ content: { "application/json": components["schemas"]["App"]; }; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  createApp: function (ctx: Context<{ content: { "application/json": components["schemas"]["App"]; }; }>, req: AuthenticatedRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
-  updateApp: function (ctx: Context<{ content: { "application/json": components["schemas"]["App"]; }; }, { appId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  updateApp: function (ctx: Context<{ content: { "application/json": components["schemas"]["App"]; }; }, { appId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
-  deleteApp: function (ctx: Context<never, { appId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
+  deleteApp: function (ctx: Context<never, { appId: number; }>, req: AuthenticatedRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ApiError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
   githubWebhook,
@@ -162,10 +213,24 @@ export const openApiSpecPath = path.resolve(
 
 const api = new OpenAPIBackend({
   definition: openApiSpecPath,
-  handlers,
+  handlers: {
+    ...handlers,
+
+    validationFail: (ctxt, req, res) => {
+      return res.status(400).json({ code: 400, message: "Bad input" });
+    },
+
+    methodNotAllowed: (ctxt, req, res) => {
+      return res.status(405).json({ code: 405, message: "Method not allowed" });
+    },
+
+    notImplemented: (ctxt, req, res) => {
+      return res.status(404).json({ code: 404, message: "No such method" });
+    }
+  },
   ajvOpts: { coerceTypes: "array" },
   customizeAjv: (ajv) => {
-    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64', 'uri-template']});
+    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64', 'uri-template'] });
     return ajv;
   }
 });
