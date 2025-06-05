@@ -4,6 +4,7 @@ frontend/src/generated
 
 backend/node_modules
 backend/src/generated
+backend/.env
 
 openapi/node_modules
 

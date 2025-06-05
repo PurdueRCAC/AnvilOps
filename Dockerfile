@@ -29,6 +29,7 @@ FROM base AS backend_deps
 
 WORKDIR /app
 COPY backend/package*.json .
+COPY backend/patches/ ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 # BACKEND: generate TypeScript types from OpenAPI spec
@@ -63,11 +64,11 @@ WORKDIR /app
 COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
 COPY --from=backend_deps /app/node_modules ./node_modules
-COPY openapi/openapi.yaml /openapi/openapi.yaml
+COPY openapi/*.yaml /openapi/
 COPY --from=backend_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY --from=backend_build /app/src/generated/prisma ./src/generated/prisma
 COPY backend .
 
 RUN npx tsc --noEmit
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "start:prod"]

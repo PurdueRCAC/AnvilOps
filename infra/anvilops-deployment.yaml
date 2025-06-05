@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-54-c8995bddb2ed9ff2ef39be3d35814b3267b9957d # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-57-f8f4e1c0c8c2f1fdfc8c96526e8cb27e29190f1a # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -22,7 +22,7 @@ spec:
               protocol: TCP
           resources:
             requests:
-              memory: 512Gi
+              memory: 512Mi
               cpu: 512m
             limits:
               memory: 1Gi
@@ -74,7 +74,7 @@ spec:
             - name: GITHUB_BASE_URL
               value: https://github.rcac.purdue.edu
             - name: GITHUB_APP_NAME
-              value: anvilops-development
+              value: anvilops
             - name: GITHUB_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

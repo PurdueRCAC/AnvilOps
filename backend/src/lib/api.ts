@@ -216,19 +216,20 @@ const api = new OpenAPIBackend({
   handlers: {
     ...handlers,
 
-    validationFail: (ctxt, req, res) => {
-      return res.status(400).json({ code: 400, message: "Bad input" });
-    },
-
     methodNotAllowed: (ctxt, req, res) => {
       return res.status(405).json({ code: 405, message: "Method not allowed" });
     },
 
     notImplemented: (ctxt, req, res) => {
       return res.status(404).json({ code: 404, message: "No such method" });
+    },
+    
+    validationFail: (ctx, req, res) => {
+      return res.status(400).json({ code:400, message: "Request validation failed", errors: ctx.validation.errors });
     }
   },
   ajvOpts: { coerceTypes: "array" },
+  coerceTypes: true,
   customizeAjv: (ajv) => {
     addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64', 'uri-template'] });
     return ajv;

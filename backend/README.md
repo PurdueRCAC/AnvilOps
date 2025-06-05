@@ -13,10 +13,11 @@ Create a GitHub App with the following settings:
 | Homepage URL                                           | http://localhost:5173                                  | https://anvilops.rcac.purdue.edu                                  |
 | Callback URL                                           | http://localhost:5173/api/github/oauth2-callback       | https://anvilops.rcac.purdue.edu/api/github/oauth2-callback       |
 | Expire user authentication tokens                      | Yes                                                    | Yes                                                               |
-| Request user authorization (OAuth) during installation | Yes                                                    | Yes                                                               |
+| Request user authorization (OAuth) during installation | No                                                     | No                                                                |
 | Setup URL                                              | http://localhost:5173/api/github/installation-callback | https://anvilops.rcac.purdue.edu/api/github/installation-callback |
 | Webhook: Active                                        | Yes                                                    | Yes                                                               |
 | Webhook URL                                            | See note below                                         | https://anvilops.rcac.purude.edu/api/github-webhook               |
+| Redirect on Update                                     | No                                                     | No                                                                |
 
 Note on webhook URLs in development: To receive webhook payloads, you will need to create a publicly-accessible URL that forwards to your machine. The GitHub docs recommend using [`smee`](https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events#get-a-webhook-proxy-url) for this, or you could also use [`ngrok`](https://ngrok.com/) (account required).
 
@@ -61,6 +62,16 @@ Environment variables:
 - `CLIENT_SECRET`
 - `SESSION_SECRET`: generate a random value, e.g. `openssl rand -hex 32`
 - `CALLBACK_URL`: the URL to redirect to after authorization, e.g. `http://localhost:3000/api/oauth_callback`
+
+### Postgres
+
+Set the `DATABASE_URL` environment variable to a valid PostgreSQL connection string, including the username and password. In production, set the `password` key in the `postgres-password` secret. AnvilOps will attempt to connect to a database at the `anvilops-postgres` hostname with `anvilops` as the username and database name.
+
+If you need a temporary Postgres database, create one with Docker:
+
+```sh
+docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRES_USER=anvilops -e POSTGRES_PASSWORD=password postgres
+```
 
 ## Running
 
