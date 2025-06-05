@@ -2,9 +2,9 @@ import Navbar from './components/Navbar'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import LandingView from './pages/LandingView'
 import DashboardView from './pages/DashboardView'
-import ProjectView from './pages/ProjectView'
-import SignUpView from './pages/SignUpView'
-import CreateProjectView from './pages/CreateProjectView'
+import AppView from './pages/AppView'
+import SignInView from './pages/SignInView'
+import CreateAppView from './pages/CreateAppView';
 import UserProvider, { UserContext } from './components/UserProvider'
 import { Toaster } from './components/ui/sonner'
 import { useContext } from 'react'
@@ -12,50 +12,51 @@ function App() {
 
   return (
     <>
-    <UserProvider>
-      <Navbar/>
+      <UserProvider>
+        <Navbar />
         <Routes>
           <Route
-            path='/'
-            element={<LandingView/>}
+            path='/' 
+            element={<LandingView />}
           />
           <Route
             path='/dashboard'
             element={
-              <RequireAuth redirectTo='/sign-up'>
-                <DashboardView/>
+              <RequireAuth redirectTo='/sign-in'>
+                <DashboardView />
               </RequireAuth>
             }
           />
           <Route
-            path='/project/:id'
+            path='/app/:id'
             element={
-            <RequireAuth redirectTo='sign-up'>
-              <ProjectView/>
-            </RequireAuth>
+              <RequireAuth redirectTo='/sign-in'>
+              <AppView />
+              </RequireAuth>
             }
           />
           <Route
-            path='/sign-up'
-            element={<SignUpView/>}
-            />
+            path='/sign-in'
+            element={<SignInView />}
+          />
           <Route
-            path='/create-project'
+            path='/create-app'
             element={
-              <RequireAuth redirectTo='sign-up'>
-              <CreateProjectView/>
-            </RequireAuth>
+              <RequireAuth redirectTo='/sign-in'>
+                <CreateAppView />
+              </RequireAuth>
             }
-            />
+          />
         </Routes>
       </UserProvider>
-      <Toaster/>
+      <Toaster />
     </>
   )
 }
 
-function RequireAuth({ children, redirectTo } : { children: React.ReactNode, redirectTo: string}) {
-  const { user } = useContext(UserContext);
-  return user ? children : <Navigate to={redirectTo}/>
+function RequireAuth({ children, redirectTo }: { children: React.ReactNode, redirectTo: string }) {
+  const { user, loading } = useContext(UserContext);
+  if (loading) return null;
+  return user ? children : <Navigate to={redirectTo} />
 }
 export default App;

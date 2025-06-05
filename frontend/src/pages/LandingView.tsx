@@ -8,6 +8,6 @@ export default function LandingView() {
             infrastructure on demand. This cloud-style flexibility provides researchers 
             the ability to self-deploy and manage persistent services to complement HPC 
             workflows and run container-based data analysis tools and applications.</p>
-        <a href='/sign-up'><Button>Deploy Now</Button></a>
+        <a href='/sign-in'><Button>Deploy Now</Button></a>
     </div>
 }
