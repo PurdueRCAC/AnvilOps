@@ -64,7 +64,7 @@ WORKDIR /app
 COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
 COPY --from=backend_deps /app/node_modules ./node_modules
-COPY openapi/openapi.yaml /openapi/openapi.yaml
+COPY openapi/*.yaml /openapi/
 COPY --from=backend_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY --from=backend_build /app/src/generated/prisma ./src/generated/prisma
 COPY backend .
