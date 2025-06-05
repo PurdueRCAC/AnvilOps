@@ -1,0 +1,26 @@
+diff --git a/node_modules/openapi-backend/backend.js b/node_modules/openapi-backend/backend.js
+index 1c13bb5..3ebad56 100644
+--- a/node_modules/openapi-backend/backend.js
++++ b/node_modules/openapi-backend/backend.js
+@@ -324,6 +324,8 @@ class OpenAPIBackend {
+                 // parse request again now with coerced types, if needed
+                 if (this.validator.coerceTypes) {
+                     context.request = this.router.parseRequest(context.validation.coerced, context.operation);
++                    context.request.params = context.validation.coerced.params;
++                    context.request.query = context.validation.coerced.query;
+                 }
+             }
+             // get operation handler
+diff --git a/node_modules/openapi-backend/router.js b/node_modules/openapi-backend/router.js
+index 934db66..b8b1ed0 100644
+--- a/node_modules/openapi-backend/router.js
++++ b/node_modules/openapi-backend/router.js
+@@ -223,7 +223,7 @@ class OpenAPIRouter {
+         const cookieHeader = headers['cookie'];
+         const cookies = cookie.parse(_.flatten([cookieHeader]).join('; '));
+         // parse query
+-        const queryString = typeof req.query === 'string' ? req.query.replace('?', '') : req.path.split('?')[1];
++        const queryString = typeof req.query === 'string' ? req.query.replace('?', '') : typeof req.query === 'object' ? new URLSearchParams(req.query) : req.path.split('?')[1];
+         const query = typeof req.query === 'object' ? _.cloneDeep(req.query) : (0, qs_1.parse)(queryString);
+         // normalize
+         req = this.normalizeRequest(req);
