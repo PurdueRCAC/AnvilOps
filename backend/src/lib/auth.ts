@@ -4,6 +4,7 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 import passport from "passport";
 import { type User } from '../generated/prisma/client.ts';
 import { db } from "./db.ts";
+import { PermissionLevel } from "../generated/prisma/enums.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 
@@ -32,7 +33,7 @@ const getRouter = async () => {
                         ciLogonUserId: sub,
                         orgs: {
                             create: {
-                                permissionLevel: 'USER',
+                                permissionLevel: PermissionLevel.OWNER,
                                 organization: {
                                     create: {
                                         name: `${name || email as string || sub}'s Apps`
