@@ -1,0 +1,30 @@
+diff --git a/node_modules/openapi-backend/backend.js b/node_modules/openapi-backend/backend.js
+index 1c13bb5..831adda 100644
+--- a/node_modules/openapi-backend/backend.js
++++ b/node_modules/openapi-backend/backend.js
+@@ -336,6 +336,12 @@ class OpenAPIBackend {
+                 }
+                 return notImplementedHandler(context, ...handlerArgs);
+             }
++            
++            if (this.validator.coerceTypes) {
++                context.request.query = context.validation.coerced.query;
++                context.request.params = context.validation.coerced.params;
++            }
++            
+             // handle route
+             return routeHandler(context, ...handlerArgs);
+         }).bind(this)();
+diff --git a/node_modules/openapi-backend/validation.js b/node_modules/openapi-backend/validation.js
+index 914a03e..a72fe5e 100644
+--- a/node_modules/openapi-backend/validation.js
++++ b/node_modules/openapi-backend/validation.js
+@@ -174,7 +174,7 @@ class OpenAPIValidator {
+      * @memberof OpenAPIRequestValidator
+      */
+     validateRequest(req, operation) {
+-        const result = { valid: true, coerced: { ...req } };
++        const result = { valid: true, coerced: { ...req, path: req.path } };
+         result.errors = [];
+         if (!operation) {
+             operation = this.router.matchOperation(req);

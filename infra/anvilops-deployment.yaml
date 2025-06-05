@@ -20,6 +20,13 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          resources:
+            requests:
+              memory: 512Gi
+              cpu: 512m
+            limits:
+              memory: 1Gi
+              cpu: 1024m
           env:
             - name: POSTGRES_USER
               value: anvilops
@@ -49,5 +56,29 @@ spec:
                   key: session-secret
             - name: CALLBACK_URL
               value: https://anvilops.rcac.purdue.edu/api/oauth_callback
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: webhook-secret
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: client-id
+            - name: GITHUB_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: private-key
+            - name: GITHUB_BASE_URL
+              value: https://github.rcac.purdue.edu
+            - name: GITHUB_APP_NAME
+              value: anvilops
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: client-secret
             - name: DEBUG
               value: "*"

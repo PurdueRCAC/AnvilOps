@@ -34,7 +34,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponseError"
-
   /oauth_callback:
     get:
       tags:
@@ -61,6 +60,147 @@ paths:
           description: Success
         "500":
           description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /github/installation-callback:
+    get:
+      description: GitHub installation callback URL. Users are redirected here after they install the app. Then, we redrect them back to GitHub to generate a user access token to verify that they have access to the installation that they're requesting to link with their organization.
+      operationId: githubInstallCallback
+      parameters:
+        - name: state
+          in: query
+          description: The content that we provided in the `state` query parameter when redirecting to GitHub. Used to link the installation ID to the correct organization.
+          required: true
+          schema:
+            type: string
+        - name: installation_id
+          in: query
+          description: An identifier that allows us to authenticate with the GitHub API as our GitHub App and access the repositories that the person who installed the app has granted us access to.
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: setup_action
+          in: query
+          description: Should be set to "install".
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Success (redirecting back to GitHub for user authorization)
+        "401":
+          description: User IDs don't match (the user signed in to a new account in the middle of the installation flow)
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /github/oauth2-callback:
+    get:
+      description: GitHub user authorization callback URL. Users are redirected here after they sign in with GitHub. This endpoint checks that they have access to the installation ID that they're trying to link to their organization and then saves that info in our DB.
+      operationId: githubOAuthCallback
+      parameters:
+        - name: state
+          in: query
+          description: The content that we provided in the `state` query parameter when redirecting to GitHub. Used to link the installation ID to the correct organization.
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          description: A code that we exchange with GitHub for a user access token.
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Success (redirecting back to the frontend)
+        "401":
+          description: User IDs don't match (the user signed in to a new account in the middle of the authorization flow)
+        "403":
+          description: Forbidden (invalid state or code)
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+  /github/webhook:
+    post:
+      description: GitHub App webhooks (see https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events) for more info
+      operationId: githubWebhook
+      parameters:
+        # Taken from https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.16/ghes-3.16.yaml under /x-webhooks/push/post/parameters
+        - name: User-Agent
+          in: header
+          example: GitHub-Hookshot/123abc
+          schema:
+            type: string
+        - name: X-Github-Hook-Id
+          in: header
+          example: 12312312
+          schema:
+            type: string
+        - name: X-Github-Event
+          in: header
+          example: issues
+          schema:
+            type: string
+        - name: X-Github-Hook-Installation-Target-Id
+          in: header
+          example: 123123
+          schema:
+            type: string
+        - name: X-Github-Hook-Installation-Target-Type
+          in: header
+          example: repository
+          schema:
+            type: string
+        - name: X-GitHub-Delivery
+          in: header
+          example: 0b989ba4-242f-11e5-81e1-c7b6966d2516
+          schema:
+            type: string
+        - name: X-Hub-Signature-256
+          in: header
+          example: sha256=6dcb09b5b57875f334f61aebed695e2e4193db5e
+          schema:
+            type: string
+        - name: X-GitHub-Enterprise-Version
+          in: header
+          example: 3.1.9
+          schema:
+            type: string
+        - name: X-GitHub-Enterprise-Host
+          in: header
+          example: ghes.github.com
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-push"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-created"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-deleted"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-renamed"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-transferred"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-deleted"
+      responses:
+        "200":
+          description: Success
+        "401":
+          description: Signature was not found (X-Hub-Signature-256 header not present)
+        "403":
+          description: Signature verification failed
+        "422":
+          description: Unknown webhook event type
+        "500":
+          description: Unexpected error
           content:
             application/json:
               schema:
@@ -235,6 +375,32 @@ paths:
           description: Not Found
         "500":
           description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponseError"
+
+  /org/{orgId}/install-github-app:
+    get:
+      description: Redirect to GitHub to install the GitHub App on the user's organization
+      operationId: githubAppInstall
+      parameters:
+        - name: orgId
+          description: The ID of the organization to connect the app installation to.
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "302":
+          description: Redirect
+        "401":
+          description: Unauthorized
+        "404":
+          description: Organization not found
+        "500":
+          description: Unexpected error
           content:
             application/json:
               schema:

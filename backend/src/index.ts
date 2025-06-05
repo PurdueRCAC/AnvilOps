@@ -1,26 +1,28 @@
+import bodyParser from "body-parser";
+import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import express from "express";
 import session from "express-session";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import getProtectedApiRouter, { SESSION_COOKIE_NAME } from './lib/auth.ts';
-
-import connectPgSimple from "connect-pg-simple";
-import dotenv from "dotenv";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
+import getProtectedApiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
+import { DATABASE_URL } from "./lib/db.ts";
+
+import dotenv from "dotenv";
 
 dotenv.config();
 
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
-    throw new Error("Credentials not set");
+  throw new Error("Credentials not set");
 }
 
 if (!process.env.SESSION_SECRET) {
   throw new Error("Session secret not set");
 }
 
-const DB_URL = process.env.DATABASE_URL ?? `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
-if (!DB_URL) {
+if (!DATABASE_URL) {
   throw new Error("Database credentials not set");
 }
 
@@ -31,27 +33,29 @@ const port = 3000;
 app.use(cookieParser());
 
 const PgSession = connectPgSimple(session);
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  name: SESSION_COOKIE_NAME,
-  cookie: {
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: 'lax',
-    maxAge: 18 * 60 * 60 * 1000, // 18 hr
-    httpOnly: true,
-  },
-  store: new PgSession({
-    conString: DB_URL,
-  }),
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    name: SESSION_COOKIE_NAME,
+    cookie: {
+      secure: process.env.NODE_ENV !== "development",
+      sameSite: "lax",
+      maxAge: 18 * 60 * 60 * 1000, // 18 hr
+      httpOnly: true,
+    },
+    store: new PgSession({
+      conString: DATABASE_URL,
+    }),
+  })
+);
 
-app.set("trust proxy", ['loopback', 'linklocal', 'uniquelocal']);
+app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
 const apiRouter = await getProtectedApiRouter();
 apiRouter.use(apiHandler);
-app.use('/api', apiRouter);
+app.use("/api", apiRouter);
 
 const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
 if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
@@ -71,7 +75,16 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   });
 }
 
+app.use(cors());
+
 app.use("/openapi.yaml", express.static(openApiSpecPath));
+app.use(
+  "/ghes-3.16.yaml",
+  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml"))
+);
+
+app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
+app.use(/^\/api(?!\/github\/webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);

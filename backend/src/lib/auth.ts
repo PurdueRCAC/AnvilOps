@@ -4,6 +4,7 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 import passport from "passport";
 import { type User } from '../generated/prisma/client.ts';
 import { db } from "./db.ts";
+import { PermissionLevel } from "../generated/prisma/enums.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 
@@ -32,7 +33,7 @@ const getRouter = async () => {
                         ciLogonUserId: sub,
                         orgs: {
                             create: {
-                                permissionLevel: 'USER',
+                                permissionLevel: PermissionLevel.OWNER,
                                 organization: {
                                     create: {
                                         name: `${name || email as string || sub}'s Apps`
@@ -77,7 +78,7 @@ const getRouter = async () => {
 
     router.get('/login', passport.authenticate(server.host, {
         successRedirect: callbackURL,
-        failureRedirect: '/',
+        failureRedirect: '/login',
     }));
     
     router.get('/oauth_callback', passport.authenticate(server.host, {
@@ -90,7 +91,7 @@ const getRouter = async () => {
             if (err) return next(err);
             req.session.destroy((err) => {
                 if (err) return next(err);
-                res.clearCookie(SESSION_COOKIE_NAME );
+                res.clearCookie(SESSION_COOKIE_NAME);
                 return res.redirect("https://cilogon.org/logout/?skin=access");
             });
         })

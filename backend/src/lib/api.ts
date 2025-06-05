@@ -1,53 +1,16 @@
-import { type Request as ExpressRequest, type Response as ExpressResponse, type NextFunction, Router } from "express";
-import { type components, type operations } from "../generated/openapi.ts";
-import { db } from "./db.ts";
-import path from "node:path";
-import { OpenAPIBackend, type Context, type Request} from "openapi-backend";
 import addFormats from "ajv-formats";
+import { type Request as ExpressRequest, type Response as ExpressResponse } from "express";
+import path from "node:path";
+import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
+import { type components } from "../generated/openapi.ts";
+import { githubAppInstall } from "../handlers/githubAppInstall.ts";
+import { githubWebhook } from "../handlers/githubWebhook.ts";
+import { json, type HandlerMap, type HandlerResponse, type OptionalPromise } from "../types.ts";
+import { db } from "./db.ts";
+import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
+import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 
-type OptionalPromise<T> = void | Promise<T>;
-
-type apiOperations = {[K in keyof operations as K extends `auth${string}` ? never : K] : operations[K]};
-type HandlerMap = {
-  [O in keyof apiOperations]: (
-    ctx: Context<
-      apiOperations[O]["requestBody"],
-      apiOperations[O]["parameters"]["path"],
-      apiOperations[O]["parameters"]["header"],
-      apiOperations[O]["parameters"]["query"],
-      apiOperations[O]["parameters"]["cookie"]
-    >,
-    req: ExpressRequest,
-    res: ExpressResponse,
-    next: NextFunction,
-  ) => OptionalPromise<HandlerResponse<apiOperations[O]["responses"]>>;
-};
-
-type ResponseType = number | "default";
-type ResponseMap = {
-  [statusCode in ResponseType]?: {
-    headers: any;
-    content?: {
-      "application/json": any;
-    };
-  };
-};
-
-type HandlerResponse<T extends ResponseMap> = ExpressResponse;
-
-const json = <
-  ResMap extends ResponseMap,
-  Code extends keyof ResMap & number,
-  Content extends ResMap[Code] extends never ? ResMap["default"]["content"]["application/json"] : (ResMap[Code]["content"]["application/json"]),
->(
-  statusCode: Code,
-  res: ExpressResponse,
-  json: Content extends never ? {} : Required<Content>
-): HandlerResponse<ResMap> => {
-  return res.status(statusCode as number).json(json);
-};
-
-type AuthenticatedRequest = ExpressRequest & {
+export type AuthenticatedRequest = ExpressRequest & {
   user: {
     id: number,
     email?: string,
@@ -184,6 +147,10 @@ const handlers = {
   deleteApp: function (ctx: Context<never, { appId: number; }>, req: ExpressRequest, res: ExpressResponse): OptionalPromise<HandlerResponse<{ 200: { headers: { [name: string]: unknown; }; content?: never; }; 401: { headers: { [name: string]: unknown; }; content?: never; }; 500: { headers: { [name: string]: unknown; }; content: { "application/json": components["schemas"]["ResponseError"]; }; }; }>> {
     throw new Error("Function not implemented.");
   },
+  githubWebhook,
+  githubAppInstall,
+  githubOAuthCallback,
+  githubInstallCallback,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(
@@ -195,10 +162,16 @@ export const openApiSpecPath = path.resolve(
 
 const api = new OpenAPIBackend({
   definition: openApiSpecPath,
-  handlers,
+  handlers: {
+    ...handlers,
+    validationFail: (ctx, req, res) => {
+      return res.status(400).json({ code:400, message: "Request validation failed", errors: ctx.validation.errors });
+    }
+  },
   ajvOpts: { coerceTypes: "array" },
+  coerceTypes: true,
   customizeAjv: (ajv) => {
-    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64']});
+    addFormats.default(ajv, { mode: 'fast', formats: ['email', 'uri', 'date-time', 'uuid', 'int64', 'uri-template']});
     return ajv;
   }
 });
