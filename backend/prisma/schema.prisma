@@ -80,14 +80,27 @@ model App {
 }
 
 model Deployment {
-  id            Int      @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   appId         Int
-  app           App      @relation(fields: [appId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  app           App              @relation(fields: [appId], references: [id])
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   commitHash    String?
   commitMessage String?
-  jobId         String?
+  builderJobId  String?          @map("jobId")
+  imageTag      String?
+  status        DeploymentStatus @default(PENDING)
+}
+
+enum DeploymentStatus {
+  // Creating and starting the build job
+  PENDING
+  // Building the image and pushing it to the registry
+  BUILDING
+  // Applying the update to the cluster
+  DEPLOYING
+  // All resources have been updated
+  COMPLETE
 }
 
 model Session {

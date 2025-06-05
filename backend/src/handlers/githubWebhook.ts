@@ -89,40 +89,47 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       }
 
       // Look up the connected app and create a deployment job
-      const app = await db.app.findFirst({
+      const apps = await db.app.findMany({
         where: { repositoryId: repoId },
       });
 
-      if (!app) {
+      if (apps.length === 0) {
         throw new Error("Linked app not found");
       }
 
-      // Require that the push was made to the right branch
-      if (payload.ref !== `refs/heads/${app.repositoryBranch}`) {
-        return;
+      for (const app of apps) {
+        // Require that the push was made to the right branch
+        if (payload.ref !== `refs/heads/${app.repositoryBranch}`) {
+          continue;
+        }
+
+        // Create a Deployment, give its ID to the job, and then update the Deployment with the created Job's ID
+        const imageTag =
+          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
+        const deployment = await db.deployment.create({
+          data: {
+            appId: app.id,
+            commitHash: payload.head_commit.id,
+            commitMessage: payload.head_commit.message,
+            imageTag: imageTag,
+          },
+        });
+
+        const jobId = await createBuildJob(
+          "dockerfile",
+          payload.repository.git_url,
+          imageTag,
+          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
+          deployment.id,
+        );
+
+        await db.deployment.update({
+          where: { id: deployment.id },
+          data: { builderJobId: jobId },
+        });
       }
 
-      // Create a Deployment, give its ID to the job, and then update the Deployment with the created Job's ID
-      const deployment = await db.deployment.create({
-        data: {
-          appId: app.id,
-          commitHash: payload.head_commit.id,
-          commitMessage: payload.head_commit.message,
-        },
-      });
-
-      const jobId = await createBuildJob(
-        "dockerfile",
-        payload.repository.git_url,
-        `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}`,
-        `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-        deployment.id
-      );
-
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: { jobId: jobId },
-      });
+      return json(200, res, {});
     }
     default: {
       return json(422, res, {});
