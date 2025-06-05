@@ -8,7 +8,8 @@ export async function createBuildJob(
   builder: Builder,
   gitRepoURL: string,
   imageTag: ImageTag,
-  imageCacheTag: ImageTag
+  imageCacheTag: ImageTag,
+  deploymentId: number
 ) {
   switch (builder) {
     case "dockerfile": {
@@ -36,6 +37,7 @@ export async function createBuildJob(
                   { name: "CLONE_URL", value: gitRepoURL },
                   { name: "IMAGE_TAG", value: imageTag },
                   { name: "CACHE_TAG", value: imageCacheTag },
+                  { name: "DEPLOYMENT_ID", value: deploymentId },
                 ],
                 volumeMounts: [
                   {

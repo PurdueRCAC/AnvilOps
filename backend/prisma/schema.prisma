@@ -64,16 +64,30 @@ model Organization {
 }
 
 model App {
-  id             Int          @id @default(autoincrement())
-  orgId          Int
-  org            Organization @relation(fields: [orgId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  name           String
-  repositoryURL  String
-  webhookSecret  String
-  dockerfilePath String
-  port           Int
+  id               Int          @id @default(autoincrement())
+  orgId            Int
+  org              Organization @relation(fields: [orgId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  name             String
+  repositoryURL    String
+  repositoryId     Int
+  repositoryBranch String       @default("main")
+  webhookSecret    String
+  dockerfilePath   String
+  port             Int
+  deployments      Deployment[]
+}
+
+model Deployment {
+  id            Int      @id @default(autoincrement())
+  appId         Int
+  app           App      @relation(fields: [appId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  commitHash    String?
+  commitMessage String?
+  jobId         String?
 }
 
 model Session {
