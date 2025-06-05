@@ -13,7 +13,7 @@ Create a GitHub App with the following settings:
 | Homepage URL                                           | http://localhost:5173                                  | https://anvilops.rcac.purdue.edu                                  |
 | Callback URL                                           | http://localhost:5173/api/github/oauth2-callback       | https://anvilops.rcac.purdue.edu/api/github/oauth2-callback       |
 | Expire user authentication tokens                      | Yes                                                    | Yes                                                               |
-| Request user authorization (OAuth) during installation | Yes                                                    | Yes                                                               |
+| Request user authorization (OAuth) during installation | No                                                     | No                                                                |
 | Setup URL                                              | http://localhost:5173/api/github/installation-callback | https://anvilops.rcac.purdue.edu/api/github/installation-callback |
 | Webhook: Active                                        | Yes                                                    | Yes                                                               |
 | Webhook URL                                            | See note below                                         | https://anvilops.rcac.purude.edu/api/github-webhook               |

@@ -74,7 +74,7 @@ spec:
             - name: GITHUB_BASE_URL
               value: https://github.rcac.purdue.edu
             - name: GITHUB_APP_NAME
-              value: anvilops-development
+              value: anvilops
             - name: GITHUB_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
