@@ -7,6 +7,8 @@ mkdir -p ./work
 
 cd work
 
+wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/api/deployment/update
+
 git clone $CLONE_URL --depth=1 .
 
 buildctl \
@@ -20,3 +22,5 @@ buildctl \
  --cache-from type=registry,ref=$CACHE_TAG \
  --cache-to type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
+
+wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" $DEPLOYMENT_API_URL/api/deployment/update

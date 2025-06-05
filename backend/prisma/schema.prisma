@@ -90,6 +90,9 @@ model Deployment {
   builderJobId  String?          @map("jobId")
   imageTag      String?
   status        DeploymentStatus @default(PENDING)
+  // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
+  // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
+  secret        String?
 }
 
 enum DeploymentStatus {
@@ -101,6 +104,8 @@ enum DeploymentStatus {
   DEPLOYING
   // All resources have been updated
   COMPLETE
+  // There was a problem somewhere during the process
+  ERROR
 }
 
 model Session {

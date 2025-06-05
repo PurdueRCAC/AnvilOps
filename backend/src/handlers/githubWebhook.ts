@@ -3,6 +3,7 @@ import type { components } from "../generated/openapi.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { randomBytes } from "node:crypto";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -106,12 +107,14 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         // Create a Deployment, give its ID to the job, and then update the Deployment with the created Job's ID
         const imageTag =
           `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
+        const secret = randomBytes(32).toString("hex");
         const deployment = await db.deployment.create({
           data: {
             appId: app.id,
             commitHash: payload.head_commit.id,
             commitMessage: payload.head_commit.message,
             imageTag: imageTag,
+            secret: secret,
           },
         });
 
@@ -120,7 +123,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           payload.repository.git_url,
           imageTag,
           `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-          deployment.id,
+          secret,
         );
 
         await db.deployment.update({

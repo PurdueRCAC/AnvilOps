@@ -5,6 +5,8 @@
 
 mkdir -p ./work
 
+wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/api/deployment/update
+
 git clone $CLONE_URL --depth=1 ./work
 
 # Railpack is a tool that generates BuildKit LLB from a repository by looking at the files it contains and making an educated guess on the repo's technologies, package managers, etc.
@@ -26,4 +28,5 @@ buildctl \
  --output type=image,name=$IMAGE_TAG,push=true
 
  # TODO: when adding support for secrets, remember to invalidate the cache when their values change: https://railpack.com/guides/running-railpack-in-production/#layer-invalidation
- 
+
+wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" $DEPLOYMENT_API_URL/api/deployment/update

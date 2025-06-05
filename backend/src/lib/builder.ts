@@ -1,4 +1,4 @@
-import { k8s_batch } from "./kubernetes.ts";
+import { k8s } from "./kubernetes.ts";
 
 type Builder = "railpack" | "dockerfile";
 
@@ -9,7 +9,7 @@ export async function createBuildJob(
   gitRepoURL: string,
   imageTag: ImageTag,
   imageCacheTag: ImageTag,
-  deploymentId: number
+  deploymentSecret: string,
 ) {
   switch (builder) {
     case "dockerfile": {
@@ -22,7 +22,7 @@ export async function createBuildJob(
     }
   }
 
-  const job = await k8s_batch.createNamespacedJob({
+  const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       spec: {
@@ -37,7 +37,11 @@ export async function createBuildJob(
                   { name: "CLONE_URL", value: gitRepoURL },
                   { name: "IMAGE_TAG", value: imageTag },
                   { name: "CACHE_TAG", value: imageCacheTag },
-                  { name: "DEPLOYMENT_ID", value: deploymentId },
+                  { name: "DEPLOYMENT_API_SECRET", value: deploymentSecret },
+                  {
+                    name: "DEPLOYMENT_API_URL",
+                    value: "https://anvilops.rcac.purdue.edu/api",
+                  },
                 ],
                 volumeMounts: [
                   {
