@@ -49,7 +49,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       code: code,
     },
-    baseUrl: process.env.GITHUB_BASE_URL,
+    baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
   });
 
   const org = await db.organization.findFirst({
