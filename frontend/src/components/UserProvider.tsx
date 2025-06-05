@@ -45,8 +45,9 @@ export default function UserProvider({ children }: { children: React.ReactNode }
                         }
                     });
                 }
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         })();
     }, []);
 

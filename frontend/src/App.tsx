@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import LandingView from './pages/LandingView'
 import DashboardView from './pages/DashboardView'
 import AppView from './pages/AppView'
-import SignUpView from './pages/SignUpView'
+import SignInView from './pages/SignInView'
 import CreateAppView from './pages/CreateAppView';
 import UserProvider, { UserContext } from './components/UserProvider'
 import { Toaster } from './components/ui/sonner'
@@ -22,25 +22,29 @@ function App() {
           <Route
             path='/dashboard'
             element={
-              <DashboardView />
+              <RequireAuth redirectTo='/sign-in'>
+                <DashboardView />
+              </RequireAuth>
             }
           />
           <Route
             path='/app/:id'
             element={
-              <RequireAuth redirectTo='/sign-up'>
+              <RequireAuth redirectTo='/sign-in'>
               <AppView />
               </RequireAuth>
             }
           />
           <Route
-            path='/sign-up'
-            element={<SignUpView />}
+            path='/sign-in'
+            element={<SignInView />}
           />
           <Route
             path='/create-app'
             element={
-              <CreateAppView />
+              <RequireAuth redirectTo='/sign-in'>
+                <CreateAppView />
+              </RequireAuth>
             }
           />
         </Routes>
@@ -51,7 +55,8 @@ function App() {
 }
 
 function RequireAuth({ children, redirectTo }: { children: React.ReactNode, redirectTo: string }) {
-  const { user } = useContext(UserContext);
+  const { user, loading } = useContext(UserContext);
+  if (loading) return null;
   return user ? children : <Navigate to={redirectTo} />
 }
 export default App;
