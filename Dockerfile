@@ -29,6 +29,7 @@ FROM base AS backend_deps
 
 WORKDIR /app
 COPY backend/package*.json .
+COPY backend/patches/ ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 # BACKEND: generate TypeScript types from OpenAPI spec
