@@ -10,6 +10,10 @@ import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import getProtectedApiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { DATABASE_URL } from "./lib/db.ts";
 
+import dotenv from "dotenv";
+
+dotenv.config();
+
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
   throw new Error("Credentials not set");
 }
@@ -46,6 +50,8 @@ app.use(
     }),
   })
 );
+
+app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
 const apiRouter = await getProtectedApiRouter();
 apiRouter.use(apiHandler);

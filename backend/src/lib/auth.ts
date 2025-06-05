@@ -52,7 +52,7 @@ const getRouter = async () => {
     passport.use(new Strategy({
         config,
         scope,
-        callbackURL
+        callbackURL,
     }, verify));
 
     passport.serializeUser((user: User, cb) => {
@@ -73,6 +73,8 @@ const getRouter = async () => {
 
     const router = express.Router();
 
+    router.use(passport.session());
+
     router.get('/login', passport.authenticate(server.host, {
         successRedirect: callbackURL,
         failureRedirect: '/login',
@@ -80,7 +82,7 @@ const getRouter = async () => {
     
     router.get('/oauth_callback', passport.authenticate(server.host, {
         successReturnToOrRedirect: '/dashboard',
-        failureRedirect: '/login',
+        failureRedirect: '/sign-in',
     }));
 
     router.post('/logout', passport.authenticate('session'), (req, res, next) => {
@@ -94,14 +96,14 @@ const getRouter = async () => {
         })
     });
 
-    router.use(passport.session());
 
     router.use((req, res, next) => {
         const loggedIn = req.isAuthenticated && req.isAuthenticated();
         if (!loggedIn) {
-            return res.sendStatus(401);
+            res.sendStatus(401);
+            return;
         }
-        return next();
+        next();
     })
 
     return router;

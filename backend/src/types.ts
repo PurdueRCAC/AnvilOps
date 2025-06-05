@@ -1,12 +1,17 @@
 import {
   type Request as ExpressRequest,
   type Response as ExpressResponse,
+  type NextFunction,
 } from "express";
 import type { Context } from "openapi-backend";
 import type { operations } from "./generated/openapi.ts";
 
 export type OptionalPromise<T> = T | Promise<T>;
-type apiOperations = Exclude<operations, { [key: `auth${string}`]: any }>;
+type apiOperations = {
+  [K in keyof operations as K extends `auth${string}`
+    ? never
+    : K]: operations[K];
+};
 
 // Transform all headers to be lowercase - this is expected in HTTP/2 and it seems like something is transforming them to be lowercase even on HTTP/1.1
 type TransformHeaders<HeadersIn extends Record<string, string>> = {
@@ -19,11 +24,12 @@ export type HandlerMap = {
       apiOperations[O]["requestBody"],
       apiOperations[O]["parameters"]["path"],
       apiOperations[O]["parameters"]["query"],
-      TransformHeaders<operations[O]["parameters"]["header"]>,
+      TransformHeaders<apiOperations[O]["parameters"]["header"]>,
       apiOperations[O]["parameters"]["cookie"]
     >,
     req: ExpressRequest,
-    res: ExpressResponse
+    res: ExpressResponse,
+    next: NextFunction
   ) => OptionalPromise<HandlerResponse<apiOperations[O]["responses"]>>;
 };
 
