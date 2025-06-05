@@ -17,7 +17,7 @@ import { verifyState } from "./githubAppInstall.ts";
 export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   ctx,
   req: AuthenticatedRequest,
-  res
+  res,
 ) => {
   const state = ctx.request.query.state;
   const code = ctx.request.query.code;

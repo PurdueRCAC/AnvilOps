@@ -67,7 +67,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
     return redirect(
       302,
       res,
-      `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${newState}`
+      `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${newState}`,
     );
 
     // When GitHub redirects back, we handle it in githubOAuthCallback.ts

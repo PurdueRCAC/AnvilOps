@@ -22,7 +22,7 @@ import { json, redirect, type HandlerMap } from "../types.ts";
 export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   ctx,
   req: AuthenticatedRequest,
-  res
+  res,
 ) => {
   const orgId = ctx.request.params.orgId;
   const org = await db.organization.findUnique({
@@ -59,7 +59,7 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   return redirect(
     302,
     res,
-    `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`
+    `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
   );
 
   // When GitHub redirects back, we handle it in githubInstallCallback.ts
@@ -81,7 +81,7 @@ export async function createState(userId: number, orgId: number) {
 }
 
 export async function verifyState(
-  state: string
+  state: string,
 ): Promise<{ userId: number; orgId: number }> {
   const [userId, orgId, random] = state.split(".");
 

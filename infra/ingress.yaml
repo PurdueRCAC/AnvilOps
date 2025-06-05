@@ -6,17 +6,17 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-  - hosts:
-    - anvilops.rcac.purdue.edu
-    secretName: tls-cert
+    - hosts:
+        - anvilops.rcac.purdue.edu
+      secretName: tls-cert
   rules:
-  - host: anvilops.rcac.purdue.edu
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: anvilops-service
-            port:
-              number: 80
+    - host: anvilops.rcac.purdue.edu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: anvilops-service
+                port:
+                  number: 80

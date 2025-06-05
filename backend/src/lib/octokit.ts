@@ -3,7 +3,7 @@ import { Octokit } from "octokit";
 
 const privateKey = Buffer.from(
   process.env.GITHUB_PRIVATE_KEY,
-  "base64"
+  "base64",
 ).toString("utf-8");
 
 export function getOctokit(installationId: number) {

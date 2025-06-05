@@ -6,7 +6,7 @@ const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 export const githubWebhook: HandlerMap["githubWebhook"] = async (
   ctx,
   req,
-  res
+  res,
 ) => {
   const signature = ctx.request.headers["x-hub-signature-256"];
   const data = req.body as string;

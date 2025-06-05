@@ -48,7 +48,7 @@ app.use(
     store: new PgSession({
       conString: DATABASE_URL,
     }),
-  })
+  }),
 );
 
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
@@ -80,7 +80,7 @@ app.use(cors());
 app.use("/openapi.yaml", express.static(openApiSpecPath));
 app.use(
   "/ghes-3.16.yaml",
-  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml"))
+  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml")),
 );
 
 app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature

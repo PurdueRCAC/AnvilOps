@@ -29,7 +29,7 @@ export type HandlerMap = {
     >,
     req: ExpressRequest,
     res: ExpressResponse,
-    next: NextFunction
+    next: NextFunction,
   ) => OptionalPromise<HandlerResponse<apiOperations[O]["responses"]>>;
 };
 
@@ -48,22 +48,22 @@ export type HandlerResponse<T extends ResponseMap> = ExpressResponse;
 export const json = <
   ResMap extends ResponseMap,
   Code extends keyof ResMap & number,
-  Content extends ResMap[Code]["content"]["application/json"]
+  Content extends ResMap[Code]["content"]["application/json"],
 >(
   statusCode: Code,
   res: ExpressResponse,
-  json: Content["application/json"] extends never ? {} : Required<Content>
+  json: Content["application/json"] extends never ? {} : Required<Content>,
 ): HandlerResponse<ResMap> => {
   return res.status(statusCode as number).json(json);
 };
 
 export const redirect = <
   ResMap extends ResponseMap,
-  Code extends keyof ResMap & (301 | 302 | 307 | 308)
+  Code extends keyof ResMap & (301 | 302 | 307 | 308),
 >(
   statusCode: Code,
   res: ExpressResponse,
-  url: string
+  url: string,
 ): HandlerResponse<ResMap> => {
   res.redirect(statusCode, url);
   return res;
