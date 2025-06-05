@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-34-8a6c2b542921feabed6e74dadf00540f55686c9a # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-54-c8995bddb2ed9ff2ef39be3d35814b3267b9957d # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -39,6 +39,23 @@ spec:
               value: anvilops
             - name: POSTGRES_HOSTNAME
               value: anvilops-postgres
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-id
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-secret
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: session-secret
+            - name: CALLBACK_URL
+              value: https://anvilops.rcac.purdue.edu/api/oauth_callback
             - name: GITHUB_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
@@ -63,3 +80,5 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
+            - name: DEBUG
+              value: "*"

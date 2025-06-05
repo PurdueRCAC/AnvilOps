@@ -1,6 +1,6 @@
 openapi: 3.1.0
 servers:
-  - url: http://localhost:3000/api
+  - url: /api
 info:
   title: AnvilOps API
   description: ""
@@ -244,7 +244,6 @@ paths:
     post:
       tags:
         - user
-        - org
       description: Adds the current user to an organization
       operationId: joinOrg
       requestBody:
