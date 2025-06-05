@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import type { ApiError } from "@/generated/openapi/models";
 
     interface App {
-        name: string | undefined;
+        name: string;
         link: string | undefined;
         info: string | undefined;
         env: {[key: string] : string};

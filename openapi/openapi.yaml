@@ -599,6 +599,10 @@ components:
           format: int64
         dockerfilePath:
           type: string
+      required:
+        - id
+        - orgId
+        - name
     ApiError:
       type: object
       properties:
