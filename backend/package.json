@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env --experimental-strip-types src/index.ts",
+    "start:prod": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
     "dev": "nodemon src/index.ts -x 'node --env-file=.env --experimental-strip-types src/index.ts'",
     "postinstall": "patch-package"

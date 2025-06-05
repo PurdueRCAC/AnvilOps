@@ -71,4 +71,4 @@ COPY backend .
 
 RUN npx tsc --noEmit
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "start:prod"]
