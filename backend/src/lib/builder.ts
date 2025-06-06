@@ -55,7 +55,7 @@ export async function createBuildJob(
             volumes: [
               {
                 name: "buildkitd-tls-certs",
-                secret: { secretName: "buildkit-daemon-certs" },
+                secret: { secretName: "buildkit-client-certs" },
               },
             ],
           },
