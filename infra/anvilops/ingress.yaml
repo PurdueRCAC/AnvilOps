@@ -8,7 +8,6 @@ spec:
   tls:
     - hosts:
         - anvilops.rcac.purdue.edu
-        - "*.anvilops.rcac.purdue.edu"
       secretName: tls-cert
   rules:
     - host: anvilops.rcac.purdue.edu
@@ -19,15 +18,5 @@ spec:
             backend:
               service:
                 name: anvilops-service
-                port:
-                  number: 80
-    - host: "*.anvilops.rcac.purdue.edu"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: app-proxy-svc
                 port:
                   number: 80
