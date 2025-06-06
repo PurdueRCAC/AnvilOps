@@ -61,9 +61,6 @@ spec:
             # Needs Kubernetes >= 1.19
             seccompProfile:
               type: Unconfined
-            # Needs Kubernetes >= 1.30
-            appArmorProfile:
-              type: Unconfined
             # To change UID/GID, you need to rebuild the image
             runAsUser: 1000
             runAsGroup: 1000
