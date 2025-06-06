@@ -20,3 +20,13 @@ spec:
                 name: anvilops-service
                 port:
                   number: 80
+    - host: "*.anvilops.rcac.purdue.edu"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-proxy-svc
+                port:
+                  number: 80
