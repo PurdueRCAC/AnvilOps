@@ -8,6 +8,7 @@ spec:
   tls:
     - hosts:
         - anvilops.rcac.purdue.edu
+        - "*.anvilops.rcac.purdue.edu"
       secretName: tls-cert
   rules:
     - host: anvilops.rcac.purdue.edu
