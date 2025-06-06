@@ -415,18 +415,16 @@ const api = new OpenAPIBackend({
       return res.status(405).json({ code: 405, message: "Method not allowed" });
     },
 
-    notImplemented: (ctxt, req, res) => {
+    notFound: (ctxt, req, res) => {
       return res.status(404).json({ code: 404, message: "No such method" });
     },
 
     validationFail: (ctx, req, res) => {
-      return res
-        .status(400)
-        .json({
-          code: 400,
-          message: "Request validation failed",
-          errors: ctx.validation.errors,
-        });
+      return res.status(400).json({
+        code: 400,
+        message: "Request validation failed",
+        errors: ctx.validation.errors,
+      });
     },
   },
   ajvOpts: { coerceTypes: "array" },
