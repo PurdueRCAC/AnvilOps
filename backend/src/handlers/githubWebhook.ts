@@ -1,9 +1,10 @@
 import { Webhooks } from "@octokit/webhooks";
+import { randomBytes } from "node:crypto";
 import type { components } from "../generated/openapi.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
-import { randomBytes } from "node:crypto";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -91,7 +92,11 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
       // Look up the connected app and create a deployment job
       const apps = await db.app.findMany({
-        where: { repositoryId: repoId },
+        where: {
+          repositoryId: repoId,
+          org: { githubInstallationId: { not: null } },
+        },
+        include: { org: { select: { githubInstallationId: true } } },
       });
 
       if (apps.length === 0) {
@@ -126,9 +131,20 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           secret,
         );
 
+        // Create a check on their commit that says the build is "in progress"
+        const octokit = getOctokit(app.org.githubInstallationId);
+        const checkRun = await octokit.rest.checks.create({
+          head_sha: payload.head_commit.id,
+          name: "AnvilOps",
+          status: "in_progress",
+          details_url: `https://anvilops.rcac.purdue.edu/org/${app.orgId}/app/${app.id}/deployment/${deployment.id}`,
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+        });
+
         await db.deployment.update({
           where: { id: deployment.id },
-          data: { builderJobId: jobId },
+          data: { builderJobId: jobId, checkRunId: checkRun.data.id },
         });
       }
 

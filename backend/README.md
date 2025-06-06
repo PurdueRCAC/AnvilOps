@@ -25,6 +25,7 @@ Generate a random string for the webhook secret (e.g. `openssl rand -hex 32`). I
 
 Repository Permissions:
 
+- Checks: read and write
 - Contents: read-only
 - Deployments: read and write
 - Metadata: read-only

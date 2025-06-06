@@ -87,12 +87,13 @@ model Deployment {
   updatedAt     DateTime         @updatedAt
   commitHash    String?
   commitMessage String?
-  builderJobId  String?          @map("jobId")
+  builderJobId  String?
+  checkRunId    Int?
   imageTag      String?
   status        DeploymentStatus @default(PENDING)
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
-  secret        String?
+  secret        String?          @unique
 }
 
 enum DeploymentStatus {
