@@ -7,7 +7,7 @@ import session from "express-session";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
-import getProtectedApiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
+import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { DATABASE_URL } from "./lib/db.ts";
 
 import dotenv from "dotenv";
@@ -53,7 +53,6 @@ app.use(
 
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
-const apiRouter = await getProtectedApiRouter();
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);
 
