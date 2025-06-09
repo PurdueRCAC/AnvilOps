@@ -6,4 +6,9 @@ export const DATABASE_URL =
 
 export const db = new PrismaClient({
   datasourceUrl: DATABASE_URL,
+  omit: {
+    deployment: {
+      secret: true,
+    },
+  },
 });

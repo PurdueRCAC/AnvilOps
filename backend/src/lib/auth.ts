@@ -3,8 +3,8 @@ import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
 import passport from "passport";
 import { type User } from "../generated/prisma/client.ts";
-import { db } from "./db.ts";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import { db } from "./db.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 
@@ -123,7 +123,7 @@ const getRouter = async () => {
   router.use((req, res, next) => {
     const loggedIn = req.isAuthenticated && req.isAuthenticated();
     if (!loggedIn) {
-      res.sendStatus(401);
+      res.status(401).json({ message: "Unauthorized", code: 401 });
       return;
     }
     next();

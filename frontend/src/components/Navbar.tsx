@@ -1,3 +1,14 @@
+import { api } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@radix-ui/react-dropdown-menu";
+import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import defaultPfp from "../assets/default_pfp.png";
+import { Button } from "./ui/button";
+import { DropdownMenuTrigger } from "./ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -6,79 +17,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import defaultPfp from "../assets/default_pfp.png";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@radix-ui/react-dropdown-menu";
-import { DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { Button } from "./ui/button";
 import { UserContext } from "./UserProvider";
-import React from "react";
-import { OrgApi, UserApi } from "@/generated/openapi/apis";
-import { type UserOrg, type ApiError } from "@/generated/openapi/models";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
-import { ResponseError } from "@/generated/openapi/runtime";
 
 export default function Navbar() {
-  const { user, setUser, loading } = React.useContext(UserContext);
-  const [orgs, setOrgs] = React.useState<UserOrg[] | null>(null);
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const orgApi = new OrgApi();
-        const orgs = await orgApi.getOrgs();
-        setOrgs(orgs);
-      } catch (e) {
-        if (e instanceof ResponseError) {
-          const response = e.response;
-          if (response.status !== 401) {
-            const apiErr = (await response.json()) as ApiError;
-            toast("User: " + apiErr.message, {
-              action: {
-                label: "Close",
-                onClick: () => {},
-              },
-            });
-          }
-        } else {
-          toast("User: Something went wrong.", {
-            action: {
-              label: "Close",
-              onClick: () => {},
-            },
-          });
-        }
-      }
-    })();
-  }, [loading]);
+  const { user, loading } = useContext(UserContext);
+
+  const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
+
+  const navigate = useNavigate();
 
   const handleSelect = async (value: string) => {
     const orgId = parseInt(value);
-    const org = orgs?.find((o) => o.id === orgId);
-    if (!org) {
-      toast("Something went wrong", {
-        action: {
-          label: "Close",
-          onClick: () => {},
-        },
-      });
-      return;
-    }
-    setUser((u) =>
-      u
-        ? {
-            ...u,
-            org,
-          }
-        : null,
-    );
+    navigate(`/org/${orgId}`);
   };
 
-  if (loading) {
-    return;
+  if (loading || orgsLoading) {
+    return null;
   }
 
   return (

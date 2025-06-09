@@ -34,6 +34,7 @@ async function main() {
     create: {
       orgId: 1,
       name: "App 1",
+      repositoryId: 1,
       repositoryURL: "https://github.com/octocat/repository1",
       webhookSecret: "secret1",
       dockerfilePath: "./Dockerfile",
@@ -46,6 +47,7 @@ async function main() {
     create: {
       orgId: 1,
       name: "App 2",
+      repositoryId: 2,
       repositoryURL: "https://github.com/octocat/repository3",
       webhookSecret: "secret2",
       dockerfilePath: "./Dockerfile",
@@ -59,6 +61,7 @@ async function main() {
     create: {
       orgId: 1,
       name: "App 3",
+      repositoryId: 3,
       repositoryURL: "https://github.com/octocat/repository3",
       webhookSecret: "secret1",
       dockerfilePath: "",
@@ -72,6 +75,7 @@ async function main() {
     create: {
       orgId: 1,
       name: "App 4",
+      repositoryId: 4,
       repositoryURL: "https://github.com/octocat/repository4",
       webhookSecret: "secret4",
       dockerfilePath: "",

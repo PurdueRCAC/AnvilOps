@@ -64,16 +64,48 @@ model Organization {
 }
 
 model App {
-  id             Int          @id @default(autoincrement())
-  orgId          Int
-  org            Organization @relation(fields: [orgId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  name           String
-  repositoryURL  String
-  webhookSecret  String
-  dockerfilePath String
-  port           Int
+  id               Int          @id @default(autoincrement())
+  orgId            Int
+  org              Organization @relation(fields: [orgId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  name             String
+  repositoryURL    String
+  repositoryId     Int
+  repositoryBranch String       @default("main")
+  webhookSecret    String
+  dockerfilePath   String
+  port             Int
+  deployments      Deployment[]
+}
+
+model Deployment {
+  id            Int              @id @default(autoincrement())
+  appId         Int
+  app           App              @relation(fields: [appId], references: [id])
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  commitHash    String?
+  commitMessage String?
+  builderJobId  String?          @map("jobId")
+  imageTag      String?
+  status        DeploymentStatus @default(PENDING)
+  // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
+  // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
+  secret        String?
+}
+
+enum DeploymentStatus {
+  // Creating and starting the build job
+  PENDING
+  // Building the image and pushing it to the registry
+  BUILDING
+  // Applying the update to the cluster
+  DEPLOYING
+  // All resources have been updated
+  COMPLETE
+  // There was a problem somewhere during the process
+  ERROR
 }
 
 model Session {

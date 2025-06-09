@@ -521,6 +521,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /deployment/update:
+    description: Updates a deployment's status. Meant to be called from a build job.
+    post:
+      operationId: updateDeployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secret:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+        "401":
+          description: No secret provided
+        "403":
+          description: Invalid secret
 components:
   schemas:
     UserOrg:
