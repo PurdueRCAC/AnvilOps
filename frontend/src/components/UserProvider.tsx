@@ -1,7 +1,6 @@
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import React from "react";
-import { useNavigate } from "react-router-dom";
 
 export type User = components["schemas"]["User"];
 
@@ -20,13 +19,7 @@ export default function UserProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const navigate = useNavigate();
-  const {
-    data: user,
-    isPending,
-    isError,
-    error,
-  } = api.useQuery(
+  const { data: user, isPending } = api.useQuery(
     "get",
     "/user/me",
     {},
