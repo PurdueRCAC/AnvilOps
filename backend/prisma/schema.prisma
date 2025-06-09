@@ -78,7 +78,7 @@ model App {
   port             Int
   subdomain        String       @unique
   env              Json?
-  secrets          Json?
+  secrets          Json? /// @encrypted
   deployments      Deployment[]
 }
 

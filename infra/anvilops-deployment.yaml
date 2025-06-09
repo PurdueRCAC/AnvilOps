@@ -39,6 +39,11 @@ spec:
               value: anvilops
             - name: POSTGRES_HOSTNAME
               value: anvilops-postgres
+            - name: PRISMA_FIELD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: prisma-secrets
+                  key: field-key
             - name: CLIENT_ID
               valueFrom:
                 secretKeyRef:

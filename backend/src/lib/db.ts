@@ -1,3 +1,4 @@
+import { fieldEncryptionExtension } from "prisma-field-encryption";
 import { PrismaClient } from "../generated/prisma/client.ts";
 
 export const DATABASE_URL =
@@ -11,4 +12,4 @@ export const db = new PrismaClient({
       secret: true,
     },
   },
-});
+}).$extends(fieldEncryptionExtension());
