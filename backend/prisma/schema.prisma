@@ -13,13 +13,13 @@ datasource db {
 }
 
 model User {
-  id                Int                      @id @default(autoincrement())
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-  email             String?                  @unique
-  name              String?
-  ciLogonUserId     String?                  @unique
-  orgs              OrganizationMembership[]
+  id            Int                      @id @default(autoincrement())
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  email         String?                  @unique
+  name          String?
+  ciLogonUserId String?                  @unique
+  orgs          OrganizationMembership[]
 
   /**
    * A temporary random value that we store to ensure OAuth URLs were created by us (CSRF prevention).
@@ -63,39 +63,39 @@ model Organization {
 }
 
 model App {
-  id               Int          @id @default(autoincrement())
-  orgId            Int
-  org              Organization @relation(fields: [orgId], references: [id])
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  name             String
-  repositoryURL    String
-  repositoryId     Int
-  repositoryBranch String       @default("main")
-  webhookSecret    String
-  dockerfilePath   String
-  port             Int
-  subdomain        String       @unique
-  env              Json?
-  secrets          Json? /// @encrypted
-  replicas         Int          @default(1)
-  deployments      Deployment[]
+  id             Int          @id @default(autoincrement())
+  orgId          Int
+  org            Organization @relation(fields: [orgId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  name           String
+  repositoryURL  String
+  repositoryId   Int
+  webhookSecret  String
+  dockerfilePath String
+  port           Int
+  subdomain      String       @unique
+  env            Json?
+  secrets        Json? /// @encrypted
+  replicas       Int          @default(1)
+  deployments    Deployment[]
 }
 
 model Deployment {
-  id            Int              @id @default(autoincrement())
-  appId         Int
-  app           App              @relation(fields: [appId], references: [id])
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  commitHash    String?
-  commitMessage String?
-  builderJobId  String?          @map("jobId")
-  imageTag      String?
-  status        DeploymentStatus @default(PENDING)
+  id               Int              @id @default(autoincrement())
+  appId            Int
+  app              App              @relation(fields: [appId], references: [id])
+  repositoryBranch String           @default("main")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  commitHash       String?
+  commitMessage    String?
+  builderJobId     String?          @map("jobId")
+  imageTag         String?
+  status           DeploymentStatus @default(PENDING)
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
-  secret        String?
+  secret           String?
 }
 
 enum DeploymentStatus {

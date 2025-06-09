@@ -46,7 +46,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         env: app.env as Env,
         secrets: app.secrets as Secrets,
         port: app.port,
-        replicas: 1,
+        replicas: app.replicas,
       };
       const deployConfig = createDeploymentConfig(appParams);
       const svcConfig = createServiceConfig(appParams, subdomain);

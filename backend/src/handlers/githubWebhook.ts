@@ -92,6 +92,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       // Look up the connected app and create a deployment job
       const apps = await db.app.findMany({
         where: { repositoryId: repoId },
+        include: {
+          deployments: true,
+        },
       });
 
       if (apps.length === 0) {
@@ -99,16 +102,23 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       }
 
       for (const app of apps) {
-        // Require that the push was made to the right branch
-        if (payload.ref !== `refs/heads/${app.repositoryBranch}`) {
+        // Require that the push was made to a branch for which there is a deployment
+        const deployIds = app.deployments
+          .filter((dep) => payload.ref === `refs/heads/${dep.repositoryBranch}`)
+          .map((dep) => dep.id);
+        if (deployIds.length === 0) {
           continue;
         }
 
-        // Create a Deployment, give its ID to the job, and then update the Deployment with the created Job's ID
         const imageTag =
           `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
         const secret = randomBytes(32).toString("hex");
-        const deployment = await db.deployment.create({
+        await db.deployment.updateMany({
+          where: {
+            id: {
+              in: deployIds,
+            },
+          },
           data: {
             appId: app.id,
             commitHash: payload.head_commit.id,
@@ -126,8 +136,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           secret,
         );
 
-        await db.deployment.update({
-          where: { id: deployment.id },
+        await db.deployment.updateMany({
+          where: {
+            id: {
+              in: deployIds,
+            },
+          },
           data: { builderJobId: jobId },
         });
       }
