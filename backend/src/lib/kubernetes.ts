@@ -10,6 +10,7 @@ import {
   V1Service,
 } from "@kubernetes/client-node";
 import { App } from "octokit";
+import { Env, Secrets } from "../types.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -20,14 +21,26 @@ export const k8s = {
   batch: kc.makeApiClient(BatchV1Api),
 };
 
-type Secrets = { [key: string]: { [key: string]: string } };
 type AppParams = {
   name: string;
   image: string;
-  env: { [key: string]: string };
+  env: Env;
   secrets: Secrets;
   port: number;
   replicas: number;
+};
+
+export const createNamespace = async (namespace: string) => {
+  const ns = {
+    metadata: {
+      name: namespace,
+    },
+  };
+  try {
+    await k8s.default.createNamespace({ body: ns });
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 export const createSecret = async (
@@ -132,7 +145,7 @@ export const createServiceConfig = (
   };
 };
 
-export const createApp = async (infra: {
+export const createAppInNamespace = async (infra: {
   namespace: string;
   deployment: V1Deployment;
   service: V1Service;

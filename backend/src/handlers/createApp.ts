@@ -75,12 +75,15 @@ export const createApp: HandlerMap["createApp"] = async (
       repositoryId: repoId,
       port: appData.port,
       dockerfilePath: appData.dockerfilePath,
+      subdomain: appData.subdomain,
       org: {
         connect: {
           id: appData.orgId,
         },
       },
       webhookSecret: "", // TODO
+      env: appData.env,
+      secrets: appData.secrets,
     },
   });
   // build image

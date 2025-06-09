@@ -68,3 +68,14 @@ export const redirect = <
   res.redirect(statusCode, url);
   return res;
 };
+
+export type Env = {
+  [key: string]: string;
+};
+
+export type Secrets = {
+  name: string;
+  data: {
+    [key: string]: string;
+  };
+};
