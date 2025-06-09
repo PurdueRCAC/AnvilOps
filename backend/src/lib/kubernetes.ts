@@ -1,6 +1,7 @@
 import {
   AppsV1Api,
   BatchV1Api,
+  ConfigurationOptions,
   CoreV1Api,
   KubeConfig,
   V1Deployment,
@@ -8,6 +9,7 @@ import {
   V1Namespace,
   V1ObjectMeta,
   V1Service,
+  KubernetesObjectApi,
 } from "@kubernetes/client-node";
 import { App } from "octokit";
 import { Env, Secrets } from "../types.ts";
@@ -19,38 +21,17 @@ export const k8s = {
   default: kc.makeApiClient(CoreV1Api),
   apps: kc.makeApiClient(AppsV1Api),
   batch: kc.makeApiClient(BatchV1Api),
+  full: KubernetesObjectApi.makeApiClient(kc),
 };
 
 type AppParams = {
   name: string;
+  namespace: string;
   image: string;
   env: Env;
   secrets: Secrets;
   port: number;
   replicas: number;
-};
-
-export const createNamespace = async (namespace: string) => {
-  const ns = {
-    metadata: {
-      name: namespace,
-    },
-  };
-  await k8s.default.createNamespace({ body: ns });
-};
-
-export const createSecret = async (
-  namespace: string,
-  name: string,
-  data: { [key: string]: string },
-) => {
-  const secret = {
-    metadata: {
-      name,
-    },
-    data,
-  };
-  await k8s.default.createNamespacedSecret({ namespace, body: secret });
 };
 
 export const createDeploymentConfig = (app: AppParams): V1Deployment => {
@@ -79,6 +60,7 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
   return {
     metadata: {
       name: app.name,
+      namespace: app.namespace,
     },
     spec: {
       selector: {
@@ -120,6 +102,7 @@ export const createServiceConfig = (
   return {
     metadata: {
       name: name,
+      namespace: app.namespace,
     },
     spec: {
       type: "ClusterIP",
@@ -137,31 +120,40 @@ export const createServiceConfig = (
   };
 };
 
-export const createAppInNamespace = async (infra: {
-  namespace: string;
-  deployment: V1Deployment;
-  service: V1Service;
-}) => {
-  await k8s.apps.createNamespacedDeployment({
-    namespace: infra.namespace,
-    body: infra.deployment,
-  });
-  console.log(
-    `Deployment ${infra.deployment.metadata.name} created in ${infra.namespace}`,
-  );
-  await k8s.default.createNamespacedService({
-    namespace: infra.namespace,
-    body: infra.service,
-  });
-  console.log(
-    `ClusterIP ${infra.service.metadata.name} created in ${infra.namespace}`,
-  );
-};
-
 export const deleteNamespace = async (namespace: string) => {
   await k8s.default.deleteNamespace({
     name: namespace,
   });
-
   console.log(`Namespace ${namespace} deleted`);
+};
+
+export const createOrUpdateApp = async (
+  namespace: string,
+  deployment: V1Deployment,
+  service?: V1Service,
+  secrets?: Secrets,
+) => {
+  const ns = {
+    metadata: {
+      name: namespace,
+    },
+  };
+
+  // patch is the equivalent of kubectl apply -f
+  k8s.full.patch(ns);
+  for (let secret in secrets) {
+    const body = {
+      metadata: {
+        name: secret,
+      },
+      stringData: secrets[secret],
+    };
+
+    await k8s.full.patch(body);
+  }
+
+  await k8s.full.patch(deployment);
+  await k8s.full.patch(service);
+
+  console.log(`App ${deployment.metadata.name} updated`);
 };

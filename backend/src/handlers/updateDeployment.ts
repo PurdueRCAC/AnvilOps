@@ -2,10 +2,8 @@ import { JsonObject } from "@prisma/client/runtime/library";
 import { db } from "../lib/db.ts";
 import { Env, json, Secrets, type HandlerMap } from "../types.ts";
 import {
-  createAppInNamespace,
   createDeploymentConfig,
-  createNamespace,
-  createSecret,
+  createOrUpdateApp,
   createServiceConfig,
 } from "../lib/kubernetes.ts";
 
@@ -41,29 +39,24 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       });
 
       const subdomain = app.subdomain;
+      const appParams = {
+        name: app.name,
+        namespace: subdomain,
+        image: deployment.imageTag,
+        env: app.env as Env,
+        secrets: app.secrets as Secrets,
+        port: app.port,
+        replicas: 1,
+      };
+      const deployConfig = createDeploymentConfig(appParams);
+      const svcConfig = createServiceConfig(appParams, subdomain);
       try {
-        await createNamespace(subdomain);
-
-        for (let secret in app.secrets as Secrets) {
-          await createSecret(subdomain, secret, app.secrets[secret]);
-        }
-
-        const appParams = {
-          name: app.name,
-          image: deployment.imageTag,
-          env: app.env as Env,
-          secrets: app.secrets as Secrets,
-          port: app.port,
-          replicas: 1,
-        };
-        const deployConfig = createDeploymentConfig(appParams);
-        const svcConfig = createServiceConfig(appParams, subdomain);
-
-        await createAppInNamespace({
-          namespace: subdomain,
-          deployment: deployConfig,
-          service: svcConfig,
-        });
+        await createOrUpdateApp(
+          subdomain,
+          deployConfig,
+          svcConfig,
+          app.secrets as Secrets,
+        );
       } catch (err) {
         console.error(err);
         await db.deployment.update({
