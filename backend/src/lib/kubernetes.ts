@@ -142,14 +142,6 @@ export const createAppInNamespace = async (infra: {
   deployment: V1Deployment;
   service: V1Service;
 }) => {
-  const namespace: V1Namespace = {
-    metadata: {
-      name: infra.namespace,
-    },
-  };
-
-  await k8s.default.createNamespace({ body: namespace });
-  console.log(`Namespace ${infra.namespace} created`);
   await k8s.apps.createNamespacedDeployment({
     namespace: infra.namespace,
     body: infra.deployment,
@@ -164,4 +156,12 @@ export const createAppInNamespace = async (infra: {
   console.log(
     `ClusterIP ${infra.service.metadata.name} created in ${infra.namespace}`,
   );
+};
+
+export const deleteNamespace = async (namespace: string) => {
+  await k8s.default.deleteNamespace({
+    name: namespace,
+  });
+
+  console.log(`Namespace ${namespace} deleted`);
 };

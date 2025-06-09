@@ -18,7 +18,9 @@ import { db } from "./db.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
-import { createApp } from "../handlers/createApp.ts";
+import createApp from "../handlers/createApp.ts";
+import updateApp from "../handlers/updateApp.ts";
+import deleteApp from "../handlers/deleteApp.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -344,41 +346,8 @@ const handlers = {
     }
   },
   createApp,
-  updateApp: function (
-    ctx: Context<
-      { content: { "application/json": components["schemas"]["App"] } },
-      { appId: number }
-    >,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
-  deleteApp: function (
-    ctx: Context<never, { appId: number }>,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
+  updateApp,
+  deleteApp,
   githubWebhook,
   githubAppInstall,
   githubOAuthCallback,
