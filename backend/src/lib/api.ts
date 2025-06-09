@@ -18,6 +18,7 @@ import { db } from "./db.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
+import { createApp } from "../handlers/createApp.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -342,23 +343,7 @@ const handlers = {
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  createApp: function (
-    ctx: Context<{
-      content: { "application/json": components["schemas"]["App"] };
-    }>,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
+  createApp,
   updateApp: function (
     ctx: Context<
       { content: { "application/json": components["schemas"]["App"] } },

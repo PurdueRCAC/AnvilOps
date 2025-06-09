@@ -444,10 +444,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/App"
+              $ref: "#/components/schemas/NewApp"
       responses:
         "200":
           description: Success
+        "302":
+          description: Redirecting to finish GitHub App installation
+        "401":
+          description: Unauthorized
+        "403":
+          description: Contact owner to complete GitHub App installation
         "500":
           description: Unexpected Error
           content:
@@ -626,6 +632,26 @@ components:
         - id
         - orgId
         - name
+    NewApp:
+      type: object
+      properties:
+        orgId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        repositoryURL:
+          type: string
+          format: uri
+        subdomain:
+          type: string
+          format: hostname
+        port:
+          type: integer
+          format: int64
+        dockerfilePath:
+          type: string
+
     ApiError:
       type: object
       properties:
