@@ -111,7 +111,7 @@ const createApp: HandlerMap["createApp"] = async (
   return json(200, res, {});
 };
 
-const getDeploymentInfo = async (repoURL: string) => {
+export const getDeploymentInfo = async (repoURL: string) => {
   const { pathname } = new URL(repoURL);
   const [, owner, repo] = pathname.split("/");
   if (!owner || !repo) {

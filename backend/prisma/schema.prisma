@@ -18,7 +18,6 @@ model User {
   updatedAt         DateTime                 @updatedAt
   email             String?                  @unique
   name              String?
-  githubAccessToken String?
   ciLogonUserId     String?                  @unique
   orgs              OrganizationMembership[]
 
@@ -79,6 +78,7 @@ model App {
   subdomain        String       @unique
   env              Json?
   secrets          Json? /// @encrypted
+  replicas         Int          @default(1)
   deployments      Deployment[]
 }
 
