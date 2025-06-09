@@ -8,4 +8,8 @@ backend/.env
 
 openapi/node_modules
 
+swagger-ui/node_modules
+
+node_modules/
+
 infra/
