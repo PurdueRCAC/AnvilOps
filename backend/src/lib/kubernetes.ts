@@ -36,11 +36,7 @@ export const createNamespace = async (namespace: string) => {
       name: namespace,
     },
   };
-  try {
-    await k8s.default.createNamespace({ body: ns });
-  } catch (err) {
-    console.error(err);
-  }
+  await k8s.default.createNamespace({ body: ns });
 };
 
 export const createSecret = async (
@@ -54,11 +50,7 @@ export const createSecret = async (
     },
     data,
   };
-  try {
-    await k8s.default.createNamespacedSecret({ namespace, body: secret });
-  } catch (err) {
-    console.log(err);
-  }
+  await k8s.default.createNamespacedSecret({ namespace, body: secret });
 };
 
 export const createDeploymentConfig = (app: AppParams): V1Deployment => {
@@ -156,24 +148,20 @@ export const createAppInNamespace = async (infra: {
     },
   };
 
-  try {
-    await k8s.default.createNamespace({ body: namespace });
-    console.log(`Namespace ${infra.namespace} created`);
-    await k8s.apps.createNamespacedDeployment({
-      namespace: infra.namespace,
-      body: infra.deployment,
-    });
-    console.log(
-      `Deployment ${infra.deployment.metadata.name} created in ${infra.namespace}`,
-    );
-    await k8s.default.createNamespacedService({
-      namespace: infra.namespace,
-      body: infra.service,
-    });
-    console.log(
-      `ClusterIP ${infra.service.metadata.name} created in ${infra.namespace}`,
-    );
-  } catch (err) {
-    console.log(err);
-  }
+  await k8s.default.createNamespace({ body: namespace });
+  console.log(`Namespace ${infra.namespace} created`);
+  await k8s.apps.createNamespacedDeployment({
+    namespace: infra.namespace,
+    body: infra.deployment,
+  });
+  console.log(
+    `Deployment ${infra.deployment.metadata.name} created in ${infra.namespace}`,
+  );
+  await k8s.default.createNamespacedService({
+    namespace: infra.namespace,
+    body: infra.service,
+  });
+  console.log(
+    `ClusterIP ${infra.service.metadata.name} created in ${infra.namespace}`,
+  );
 };

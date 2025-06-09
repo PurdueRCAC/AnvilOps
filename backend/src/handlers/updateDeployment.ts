@@ -41,28 +41,40 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       });
 
       const subdomain = app.subdomain;
-      await createNamespace(subdomain);
+      try {
+        await createNamespace(subdomain);
 
-      for (let secret in app.secrets as Secrets) {
-        await createSecret(subdomain, secret, app.secrets[secret]);
+        for (let secret in app.secrets as Secrets) {
+          await createSecret(subdomain, secret, app.secrets[secret]);
+        }
+
+        const appParams = {
+          name: app.name,
+          image: deployment.imageTag,
+          env: app.env as Env,
+          secrets: app.secrets as Secrets,
+          port: app.port,
+          replicas: 1,
+        };
+        const deployConfig = createDeploymentConfig(appParams);
+        const svcConfig = createServiceConfig(appParams, subdomain);
+
+        await createAppInNamespace({
+          namespace: subdomain,
+          deployment: deployConfig,
+          service: svcConfig,
+        });
+      } catch (err) {
+        console.error(err);
+        await db.deployment.update({
+          where: {
+            id: deployment.id,
+          },
+          data: {
+            status: "ERROR",
+          },
+        });
       }
-
-      const appParams = {
-        name: app.name,
-        image: deployment.imageTag,
-        env: app.env as Env,
-        secrets: app.secrets as Secrets,
-        port: app.port,
-        replicas: 1,
-      };
-      const deployConfig = createDeploymentConfig(appParams);
-      const svcConfig = createServiceConfig(appParams, subdomain);
-
-      await createAppInNamespace({
-        namespace: subdomain,
-        deployment: deployConfig,
-        service: svcConfig,
-      });
     }
   }
 

@@ -1,7 +1,4 @@
-import { Context } from "openapi-backend";
-import { components } from "../generated/openapi.ts";
-import { HandlerMap, redirect } from "../types.ts";
-import { type Response as ExpressResponse } from "express";
+import { type HandlerMap, redirect } from "../types.ts";
 import { json } from "../types.ts";
 import { db } from "../lib/db.ts";
 import { createState } from "./githubAppInstall.ts";
@@ -10,12 +7,10 @@ import { randomBytes } from "node:crypto";
 import { createBuildJob } from "../lib/builder.ts";
 import { AuthenticatedRequest } from "../lib/api.ts";
 
-export const createApp: HandlerMap["createApp"] = async (
-  ctx: Context<{
-    content: { "application/json": components["schemas"]["NewApp"] };
-  }>,
+const createApp: HandlerMap["createApp"] = async (
+  ctx,
   req: AuthenticatedRequest,
-  res: ExpressResponse,
+  res,
 ) => {
   const appData = ctx.request.requestBody.content["application/json"];
   const organization = await db.organization.findUnique({
@@ -65,7 +60,7 @@ export const createApp: HandlerMap["createApp"] = async (
     commitHash = res.commitHash;
     commitMessage = res.commitMessage;
   } catch (e) {
-    return json(500, res, { code: 500, message: "Bad repository URL" });
+    return json(500, res, { code: 500, message: e.message });
   }
 
   const app = await db.app.create({
@@ -86,7 +81,7 @@ export const createApp: HandlerMap["createApp"] = async (
       secrets: appData.secrets,
     },
   });
-  // build image
+
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${commitHash}` as const;
   const secret = randomBytes(32).toString("hex");
@@ -143,3 +138,5 @@ const getDeploymentInfo = async (repoURL: string) => {
     commitMessage: commitRes.data[0].commit.message,
   };
 };
+
+export default createApp;
