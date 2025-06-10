@@ -1,11 +1,6 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,35 +10,81 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import clsx from "clsx";
+import { BookMarked, FolderRoot, GitBranch, Globe, Rocket } from "lucide-react";
 import { useState } from "react";
 
 export default function CreateAppView() {
   const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
 
-  const [selectedOrg, setSelectedOrg] = useState<string | undefined>(undefined);
+  const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
+    undefined,
+  );
+  const [selectedRepo, setSelectedRepo] = useState<string | undefined>(
+    undefined,
+  );
+  const [selectedBranch, setSelectedBranch] = useState<string | undefined>(
+    undefined,
+  );
+
+  const selectedOrg =
+    selectedOrgId !== undefined
+      ? orgs?.find((it) => it.id === parseInt(selectedOrgId))
+      : undefined;
 
   const { data: repos, isPending: reposLoading } = api.useQuery(
     "get",
     "/org/{orgId}/repos",
-    { params: { path: { orgId: parseInt(selectedOrg!) } } },
-    { enabled: selectedOrg !== undefined },
+    { params: { path: { orgId: parseInt(selectedOrgId!) } } },
+    { enabled: selectedOrgId !== undefined && selectedOrg?.githubConnected },
+  );
+
+  const { data: branches, isPending: branchesLoading } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos/{repoId}/branches",
+    {
+      params: {
+        path: {
+          orgId: parseInt(selectedOrgId!),
+          repoId: parseInt(selectedRepo!),
+        },
+      },
+    },
+    {
+      enabled:
+        selectedOrgId !== undefined &&
+        selectedRepo !== undefined &&
+        selectedOrg?.githubConnected,
+    },
   );
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center">
-      <div className="w-3/4 lg:w-1/3 min-h-1/2 md:min-h-3/4 bg-neutral-1 rounded-2xl shadow-md shadow-neutral-3 flex justify-center">
-        <form
-          className="space-y-8 w-3/4 h-full flex flex-col justify-center items-center"
-          onSubmit={() => {
-            console.log("submit");
-          }}
-        >
-          <h2 className="font-bold text-3xl text-main-5 mb-5">
-            Create a Project
-          </h2>
+    <div className="flex max-w-prose mx-auto">
+      <form
+        className="flex flex-col gap-4 w-full my-10"
+        onSubmit={() => {
+          console.log("submit");
+        }}
+      >
+        <h2 className="font-bold text-3xl text-main-5 mb-5">
+          Create a Project
+        </h2>
+        <div className="space-y-2">
+          <Label htmlFor="selectOrg" className="pb-1">
+            <Globe className="inline" size={16} />
+            Organization
+          </Label>
           <Select onValueChange={setSelectedOrg}>
-            <SelectTrigger className="w-full" onSelect={(e) => e}>
-              <SelectValue placeholder="Select an organization" />
+            <SelectTrigger
+              className="w-full"
+              onSelect={(e) => e}
+              id="selectOrg"
+            >
+              <SelectValue
+                placeholder={
+                  orgsLoading ? "Loading..." : "Select an organization"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -55,83 +96,134 @@ export default function CreateAppView() {
               </SelectGroup>
             </SelectContent>
           </Select>
-          <div className="w-full">
-            <Button
-              variant="secondary"
-              type="button"
-              className="cursor-pointer float-right"
-            >
-              Or create new
+        </div>
+        {selectedOrg === undefined || selectedOrg.githubConnected ? (
+          <>
+            <div className="space-y-2">
+              <Label
+                htmlFor="selectRepo"
+                className={clsx(
+                  "pb-1",
+                  (selectedOrgId === undefined || reposLoading) && "opacity-50",
+                )}
+              >
+                <BookMarked className="inline" size={16} />
+                Repository
+              </Label>
+              <Select
+                disabled={selectedOrgId === undefined || reposLoading}
+                onValueChange={setSelectedRepo}
+              >
+                <SelectTrigger className="w-full peer" id="selectRepo">
+                  <SelectValue
+                    placeholder={
+                      reposLoading && selectedOrgId !== undefined
+                        ? "Loading..."
+                        : "Select a repository"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {selectedOrgId !== undefined
+                      ? repos?.map((repo) => (
+                          <SelectItem key={repo.id} value={repo.id!.toString()}>
+                            {repo.owner}/{repo.name}
+                          </SelectItem>
+                        ))
+                      : null}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="selectBranch"
+                className={clsx(
+                  "pb-1",
+                  (selectedRepo === undefined || branchesLoading) &&
+                    "opacity-50",
+                )}
+              >
+                <GitBranch className="inline" size={16} />
+                Branch
+              </Label>
+              <Select
+                disabled={selectedRepo === undefined || branchesLoading}
+                onValueChange={setSelectedBranch}
+              >
+                <SelectTrigger className="w-full" id="selectBranch">
+                  <SelectValue
+                    placeholder={
+                      branchesLoading && selectedBranch !== undefined
+                        ? "Loading..."
+                        : "Select a branch"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {selectedRepo !== undefined
+                      ? branches?.branches?.map((branch) => (
+                          <SelectItem key={branch} value={branch}>
+                            {branch}
+                          </SelectItem>
+                        ))
+                      : null}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <FolderRoot className="inline" size={16} /> Root directory
+              </Label>
+              <Input placeholder="/" className="w-full" />
+            </div>
+
+            <Button className="mt-8" size="lg" type="submit">
+              <Rocket />
+              Deploy
             </Button>
-            <Select>
-              <SelectTrigger className="w-3/4">
-                <SelectValue placeholder="Select a repository" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {selectedOrg !== undefined
-                    ? repos?.map((repo) => (
-                        <SelectItem key={repo.id} value={repo.id!.toString()}>
-                          {repo.owner}/{repo.name}
-                        </SelectItem>
-                      ))
-                    : null}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <label>
-              Root directory
-              <Input value="./" className="w-full" />
-            </label>
-            <Accordion type="multiple">
-              <AccordionItem value="build">
-                <AccordionTrigger>Build settings</AccordionTrigger>
-                <AccordionContent>
-                  <label>
-                    Build command
-                    <Input className="w-full" />
-                  </label>
-                  <label>
-                    Output directory
-                    <Input className="w-full" />
-                  </label>
-                  <label>
-                    Install command
-                    <Input className="w-full" />
-                  </label>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="env">
-                <AccordionTrigger>Environment variables</AccordionTrigger>
-                <AccordionContent>
-                  <div className="w-full">
-                    <Input placeholder="Key" className="w-1/3 inline-block" />
-                    <Input placeholder="Value" className="w-1/3 inline-block" />
-                    <Button variant="secondary" type="button">
-                      <svg
-                        viewBox="0 0 15 15"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="w-full h-full"
-                      >
-                        <path
-                          d="M8 2.75C8 2.47386 7.77614 2.25 7.5 2.25C7.22386 2.25 7 2.47386 7 2.75V7H2.75C2.47386 7 2.25 7.22386 2.25 7.5C2.25 7.77614 2.47386 8 2.75 8H7V12.25C7 12.5261 7.22386 12.75 7.5 12.75C7.77614 12.75 8 12.5261 8 12.25V8H12.25C12.5261 8 12.75 7.77614 12.75 7.5C12.75 7.22386 12.5261 7 12.25 7H8V2.75Z"
-                          fill="currentColor"
-                          fill-rule="evenodd"
-                          clip-rule="evenodd"
-                        ></path>
-                      </svg>
-                    </Button>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            <Button>Deploy</Button>
-          </div>
-        </form>
-      </div>
+          </>
+        ) : selectedOrg?.isOwner ? (
+          <>
+            <p className="mt-4">
+              <strong>{selectedOrg?.name}</strong> has not been connected to
+              GitHub.
+            </p>
+            <p className="mb-4">
+              AnvilOps integrates with GitHub to deploy your app as soon as you
+              push to your repository.
+            </p>
+            <a
+              className="flex w-full"
+              href={`/api/org/${selectedOrg?.id}/install-github-app`}
+            >
+              <Button className="w-full" type="button">
+                <svg
+                  role="img"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                >
+                  <title>GitHub</title>
+                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+                </svg>
+                Install GitHub App
+              </Button>
+            </a>
+          </>
+        ) : (
+          <>
+            <p className="my-4">
+              <strong>{selectedOrg?.name}</strong> has not been connected to
+              GitHub. Ask the owner of your organization to install the AnvilOps
+              GitHub App.
+            </p>
+          </>
+        )}
+      </form>
     </div>
   );
 }

@@ -465,6 +465,41 @@ paths:
                     owner:
                       type: string
 
+  /org/{orgId}/repos/{repoId}/branches:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: repoId
+        in: path
+        description: GitHub repository ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [org]
+      description: List the Git branches of a repository
+      operationId: listRepoBranches
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  default:
+                    type: string
+                  branches:
+                    type: array
+                    items:
+                      type: string
+
   /app:
     post:
       tags:
@@ -588,10 +623,13 @@ components:
           type: string
         isOwner:
           type: boolean
+        githubConnected:
+          type: boolean
       required:
         - id
         - name
         - isOwner
+        - githubConnected
     User:
       type: object
       properties:
