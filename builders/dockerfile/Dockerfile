@@ -3,4 +3,5 @@ FROM moby/buildkit:rootless
 
 COPY --chmod=755 docker-entrypoint.sh /var/run
 
+ENTRYPOINT ["/bin/sh"]
 CMD ["sh", "-c", "/var/run/docker-entrypoint.sh"]
