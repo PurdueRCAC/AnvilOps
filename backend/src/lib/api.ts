@@ -18,6 +18,7 @@ import { db } from "./db.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
+import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -399,6 +400,7 @@ const handlers = {
   githubOAuthCallback,
   githubInstallCallback,
   updateDeployment,
+  listOrgRepos,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

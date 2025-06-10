@@ -433,6 +433,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /org/{orgId}/repos:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [org]
+      description: Get the Git repositories that the organization has access to
+      operationId: listOrgRepos
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      format: int64
+                    name:
+                      type: string
+                    owner:
+                      type: string
+
   /app:
     post:
       tags:

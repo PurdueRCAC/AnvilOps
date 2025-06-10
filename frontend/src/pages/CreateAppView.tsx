@@ -1,4 +1,9 @@
-import { AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,13 +14,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-} from "@/components/ui/accordion";
+import { api } from "@/lib/api";
+import { useState } from "react";
 
 export default function CreateAppView() {
+  const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
+
+  const [selectedOrg, setSelectedOrg] = useState<string | undefined>(undefined);
+
+  const { data: repos, isPending: reposLoading } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos",
+    { params: { path: { orgId: parseInt(selectedOrg!) } } },
+    { enabled: selectedOrg !== undefined },
+  );
+
   return (
     <div className="w-screen h-screen flex flex-col items-center justify-center">
       <div className="w-3/4 lg:w-1/3 min-h-1/2 md:min-h-3/4 bg-neutral-1 rounded-2xl shadow-md shadow-neutral-3 flex justify-center">
@@ -28,14 +41,17 @@ export default function CreateAppView() {
           <h2 className="font-bold text-3xl text-main-5 mb-5">
             Create a Project
           </h2>
-          <Select>
+          <Select onValueChange={setSelectedOrg}>
             <SelectTrigger className="w-full" onSelect={(e) => e}>
               <SelectValue placeholder="Select an organization" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="org-1">Organization 1</SelectItem>
-                <SelectItem value="org-2">Organization 2</SelectItem>
+                {orgs?.map((org) => (
+                  <SelectItem key={org.id} value={org.id.toString()}>
+                    {org.name}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -53,8 +69,13 @@ export default function CreateAppView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="org-1">Organization 1</SelectItem>
-                  <SelectItem value="org-2">Organization 2</SelectItem>
+                  {selectedOrg !== undefined
+                    ? repos?.map((repo) => (
+                        <SelectItem key={repo.id} value={repo.id!.toString()}>
+                          {repo.owner}/{repo.name}
+                        </SelectItem>
+                      ))
+                    : null}
                 </SelectGroup>
               </SelectContent>
             </Select>
