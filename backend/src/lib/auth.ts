@@ -1,135 +1,117 @@
-import express from "express";
 import * as client from "openid-client";
-import { Strategy, type VerifyFunction } from "openid-client/passport";
-import passport from "passport";
-import { type User } from "../generated/prisma/client.ts";
-import { PermissionLevel } from "../generated/prisma/enums.ts";
+import express from "express";
 import { db } from "./db.ts";
+import { PermissionLevel } from "../generated/prisma/index.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
+const clientID = process.env.CLIENT_ID;
+const clientSecret = process.env.CLIENT_SECRET;
+const server = new URL("https://cilogon.org/.well-known/openid-configuration");
+const redirect_uri = process.env.CALLBACK_URL;
 
-const getRouter = async () => {
-  const scope = "openid email profile";
+const config = await client.discovery(server, clientID, clientSecret);
+const code_challenge_method = "S256";
 
-  const server = new URL(
-    "https://cilogon.org/.well-known/openid-configuration",
-  );
-  const callbackURL = process.env.CALLBACK_URL;
-  const config = await client.discovery(
-    server,
-    process.env.CLIENT_ID,
-    process.env.CLIENT_SECRET,
-  );
+const router = express.Router();
 
-  const verify: VerifyFunction = async (tokens, done) => {
+router.get("/login", async (req, res) => {
+  const code_verifier = client.randomPKCECodeVerifier();
+  const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
+  (req.session as any).code_verifier = code_verifier;
+
+  const params: Record<string, string> = {
+    redirect_uri,
+    scope: "openid email profile",
+    code_challenge,
+    code_challenge_method,
+    selected_idp: "https://idp.purdue.edu/idp/shibboleth",
+  };
+
+  if (!config.serverMetadata().supportsPKCE()) {
+    const nonce = client.randomNonce();
+    (req.session as any).nonce = nonce;
+    params.nonce = nonce;
+  }
+
+  const redirectTo = client.buildAuthorizationUrl(config, params);
+  return res.redirect(redirectTo.toString());
+});
+
+router.get("/oauth_callback", async (req, res) => {
+  try {
+    const currentUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
+    const tokens = await client.authorizationCodeGrant(
+      config,
+      new URL(currentUrl),
+      {
+        pkceCodeVerifier: (req.session as any).code_verifier,
+        expectedNonce: (req.session as any).nonce,
+        idTokenExpected: true,
+      },
+    );
+
     const { sub, email, name } = tokens.claims();
-    try {
-      const existingUser = await db.user.findUnique({
-        where: { ciLogonUserId: sub },
-      });
-      if (existingUser) {
-        done(null, {
-          id: existingUser.id,
-          name: existingUser.name,
-          email: existingUser.email,
-        });
-      } else {
-        const newUser = await db.user.create({
-          data: {
-            email: email as string,
-            name: name as string,
-            ciLogonUserId: sub,
-            orgs: {
-              create: {
-                permissionLevel: PermissionLevel.OWNER,
-                organization: {
-                  create: {
-                    name: `${name || (email as string) || sub}'s Apps`,
-                  },
+    const existingUser = await db.user.findUnique({
+      where: {
+        ciLogonUserId: sub,
+      },
+    });
+
+    if (existingUser) {
+      (req.session as any).user = {
+        id: existingUser.id,
+        name: existingUser.name,
+        email: existingUser.email,
+      };
+    } else {
+      const newUser = await db.user.create({
+        data: {
+          email: email as string,
+          name: name as string,
+          ciLogonUserId: sub,
+          orgs: {
+            create: {
+              permissionLevel: PermissionLevel.OWNER,
+              organization: {
+                create: {
+                  name: `${name || (email as string) || sub}'s Apps`,
                 },
               },
             },
           },
-        });
-        return done(null, {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-        });
-      }
-    } catch (e) {
-      return done(e);
-    }
-  };
-
-  passport.use(
-    new Strategy(
-      {
-        config,
-        scope,
-        callbackURL,
-      },
-      verify,
-    ),
-  );
-
-  passport.serializeUser((user: User, cb) => {
-    process.nextTick(() => {
-      return cb(null, {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        },
       });
-    });
-  });
 
-  passport.deserializeUser((user, cb) => {
-    process.nextTick(() => {
-      return cb(null, user);
-    });
-  });
-
-  const router = express.Router();
-
-  router.use(passport.session());
-
-  router.get(
-    "/login",
-    passport.authenticate(server.host, {
-      successRedirect: callbackURL,
-      failureRedirect: "/login",
-    }),
-  );
-
-  router.get(
-    "/oauth_callback",
-    passport.authenticate(server.host, {
-      successReturnToOrRedirect: "/dashboard",
-      failureRedirect: "/sign-in",
-    }),
-  );
-
-  router.post("/logout", passport.authenticate("session"), (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      req.session.destroy((err) => {
-        if (err) return next(err);
-        res.clearCookie(SESSION_COOKIE_NAME);
-        return res.redirect("https://cilogon.org/logout/?skin=access");
-      });
-    });
-  });
-
-  router.use((req, res, next) => {
-    const loggedIn = req.isAuthenticated && req.isAuthenticated();
-    if (!loggedIn) {
-      res.status(401).json({ message: "Unauthorized", code: 401 });
-      return;
+      (req.session as any).user = {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+      };
     }
-    next();
+
+    return res.redirect("/dashboard");
+  } catch (err) {
+    console.error(err);
+    return res.status(401).redirect("/sign-in");
+  }
+});
+
+router.post("/logout", (req, res, next) => {
+  req.session.destroy((err) => {
+    if (err) return next(err);
+    res.clearCookie(SESSION_COOKIE_NAME);
+    return res.redirect("https://cilogon.org/logout/?skin=access");
   });
+});
 
-  return router;
-};
+router.use((req, res, next) => {
+  const loggedIn = "user" in req.session;
+  if (!loggedIn) {
+    res.sendStatus(401);
+    return;
+  }
+  req.user = req.session["user"];
+  next();
+});
 
-export default getRouter;
+export default router;
