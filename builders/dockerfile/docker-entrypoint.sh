@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 
 # This is the Dockerfile builder. It clones a repository and builds and pushes an image using the Dockerfile located at the specified path.
 # Then, it notifies the backend to deploy the new version of the image.
 
-mkdir -p ./work
+set -eo pipefail
 
-cd work
+cd /work
 
 wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/api/deployment/update
 

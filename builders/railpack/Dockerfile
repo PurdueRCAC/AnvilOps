@@ -14,5 +14,7 @@ COPY --from=railpack /railpack /usr/bin/railpack
 
 COPY --chmod=755 docker-entrypoint.sh /var/run
 
+WORKDIR /work
+
 ENTRYPOINT ["/bin/sh"]
-CMD ["sh", "-c", "/var/run/docker-entrypoint.sh"]
+CMD ["-c", "/var/run/docker-entrypoint.sh"]

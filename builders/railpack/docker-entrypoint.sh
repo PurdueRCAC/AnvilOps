@@ -1,9 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 
 # This is the Railpack builder. It clones a repository, prepares a build plan with Railpack, and builds and pushes an image.
 # Then, it notifies the backend to deploy the new version of the image.
 
-mkdir -p ./work
+set -eo pipefail
+
+cd /work
 
 wget --header="Content-Type: application/json" -post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/api/deployment/update
 
