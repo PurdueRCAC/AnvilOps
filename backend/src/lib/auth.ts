@@ -11,6 +11,8 @@ const redirect_uri = process.env.CALLBACK_URL;
 
 const config = await client.discovery(server, clientID, clientSecret);
 const code_challenge_method = "S256";
+const scope = "openid email profile org.cilogon.userinfo";
+const allowedIdp = "https://idp.purdue.edu/idp/shibboleth";
 
 const router = express.Router();
 
@@ -21,10 +23,11 @@ router.get("/login", async (req, res) => {
 
   const params: Record<string, string> = {
     redirect_uri,
-    scope: "openid email profile",
+    scope,
     code_challenge,
     code_challenge_method,
-    selected_idp: "https://idp.purdue.edu/idp/shibboleth",
+    selected_idp: allowedIdp,
+    idp_hint: allowedIdp,
   };
 
   if (!config.serverMetadata().supportsPKCE()) {
@@ -50,7 +53,11 @@ router.get("/oauth_callback", async (req, res) => {
       },
     );
 
-    const { sub, email, name } = tokens.claims();
+    const { sub, email, name, idp } = tokens.claims();
+
+    if (idp !== allowedIdp) {
+      return res.status(401).redirect("/sign-in");
+    }
     const existingUser = await db.user.findUnique({
       where: {
         ciLogonUserId: sub,
