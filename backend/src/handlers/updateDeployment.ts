@@ -1,6 +1,5 @@
-import { JsonObject } from "@prisma/client/runtime/library";
 import { db } from "../lib/db.ts";
-import { Env, json, Secrets, type HandlerMap } from "../types.ts";
+import { type Env, json, type Secrets, type HandlerMap } from "../types.ts";
 import {
   createDeploymentConfig,
   createOrUpdateApp,
@@ -44,7 +43,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         namespace: subdomain,
         image: deployment.imageTag,
         env: app.env as Env,
-        secrets: app.secrets as Secrets,
+        secrets: JSON.parse(app.secrets) as Secrets,
         port: app.port,
         replicas: app.replicas,
       };
@@ -55,7 +54,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain,
           deployConfig,
           svcConfig,
-          app.secrets as Secrets,
+          JSON.parse(app.secrets) as Secrets,
         );
       } catch (err) {
         console.error(err);

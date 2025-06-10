@@ -623,15 +623,24 @@ components:
           type: string
         repositoryURL:
           type: string
-        port:
-          type: integer
-          format: int64
-        dockerfilePath:
-          type: string
+        config:
+          type: object
+          properties:
+            port:
+              type: integer
+              format: int64
+            dockerfilePath:
+              type: string
+            env:
+              $ref: "#/components/schemas/Envs"
+            secrets:
+              $ref: "#/components/schemas/Secrets"
       required:
         - id
         - orgId
         - name
+        - repositoryURL
+        - config
     NewApp:
       type: object
       properties:

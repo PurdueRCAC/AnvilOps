@@ -5,7 +5,7 @@ import { createState } from "./githubAppInstall.ts";
 import { Octokit } from "octokit";
 import { randomBytes } from "node:crypto";
 import { createBuildJob } from "../lib/builder.ts";
-import { AuthenticatedRequest } from "../lib/api.ts";
+import { type AuthenticatedRequest } from "../lib/api.ts";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -78,7 +78,7 @@ const createApp: HandlerMap["createApp"] = async (
       },
       webhookSecret: "", // TODO
       env: appData.env,
-      secrets: appData.secrets,
+      secrets: JSON.stringify(appData.secrets),
     },
   });
 

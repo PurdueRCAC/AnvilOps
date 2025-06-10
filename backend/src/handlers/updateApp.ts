@@ -1,16 +1,14 @@
-import { Context } from "openapi-backend";
-import { components } from "../generated/openapi.ts";
+import { type components } from "../generated/openapi.ts";
 import {
-  Env,
-  HandlerResponse,
+  type Env,
+  type HandlerResponse,
   json,
-  Secrets,
+  type Secrets,
   type HandlerMap,
 } from "../types.ts";
-import { AuthenticatedRequest } from "../lib/api.ts";
+import { type AuthenticatedRequest } from "../lib/api.ts";
 import { type Response as ExpressResponse } from "express";
 import { db } from "../lib/db.ts";
-import { createBuildJob } from "../lib/builder.ts";
 import {
   createDeploymentConfig,
   createOrUpdateApp,
@@ -18,10 +16,7 @@ import {
 } from "../lib/kubernetes.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
-  ctx: Context<
-    { content: { "application/json": components["schemas"]["App"] } },
-    { appId: number }
-  >,
+  ctx,
   req: AuthenticatedRequest,
   res: ExpressResponse,
 ): Promise<
@@ -61,7 +56,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       namespace: app.subdomain,
       image: deployment.imageTag,
       env: app.env as Env,
-      secrets: app.secrets as Secrets,
+      secrets: JSON.parse(app.secrets) as Secrets,
       port: app.port,
       replicas: app.replicas,
     };

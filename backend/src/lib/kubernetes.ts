@@ -1,7 +1,6 @@
 import {
   AppsV1Api,
   BatchV1Api,
-  ConfigurationOptions,
   CoreV1Api,
   KubeConfig,
   V1Deployment,
@@ -11,8 +10,7 @@ import {
   V1Service,
   KubernetesObjectApi,
 } from "@kubernetes/client-node";
-import { App } from "octokit";
-import { Env, Secrets } from "../types.ts";
+import { type Env, type Secrets } from "../types.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
