@@ -102,23 +102,15 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       }
 
       for (const app of apps) {
-        // Require that the push was made to a branch for which there is a deployment
-        const deployIds = app.deployments
-          .filter((dep) => payload.ref === `refs/heads/${dep.repositoryBranch}`)
-          .map((dep) => dep.id);
-        if (deployIds.length === 0) {
+        // Require that the push was made to the right branch
+        if (payload.ref !== `refs/heads/${app.repositoryBranch}`) {
           continue;
         }
 
         const imageTag =
           `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
         const secret = randomBytes(32).toString("hex");
-        await db.deployment.updateMany({
-          where: {
-            id: {
-              in: deployIds,
-            },
-          },
+        const deployment = await db.deployment.create({
           data: {
             appId: app.id,
             commitHash: payload.head_commit.id,
@@ -136,12 +128,8 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           secret,
         );
 
-        await db.deployment.updateMany({
-          where: {
-            id: {
-              in: deployIds,
-            },
-          },
+        await db.deployment.update({
+          where: { id: deployment.id },
           data: { builderJobId: jobId },
         });
       }
