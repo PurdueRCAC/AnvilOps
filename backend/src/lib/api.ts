@@ -9,7 +9,9 @@ import { type components } from "../generated/openapi.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
 import {
+  Env,
   json,
+  Secrets,
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
@@ -336,9 +338,17 @@ const handlers = {
       if (!organization) return json(401, res, {});
 
       return json(200, res, {
-        ...app,
+        id: app.id,
+        orgId: app.orgId,
+        name: app.name,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
+        repositoryURL: app.repositoryURL,
+        config: {
+          env: app.env as Env,
+          secrets: JSON.parse(app.secrets) as Secrets[],
+          replicas: app.replicas,
+        },
       });
     } catch (e) {
       console.log((e as Error).message);

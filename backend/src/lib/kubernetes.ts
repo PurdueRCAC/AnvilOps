@@ -27,7 +27,7 @@ type AppParams = {
   namespace: string;
   image: string;
   env: Env;
-  secrets: Secrets;
+  secrets: Secrets[];
   port: number;
   replicas: number;
 };
@@ -37,8 +37,8 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
     name: key,
     value: app.env[key],
   }));
-  for (let [secret, data] of Object.entries(app.secrets)) {
-    for (let key of Object.keys(data)) {
+  for (let secret of app.secrets) {
+    for (let key of Object.keys(secret.data)) {
       if (key in app.env) {
         throw new Error("Duplicate environment variable.");
       }
@@ -47,7 +47,7 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
         name: key,
         valueFrom: {
           secretKeyRef: {
-            name: secret,
+            name: secret.name,
             key,
           },
         },
@@ -129,7 +129,7 @@ export const createOrUpdateApp = async (
   namespace: string,
   deployment: V1Deployment,
   service?: V1Service,
-  secrets?: Secrets,
+  secrets?: Secrets[],
 ) => {
   const ns = {
     metadata: {
@@ -139,12 +139,12 @@ export const createOrUpdateApp = async (
 
   // patch is the equivalent of kubectl apply -f
   k8s.full.patch(ns);
-  for (let secret in secrets) {
+  for (let secret of secrets) {
     const body = {
       metadata: {
-        name: secret,
+        name: secret.name,
       },
-      stringData: secrets[secret],
+      stringData: secret.data,
     };
 
     await k8s.full.patch(body);

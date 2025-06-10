@@ -43,7 +43,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         namespace: subdomain,
         image: deployment.imageTag,
         env: app.env as Env,
-        secrets: JSON.parse(app.secrets) as Secrets,
+        secrets: JSON.parse(app.secrets) as Secrets[],
         port: app.port,
         replicas: app.replicas,
       };
@@ -54,7 +54,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain,
           deployConfig,
           svcConfig,
-          JSON.parse(app.secrets) as Secrets,
+          JSON.parse(app.secrets) as Secrets[],
         );
       } catch (err) {
         console.error(err);

@@ -631,6 +631,9 @@ components:
               format: int64
             dockerfilePath:
               type: string
+            replicas:
+              type: integer
+              format: int64
             env:
               $ref: "#/components/schemas/Envs"
             secrets:
@@ -669,9 +672,14 @@ components:
       additionalProperties:
         type: string
     Secrets:
-      type: object
-      additionalProperties:
-        $ref: "#/components/schemas/Envs"
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          data:
+            $ref: "#/components/schemas/Envs"
     ApiError:
       type: object
       properties:

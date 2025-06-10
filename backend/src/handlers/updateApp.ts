@@ -36,7 +36,12 @@ const updateApp: HandlerMap["updateApp"] = async (
       orgId: appData.orgId,
     },
     include: {
-      deployments: true,
+      deployments: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        take: 1,
+      },
     },
   });
 
@@ -50,37 +55,45 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(500, res, { code: 500, message: "No update provided" });
   }
 
-  for (let deployment of app.deployments) {
-    const appParams = {
-      name: app.name,
-      namespace: app.subdomain,
-      image: deployment.imageTag,
-      env: app.env as Env,
-      secrets: JSON.parse(app.secrets) as Secrets,
-      port: app.port,
-      replicas: app.replicas,
-    };
+  const lastDeploymentConfig = app.deployments[0];
+  delete lastDeploymentConfig.id;
 
-    for (let key in updates) {
-      appParams[key] = updates[key];
-    }
+  const deployment = await db.deployment.create({
+    data: {
+      ...lastDeploymentConfig,
+      status: "DEPLOYING",
+    },
+  });
 
-    const deployConfig = createDeploymentConfig(appParams);
-    const svcConfig = createServiceConfig(appParams, app.subdomain);
-    const secrets = appParams.secrets;
-    try {
-      await createOrUpdateApp(app.subdomain, deployConfig, svcConfig, secrets);
-    } catch (err) {
-      console.error(err);
-      await db.deployment.update({
-        where: {
-          id: deployment.id,
-        },
-        data: {
-          status: "ERROR",
-        },
-      });
-    }
+  const appParams = {
+    name: app.name,
+    namespace: app.subdomain,
+    image: deployment.imageTag,
+    env: app.env as Env,
+    secrets: JSON.parse(app.secrets) as Secrets[],
+    port: app.port,
+    replicas: app.replicas,
+  };
+
+  for (let key in updates) {
+    appParams[key] = updates[key];
+  }
+
+  const deployConfig = createDeploymentConfig(appParams);
+  const svcConfig = createServiceConfig(appParams, app.subdomain);
+  const secrets = appParams.secrets;
+  try {
+    await createOrUpdateApp(app.subdomain, deployConfig, svcConfig, secrets);
+  } catch (err) {
+    console.error(err);
+    await db.deployment.update({
+      where: {
+        id: deployment.id,
+      },
+      data: {
+        status: "ERROR",
+      },
+    });
   }
 
   return json(200, res, {});
