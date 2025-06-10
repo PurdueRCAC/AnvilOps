@@ -24,6 +24,7 @@ router.get("/login", async (req, res) => {
     scope: "openid email profile",
     code_challenge,
     code_challenge_method,
+    selected_idp: "https://idp.purdue.edu/idp/shibboleth",
   };
 
   if (!config.serverMetadata().supportsPKCE()) {
