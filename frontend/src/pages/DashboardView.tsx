@@ -1,34 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
-import { OrgApi } from "@/generated/openapi/apis";
-import { type OrgAppsInner } from "@/generated/openapi/models";
-import { useContext, useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 
 export default function DashboardView() {
-  const [apps, setApps] = useState<OrgAppsInner[] | null>(null);
   const { user } = useContext(UserContext);
-  useEffect(() => {
-    (async () => {
-      const api = new OrgApi();
-      try {
-        if (user) {
-          const apps = (await api.getOrgByID({ orgId: user.org.id })).apps;
-          setApps(apps || null);
-        }
-      } catch (e) {
-        if (e instanceof Error) {
-          toast("Dashboard: " + e.message, {
-            action: {
-              label: "Close",
-              onClick: () => {},
-            },
-          });
-        }
-      }
-    })();
-  }, []);
+
+  const { data: org } = api.useQuery(
+    "get",
+    "/org/{orgId}",
+    {
+      params: {
+        path: {
+          orgId: user?.org?.id!,
+        },
+      },
+    },
+    { enabled: user !== undefined },
+  );
+
   return (
     <>
       <h2 className="text-xl p-5">Your Apps</h2>
@@ -53,8 +44,8 @@ export default function DashboardView() {
             </svg>
           </Button>
         </Link>
-        {apps
-          ? apps.map((app) => (
+        {org
+          ? org.apps.map((app) => (
               <Button
                 variant="secondary"
                 className="h-42 xl:h-52 w-full cursor-pointer"

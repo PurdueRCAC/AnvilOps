@@ -37,7 +37,7 @@ router.get("/login", async (req, res) => {
   return res.redirect(redirectTo.toString());
 });
 
-router.get("/oauth_callback", async (req, res, next) => {
+router.get("/oauth_callback", async (req, res) => {
   try {
     const currentUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
     const tokens = await client.authorizationCodeGrant(

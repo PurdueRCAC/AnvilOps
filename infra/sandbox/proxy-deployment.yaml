@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-proxy
+  namespace: anvilops-dev
+  labels:
+    app: app-proxy
+spec:
+  selector:
+    matchLabels:
+      app: app-proxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: app-proxy
+    spec:
+      containers:
+        - name: app-proxy
+          image: registry.anvil.rcac.purdue.edu/docker-hub-cache/library/nginx
+          ports:
+            - containerPort: 80
+          volumes:
+            - name: proxy-config
+              configMap:
+                name: proxyconf
+          volumeMounts:
+            - name: proxy-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf

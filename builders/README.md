@@ -30,13 +30,14 @@ You can run this script to create or refresh your certificates. `generate-certs.
 
 ```sh
 # Run these commands from the `builders/certs` directory
+set -eo pipefail
 
 ./generate-certs.sh
 
-NAMESPACE=anvilops-dev # <-- Fill this in with your K8s namespace
+NAMESPACE=default # <-- Fill this in with your K8s namespace
 
-kubectl -n $NAMESPACE delete secret buildkit-daemon-certs
-kubectl -n $NAMESPACE delete secret buildkit-client-certs
+kubectl -n $NAMESPACE delete secret --ignore-not-found=true buildkit-daemon-certs
+kubectl -n $NAMESPACE delete secret --ignore-not-found=true buildkit-client-certs
 
 kubectl -n $NAMESPACE create secret generic buildkit-daemon-certs --from-file=ca.pem=generated/buildkitd/ca.pem --from-file=cert.pem=generated/buildkitd/cert.pem --from-file=key.pem=generated/buildkitd/key.pem
 kubectl -n $NAMESPACE create secret generic buildkit-client-certs --from-file=ca.pem=generated/client/ca.pem --from-file=cert.pem=generated/client/cert.pem --from-file=key.pem=generated/client/key.pem
