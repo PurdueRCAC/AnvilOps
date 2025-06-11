@@ -1,10 +1,10 @@
 import { db } from "../lib/db.ts";
-import { type Env, json, type Secrets, type HandlerMap } from "../types.ts";
 import {
   createDeploymentConfig,
   createOrUpdateApp,
   createServiceConfig,
 } from "../lib/kubernetes.ts";
+import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -17,11 +17,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     return json(401, res, {});
   }
 
-  if (!(status in ["BUILDING", "DEPLOYING"])) return json(400, res, {});
-
+  if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => status === it)) {
+    return json(400, res, {});
+  }
   const batch = await db.deployment.updateManyAndReturn({
     where: { secret: secret },
-    data: { status: status as "BUILDING" | "DEPLOYING" },
+    data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
   });
 
   if (batch.length === 0) {

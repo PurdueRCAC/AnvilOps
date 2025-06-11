@@ -1,7 +1,7 @@
-import * as client from "openid-client";
 import express from "express";
-import { db } from "./db.ts";
+import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/index.ts";
+import { db } from "./db.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 const clientID = process.env.CLIENT_ID;
@@ -111,7 +111,13 @@ router.post("/logout", (req, res, next) => {
   });
 });
 
+const ALLOWED_ROUTES = ["/deployment/update", "/github/webhook"];
 router.use((req, res, next) => {
+  if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {
+    next();
+    return;
+  }
+
   const loggedIn = "user" in req.session;
   if (!loggedIn) {
     res.sendStatus(401);

@@ -56,7 +56,6 @@ export async function createBuildJob(
                     readOnly: true,
                   },
                 ],
-                command: ["sleep", "300000"],
               },
             ],
             volumes: [
