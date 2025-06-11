@@ -91,7 +91,8 @@ const createApp: HandlerMap["createApp"] = async (
       },
     });
   } catch (err) {
-    if (err instanceof PrismaClientKnownRequestError) {
+    if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+      // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
       return json(409, res, {
         code: 409,
         message: "Subdomain must be unique.",
@@ -109,6 +110,7 @@ const createApp: HandlerMap["createApp"] = async (
       repo.git_url,
     );
   } catch (e) {
+    console.error(e);
     return json(500, res, {
       code: 500,
       message: "Failed to create a deployment for your app.",

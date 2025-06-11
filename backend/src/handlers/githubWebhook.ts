@@ -115,8 +115,6 @@ export async function createDeployment(
   commitMessage: string,
   cloneURL: string,
 ) {
-  const app = await db.app.findUnique({ where: { id: appId } });
-
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:${commitSha}` as const;
   const secret = randomBytes(32).toString("hex");
@@ -130,14 +128,23 @@ export async function createDeployment(
     },
   });
 
-  const jobId = await createBuildJob(
-    `${appId}-${deployment.id}`,
-    "dockerfile",
-    cloneURL,
-    imageTag,
-    `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
-    secret,
-  );
+  let jobId: string;
+  try {
+    jobId = await createBuildJob(
+      `${appId}-${deployment.id}`,
+      "dockerfile",
+      cloneURL,
+      imageTag,
+      `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+      secret,
+    );
+  } catch (e) {
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "ERROR" },
+    });
+    throw new Error("Failed to create build job", { cause: e });
+  }
 
   await db.deployment.update({
     where: { id: deployment.id },
