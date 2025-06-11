@@ -30,6 +30,9 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
+          env:
+            - name: DOCKER_CONFIG
+              value: /root/.docker
           resources:
             requests:
               cpu: 1000m
