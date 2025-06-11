@@ -9,9 +9,12 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
 ) => {
   const deployments = await db.deployment.findMany({
     where: {
-      id: ctx.request.params.appId,
-      app: { org: { users: { some: { userId: req.user.id } } } },
+      app: {
+        id: ctx.request.params.appId,
+        org: { users: { some: { userId: req.user.id } } },
+      },
     },
+    orderBy: { createdAt: "desc" },
     take: 25,
   });
 
