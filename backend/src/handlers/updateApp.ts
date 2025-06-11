@@ -19,16 +19,7 @@ const updateApp: HandlerMap["updateApp"] = async (
   ctx,
   req: AuthenticatedRequest,
   res: ExpressResponse,
-): Promise<
-  HandlerResponse<{
-    200: { headers: { [name: string]: unknown }; content?: never };
-    401: { headers: { [name: string]: unknown }; content?: never };
-    500: {
-      headers: { [name: string]: unknown };
-      content: { "application/json": components["schemas"]["ApiError"] };
-    };
-  }>
-> => {
+) => {
   const appData = ctx.request.requestBody;
   const app = await db.app.findUnique({
     where: {
@@ -55,8 +46,15 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(500, res, { code: 500, message: "No update provided" });
   }
 
-  const lastDeploymentConfig = app.deployments[0];
+  if (!app.deployments) {
+    return json(400, res, {});
+  }
+
+  let lastDeploymentConfig = app.deployments[0];
   delete lastDeploymentConfig.id;
+  delete lastDeploymentConfig.createdAt;
+  delete lastDeploymentConfig.updatedAt;
+  delete lastDeploymentConfig.builderJobId;
 
   const deployment = await db.deployment.create({
     data: {
