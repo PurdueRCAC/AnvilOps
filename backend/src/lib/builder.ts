@@ -47,12 +47,18 @@ export async function createBuildJob(
                     name: "DEPLOYMENT_API_URL",
                     value: "https://anvilops.rcac.purdue.edu/api",
                   },
+                  { name: "DOCKER_CONFIG", value: "/root/.docker" },
                 ],
                 imagePullPolicy: "Always",
                 volumeMounts: [
                   {
                     mountPath: "/certs",
                     name: "buildkitd-tls-certs",
+                    readOnly: true,
+                  },
+                  {
+                    mountPath: "/root/.docker",
+                    name: "registry-credentials",
                     readOnly: true,
                   },
                 ],
@@ -62,6 +68,10 @@ export async function createBuildJob(
               {
                 name: "buildkitd-tls-certs",
                 secret: { secretName: "buildkit-client-certs" },
+              },
+              {
+                name: "registry-credentials",
+                secret: { secretName: "registry-credentials" },
               },
             ],
             restartPolicy: "Never",
