@@ -85,5 +85,26 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
-            - name: DEBUG
-              value: "*"
+            - name: PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-name
+            - name: PROJECT_NS
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-ns
+            - name: KUBECONFIG
+              value: "/opt/creds/kubeconfig"
+          volumeMounts:
+            - mountPath: "/opt/creds"
+              name: kube-auth
+              readOnly: true
+      volumes:
+        - name: kube-auth
+          secret:
+            secretName: kube-auth
+            items:
+              - key: kubeconfig
+                path: kubeconfig
