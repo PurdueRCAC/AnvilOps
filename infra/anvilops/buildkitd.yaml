@@ -62,6 +62,8 @@ spec:
             - name: certs
               readOnly: true
               mountPath: /certs
+            - name: registry-credentials
+              mountPath: /root/.docker
       volumes:
         # buildkit-daemon-certs must contain ca.pem, cert.pem, and key.pem
         - name: certs
