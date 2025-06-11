@@ -7,7 +7,7 @@ set -eo pipefail
 
 cd /work
 
-wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/deployment/update
+wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" -O- $DEPLOYMENT_API_URL/deployment/update
 
 git clone $CLONE_URL --depth=1 .
 
@@ -23,4 +23,4 @@ buildctl \
  --cache-to type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
 
-wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" $DEPLOYMENT_API_URL/deployment/update
+wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" -O- $DEPLOYMENT_API_URL/deployment/update

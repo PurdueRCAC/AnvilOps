@@ -7,7 +7,7 @@ set -eo pipefail
 
 cd /work
 
-wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" $DEPLOYMENT_API_URL/deployment/update
+wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" -O- $DEPLOYMENT_API_URL/deployment/update
 
 git clone $CLONE_URL --depth=1 ./work
 
@@ -31,4 +31,4 @@ buildctl \
 
  # TODO: when adding support for secrets, remember to invalidate the cache when their values change: https://railpack.com/guides/running-railpack-in-production/#layer-invalidation
 
-wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" $DEPLOYMENT_API_URL/deployment/update
+wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" -O- $DEPLOYMENT_API_URL/deployment/update
