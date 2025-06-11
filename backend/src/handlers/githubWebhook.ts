@@ -1,8 +1,10 @@
 import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
+import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -75,7 +77,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       const apps = await db.app.findMany({
         where: { repositoryId: repoId },
         include: {
-          deployments: true,
+          org: true,
         },
       });
 
@@ -89,12 +91,17 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           continue;
         }
 
+        const octokit = await getOctokit(app.org.githubInstallationId);
+
         await createDeployment(
           app.orgId,
           app.id,
           payload.head_commit.id,
           payload.head_commit.message,
-          payload.repository.html_url,
+          await generateCloneURLWithCredentials(
+            octokit,
+            payload.repository.html_url,
+          ),
         );
       }
 
@@ -107,6 +114,17 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
   return json(200, res, {});
 };
+
+export async function generateCloneURLWithCredentials(
+  octokit: Octokit,
+  originalURL: string,
+) {
+  const { token } = (await octokit.auth({ type: "installation" })) as any;
+  const url = URL.parse(originalURL);
+  url.username = "x-access-token";
+  url.password = token;
+  return url.toString();
+}
 
 export async function createDeployment(
   orgId: number,

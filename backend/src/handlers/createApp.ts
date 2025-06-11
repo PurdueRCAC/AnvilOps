@@ -6,7 +6,10 @@ import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
-import { createDeployment } from "./githubWebhook.ts";
+import {
+  createDeployment,
+  generateCloneURLWithCredentials,
+} from "./githubWebhook.ts";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -107,7 +110,7 @@ const createApp: HandlerMap["createApp"] = async (
       app.id,
       latestCommit.sha,
       latestCommit.commit.message,
-      repo.html_url,
+      await generateCloneURLWithCredentials(octokit, repo.html_url),
     );
   } catch (e) {
     console.error(e);
