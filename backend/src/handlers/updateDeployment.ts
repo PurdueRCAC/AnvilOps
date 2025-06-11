@@ -11,8 +11,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   req,
   res,
 ) => {
-  const { secret, status } =
-    ctx.request.requestBody.content["application/json"];
+  const { secret, status } = ctx.request.requestBody;
 
   if (!secret) {
     return json(401, res, {});

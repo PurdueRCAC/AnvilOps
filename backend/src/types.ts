@@ -21,7 +21,7 @@ type TransformHeaders<HeadersIn extends Record<string, string>> = {
 export type HandlerMap = {
   [O in keyof apiOperations]: (
     ctx: Context<
-      apiOperations[O]["requestBody"],
+      apiOperations[O]["requestBody"]["content"]["application/json"],
       apiOperations[O]["parameters"]["path"],
       apiOperations[O]["parameters"]["query"],
       TransformHeaders<apiOperations[O]["parameters"]["header"]>,

@@ -9,9 +9,9 @@ import { type components } from "../generated/openapi.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
 import {
-  Env,
+  type Env,
   json,
-  Secrets,
+  type Secrets,
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
@@ -135,10 +135,7 @@ const handlers = {
     }
   },
   joinOrg: async function (
-    ctx: Context<
-      { content: { "application/json": { inviteCode: string } } },
-      never
-    >,
+    ctx,
     req: AuthenticatedRequest,
     res: ExpressResponse,
   ): Promise<
@@ -157,7 +154,7 @@ const handlers = {
     throw new Error("Function not implemented.");
   },
   createOrg: async function (
-    ctx: Context<{ content: { "application/json": { name: string } } }, never>,
+    ctx,
     req: AuthenticatedRequest,
     res: ExpressResponse,
   ): Promise<
@@ -172,7 +169,7 @@ const handlers = {
       };
     }>
   > {
-    const orgName = ctx.request.requestBody.content["application/json"].name;
+    const orgName = ctx.request.requestBody.name;
     try {
       const result = await db.organization.create({
         data: {
@@ -398,7 +395,15 @@ const api = new OpenAPIBackend({
   customizeAjv: (ajv) => {
     addFormats.default(ajv, {
       mode: "fast",
-      formats: ["email", "uri", "date-time", "uuid", "int64", "uri-template"],
+      formats: [
+        "email",
+        "uri",
+        "date-time",
+        "uuid",
+        "int64",
+        "uri-template",
+        "hostname",
+      ],
     });
     return ajv;
   },

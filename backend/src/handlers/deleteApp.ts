@@ -1,6 +1,6 @@
-import { HandlerResponse, json, type HandlerMap } from "../types.ts";
+import { type HandlerResponse, json, type HandlerMap } from "../types.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
-import { components } from "../generated/openapi.ts";
+import { type components } from "../generated/openapi.ts";
 import { db } from "../lib/db.ts";
 import { deleteNamespace } from "../lib/kubernetes.ts";
 

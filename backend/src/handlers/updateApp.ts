@@ -29,7 +29,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     };
   }>
 > => {
-  const appData = ctx.request.requestBody.content["application/json"];
+  const appData = ctx.request.requestBody;
   const app = await db.app.findUnique({
     where: {
       id: appData.id,
