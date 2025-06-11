@@ -1,16 +1,19 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useContext } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import LandingView from "./pages/LandingView";
-import DashboardView from "./pages/DashboardView";
-import AppView from "./pages/AppView";
-import SignInView from "./pages/SignInView";
-import CreateAppView from "./pages/CreateAppView";
 import UserProvider, { UserContext } from "./components/UserProvider";
 import { Toaster } from "./components/ui/sonner";
-import { useContext } from "react";
+import { queryClient } from "./lib/api";
+import AppView from "./pages/AppView";
+import CreateAppView from "./pages/CreateAppView";
+import DashboardView from "./pages/DashboardView";
+import LandingView from "./pages/LandingView";
+
 function App() {
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <UserProvider>
         <Navbar />
         <Routes>
@@ -18,7 +21,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <RequireAuth redirectTo="/sign-in">
+              <RequireAuth redirectTo="/api/login">
                 <DashboardView />
               </RequireAuth>
             }
@@ -26,16 +29,15 @@ function App() {
           <Route
             path="/app/:id"
             element={
-              <RequireAuth redirectTo="/sign-in">
+              <RequireAuth redirectTo="/api/login">
                 <AppView />
               </RequireAuth>
             }
           />
-          <Route path="/sign-in" element={<SignInView />} />
           <Route
             path="/create-app"
             element={
-              <RequireAuth redirectTo="/sign-in">
+              <RequireAuth redirectTo="/api/login">
                 <CreateAppView />
               </RequireAuth>
             }
@@ -43,7 +45,8 @@ function App() {
         </Routes>
       </UserProvider>
       <Toaster />
-    </>
+      <ReactQueryDevtools />
+    </QueryClientProvider>
   );
 }
 

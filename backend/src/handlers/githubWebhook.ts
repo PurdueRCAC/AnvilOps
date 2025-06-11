@@ -26,15 +26,14 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
   }
 
   const requestType = ctx.request.headers["x-github-event"];
-  const action = ctx.request.requestBody.content["application/json"]["action"];
+  const action = ctx.request.requestBody["action"];
 
   switch (requestType) {
     case "repository": {
       switch (action) {
         case "renamed": {
-          const payload = ctx.request.requestBody.content[
-            "application/json"
-          ] as components["schemas"]["webhook-repository-renamed"];
+          const payload = ctx.request
+            .requestBody as components["schemas"]["webhook-repository-renamed"];
 
           // Change the repository URL of connected apps to point to the new URL
           await db.app.updateMany({
@@ -45,15 +44,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           });
         }
         case "transferred": {
-          const payload = ctx.request.requestBody.content[
-            "application/json"
-          ] as components["schemas"]["webhook-repository-transferred"];
+          const payload = ctx.request
+            .requestBody as components["schemas"]["webhook-repository-transferred"];
           // TODO
         }
         case "deleted": {
-          const payload = ctx.request.requestBody.content[
-            "application/json"
-          ] as components["schemas"]["webhook-repository-deleted"];
+          const payload = ctx.request
+            .requestBody as components["schemas"]["webhook-repository-deleted"];
           // TODO
         }
         default: {
@@ -64,15 +61,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
     case "installation": {
       switch (action) {
         case "created": {
-          const payload = ctx.request.requestBody.content[
-            "application/json"
-          ] as components["schemas"]["webhook-installation-created"];
+          const payload = ctx.request
+            .requestBody as components["schemas"]["webhook-installation-created"];
           // TODO
         }
         case "deleted": {
-          const payload = ctx.request.requestBody.content[
-            "application/json"
-          ] as components["schemas"]["webhook-installation-deleted"];
+          const payload = ctx.request
+            .requestBody as components["schemas"]["webhook-installation-deleted"];
           // TODO
         }
         default: {
@@ -81,9 +76,8 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       }
     }
     case "push": {
-      const payload = ctx.request.requestBody.content[
-        "application/json"
-      ] as components["schemas"]["webhook-push"];
+      const payload = ctx.request
+        .requestBody as components["schemas"]["webhook-push"];
 
       const repoId = payload.repository?.id;
       if (!repoId) {
@@ -109,7 +103,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           continue;
         }
 
-        // Create a Deployment, give its ID to the job, and then update the Deployment with the created Job's ID
         const imageTag =
           `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
         const secret = randomBytes(32).toString("hex");
@@ -124,6 +117,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         });
 
         const jobId = await createBuildJob(
+          `${app.id}-${deployment.id}`,
           "dockerfile",
           payload.repository.git_url,
           imageTag,
@@ -132,7 +126,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         );
 
         // Create a check on their commit that says the build is "in progress"
-        const octokit = getOctokit(app.org.githubInstallationId);
+        const octokit = await getOctokit(app.org.githubInstallationId);
         const checkRun = await octokit.rest.checks.create({
           head_sha: payload.head_commit.id,
           name: "AnvilOps",

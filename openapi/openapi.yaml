@@ -433,6 +433,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /org/{orgId}/repos:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [org]
+      description: Get the Git repositories that the organization has access to
+      operationId: listOrgRepos
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      format: int64
+                    name:
+                      type: string
+                    owner:
+                      type: string
+
+  /org/{orgId}/repos/{repoId}/branches:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: repoId
+        in: path
+        description: GitHub repository ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [org]
+      description: List the Git branches of a repository
+      operationId: listRepoBranches
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  default:
+                    type: string
+                  branches:
+                    type: array
+                    items:
+                      type: string
+
   /app:
     post:
       tags:
@@ -444,10 +511,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/App"
+              $ref: "#/components/schemas/NewApp"
       responses:
         "200":
           description: Success
+        "302":
+          description: Redirecting to finish GitHub App installation
+        "401":
+          description: Unauthorized
+        "403":
+          description: Contact owner to complete GitHub App installation
         "500":
           description: Unexpected Error
           content:
@@ -556,10 +629,13 @@ components:
           type: string
         isOwner:
           type: boolean
+        githubConnected:
+          type: boolean
       required:
         - id
         - name
         - isOwner
+        - githubConnected
     User:
       type: object
       properties:
@@ -617,15 +693,69 @@ components:
           type: string
         repositoryURL:
           type: string
+        config:
+          type: object
+          properties:
+            port:
+              type: integer
+              format: int64
+            dockerfilePath:
+              type: string
+            replicas:
+              type: integer
+              format: int64
+            env:
+              $ref: "#/components/schemas/Envs"
+            secrets:
+              $ref: "#/components/schemas/Secrets"
+      required:
+        - id
+        - orgId
+        - name
+        - repositoryURL
+        - config
+    NewApp:
+      type: object
+      properties:
+        orgId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        repositoryURL:
+          type: string
+          format: uri
+        subdomain:
+          type: string
+          format: hostname
         port:
           type: integer
           format: int64
         dockerfilePath:
           type: string
+        env:
+          $ref: "#/components/schemas/Envs"
+        secrets:
+          $ref: "#/components/schemas/Secrets"
       required:
-        - id
         - orgId
         - name
+        - repositoryURL
+        - subdomain
+        - port
+    Envs:
+      type: object
+      additionalProperties:
+        type: string
+    Secrets:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          data:
+            $ref: "#/components/schemas/Envs"
     ApiError:
       type: object
       properties:

@@ -2379,11 +2379,11 @@ components:
               type: string
               format: uri-template
             pushed_at:
-              nullable: true
               oneOf:
                 - type: integer
                 - type: string
                   format: date-time
+                - type: "null"
             releases_url:
               type: string
               format: uri-template
