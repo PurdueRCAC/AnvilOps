@@ -94,7 +94,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           app.id,
           payload.head_commit.id,
           payload.head_commit.message,
-          payload.repository.git_url,
+          payload.repository.html_url,
         );
       }
 

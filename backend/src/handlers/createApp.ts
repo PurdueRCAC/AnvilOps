@@ -107,7 +107,7 @@ const createApp: HandlerMap["createApp"] = async (
       app.id,
       latestCommit.sha,
       latestCommit.commit.message,
-      repo.git_url,
+      repo.html_url,
     );
   } catch (e) {
     console.error(e);
