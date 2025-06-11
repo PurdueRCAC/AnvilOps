@@ -1,3 +1,4 @@
+import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,9 +21,8 @@ import {
   Link,
   Rocket,
   Server,
-  Trash2,
 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -42,23 +42,6 @@ export default function CreateAppView() {
   const [environmentVariables, setEnvironmentVariables] = useState<
     { key: string; value: string }[]
   >([{ key: "", value: "" }]);
-
-  useEffect(() => {
-    for (let i in environmentVariables) {
-      if (
-        environmentVariables[i].key === "" &&
-        +i < environmentVariables.length - 1
-      ) {
-        setEnvironmentVariables(environmentVariables.toSpliced(+i, 1));
-      }
-    }
-    if (environmentVariables[environmentVariables.length - 1]?.key !== "") {
-      setEnvironmentVariables([
-        ...environmentVariables,
-        { key: "", value: "" },
-      ]);
-    }
-  }, [environmentVariables]);
 
   const selectedOrg =
     selectedOrgId !== undefined
@@ -107,9 +90,6 @@ export default function CreateAppView() {
         onSubmit={async (e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
-
-          console.log(formData);
-
           const result = await createApp({
             body: {
               orgId: selectedOrg!.id,
@@ -298,45 +278,10 @@ export default function CreateAppView() {
               <Label className="pb-1">
                 <Code2 className="inline" size={16} /> Environment Variables
               </Label>
-              <div className="grid grid-cols-[1fr_min-content_1fr_min-content] items-center gap-2">
-                {environmentVariables.map(({ key, value }, index) => (
-                  <Fragment key={index}>
-                    <Input
-                      placeholder="NODE_ENV"
-                      className="w-full"
-                      value={key}
-                      onChange={(e) => {
-                        console.log("hello?");
-                        const newList = structuredClone(environmentVariables);
-                        newList[index].key = e.currentTarget.value;
-                        setEnvironmentVariables(newList);
-                      }}
-                    />
-                    <span className="text-xl align-middle">=</span>
-                    <Input
-                      placeholder="production"
-                      className="w-full"
-                      value={value}
-                      onChange={(e) => {
-                        const newList = structuredClone(environmentVariables);
-                        newList[index].value = e.currentTarget.value;
-                        setEnvironmentVariables(newList);
-                      }}
-                    />
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      onClick={() => {
-                        setEnvironmentVariables(
-                          environmentVariables.filter((_, i) => i !== index),
-                        );
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </Fragment>
-                ))}
-              </div>
+              <EnvVarGrid
+                value={environmentVariables}
+                setValue={setEnvironmentVariables}
+              />
             </div>
 
             <Button
