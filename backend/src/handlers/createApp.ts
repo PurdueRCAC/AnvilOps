@@ -88,6 +88,7 @@ const createApp: HandlerMap["createApp"] = async (
       },
     });
   } catch (err) {
+    console.error(err);
     if (err instanceof PrismaClientKnownRequestError) {
       return json(500, res, {
         code: 500,
