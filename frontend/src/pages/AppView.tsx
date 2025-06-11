@@ -24,12 +24,16 @@ export default function AppView() {
   });
 
   if (!app || isPending) {
-    return <LoaderIcon className="animate-spin" />;
+    return (
+      <div className="flex w-full min-h-96 items-center justify-center">
+        <LoaderIcon className="animate-spin" size={48} />
+      </div>
+    );
   }
 
   return (
-    <>
-      <h2>{app.name}</h2>
+    <main className="px-8 py-10">
+      <h2 className="text-3xl font-bold mb-4">{app.name}</h2>
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -37,7 +41,11 @@ export default function AppView() {
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="danger">Danger</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview">{/* {app.description} */}</TabsContent>
+        <TabsContent value="overview">
+          <pre>
+            <code>{JSON.stringify(app, null, 2)}</code>
+          </pre>
+        </TabsContent>
         <TabsContent value="configuration">
           <h3>Environment variables</h3>
           {/* {Object.keys(app.env).map((key) => (
@@ -70,6 +78,6 @@ export default function AppView() {
           </AlertDialog>
         </TabsContent>
       </Tabs>
-    </>
+    </main>
   );
 }

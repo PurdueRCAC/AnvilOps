@@ -5,7 +5,7 @@ import {
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
 import { useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import defaultPfp from "../assets/default_pfp.png";
 import { Button } from "./ui/button";
 import { DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -42,8 +42,10 @@ export default function Navbar() {
   };
 
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4">
-      <p className="text-lg font-bold">AnvilOps</p>
+    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-white/50 backdrop-blur-xl">
+      <p className="text-lg font-bold">
+        <Link to="/dashboard">AnvilOps</Link>
+      </p>
       <div className="flex gap-4 justify-end">
         {loading || orgsLoading ? null : user ? (
           <>

@@ -138,9 +138,7 @@ export default function CreateAppView() {
           navigate(`/app/${result.id}`);
         }}
       >
-        <h2 className="font-bold text-3xl text-main-5 mb-5">
-          Create a Project
-        </h2>
+        <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
         <div className="space-y-2">
           <Label htmlFor="selectOrg" className="pb-1">
             <Globe className="inline" size={16} />

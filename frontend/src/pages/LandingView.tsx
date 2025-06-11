@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function LandingView() {
   return (
-    <div className="w-screen h-screen flex flex-col justify-center items-center">
-      <h1 className="text-2xl">AnvilOps</h1>
+    <div className="mx-auto max-w-prose my-10">
+      <h1 className="text-4xl font-bold mb-4">AnvilOps</h1>
       <p>
         Anvil Composable Subsystem is a Kubernetes based private cloud managed
         with Rancher that provides a platform for creating composable
@@ -12,9 +13,9 @@ export default function LandingView() {
         complement HPC workflows and run container-based data analysis tools and
         applications.
       </p>
-      <a href="/sign-in">
+      <Link to="/create-app" className="inline-block mt-8">
         <Button>Deploy Now</Button>
-      </a>
+      </Link>
     </div>
   );
 }
