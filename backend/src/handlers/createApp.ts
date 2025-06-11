@@ -1,13 +1,12 @@
-import { type HandlerMap, redirect } from "../types.ts";
-import { json } from "../types.ts";
-import { db } from "../lib/db.ts";
-import { createState } from "./githubAppInstall.ts";
-import { randomBytes } from "node:crypto";
-import { createBuildJob } from "../lib/builder.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
-import { getOctokit } from "../lib/octokit.ts";
-import { Prisma, type App } from "../generated/prisma/client.ts";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import type { Octokit } from "octokit";
+import { type App } from "../generated/prisma/client.ts";
+import { type AuthenticatedRequest } from "../lib/api.ts";
+import { db } from "../lib/db.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { json, redirect, type HandlerMap } from "../types.ts";
+import { createState } from "./githubAppInstall.ts";
+import { createDeployment } from "./githubWebhook.ts";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -53,27 +52,32 @@ const createApp: HandlerMap["createApp"] = async (
     }
   }
 
-  let repoId: number;
-  let commitHash: string;
-  let commitMessage: string;
+  let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
+
   try {
-    let res = await getDeploymentInfo(
-      appData.repositoryURL,
-      organization.githubInstallationId,
-    );
-    repoId = res.repoId;
-    commitHash = res.commitHash;
-    commitMessage = res.commitMessage;
-  } catch (e) {
-    return json(500, res, { code: 500, message: e.message });
+    octokit = await getOctokit(organization.githubInstallationId);
+    repo = await getRepoById(octokit, appData.repositoryId);
+  } catch (err) {
+    return json(500, res, {
+      code: 500,
+      message: "Failed to look up GitHub repository.",
+    });
   }
+
+  const latestCommit = (
+    await octokit.rest.repos.listCommits({
+      per_page: 1,
+      owner: repo.owner.login,
+      repo: repo.name,
+    })
+  ).data[0];
+
   let app: App;
   try {
     app = await db.app.create({
       data: {
         name: appData.name,
-        repositoryURL: appData.repositoryURL,
-        repositoryId: repoId,
+        repositoryId: appData.repositoryId,
         port: appData.port,
         dockerfilePath: appData.dockerfilePath,
         subdomain: appData.subdomain,
@@ -82,80 +86,36 @@ const createApp: HandlerMap["createApp"] = async (
             id: appData.orgId,
           },
         },
-        webhookSecret: "", // TODO
         env: appData.env,
         secrets: JSON.stringify(appData.secrets),
       },
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError) {
-      return json(500, res, {
-        code: 500,
+      return json(409, res, {
+        code: 409,
         message: "Subdomain must be unique.",
       });
     }
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 
-  const imageTag =
-    `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${commitHash}` as const;
-  const secret = randomBytes(32).toString("hex");
-  const deployment = await db.deployment.create({
-    data: {
-      appId: app.id,
-      commitHash,
-      commitMessage,
-      imageTag: imageTag,
-      secret: secret,
-    },
-  });
-
-  const jobId = await createBuildJob(
-    `${app.id}-${deployment.id}`,
-    "dockerfile",
-    appData.repositoryURL,
-    imageTag,
-    `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-    secret,
-  );
-
-  await db.deployment.update({
-    where: { id: deployment.id },
-    data: { builderJobId: jobId },
-  });
-
-  return json(200, res, {});
-};
-
-export const getDeploymentInfo = async (
-  repoURL: string,
-  installationId: number,
-) => {
-  const { pathname } = new URL(repoURL);
-  const [, owner, repo] = pathname.split("/");
-  if (!owner || !repo) {
-    throw new Error(
-      `URL must be of the form ${process.env.GITHUB_BASE_URL}/<owner>/<repo>`,
+  try {
+    await createDeployment(
+      app.orgId,
+      app.id,
+      latestCommit.sha,
+      latestCommit.commit.message,
+      repo.git_url,
     );
+  } catch (e) {
+    return json(500, res, {
+      code: 500,
+      message: "Failed to create a deployment for your app.",
+    });
   }
-  const octokit = await getOctokit(installationId);
-  const res = await octokit.rest.repos.get({ owner, repo });
-  const repoId = res.data.id;
 
-  const branch = res.data.default_branch;
-
-  const commitRes = await octokit.rest.repos.listCommits({
-    owner,
-    repo,
-    sha: branch,
-    per_page: 1,
-  });
-
-  return {
-    repoId,
-    commitHash: commitRes.data[0].sha,
-    commitMessage: commitRes.data[0].commit.message,
-  };
+  return json(200, res, { id: app.id });
 };
 
 export default createApp;

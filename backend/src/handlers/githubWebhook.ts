@@ -1,9 +1,9 @@
 import { Webhooks } from "@octokit/webhooks";
+import { randomBytes } from "node:crypto";
 import type { components } from "../generated/openapi.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
-import { randomBytes } from "node:crypto";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -30,18 +30,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
   switch (requestType) {
     case "repository": {
       switch (action) {
-        case "renamed": {
-          const payload = ctx.request
-            .requestBody as components["schemas"]["webhook-repository-renamed"];
-
-          // Change the repository URL of connected apps to point to the new URL
-          await db.app.updateMany({
-            where: { repositoryId: payload.repository.id },
-            data: {
-              repositoryURL: payload.repository.git_url,
-            },
-          });
-        }
         case "transferred": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-transferred"];
@@ -101,32 +89,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           continue;
         }
 
-        const imageTag =
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
-        const secret = randomBytes(32).toString("hex");
-        const deployment = await db.deployment.create({
-          data: {
-            appId: app.id,
-            commitHash: payload.head_commit.id,
-            commitMessage: payload.head_commit.message,
-            imageTag: imageTag,
-            secret: secret,
-          },
-        });
-
-        const jobId = await createBuildJob(
-          `${app.id}-${deployment.id}`,
-          "dockerfile",
+        await createDeployment(
+          app.orgId,
+          app.id,
+          payload.head_commit.id,
+          payload.head_commit.message,
           payload.repository.git_url,
-          imageTag,
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-          secret,
         );
-
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: { builderJobId: jobId },
-        });
       }
 
       return json(200, res, {});
@@ -138,3 +107,40 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
   return json(200, res, {});
 };
+
+export async function createDeployment(
+  orgId: number,
+  appId: number,
+  commitSha: string,
+  commitMessage: string,
+  cloneURL: string,
+) {
+  const app = await db.app.findUnique({ where: { id: appId } });
+
+  const imageTag =
+    `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:${commitSha}` as const;
+  const secret = randomBytes(32).toString("hex");
+  const deployment = await db.deployment.create({
+    data: {
+      appId: appId,
+      commitHash: commitSha,
+      commitMessage: commitMessage,
+      imageTag: imageTag,
+      secret: secret,
+    },
+  });
+
+  const jobId = await createBuildJob(
+    `${appId}-${deployment.id}`,
+    "dockerfile",
+    cloneURL,
+    imageTag,
+    `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+    secret,
+  );
+
+  await db.deployment.update({
+    where: { id: deployment.id },
+    data: { builderJobId: jobId },
+  });
+}

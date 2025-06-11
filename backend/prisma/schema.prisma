@@ -69,10 +69,8 @@ model App {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   name             String
-  repositoryURL    String
   repositoryId     Int
   repositoryBranch String       @default("main")
-  webhookSecret    String
   dockerfilePath   String?
   port             Int
   subdomain        String       @unique

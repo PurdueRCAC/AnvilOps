@@ -11,8 +11,20 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import clsx from "clsx";
-import { BookMarked, FolderRoot, GitBranch, Globe, Rocket } from "lucide-react";
-import { useState } from "react";
+import {
+  BookMarked,
+  Code2,
+  FolderRoot,
+  GitBranch,
+  Globe,
+  Link,
+  Rocket,
+  Server,
+  Trash2,
+} from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function CreateAppView() {
   const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
@@ -20,12 +32,33 @@ export default function CreateAppView() {
   const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
     undefined,
   );
-  const [selectedRepo, setSelectedRepo] = useState<string | undefined>(
+  const [selectedRepoId, setSelectedRepo] = useState<string | undefined>(
     undefined,
   );
   const [selectedBranch, setSelectedBranch] = useState<string | undefined>(
     undefined,
   );
+
+  const [environmentVariables, setEnvironmentVariables] = useState<
+    { key: string; value: string }[]
+  >([{ key: "", value: "" }]);
+
+  useEffect(() => {
+    for (let i in environmentVariables) {
+      if (
+        environmentVariables[i].key === "" &&
+        +i < environmentVariables.length - 1
+      ) {
+        setEnvironmentVariables(environmentVariables.toSpliced(+i, 1));
+      }
+    }
+    if (environmentVariables[environmentVariables.length - 1]?.key !== "") {
+      setEnvironmentVariables([
+        ...environmentVariables,
+        { key: "", value: "" },
+      ]);
+    }
+  }, [environmentVariables]);
 
   const selectedOrg =
     selectedOrgId !== undefined
@@ -46,23 +79,65 @@ export default function CreateAppView() {
       params: {
         path: {
           orgId: parseInt(selectedOrgId!),
-          repoId: parseInt(selectedRepo!),
+          repoId: parseInt(selectedRepoId!),
         },
       },
     },
     {
       enabled:
         selectedOrgId !== undefined &&
-        selectedRepo !== undefined &&
+        selectedRepoId !== undefined &&
         selectedOrg?.githubConnected,
     },
   );
 
+  const selectedRepo =
+    selectedRepoId !== undefined
+      ? repos?.find((it) => it.id === parseInt(selectedRepoId))
+      : undefined;
+
   const { mutateAsync: createApp } = api.useMutation("post", "/app");
+
+  const navigate = useNavigate();
 
   return (
     <div className="flex max-w-prose mx-auto">
-      <form className="flex flex-col gap-4 w-full my-10" onSubmit={() => {}}>
+      <form
+        className="flex flex-col gap-4 w-full my-10"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+
+          console.log(formData);
+
+          const result = await createApp({
+            body: {
+              orgId: selectedOrg!.id,
+              name: selectedRepo!.name!,
+              port: 3000,
+              subdomain: formData.get("subdomain")!.toString(),
+              dockerfilePath: "Dockerfile",
+              env: environmentVariables.reduce(
+                (acc, current) => {
+                  if (current.key !== "") {
+                    acc[current.key] = current.value;
+                  }
+                  return acc;
+                },
+                {} as Record<string, string>,
+              ),
+              repositoryId: selectedRepo!.id!,
+              secrets: [
+                /* TODO */
+              ],
+            },
+          });
+
+          toast.success("App created!");
+
+          navigate(`/app/${result.id}`);
+        }}
+      >
         <h2 className="font-bold text-3xl text-main-5 mb-5">
           Create a Project
         </h2>
@@ -71,7 +146,7 @@ export default function CreateAppView() {
             <Globe className="inline" size={16} />
             Organization
           </Label>
-          <Select onValueChange={setSelectedOrg}>
+          <Select onValueChange={setSelectedOrg} name="org">
             <SelectTrigger
               className="w-full"
               onSelect={(e) => e}
@@ -108,6 +183,7 @@ export default function CreateAppView() {
                 Repository
               </Label>
               <Select
+                name="repo"
                 disabled={selectedOrgId === undefined || reposLoading}
                 onValueChange={setSelectedRepo}
               >
@@ -138,7 +214,7 @@ export default function CreateAppView() {
                 htmlFor="selectBranch"
                 className={clsx(
                   "pb-1",
-                  (selectedRepo === undefined || branchesLoading) &&
+                  (selectedRepoId === undefined || branchesLoading) &&
                     "opacity-50",
                 )}
               >
@@ -146,7 +222,8 @@ export default function CreateAppView() {
                 Branch
               </Label>
               <Select
-                disabled={selectedRepo === undefined || branchesLoading}
+                name="branch"
+                disabled={selectedRepoId === undefined || branchesLoading}
                 onValueChange={setSelectedBranch}
               >
                 <SelectTrigger className="w-full" id="selectBranch">
@@ -160,7 +237,7 @@ export default function CreateAppView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {selectedRepo !== undefined
+                    {selectedRepoId !== undefined
                       ? branches?.branches?.map((branch) => (
                           <SelectItem key={branch} value={branch}>
                             {branch}
@@ -175,7 +252,93 @@ export default function CreateAppView() {
               <Label className="pb-1">
                 <FolderRoot className="inline" size={16} /> Root directory
               </Label>
-              <Input placeholder="/" className="w-full" />
+              <Input name="rootDir" placeholder="/" className="w-full" />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Link className="inline" size={16} /> Public URL
+              </Label>
+              <div className="flex relative items-center gap-2">
+                <span className="absolute left-2 text-sm opacity-50">
+                  https://
+                </span>
+                <Input
+                  name="subdomain"
+                  placeholder="my-app"
+                  className="w-full pl-14 pr-45"
+                  required
+                  pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+                  onChange={(e) => {
+                    e.currentTarget.value = e.currentTarget.value
+                      .toLowerCase()
+                      .replace(/[^A-Za-z0-9-]/, "-");
+                  }}
+                />
+                <span className="absolute right-2 text-sm opacity-50">
+                  .anvilops.rcac.purdue.edu
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Server className="inline" size={16} /> Port Number
+              </Label>
+              <Input
+                name="port"
+                placeholder="3000"
+                className="w-full"
+                type="number"
+                required
+                min="1"
+                max="65536"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Code2 className="inline" size={16} /> Environment Variables
+              </Label>
+              <div className="grid grid-cols-[1fr_min-content_1fr_min-content] items-center gap-2">
+                {environmentVariables.map(({ key, value }, index) => (
+                  <Fragment key={index}>
+                    <Input
+                      placeholder="NODE_ENV"
+                      className="w-full"
+                      value={key}
+                      onChange={(e) => {
+                        console.log("hello?");
+                        const newList = structuredClone(environmentVariables);
+                        newList[index].key = e.currentTarget.value;
+                        setEnvironmentVariables(newList);
+                      }}
+                    />
+                    <span className="text-xl align-middle">=</span>
+                    <Input
+                      placeholder="production"
+                      className="w-full"
+                      value={value}
+                      onChange={(e) => {
+                        const newList = structuredClone(environmentVariables);
+                        newList[index].value = e.currentTarget.value;
+                        setEnvironmentVariables(newList);
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      onClick={() => {
+                        setEnvironmentVariables(
+                          environmentVariables.filter((_, i) => i !== index),
+                        );
+                      }}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </Fragment>
+                ))}
+              </div>
             </div>
 
             <Button
@@ -184,7 +347,7 @@ export default function CreateAppView() {
               type="submit"
               disabled={
                 selectedBranch === undefined ||
-                selectedRepo === undefined ||
+                selectedRepoId === undefined ||
                 selectedOrg === undefined
               }
             >

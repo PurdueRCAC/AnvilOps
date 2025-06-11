@@ -515,12 +515,23 @@ paths:
       responses:
         "200":
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    format: int64
+                    description: The ID of the newly-created app
         "302":
           description: Redirecting to finish GitHub App installation
         "401":
           description: Unauthorized
         "403":
           description: Contact owner to complete GitHub App installation
+        "409":
+          description: Subdomain is taken
         "500":
           description: Unexpected Error
           content:
@@ -722,9 +733,9 @@ components:
           format: int64
         name:
           type: string
-        repositoryURL:
-          type: string
-          format: uri
+        repositoryId:
+          type: number
+          format: int64
         subdomain:
           type: string
           format: hostname
@@ -740,7 +751,7 @@ components:
       required:
         - orgId
         - name
-        - repositoryURL
+        - repositoryId
         - subdomain
         - port
     Envs:
