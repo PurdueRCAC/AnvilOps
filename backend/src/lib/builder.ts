@@ -71,7 +71,10 @@ export async function createBuildJob(
               },
               {
                 name: "registry-credentials",
-                secret: { secretName: "registry-credentials" },
+                secret: {
+                  secretName: "registry-credentials",
+                  defaultMode: 511,
+                },
               },
             ],
             restartPolicy: "Never",
