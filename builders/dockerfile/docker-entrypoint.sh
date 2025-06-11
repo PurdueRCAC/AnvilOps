@@ -19,8 +19,8 @@ buildctl \
  --frontend dockerfile.v0 \
  --local context=. \
  --local dockerfile=. \
- --cache-from type=registry,ref=$CACHE_TAG \
- --cache-to type=registry,ref=$CACHE_TAG \
+ --import-cache type=registry,ref=$CACHE_TAG \
+ --export-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
 
 wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"DEPLOYING\"}" -O- $DEPLOYMENT_API_URL/deployment/update

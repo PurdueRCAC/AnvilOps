@@ -25,8 +25,8 @@ buildctl \
  --opt source=ghcr.io/railwayapp/railpack:railpack-frontend \
  --local context=./work \
  --local dockerfile=./railpack-plan.json \
- --cache-from type=registry,ref=$CACHE_TAG \
- --cache-to type=registry,ref=$CACHE_TAG \
+ --export-cache type=registry,ref=$CACHE_TAG \
+ --import-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
 
  # TODO: when adding support for secrets, remember to invalidate the cache when their values change: https://railpack.com/guides/running-railpack-in-production/#layer-invalidation
