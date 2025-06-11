@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "builders/dockerfile"
+      - "builders/dockerfile/**"
   workflow_dispatch:
 
 jobs:

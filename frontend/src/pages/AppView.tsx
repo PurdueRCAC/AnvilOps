@@ -7,71 +7,26 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ConfigVar from "../components/ConfigVar";
+import { api } from "@/lib/api";
+import { LoaderIcon } from "lucide-react";
+import { useParams } from "react-router-dom";
 import {
   AlertDialogAction,
   AlertDialogFooter,
   AlertDialogHeader,
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
-import { useEffect, useState } from "react";
-import { AppApi } from "@/generated/openapi/apis";
-import { redirect, useParams } from "react-router-dom";
-import { RequiredError, ResponseError } from "@/generated/openapi/runtime";
-import { toast } from "sonner";
-import type { ApiError } from "@/generated/openapi/models";
 
-interface App {
-  name: string;
-  link: string | undefined;
-  info: string | undefined;
-  env: { [key: string]: string };
-  secrets: { [key: string]: string };
-}
-const app: App = {
-  name: "My Project",
-  link: "https://google.com",
-  info: "taskforge is a lightweight, modular task-management API built with Node.js, Express 5, and TypeScript. It exposes a RESTful interface for creating, updating, and tracking tasks, with optional real-time updates via WebSocket. The design emphasizes clean architecture, test-driven development, and zero-downtime deployments.",
-  env: { NODE_ENV: "prod" },
-  secrets: { POSTGRES_URL: "postgres://db" },
-};
 export default function AppView() {
-  const [app, setApp] = useState<App | null>(null);
   const params = useParams();
-  useEffect(() => {
-    (async () => {
-      const api = new AppApi();
-      try {
-        const res = await api.getAppByID({ appId: parseInt(params.id || "") });
-        setApp({
-          name: res.name,
-          link: res.repositoryURL,
-          info: "info",
-          env: { NODE_ENV: "production" },
-          secrets: { POSTGRES_URL: "postgres://db" },
-        });
-      } catch (e) {
-        if (e instanceof RequiredError) {
-          redirect("/dashboard");
-        }
+  const { data: app, isPending } = api.useQuery("get", "/app/{appId}", {
+    params: { path: { appId: parseInt(params.id!) } },
+  });
 
-        if (e instanceof ResponseError) {
-          if (e.response.status === 401) {
-            redirect("/dashboard");
-          } else {
-            const apiErr = (await e.response.json()) as ApiError;
-            toast(apiErr.message, {
-              action: {
-                label: "Close",
-                onClick: () => {},
-              },
-            });
-          }
-        }
-      }
-    })();
-  }, []);
-  if (!app) return;
+  if (!app || isPending) {
+    return <LoaderIcon className="animate-spin" />;
+  }
+
   return (
     <>
       <h2>{app.name}</h2>
@@ -82,16 +37,16 @@ export default function AppView() {
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="danger">Danger</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview">{app.info}</TabsContent>
+        <TabsContent value="overview">{/* {app.description} */}</TabsContent>
         <TabsContent value="configuration">
           <h3>Environment variables</h3>
-          {Object.keys(app.env).map((key) => (
+          {/* {Object.keys(app.env).map((key) => (
             <ConfigVar name={key} value={app.env[key]} />
           ))}
           <h3>Secrets</h3>
           {Object.keys(app.secrets).map((key) => (
             <ConfigVar name={key} value={app.env[key]} secret />
-          ))}
+          ))} */}
         </TabsContent>
         <TabsContent value="danger">
           <AlertDialog>

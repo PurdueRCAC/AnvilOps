@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-61-d9a9148d1f5a2d8cdf311d76011db69a92312e66 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-9-f737f61bc495761c6985b66015b533f9738e24dd # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -71,6 +71,11 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-id
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: app-id
             - name: GITHUB_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:

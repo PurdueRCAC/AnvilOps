@@ -15,14 +15,13 @@ spec:
     metadata:
       labels:
         app: buildkitd
-    # see buildkit/docs/rootless.md for caveats of rootless mode
     spec:
       containers:
         - name: buildkitd
-          image: moby/buildkit:rootless
+          image: moby/buildkit:master
           args:
             - --addr
-            - unix:///run/user/1000/buildkit/buildkitd.sock
+            - unix:///run/buildkit/buildkitd.sock
             - --addr
             - tcp://0.0.0.0:1234
             - --tlscacert
@@ -31,7 +30,6 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
-            - --oci-worker-no-process-sandbox
           resources:
             requests:
               cpu: 1000m
@@ -39,7 +37,6 @@ spec:
             limits:
               cpu: 4000m
               memory: 8Gi
-          # the probe below will only work after Release v0.6.3
           readinessProbe:
             exec:
               command:
@@ -48,7 +45,6 @@ spec:
                 - workers
             initialDelaySeconds: 5
             periodSeconds: 30
-          # the probe below will only work after Release v0.6.3
           livenessProbe:
             exec:
               command:
@@ -58,27 +54,14 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 30
           securityContext:
-            # Needs Kubernetes >= 1.19
-            seccompProfile:
-              type: Unconfined
-            # To change UID/GID, you need to rebuild the image
-            runAsUser: 1000
-            runAsGroup: 1000
+            privileged: true
+            allowPrivilegeEscalation: true
           ports:
             - containerPort: 1234
           volumeMounts:
             - name: certs
               readOnly: true
               mountPath: /certs
-            # Dockerfile has `VOLUME /home/user/.local/share/buildkit` by default too,
-            # but the default VOLUME does not work with rootless on Google's Container-Optimized OS
-            # as it is mounted with `nosuid,nodev`.
-            # https://github.com/moby/buildkit/issues/879#issuecomment-1240347038
-            - mountPath: /home/user/.local/share/buildkit
-              name: buildkitd
-            - name: registry-credentials
-              mountPath: /home/user/.docker/
-              readOnly: true
       volumes:
         # buildkit-daemon-certs must contain ca.pem, cert.pem, and key.pem
         - name: certs

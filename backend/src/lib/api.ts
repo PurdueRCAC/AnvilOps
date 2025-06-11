@@ -7,7 +7,12 @@ import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
+import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
+import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
+import { listOrgRepos } from "../handlers/listOrgRepos.ts";
+import { listRepoBranches } from "../handlers/listRepoBranches.ts";
+import { updateDeployment } from "../handlers/updateDeployment.ts";
 import {
   type Env,
   json,
@@ -17,9 +22,6 @@ import {
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
-import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
-import { updateDeployment } from "../handlers/updateDeployment.ts";
 import createApp from "../handlers/createApp.ts";
 import updateApp from "../handlers/updateApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
@@ -54,19 +56,18 @@ const handlers = {
       const membership = await db.organizationMembership.findFirst({
         where: { userId: user.id },
       });
-      const orgName = (
-        await db.organization.findUnique({
-          where: { id: membership.organizationId },
-        })
-      ).name;
+      const org = await db.organization.findUnique({
+        where: { id: membership.organizationId },
+      });
       return json(200, res, {
         id: user.id,
         email: user.email,
         name: user.name,
         org: {
           id: membership.organizationId,
-          name: orgName,
+          name: org.name,
           isOwner: membership.permissionLevel === "OWNER",
+          githubConnected: org.githubInstallationId !== null,
         },
       });
     } catch (e) {
@@ -106,6 +107,7 @@ const handlers = {
         id: o.id,
         name: o.name,
         isOwner: o.users[0].permissionLevel === "OWNER",
+        githubConnected: o.githubInstallationId !== null,
       }));
       return json(200, res, result);
     } catch (e) {
@@ -360,6 +362,8 @@ const handlers = {
   githubOAuthCallback,
   githubInstallCallback,
   updateDeployment,
+  listOrgRepos,
+  listRepoBranches,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(
@@ -408,6 +412,8 @@ const api = new OpenAPIBackend({
     return ajv;
   },
 });
+
+api.init();
 
 const handler = (req: ExpressRequest, res: ExpressResponse) => {
   api.handleRequest(req as Request, req, res);

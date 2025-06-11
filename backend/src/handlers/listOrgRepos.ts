@@ -1,0 +1,29 @@
+import type { AuthenticatedRequest } from "../lib/api.ts";
+import { db } from "../lib/db.ts";
+import { getOctokit } from "../lib/octokit.ts";
+import { json, type HandlerMap } from "../types.ts";
+
+export const listOrgRepos: HandlerMap["listOrgRepos"] = async (
+  ctx,
+  req: AuthenticatedRequest,
+  res,
+) => {
+  const org = await db.organization.findUnique({
+    where: {
+      id: ctx.request.params.orgId,
+      users: { some: { userId: req.user.id } },
+    },
+    select: { githubInstallationId: true },
+  });
+
+  const octokit = await getOctokit(org.githubInstallationId);
+  const repos = await octokit.rest.apps.listReposAccessibleToInstallation();
+
+  const data = repos.data.repositories?.map((repo) => ({
+    id: repo.id,
+    owner: repo.owner.login,
+    name: repo.name,
+  }));
+
+  return json(200, res, data);
+};
