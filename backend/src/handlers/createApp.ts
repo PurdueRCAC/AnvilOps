@@ -138,7 +138,7 @@ export const getDeploymentInfo = async (
       `URL must be of the form ${process.env.GITHUB_BASE_URL}/<owner>/<repo>`,
     );
   }
-  const octokit = getOctokit(installationId);
+  const octokit = await getOctokit(installationId);
   const res = await octokit.rest.repos.get({ owner, repo });
   const repoId = res.data.id;
 
