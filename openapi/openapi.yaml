@@ -667,6 +667,12 @@ components:
           $ref: "#/components/schemas/Envs"
         secrets:
           $ref: "#/components/schemas/Secrets"
+      required:
+        - orgId
+        - name
+        - repositoryURL
+        - subdomain
+        - port
     Envs:
       type: object
       additionalProperties:

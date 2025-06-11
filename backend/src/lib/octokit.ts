@@ -11,7 +11,7 @@ export function getOctokit(installationId: number) {
     baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
     authStrategy: createAppAuth,
     auth: {
-      appId: process.env.GITHUB_CLIENT_ID,
+      appId: process.env.GITHUB_APP_ID,
       privateKey,
       installationId,
     },

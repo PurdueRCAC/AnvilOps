@@ -2,17 +2,19 @@ import { type HandlerMap, redirect } from "../types.ts";
 import { json } from "../types.ts";
 import { db } from "../lib/db.ts";
 import { createState } from "./githubAppInstall.ts";
-import { Octokit } from "octokit";
 import { randomBytes } from "node:crypto";
 import { createBuildJob } from "../lib/builder.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
+import { getOctokit } from "../lib/octokit.ts";
+import { Prisma, type App } from "../generated/prisma/client.ts";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const appData = ctx.request.requestBody.content["application/json"];
+  const appData = ctx.request.requestBody;
   const organization = await db.organization.findUnique({
     where: {
       id: appData.orgId,
@@ -55,32 +57,45 @@ const createApp: HandlerMap["createApp"] = async (
   let commitHash: string;
   let commitMessage: string;
   try {
-    let res = await getDeploymentInfo(appData.repositoryURL);
+    let res = await getDeploymentInfo(
+      appData.repositoryURL,
+      organization.githubInstallationId,
+    );
     repoId = res.repoId;
     commitHash = res.commitHash;
     commitMessage = res.commitMessage;
   } catch (e) {
     return json(500, res, { code: 500, message: e.message });
   }
-
-  const app = await db.app.create({
-    data: {
-      name: appData.name,
-      repositoryURL: appData.repositoryURL,
-      repositoryId: repoId,
-      port: appData.port,
-      dockerfilePath: appData.dockerfilePath,
-      subdomain: appData.subdomain,
-      org: {
-        connect: {
-          id: appData.orgId,
+  let app: App;
+  try {
+    app = await db.app.create({
+      data: {
+        name: appData.name,
+        repositoryURL: appData.repositoryURL,
+        repositoryId: repoId,
+        port: appData.port,
+        dockerfilePath: appData.dockerfilePath,
+        subdomain: appData.subdomain,
+        org: {
+          connect: {
+            id: appData.orgId,
+          },
         },
+        webhookSecret: "", // TODO
+        env: appData.env,
+        secrets: JSON.stringify(appData.secrets),
       },
-      webhookSecret: "", // TODO
-      env: appData.env,
-      secrets: JSON.stringify(appData.secrets),
-    },
-  });
+    });
+  } catch (err) {
+    if (err instanceof PrismaClientKnownRequestError) {
+      return json(500, res, {
+        code: 500,
+        message: "Subdomain must be unique.",
+      });
+    }
+    return json(500, res, { code: 500, message: "Unable to create app." });
+  }
 
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${commitHash}` as const;
@@ -96,6 +111,7 @@ const createApp: HandlerMap["createApp"] = async (
   });
 
   const jobId = await createBuildJob(
+    `${app.id}-${deployment.id}`,
     "dockerfile",
     appData.repositoryURL,
     imageTag,
@@ -111,15 +127,18 @@ const createApp: HandlerMap["createApp"] = async (
   return json(200, res, {});
 };
 
-export const getDeploymentInfo = async (repoURL: string) => {
+export const getDeploymentInfo = async (
+  repoURL: string,
+  installationId: number,
+) => {
   const { pathname } = new URL(repoURL);
   const [, owner, repo] = pathname.split("/");
   if (!owner || !repo) {
     throw new Error(
-      "URL must be of the form https://github.com/<owner>/<repo>",
+      `URL must be of the form ${process.env.GITHUB_BASE_URL}/<owner>/<repo>`,
     );
   }
-  const octokit = new Octokit();
+  const octokit = getOctokit(installationId);
   const res = await octokit.rest.repos.get({ owner, repo });
   const repoId = res.data.id;
 

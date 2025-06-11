@@ -73,7 +73,7 @@ model App {
   repositoryId     Int
   repositoryBranch String       @default("main")
   webhookSecret    String
-  dockerfilePath   String
+  dockerfilePath   String?
   port             Int
   subdomain        String       @unique
   env              Json?
