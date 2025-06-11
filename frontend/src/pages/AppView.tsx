@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { LoaderIcon, Save, Server } from "lucide-react";
+import { GitBranch, Loader, LoaderIcon, Save, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -63,12 +63,10 @@ export default function AppView() {
           <TabsTrigger value="danger">Danger</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
-          <pre>
-            <code>{JSON.stringify(app, null, 2)}</code>
-          </pre>
+          <OverviewTab app={app} />
         </TabsContent>
         <TabsContent value="configuration">
-          <h3 className="flex items-center gap-2 text-lg font-medium mb-2">
+          <h3 className="flex items-center gap-2 text-xl font-medium mb-2">
             <Server className="inline" />
             Environment variables
           </h3>
@@ -84,6 +82,89 @@ export default function AppView() {
     </main>
   );
 }
+
+const OverviewTab = ({ app }: { app: App }) => {
+  const { data: deployments, isPending } = api.useQuery(
+    "get",
+    "/app/{appId}/deployments",
+    { params: { path: { appId: app.id } } },
+  );
+
+  const format = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeStyle: "medium",
+  });
+
+  return (
+    <>
+      <h3 className="text-xl font-medium">Recent Deployments</h3>
+      <p className="opacity-50 mb-2">
+        Automatically triggered from pushes to{" "}
+        <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
+          <GitBranch className="inline" size={16} />{" "}
+          <code>{app.config.branch}</code>
+        </a>
+        .
+      </p>
+      {isPending && deployments === undefined ? (
+        <Loader className="animate-spin" />
+      ) : (
+        <table className="my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
+          <thead>
+            <tr className="*:text-start *:pb-2">
+              <th>Last Updated</th>
+              <th>Commit Hash</th>
+              <th>Commit Message</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deployments?.map((d) => (
+              <tr key={d.id}>
+                <td>
+                  {format.format(new Date((d.updatedAt ?? d.createdAt)!))}
+                </td>
+                <td>
+                  <a href={`${app.repositoryURL}/commit/${d.commitHash}`}>
+                    {d.commitHash?.substring(0, 7)}
+                  </a>
+                </td>
+                <td>{d.commitMessage}</td>
+                <td>
+                  <Status status={d.status as DeploymentStatus} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+};
+
+type DeploymentStatus =
+  | "PENDING"
+  | "BUILDING"
+  | "DEPLOYING"
+  | "COMPLETE"
+  | "ERROR";
+
+const Status = ({ status }: { status: DeploymentStatus }) => {
+  const colors: Record<DeploymentStatus, string> = {
+    PENDING: "bg-amber-500",
+    BUILDING: "bg-blue-500",
+    DEPLOYING: "bg-purple-500",
+    COMPLETE: "bg-green-500",
+    ERROR: "bg-red-500",
+  };
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      <div className={`size-2 rounded-full ${colors[status]}`} />
+      {status.substring(0, 1) + status.toLowerCase().substring(1)}
+    </div>
+  );
+};
 
 const DangerZoneTab = ({ app }: { app: App }) => {
   const { mutateAsync: deleteProject } = api.useMutation(

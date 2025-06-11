@@ -12,6 +12,7 @@ import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
+import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
 import updateApp from "../handlers/updateApp.ts";
@@ -351,6 +352,9 @@ const handlers = {
           env: app.env as Env,
           secrets: JSON.parse(app.secrets) as Secrets[],
           replicas: app.replicas,
+          branch: app.repositoryBranch,
+          dockerfilePath: app.dockerfilePath,
+          port: app.port,
         },
       });
     } catch (e) {
@@ -368,6 +372,7 @@ const handlers = {
   updateDeployment,
   listOrgRepos,
   listRepoBranches,
+  listDeployments,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

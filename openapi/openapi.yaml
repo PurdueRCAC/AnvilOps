@@ -607,6 +607,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /app/{appId}/deployments:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [app]
+      description: List an app's recent deployments
+      operationId: listDeployments
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      format: int64
+                    commitHash:
+                      type: string
+                    commitMessage:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    updatedAt:
+                      type: string
+                      format: date-time
+                    status:
+                      type: string
+                required:
+                  [id, commitHash, commitMessage, createdAt, updatedAt, status]
+
   /deployment/update:
     description: Updates a deployment's status. Meant to be called from a build job.
     post:
@@ -714,6 +756,8 @@ components:
               format: int64
             dockerfilePath:
               type: string
+            branch:
+              type: string
             replicas:
               type: integer
               format: int64
@@ -721,6 +765,7 @@ components:
               $ref: "#/components/schemas/Envs"
             secrets:
               $ref: "#/components/schemas/Secrets"
+          required: [port, dockerfilePath, branch, replicas, env, secrets]
       required:
         - id
         - orgId
