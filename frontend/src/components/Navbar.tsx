@@ -22,7 +22,17 @@ import { UserContext } from "./UserProvider";
 export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
-  const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
+  const { data: orgs, isPending: orgsLoading } = api.useQuery(
+    "get",
+    "/org/me",
+    {},
+    {
+      retry(failureCount, error) {
+        if (error.code === 401) return false;
+        return failureCount < 3;
+      },
+    },
+  );
 
   const navigate = useNavigate();
 
@@ -31,15 +41,11 @@ export default function Navbar() {
     navigate(`/org/${orgId}`);
   };
 
-  if (loading || orgsLoading) {
-    return null;
-  }
-
   return (
     <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4">
       <p className="text-lg font-bold">AnvilOps</p>
       <div className="flex gap-4 justify-end">
-        {user ? (
+        {loading || orgsLoading ? null : user ? (
           <>
             <Select
               defaultValue={user?.org.id.toString()}

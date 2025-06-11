@@ -58,14 +58,11 @@ export default function CreateAppView() {
     },
   );
 
+  const { mutateAsync: createApp } = api.useMutation("post", "/app");
+
   return (
     <div className="flex max-w-prose mx-auto">
-      <form
-        className="flex flex-col gap-4 w-full my-10"
-        onSubmit={() => {
-          console.log("submit");
-        }}
-      >
+      <form className="flex flex-col gap-4 w-full my-10" onSubmit={() => {}}>
         <h2 className="font-bold text-3xl text-main-5 mb-5">
           Create a Project
         </h2>
@@ -181,7 +178,16 @@ export default function CreateAppView() {
               <Input placeholder="/" className="w-full" />
             </div>
 
-            <Button className="mt-8" size="lg" type="submit">
+            <Button
+              className="mt-8"
+              size="lg"
+              type="submit"
+              disabled={
+                selectedBranch === undefined ||
+                selectedRepo === undefined ||
+                selectedOrg === undefined
+              }
+            >
               <Rocket />
               Deploy
             </Button>
