@@ -572,6 +572,8 @@ paths:
           description: Success
         "401":
           description: Unauthorized
+        "400":
+          description: Malformed app
         "500":
           description: Unexpected Error
           content:
