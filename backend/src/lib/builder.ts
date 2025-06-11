@@ -5,6 +5,7 @@ type Builder = "railpack" | "dockerfile";
 type ImageTag = `${string}/${string}/${string}:${string}`;
 
 export async function createBuildJob(
+  tag: string,
   builder: Builder,
   gitRepoURL: string,
   imageTag: ImageTag,
@@ -25,8 +26,12 @@ export async function createBuildJob(
   const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
+      metadata: {
+        name: `build-app-image-${tag}`,
+      },
       spec: {
         ttlSecondsAfterFinished: 300, // Delete jobs 5 minutes after they complete
+        backoffLimit: 5,
         template: {
           spec: {
             containers: [
@@ -43,6 +48,7 @@ export async function createBuildJob(
                     value: "https://anvilops.rcac.purdue.edu/api",
                   },
                 ],
+                imagePullPolicy: "Always",
                 volumeMounts: [
                   {
                     mountPath: "/certs",
@@ -50,6 +56,7 @@ export async function createBuildJob(
                     readOnly: true,
                   },
                 ],
+                command: ["sleep", "300000"],
               },
             ],
             volumes: [
@@ -58,6 +65,7 @@ export async function createBuildJob(
                 secret: { secretName: "buildkit-client-certs" },
               },
             ],
+            restartPolicy: "Never",
           },
         },
       },

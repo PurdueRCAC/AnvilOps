@@ -14,12 +14,17 @@ import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
 import {
+  type Env,
   json,
+  type Secrets,
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
+import createApp from "../handlers/createApp.ts";
+import updateApp from "../handlers/updateApp.ts";
+import deleteApp from "../handlers/deleteApp.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -132,10 +137,7 @@ const handlers = {
     }
   },
   joinOrg: async function (
-    ctx: Context<
-      { content: { "application/json": { inviteCode: string } } },
-      never
-    >,
+    ctx,
     req: AuthenticatedRequest,
     res: ExpressResponse,
   ): Promise<
@@ -154,7 +156,7 @@ const handlers = {
     throw new Error("Function not implemented.");
   },
   createOrg: async function (
-    ctx: Context<{ content: { "application/json": { name: string } } }, never>,
+    ctx,
     req: AuthenticatedRequest,
     res: ExpressResponse,
   ): Promise<
@@ -169,7 +171,7 @@ const handlers = {
       };
     }>
   > {
-    const orgName = ctx.request.requestBody.content["application/json"].name;
+    const orgName = ctx.request.requestBody.name;
     try {
       const result = await db.organization.create({
         data: {
@@ -335,67 +337,26 @@ const handlers = {
       if (!organization) return json(401, res, {});
 
       return json(200, res, {
-        ...app,
+        id: app.id,
+        orgId: app.orgId,
+        name: app.name,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
+        repositoryURL: app.repositoryURL,
+        config: {
+          env: app.env as Env,
+          secrets: JSON.parse(app.secrets) as Secrets[],
+          replicas: app.replicas,
+        },
       });
     } catch (e) {
       console.log((e as Error).message);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  createApp: function (
-    ctx: Context<{
-      content: { "application/json": components["schemas"]["App"] };
-    }>,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
-  updateApp: function (
-    ctx: Context<
-      { content: { "application/json": components["schemas"]["App"] } },
-      { appId: number }
-    >,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
-  deleteApp: function (
-    ctx: Context<never, { appId: number }>,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
-  },
+  createApp,
+  updateApp,
+  deleteApp,
   githubWebhook,
   githubAppInstall,
   githubOAuthCallback,
@@ -438,7 +399,15 @@ const api = new OpenAPIBackend({
   customizeAjv: (ajv) => {
     addFormats.default(ajv, {
       mode: "fast",
-      formats: ["email", "uri", "date-time", "uuid", "int64", "uri-template"],
+      formats: [
+        "email",
+        "uri",
+        "date-time",
+        "uuid",
+        "int64",
+        "uri-template",
+        "hostname",
+      ],
     });
     return ajv;
   },

@@ -13,14 +13,13 @@ datasource db {
 }
 
 model User {
-  id                Int                      @id @default(autoincrement())
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-  email             String?                  @unique
-  name              String?
-  githubAccessToken String?
-  ciLogonUserId     String?                  @unique
-  orgs              OrganizationMembership[]
+  id            Int                      @id @default(autoincrement())
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  email         String?                  @unique
+  name          String?
+  ciLogonUserId String?                  @unique
+  orgs          OrganizationMembership[]
 
   /**
    * A temporary random value that we store to ensure OAuth URLs were created by us (CSRF prevention).
@@ -74,8 +73,12 @@ model App {
   repositoryId     Int
   repositoryBranch String       @default("main")
   webhookSecret    String
-  dockerfilePath   String
+  dockerfilePath   String?
   port             Int
+  subdomain        String       @unique
+  env              Json?
+  secrets          String? /// @encrypted
+  replicas         Int          @default(1)
   deployments      Deployment[]
 }
 

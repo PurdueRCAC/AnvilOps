@@ -1,4 +1,4 @@
 {
   "*": "prettier --write --ignore-unknown",
-  "backend/prisma/schema.prisma": "prisma format"
+  "backend/prisma/schema.prisma": "npx prisma format --schema=backend/prisma/schema.prisma"
 }

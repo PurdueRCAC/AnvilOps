@@ -511,10 +511,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/App"
+              $ref: "#/components/schemas/NewApp"
       responses:
         "200":
           description: Success
+        "302":
+          description: Redirecting to finish GitHub App installation
+        "401":
+          description: Unauthorized
+        "403":
+          description: Contact owner to complete GitHub App installation
         "500":
           description: Unexpected Error
           content:
@@ -687,15 +693,69 @@ components:
           type: string
         repositoryURL:
           type: string
+        config:
+          type: object
+          properties:
+            port:
+              type: integer
+              format: int64
+            dockerfilePath:
+              type: string
+            replicas:
+              type: integer
+              format: int64
+            env:
+              $ref: "#/components/schemas/Envs"
+            secrets:
+              $ref: "#/components/schemas/Secrets"
+      required:
+        - id
+        - orgId
+        - name
+        - repositoryURL
+        - config
+    NewApp:
+      type: object
+      properties:
+        orgId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        repositoryURL:
+          type: string
+          format: uri
+        subdomain:
+          type: string
+          format: hostname
         port:
           type: integer
           format: int64
         dockerfilePath:
           type: string
+        env:
+          $ref: "#/components/schemas/Envs"
+        secrets:
+          $ref: "#/components/schemas/Secrets"
       required:
-        - id
         - orgId
         - name
+        - repositoryURL
+        - subdomain
+        - port
+    Envs:
+      type: object
+      additionalProperties:
+        type: string
+    Secrets:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          data:
+            $ref: "#/components/schemas/Envs"
     ApiError:
       type: object
       properties:
