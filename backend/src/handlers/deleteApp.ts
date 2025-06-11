@@ -53,6 +53,11 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   }
 
   try {
+    await db.deployment.deleteMany({
+      where: {
+        appId,
+      },
+    });
     await db.app.delete({
       where: {
         id: appId,
@@ -62,12 +67,6 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     console.error(err);
     return json(500, res, { code: 500, message: "Failed to delete app" });
   }
-
-  await db.deployment.deleteMany({
-    where: {
-      appId,
-    },
-  });
 
   return json(200, res, {});
 };
