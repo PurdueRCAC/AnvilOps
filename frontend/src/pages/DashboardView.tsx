@@ -26,20 +26,20 @@ export default function DashboardView() {
       <div className="w-full h-screen grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {org
           ? org.apps.map((app) => (
-              <Link to={`/app/${app.id}`} className="block max-h-max">
+              <Link to={`/app/${app.id}`} className="h-42 xl:h-52 w-full">
                 <Button
                   variant="secondary"
-                  className="h-42 xl:h-52 w-full cursor-pointer hover:ring-2 hover:ring-gray-400 text-xl"
+                  className="w-full h-full hover:ring-2 hover:ring-gray-400 text-xl"
                 >
                   {app.name}
                 </Button>
               </Link>
             ))
           : null}
-        <Link to="/create-app">
+        <Link to="/create-app" className="h-42 xl:h-52 w-full">
           <Button
             variant="secondary"
-            className="h-42 xl:h-52 w-full cursor-pointer hover:ring-2 hover:ring-gray-400"
+            className="w-full h-full hover:ring-2 hover:ring-gray-400"
           >
             <svg
               viewBox="0 0 15 15"

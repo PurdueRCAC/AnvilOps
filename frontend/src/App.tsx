@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useContext } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import UserProvider, { UserContext } from "./components/UserProvider";
 import { Toaster } from "./components/ui/sonner";
@@ -59,6 +59,9 @@ function RequireAuth({
 }) {
   const { user, loading } = useContext(UserContext);
   if (loading) return null;
-  return user ? children : <Navigate to={redirectTo} />;
+  if (!user) {
+    window.location.href = redirectTo;
+  }
+  return children;
 }
 export default App;
