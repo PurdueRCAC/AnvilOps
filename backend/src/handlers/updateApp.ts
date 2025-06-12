@@ -40,12 +40,6 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(401, res, {});
   }
 
-  const updates = { ...appData.config };
-
-  if (!updates) {
-    return json(500, res, { code: 500, message: "No update provided" });
-  }
-
   if (!app.deployments) {
     return json(400, res, {});
   }
@@ -73,8 +67,8 @@ const updateApp: HandlerMap["updateApp"] = async (
     replicas: app.replicas,
   };
 
-  for (let key in updates) {
-    appParams[key] = updates[key];
+  for (let key in appData.config) {
+    appParams[key] = appData.config[key];
   }
 
   const deployConfig = createDeploymentConfig(appParams);
@@ -82,6 +76,10 @@ const updateApp: HandlerMap["updateApp"] = async (
   const secrets = appParams.secrets;
   try {
     await createOrUpdateApp(app.subdomain, deployConfig, svcConfig, secrets);
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "COMPLETE" },
+    });
   } catch (err) {
     console.error(err);
     await db.deployment.update({

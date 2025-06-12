@@ -746,8 +746,9 @@ components:
           type: string
         name:
           type: string
-        repositoryURL:
-          type: string
+        repositoryId:
+          type: number
+          format: int64
         config:
           type: object
           properties:
