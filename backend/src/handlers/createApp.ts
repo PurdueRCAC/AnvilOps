@@ -7,7 +7,7 @@ import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
-  createDeployment,
+  buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
@@ -109,7 +109,7 @@ const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await createDeployment(
+    await buildAndDeploy(
       app.orgId,
       app.id,
       app.imageRepo,

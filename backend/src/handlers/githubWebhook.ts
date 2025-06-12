@@ -93,7 +93,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
         const octokit = await getOctokit(app.org.githubInstallationId);
 
-        await createDeployment(
+        await buildAndDeploy(
           app.orgId,
           app.id,
           app.imageRepo,
@@ -127,7 +127,7 @@ export async function generateCloneURLWithCredentials(
   return url.toString();
 }
 
-export async function createDeployment(
+export async function buildAndDeploy(
   orgId: number,
   appId: number,
   imageRepo: string,

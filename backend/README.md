@@ -83,6 +83,10 @@ Set the environment variables `PROJECT_NAME` and `PROJECT_NS` to the name and na
 
 A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
 
+### Registry API
+
+AnvilOps expects the environment variable `DELETE_REPO_USER` to be set to credentials of an account with repository delete permissions from the project containing apps on AnvilOps. The format is `user:password`, base64-encoded.
+
 ## Running
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).
