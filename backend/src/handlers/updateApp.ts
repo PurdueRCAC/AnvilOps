@@ -1,19 +1,13 @@
-import { type components } from "../generated/openapi.ts";
-import {
-  type Env,
-  type HandlerResponse,
-  json,
-  type Secrets,
-  type HandlerMap,
-} from "../types.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
 import { type Response as ExpressResponse } from "express";
+import { randomBytes } from "node:crypto";
+import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import {
   createDeploymentConfig,
   createOrUpdateApp,
   createServiceConfig,
 } from "../lib/kubernetes.ts";
+import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -32,6 +26,7 @@ const updateApp: HandlerMap["updateApp"] = async (
           createdAt: "asc",
         },
         take: 1,
+        include: { config: true },
       },
     },
   });
@@ -44,16 +39,21 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(400, res, {});
   }
 
-  let lastDeploymentConfig = app.deployments[0];
+  const lastDeployment = app.deployments[0];
+  let lastDeploymentConfig = app.deployments[0].config;
   delete lastDeploymentConfig.id;
-  delete lastDeploymentConfig.createdAt;
-  delete lastDeploymentConfig.updatedAt;
-  delete lastDeploymentConfig.builderJobId;
+
+  const secret = randomBytes(32).toString("hex");
 
   const deployment = await db.deployment.create({
     data: {
-      ...lastDeploymentConfig,
+      config: { create: lastDeploymentConfig },
       status: "DEPLOYING",
+      app: { connect: { id: app.id } },
+      imageTag: lastDeployment.imageTag,
+      commitHash: lastDeployment.commitHash,
+      commitMessage: `Redeploy of #${lastDeployment.id}`,
+      secret,
     },
   });
 
@@ -61,10 +61,10 @@ const updateApp: HandlerMap["updateApp"] = async (
     name: app.name,
     namespace: app.subdomain,
     image: deployment.imageTag,
-    env: app.env as Env,
-    secrets: JSON.parse(app.secrets) as Secrets[],
-    port: app.port,
-    replicas: app.replicas,
+    env: lastDeploymentConfig.env as Env,
+    secrets: JSON.parse(lastDeploymentConfig.secrets) as Secrets[],
+    port: lastDeploymentConfig.port,
+    replicas: lastDeploymentConfig.replicas,
   };
 
   for (let key in appData.config) {

@@ -2,6 +2,7 @@ import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
+import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit } from "../lib/octokit.ts";
@@ -78,6 +79,11 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         where: { repositoryId: repoId },
         include: {
           org: true,
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
         },
       });
 
@@ -103,6 +109,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             octokit,
             payload.repository.html_url,
           ),
+          app.deployments[0].config, // Reuse the config from the previous deployment
         );
       }
 
@@ -134,30 +141,34 @@ export async function buildAndDeploy(
   commitSha: string,
   commitMessage: string,
   cloneURL: string,
+  config: DeploymentConfigCreateWithoutDeploymentInput,
 ) {
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
   const secret = randomBytes(32).toString("hex");
   const deployment = await db.deployment.create({
     data: {
-      appId: appId,
+      app: { connect: { id: appId } },
       commitHash: commitSha,
       commitMessage: commitMessage,
       imageTag: imageTag,
       secret: secret,
+      config: {
+        create: config,
+      },
     },
   });
 
   let jobId: string;
   try {
-    jobId = await createBuildJob(
-      imageRepo,
-      "dockerfile",
-      cloneURL,
+    jobId = await createBuildJob({
+      tag: imageRepo,
+      gitRepoURL: cloneURL,
       imageTag,
-      `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:build-cache`,
-      secret,
-    );
+      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+      deploymentSecret: secret,
+      config,
+    });
   } catch (e) {
     await db.deployment.update({
       where: { id: deployment.id },

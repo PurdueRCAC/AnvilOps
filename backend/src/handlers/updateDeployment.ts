@@ -23,6 +23,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   const batch = await db.deployment.updateManyAndReturn({
     where: { secret: secret },
     data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
+    include: { config: true },
   });
 
   if (batch.length === 0) {
@@ -42,10 +43,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         name: app.name,
         namespace: subdomain,
         image: deployment.imageTag,
-        env: app.env as Env,
-        secrets: JSON.parse(app.secrets) as Secrets[],
-        port: app.port,
-        replicas: app.replicas,
+        env: deployment.config.env as Env,
+        secrets: JSON.parse(deployment.config.secrets) as Secrets[],
+        port: deployment.config.port,
+        replicas: deployment.config.replicas,
       };
       const deployConfig = createDeploymentConfig(appParams);
       const svcConfig = createServiceConfig(appParams, subdomain);
@@ -54,7 +55,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain,
           deployConfig,
           svcConfig,
-          JSON.parse(app.secrets) as Secrets[],
+          JSON.parse(deployment.config.secrets) as Secrets[],
         );
         await db.deployment.update({
           where: { id: deployment.id },

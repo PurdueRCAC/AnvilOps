@@ -96,7 +96,7 @@ export default function CreateAppView() {
               name: selectedRepo!.name!,
               port: parseInt(formData.get("port")!.toString()),
               subdomain: formData.get("subdomain")!.toString(),
-              dockerfilePath: "Dockerfile",
+              dockerfilePath: formData.get("dockerfilePath")?.toString(),
               env: environmentVariables.reduce(
                 (acc, current) => {
                   if (current.key !== "") {
@@ -110,6 +110,11 @@ export default function CreateAppView() {
               secrets: [
                 /* TODO */
               ],
+              branch: formData.get("branch")!.toString(),
+              builder: formData.get("builder")!.toString() as
+                | "dockerfile"
+                | "railpack",
+              rootDir: formData.get("rootDir")!.toString(),
             },
           });
 

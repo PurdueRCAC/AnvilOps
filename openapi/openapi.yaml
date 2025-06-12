@@ -792,6 +792,13 @@ components:
           format: int64
         dockerfilePath:
           type: string
+        rootDir:
+          type: string
+        branch:
+          type: string
+        builder:
+          type: string
+          enum: [dockerfile, railpack]
         env:
           $ref: "#/components/schemas/Envs"
         secrets:
@@ -802,6 +809,9 @@ components:
         - repositoryId
         - subdomain
         - port
+        - rootDir
+        - branch
+        - builder
     Envs:
       type: object
       additionalProperties:
