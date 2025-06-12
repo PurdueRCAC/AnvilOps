@@ -58,7 +58,7 @@ export async function createBuildJob(
                   },
                   {
                     mountPath: "/creds",
-                    name: "registry-credentials",
+                    name: "registry-auth",
                     readOnly: true,
                   },
                 ],
@@ -70,9 +70,9 @@ export async function createBuildJob(
                 secret: { secretName: "buildkit-client-certs" },
               },
               {
-                name: "registry-credentials",
+                name: "registry-auth",
                 secret: {
-                  secretName: "registry-credentials",
+                  secretName: "registry-auth",
                   defaultMode: 511,
                 },
               },
