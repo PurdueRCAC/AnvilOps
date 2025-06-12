@@ -93,6 +93,10 @@ const createApp: HandlerMap["createApp"] = async (
         secrets: JSON.stringify(appData.secrets),
       },
     });
+    await db.app.update({
+      where: { id: app.id },
+      data: { imageRepo: `app-${app.orgId}-${app.id}` },
+    });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
       // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
@@ -108,6 +112,7 @@ const createApp: HandlerMap["createApp"] = async (
     await createDeployment(
       app.orgId,
       app.id,
+      app.imageRepo,
       latestCommit.sha,
       latestCommit.commit.message,
       await generateCloneURLWithCredentials(octokit, repo.html_url),

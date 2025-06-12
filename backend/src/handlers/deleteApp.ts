@@ -3,6 +3,7 @@ import { type AuthenticatedRequest } from "../lib/api.ts";
 import { type components } from "../generated/openapi.ts";
 import { db } from "../lib/db.ts";
 import { deleteNamespace } from "../lib/kubernetes.ts";
+import { deleteRepo } from "../lib/registry.ts";
 
 const deleteApp: HandlerMap["deleteApp"] = async (
   ctx,
@@ -58,6 +59,13 @@ const deleteApp: HandlerMap["deleteApp"] = async (
         appId,
       },
     });
+
+    const { imageRepo } = await db.app.findUnique({
+      where: { id: appId },
+      select: { imageRepo: true },
+    });
+    await deleteRepo(imageRepo);
+
     await db.app.delete({
       where: {
         id: appId,

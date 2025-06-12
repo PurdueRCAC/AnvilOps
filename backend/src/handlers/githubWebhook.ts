@@ -96,6 +96,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         await createDeployment(
           app.orgId,
           app.id,
+          app.imageRepo,
           payload.head_commit.id,
           payload.head_commit.message,
           await generateCloneURLWithCredentials(
@@ -129,12 +130,13 @@ export async function generateCloneURLWithCredentials(
 export async function createDeployment(
   orgId: number,
   appId: number,
+  imageRepo: string,
   commitSha: string,
   commitMessage: string,
   cloneURL: string,
 ) {
   const imageTag =
-    `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:${commitSha}` as const;
+    `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
   const secret = randomBytes(32).toString("hex");
   const deployment = await db.deployment.create({
     data: {
@@ -149,11 +151,11 @@ export async function createDeployment(
   let jobId: string;
   try {
     jobId = await createBuildJob(
-      `${appId}-${deployment.id}`,
+      imageRepo,
       "dockerfile",
       cloneURL,
       imageTag,
-      `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+      `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:build-cache`,
       secret,
     );
   } catch (e) {

@@ -75,8 +75,9 @@ model App {
   port             Int
   subdomain        String       @unique
   env              Json?
-  secrets          String? /// @encrypted
+  secrets          String?
   replicas         Int          @default(1)
+  imageRepo        String       @default("")
   deployments      Deployment[]
 }
 
