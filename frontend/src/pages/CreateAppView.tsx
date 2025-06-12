@@ -238,11 +238,19 @@ export default function CreateAppView() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="pb-1">
+            <div>
+              <Label className="pb-1 mb-2">
                 <FolderRoot className="inline" size={16} /> Root directory
               </Label>
-              <Input name="rootDir" placeholder="/" className="w-full" />
+              <Input
+                name="rootDir"
+                placeholder="./"
+                className="w-full mb-1"
+                pattern="^\.\/.*$"
+              />
+              <p className="opacity-50 text-xs">
+                Must start with <code>./</code>
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -306,6 +314,7 @@ export default function CreateAppView() {
                 onValueChange={(newValue) =>
                   setBuilder(newValue as "dockerfile" | "railpack")
                 }
+                required
               >
                 <Label
                   htmlFor="builder-dockerfile"
@@ -342,8 +351,6 @@ export default function CreateAppView() {
                   defaultValue="Dockerfile"
                   className="w-full"
                   required
-                  min="1"
-                  max="65536"
                 />{" "}
                 <p className="opacity-50 text-xs mb-2 mt-1">
                   Relative to the root directory.
