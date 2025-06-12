@@ -94,7 +94,7 @@ export default function CreateAppView() {
             body: {
               orgId: selectedOrg!.id,
               name: selectedRepo!.name!,
-              port: 3000,
+              port: parseInt(formData.get("port")!.toString()),
               subdomain: formData.get("subdomain")!.toString(),
               dockerfilePath: "Dockerfile",
               env: environmentVariables.reduce(
