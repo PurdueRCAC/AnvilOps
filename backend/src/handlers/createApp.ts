@@ -81,16 +81,13 @@ const createApp: HandlerMap["createApp"] = async (
       data: {
         name: appData.name,
         repositoryId: appData.repositoryId,
-        port: appData.port,
-        dockerfilePath: appData.dockerfilePath,
         subdomain: appData.subdomain,
         org: {
           connect: {
             id: appData.orgId,
           },
         },
-        env: appData.env,
-        secrets: JSON.stringify(appData.secrets),
+        repositoryBranch: appData.branch,
       },
     });
   } catch (err) {
@@ -111,6 +108,14 @@ const createApp: HandlerMap["createApp"] = async (
       latestCommit.sha,
       latestCommit.commit.message,
       await generateCloneURLWithCredentials(octokit, repo.html_url),
+      {
+        port: appData.port,
+        env: appData.env,
+        secrets: JSON.stringify(appData.secrets),
+        builder: appData.builder,
+        dockerfilePath: appData.dockerfilePath,
+        rootDir: appData.rootDir,
+      },
     );
   } catch (e) {
     console.error(e);

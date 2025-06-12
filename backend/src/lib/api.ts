@@ -322,7 +322,16 @@ const handlers = {
   > {
     try {
       const appId = ctx.request.params.appId;
-      const app = await db.app.findUnique({ where: { id: appId } });
+      const app = await db.app.findUnique({
+        where: { id: appId },
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
+        },
+      });
       if (!app) return json(401, res, {});
 
       const organization = await db.organization.findFirst({
@@ -341,6 +350,8 @@ const handlers = {
       const octokit = await getOctokit(organization.githubInstallationId);
       const repo = await getRepoById(octokit, app.repositoryId);
 
+      const lastDeploy = app.deployments[0].config;
+
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -349,12 +360,12 @@ const handlers = {
         updatedAt: app.updatedAt.toISOString(),
         repositoryURL: repo.html_url,
         config: {
-          env: app.env as Env,
-          secrets: JSON.parse(app.secrets) as Secrets[],
-          replicas: app.replicas,
+          env: lastDeploy.env as Env,
+          secrets: JSON.parse(lastDeploy.secrets) as Secrets[],
+          replicas: lastDeploy.replicas,
           branch: app.repositoryBranch,
-          dockerfilePath: app.dockerfilePath,
-          port: app.port,
+          dockerfilePath: lastDeploy.dockerfilePath,
+          port: lastDeploy.port,
         },
       });
     } catch (e) {
