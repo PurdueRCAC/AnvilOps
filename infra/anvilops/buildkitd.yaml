@@ -30,9 +30,6 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
-          env:
-            - name: DOCKER_CONFIG
-              value: /registry-credentials
           resources:
             requests:
               cpu: 1000m
@@ -65,8 +62,6 @@ spec:
             - name: certs
               readOnly: true
               mountPath: /certs
-            - name: registry-credentials
-              mountPath: /registry-credentials
       volumes:
         # buildkit-daemon-certs must contain ca.pem, cert.pem, and key.pem
         - name: certs
@@ -74,10 +69,6 @@ spec:
             secretName: buildkit-daemon-certs
         - name: buildkitd
           emptyDir: {}
-        - name: registry-credentials
-          secret:
-            secretName: registry-credentials
-            defaultMode: 511
 ---
 apiVersion: v1
 kind: Service

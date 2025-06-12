@@ -47,7 +47,7 @@ export async function createBuildJob(
                     name: "DEPLOYMENT_API_URL",
                     value: "https://anvilops.rcac.purdue.edu/api",
                   },
-                  { name: "DOCKER_CONFIG", value: "/root/.docker" },
+                  { name: "DOCKER_CONFIG", value: "/creds" },
                 ],
                 imagePullPolicy: "Always",
                 volumeMounts: [
@@ -57,7 +57,7 @@ export async function createBuildJob(
                     readOnly: true,
                   },
                   {
-                    mountPath: "/root/.docker",
+                    mountPath: "/creds",
                     name: "registry-credentials",
                     readOnly: true,
                   },
