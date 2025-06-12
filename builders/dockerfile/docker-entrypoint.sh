@@ -15,6 +15,7 @@ buildctl \
  --addr=tcp://buildkitd:1234 \
  --wait \
  --tlsdir /certs \
+ --debug \
  build \
  --frontend dockerfile.v0 \
  --local context=. \

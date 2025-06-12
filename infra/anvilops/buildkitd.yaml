@@ -30,6 +30,7 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
+            - --debug
           resources:
             requests:
               cpu: 1000m
