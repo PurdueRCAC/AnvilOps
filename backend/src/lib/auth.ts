@@ -120,7 +120,7 @@ router.use((req, res, next) => {
 
   const loggedIn = "user" in req.session;
   if (!loggedIn) {
-    res.sendStatus(401);
+    res.status(401).json({ code: 401, message: "Unauthorized" });
     return;
   }
   req.user = req.session["user"];

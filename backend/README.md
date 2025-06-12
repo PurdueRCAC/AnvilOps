@@ -75,6 +75,14 @@ If you need a temporary Postgres database, create one with Docker:
 docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRES_USER=anvilops -e POSTGRES_PASSWORD=password postgres
 ```
 
+### Rancher Configuration
+
+Set the environment variables `PROJECT_NAME` and `PROJECT_NS` to the name and namespace of a Rancher project so that apps will be created inside it. These values can be found in the manifest of the project under `metadata`. Note: the project name may be different from its display name.
+
+### Kubernetes API
+
+A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+
 ## Running
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).

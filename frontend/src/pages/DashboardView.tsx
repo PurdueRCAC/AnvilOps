@@ -21,13 +21,25 @@ export default function DashboardView() {
   );
 
   return (
-    <>
-      <h2 className="text-xl p-5">Your Apps</h2>
-      <div className="w-full h-screen grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 p-5">
-        <Link to="/create-app">
+    <main className="py-10 px-8">
+      <h2 className="font-bold text-3xl mb-4">Your Apps</h2>
+      <div className="w-full h-screen grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {org
+          ? org.apps.map((app) => (
+              <Link to={`/app/${app.id}`} className="h-42 xl:h-52 w-full">
+                <Button
+                  variant="secondary"
+                  className="w-full h-full hover:ring-2 hover:ring-gray-400 text-xl"
+                >
+                  {app.name}
+                </Button>
+              </Link>
+            ))
+          : null}
+        <Link to="/create-app" className="h-42 xl:h-52 w-full">
           <Button
             variant="secondary"
-            className="h-42 xl:h-52 w-full cursor-pointer"
+            className="w-full h-full hover:ring-2 hover:ring-gray-400"
           >
             <svg
               viewBox="0 0 15 15"
@@ -44,17 +56,7 @@ export default function DashboardView() {
             </svg>
           </Button>
         </Link>
-        {org
-          ? org.apps.map((app) => (
-              <Button
-                variant="secondary"
-                className="h-42 xl:h-52 w-full cursor-pointer"
-              >
-                {app.name}
-              </Button>
-            ))
-          : null}
       </div>
-    </>
+    </main>
   );
 }

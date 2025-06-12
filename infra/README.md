@@ -11,3 +11,5 @@ Before deploying these manifests, add the following secrets in the `anvilops-dev
 3. `postgres-password` - should contain a random string in a key called `password`.
 4. `tls-cert` - contains a signed TLS certificate(`.crt`) and a key(`.key`).
 5. `cilogon-credentials` - contains a `client-id`, a `client-secret`, and a `session-secret` used during the authentication flow.
+6. `app-config` - contains `project-name` and `project-ns`, the name and namespace of the Rancher project to group apps in.
+7. `kube-auth` - contains a kubeconfig file under the key `kubeconfig`.

@@ -1,9 +1,12 @@
 import { Webhooks } from "@octokit/webhooks";
+import { randomBytes } from "node:crypto";
+import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
+import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
-import { randomBytes } from "node:crypto";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -30,18 +33,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
   switch (requestType) {
     case "repository": {
       switch (action) {
-        case "renamed": {
-          const payload = ctx.request
-            .requestBody as components["schemas"]["webhook-repository-renamed"];
-
-          // Change the repository URL of connected apps to point to the new URL
-          await db.app.updateMany({
-            where: { repositoryId: payload.repository.id },
-            data: {
-              repositoryURL: payload.repository.git_url,
-            },
-          });
-        }
         case "transferred": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-transferred"];
@@ -87,7 +78,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       const apps = await db.app.findMany({
         where: { repositoryId: repoId },
         include: {
-          deployments: true,
+          org: true,
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
         },
       });
 
@@ -101,32 +97,19 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           continue;
         }
 
-        const imageTag =
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
-        const secret = randomBytes(32).toString("hex");
-        const deployment = await db.deployment.create({
-          data: {
-            appId: app.id,
-            commitHash: payload.head_commit.id,
-            commitMessage: payload.head_commit.message,
-            imageTag: imageTag,
-            secret: secret,
-          },
-        });
+        const octokit = await getOctokit(app.org.githubInstallationId);
 
-        const jobId = await createBuildJob(
-          `${app.id}-${deployment.id}`,
-          "dockerfile",
-          payload.repository.git_url,
-          imageTag,
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-          secret,
+        await createDeployment(
+          app.orgId,
+          app.id,
+          payload.head_commit.id,
+          payload.head_commit.message,
+          await generateCloneURLWithCredentials(
+            octokit,
+            payload.repository.html_url,
+          ),
+          app.deployments[0].config, // Reuse the config from the previous deployment
         );
-
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: { builderJobId: jobId },
-        });
       }
 
       return json(200, res, {});
@@ -138,3 +121,62 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
   return json(200, res, {});
 };
+
+export async function generateCloneURLWithCredentials(
+  octokit: Octokit,
+  originalURL: string,
+) {
+  const { token } = (await octokit.auth({ type: "installation" })) as any;
+  const url = URL.parse(originalURL);
+  url.username = "x-access-token";
+  url.password = token;
+  return url.toString();
+}
+
+export async function createDeployment(
+  orgId: number,
+  appId: number,
+  commitSha: string,
+  commitMessage: string,
+  cloneURL: string,
+  config: DeploymentConfigCreateWithoutDeploymentInput,
+) {
+  const imageTag =
+    `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:${commitSha}` as const;
+  const secret = randomBytes(32).toString("hex");
+  const deployment = await db.deployment.create({
+    data: {
+      app: { connect: { id: appId } },
+      commitHash: commitSha,
+      commitMessage: commitMessage,
+      imageTag: imageTag,
+      secret: secret,
+      config: {
+        create: config,
+      },
+    },
+  });
+
+  let jobId: string;
+  try {
+    jobId = await createBuildJob({
+      tag: `${appId}-${deployment.id}`,
+      gitRepoURL: cloneURL,
+      imageTag,
+      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+      deploymentSecret: secret,
+      config,
+    });
+  } catch (e) {
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "ERROR" },
+    });
+    throw new Error("Failed to create build job", { cause: e });
+  }
+
+  await db.deployment.update({
+    where: { id: deployment.id },
+    data: { builderJobId: jobId },
+  });
+}

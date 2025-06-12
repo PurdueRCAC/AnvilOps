@@ -1,6 +1,8 @@
+import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -11,8 +13,21 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import clsx from "clsx";
-import { BookMarked, FolderRoot, GitBranch, Globe, Rocket } from "lucide-react";
+import {
+  BookMarked,
+  Code2,
+  Container,
+  FolderRoot,
+  GitBranch,
+  Globe,
+  Hammer,
+  Link,
+  Rocket,
+  Server,
+} from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function CreateAppView() {
   const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
@@ -20,11 +35,19 @@ export default function CreateAppView() {
   const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
     undefined,
   );
-  const [selectedRepo, setSelectedRepo] = useState<string | undefined>(
+  const [selectedRepoId, setSelectedRepo] = useState<string | undefined>(
     undefined,
   );
   const [selectedBranch, setSelectedBranch] = useState<string | undefined>(
     undefined,
+  );
+
+  const [environmentVariables, setEnvironmentVariables] = useState<
+    { key: string; value: string }[]
+  >([{ key: "", value: "" }]);
+
+  const [builder, setBuilder] = useState<"dockerfile" | "railpack">(
+    "dockerfile",
   );
 
   const selectedOrg =
@@ -46,35 +69,74 @@ export default function CreateAppView() {
       params: {
         path: {
           orgId: parseInt(selectedOrgId!),
-          repoId: parseInt(selectedRepo!),
+          repoId: parseInt(selectedRepoId!),
         },
       },
     },
     {
       enabled:
         selectedOrgId !== undefined &&
-        selectedRepo !== undefined &&
+        selectedRepoId !== undefined &&
         selectedOrg?.githubConnected,
     },
   );
+
+  const selectedRepo =
+    selectedRepoId !== undefined
+      ? repos?.find((it) => it.id === parseInt(selectedRepoId))
+      : undefined;
+
+  const { mutateAsync: createApp } = api.useMutation("post", "/app");
+
+  const navigate = useNavigate();
 
   return (
     <div className="flex max-w-prose mx-auto">
       <form
         className="flex flex-col gap-4 w-full my-10"
-        onSubmit={() => {
-          console.log("submit");
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          const result = await createApp({
+            body: {
+              orgId: selectedOrg!.id,
+              name: selectedRepo!.name!,
+              port: parseInt(formData.get("port")!.toString()),
+              subdomain: formData.get("subdomain")!.toString(),
+              dockerfilePath: formData.get("dockerfilePath")?.toString(),
+              env: environmentVariables.reduce(
+                (acc, current) => {
+                  if (current.key !== "") {
+                    acc[current.key] = current.value;
+                  }
+                  return acc;
+                },
+                {} as Record<string, string>,
+              ),
+              repositoryId: selectedRepo!.id!,
+              secrets: [
+                /* TODO */
+              ],
+              branch: formData.get("branch")!.toString(),
+              builder: formData.get("builder")!.toString() as
+                | "dockerfile"
+                | "railpack",
+              rootDir: formData.get("rootDir")!.toString(),
+            },
+          });
+
+          toast.success("App created!");
+
+          navigate(`/app/${result.id}`);
         }}
       >
-        <h2 className="font-bold text-3xl text-main-5 mb-5">
-          Create a Project
-        </h2>
+        <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
         <div className="space-y-2">
           <Label htmlFor="selectOrg" className="pb-1">
             <Globe className="inline" size={16} />
             Organization
           </Label>
-          <Select onValueChange={setSelectedOrg}>
+          <Select onValueChange={setSelectedOrg} name="org">
             <SelectTrigger
               className="w-full"
               onSelect={(e) => e}
@@ -111,6 +173,7 @@ export default function CreateAppView() {
                 Repository
               </Label>
               <Select
+                name="repo"
                 disabled={selectedOrgId === undefined || reposLoading}
                 onValueChange={setSelectedRepo}
               >
@@ -141,7 +204,7 @@ export default function CreateAppView() {
                 htmlFor="selectBranch"
                 className={clsx(
                   "pb-1",
-                  (selectedRepo === undefined || branchesLoading) &&
+                  (selectedRepoId === undefined || branchesLoading) &&
                     "opacity-50",
                 )}
               >
@@ -149,7 +212,8 @@ export default function CreateAppView() {
                 Branch
               </Label>
               <Select
-                disabled={selectedRepo === undefined || branchesLoading}
+                name="branch"
+                disabled={selectedRepoId === undefined || branchesLoading}
                 onValueChange={setSelectedBranch}
               >
                 <SelectTrigger className="w-full" id="selectBranch">
@@ -163,7 +227,7 @@ export default function CreateAppView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {selectedRepo !== undefined
+                    {selectedRepoId !== undefined
                       ? branches?.branches?.map((branch) => (
                           <SelectItem key={branch} value={branch}>
                             {branch}
@@ -174,14 +238,135 @@ export default function CreateAppView() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="pb-1">
+            <div>
+              <Label className="pb-1 mb-2">
                 <FolderRoot className="inline" size={16} /> Root directory
               </Label>
-              <Input placeholder="/" className="w-full" />
+              <Input
+                name="rootDir"
+                placeholder="./"
+                className="w-full mb-1"
+                pattern="^\.\/.*$"
+              />
+              <p className="opacity-50 text-xs">
+                Must start with <code>./</code>
+              </p>
             </div>
 
-            <Button className="mt-8" size="lg" type="submit">
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Link className="inline" size={16} /> Public URL
+              </Label>
+              <div className="flex relative items-center gap-2">
+                <span className="absolute left-2 text-sm opacity-50">
+                  https://
+                </span>
+                <Input
+                  name="subdomain"
+                  placeholder="my-app"
+                  className="w-full pl-14 pr-45"
+                  required
+                  pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+                  onChange={(e) => {
+                    e.currentTarget.value = e.currentTarget.value
+                      .toLowerCase()
+                      .replace(/[^A-Za-z0-9-]/, "-");
+                  }}
+                />
+                <span className="absolute right-2 text-sm opacity-50">
+                  .anvilops.rcac.purdue.edu
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Server className="inline" size={16} /> Port Number
+              </Label>
+              <Input
+                name="port"
+                placeholder="3000"
+                className="w-full"
+                type="number"
+                required
+                min="1"
+                max="65536"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Code2 className="inline" size={16} /> Environment Variables
+              </Label>
+              <EnvVarGrid
+                value={environmentVariables}
+                setValue={setEnvironmentVariables}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Hammer className="inline" size={16} /> Builder
+              </Label>
+              <RadioGroup
+                name="builder"
+                value={builder}
+                onValueChange={(newValue) =>
+                  setBuilder(newValue as "dockerfile" | "railpack")
+                }
+                required
+              >
+                <Label
+                  htmlFor="builder-dockerfile"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
+                  Dockerfile
+                  <p className="opacity-50">
+                    Builds your app using your Dockerfile.
+                  </p>
+                </Label>
+                <Label
+                  htmlFor="builder-railpack"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="railpack" id="builder-railpack" />
+                  Railpack
+                  <p className="opacity-50">
+                    Detects your project structure and builds your app
+                    automatically.
+                  </p>
+                </Label>
+              </RadioGroup>
+            </div>
+
+            {builder === "dockerfile" ? (
+              <div>
+                <Label className="pb-1 mb-2">
+                  <Container className="inline" size={16} /> Dockerfile Path
+                </Label>
+                <Input
+                  name="dockerfilePath"
+                  placeholder="Dockerfile"
+                  defaultValue="Dockerfile"
+                  className="w-full"
+                  required
+                />{" "}
+                <p className="opacity-50 text-xs mb-2 mt-1">
+                  Relative to the root directory.
+                </p>
+              </div>
+            ) : null}
+            <Button
+              className="mt-8"
+              size="lg"
+              type="submit"
+              disabled={
+                selectedBranch === undefined ||
+                selectedRepoId === undefined ||
+                selectedOrg === undefined
+              }
+            >
               <Rocket />
               Deploy
             </Button>

@@ -9,6 +9,7 @@ import path from "node:path";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { DATABASE_URL } from "./lib/db.ts";
+import morgan from "morgan";
 
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
   throw new Error("Credentials not set");
@@ -49,6 +50,8 @@ app.use(
 
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
+app.use(morgan("combined"));
+
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);
 
@@ -81,6 +84,10 @@ app.use(
 app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
 app.use(/^\/api(?!\/github\/webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+app.listen(port, (err) => {
+  if (err !== undefined) {
+    console.error(err);
+  } else {
+    console.log(`Listening on port ${port}`);
+  }
 });

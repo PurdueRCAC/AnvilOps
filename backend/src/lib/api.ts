@@ -6,25 +6,27 @@ import {
 import path from "node:path";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
+import createApp from "../handlers/createApp.ts";
+import deleteApp from "../handlers/deleteApp.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
+import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
+import updateApp from "../handlers/updateApp.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
 import {
-  type Env,
   json,
-  type Secrets,
+  type Env,
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
+  type Secrets,
 } from "../types.ts";
 import { db } from "./db.ts";
-import createApp from "../handlers/createApp.ts";
-import updateApp from "../handlers/updateApp.ts";
-import deleteApp from "../handlers/deleteApp.ts";
+import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -320,7 +322,16 @@ const handlers = {
   > {
     try {
       const appId = ctx.request.params.appId;
-      const app = await db.app.findUnique({ where: { id: appId } });
+      const app = await db.app.findUnique({
+        where: { id: appId },
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
+        },
+      });
       if (!app) return json(401, res, {});
 
       const organization = await db.organization.findFirst({
@@ -336,17 +347,25 @@ const handlers = {
 
       if (!organization) return json(401, res, {});
 
+      const octokit = await getOctokit(organization.githubInstallationId);
+      const repo = await getRepoById(octokit, app.repositoryId);
+
+      const lastDeploy = app.deployments[0].config;
+
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
         name: app.name,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
-        repositoryURL: app.repositoryURL,
+        repositoryURL: repo.html_url,
         config: {
-          env: app.env as Env,
-          secrets: JSON.parse(app.secrets) as Secrets[],
-          replicas: app.replicas,
+          env: lastDeploy.env as Env,
+          secrets: JSON.parse(lastDeploy.secrets) as Secrets[],
+          replicas: lastDeploy.replicas,
+          branch: app.repositoryBranch,
+          dockerfilePath: lastDeploy.dockerfilePath,
+          port: lastDeploy.port,
         },
       });
     } catch (e) {
@@ -364,6 +383,7 @@ const handlers = {
   updateDeployment,
   listOrgRepos,
   listRepoBranches,
+  listDeployments,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

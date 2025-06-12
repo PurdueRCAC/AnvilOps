@@ -20,11 +20,11 @@ spec:
           image: registry.anvil.rcac.purdue.edu/docker-hub-cache/library/nginx
           ports:
             - containerPort: 80
-          volumes:
-            - name: proxy-config
-              configMap:
-                name: proxyconf
           volumeMounts:
             - name: proxy-config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
+      volumes:
+        - name: proxy-config
+          configMap:
+            name: proxyconf
