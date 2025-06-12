@@ -5,3 +5,4 @@ resources:
   - proxy-configmap.yaml
   - proxy-deployment.yaml
   - proxy-service.yaml
+  - ingress.yaml
