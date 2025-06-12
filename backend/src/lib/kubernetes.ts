@@ -195,7 +195,7 @@ export const createOrUpdateApp = async (
   };
 
   if (!(await resources.namespaceExists(namespace))) {
-    k8s.default.createNamespace({ body: ns });
+    await k8s.default.createNamespace({ body: ns });
   }
   for (let secret of secrets) {
     const body = createSecretConfig(secret, namespace);
