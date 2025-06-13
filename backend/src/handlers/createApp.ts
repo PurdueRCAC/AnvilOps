@@ -104,7 +104,7 @@ const createApp: HandlerMap["createApp"] = async (
         repositoryBranch: appData.branch,
       },
     });
-    await db.app.update({
+    app = await db.app.update({
       where: { id: app.id },
       data: { imageRepo: `app-${app.orgId}-${app.id}` },
     });
