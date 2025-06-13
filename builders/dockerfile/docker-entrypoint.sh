@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This is the Dockerfile builder. It clones a repository and builds and pushes an image using the Dockerfile located at the specified path.
 # Then, it notifies the backend to deploy the new version of the image.
