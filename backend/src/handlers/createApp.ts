@@ -116,6 +116,7 @@ const createApp: HandlerMap["createApp"] = async (
         message: "Subdomain must be unique.",
       });
     }
+    console.error(err);
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 

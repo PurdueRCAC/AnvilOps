@@ -1,0 +1,23 @@
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/copy-railpack-frontend-image.yml]
+jobs:
+  push_to_registry:
+    runs-on: self-hosted
+    name: Copy railpack-frontend image to private registry
+    steps:
+      - name: Log in to container registry
+        run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
+
+      - name: Pull, tag, and push the image
+        run: |
+          TAG=$(docker pull -q ghcr.io/railwayapp/railpack-frontend:v0.0.66)
+          NEW_TAG=registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:latest
+          docker tag $TAG $NEW_TAG
+          docker push $NEW_TAG
+
+      - name: Log out of container registry
+        if: always()
+        run: docker logout registry.anvil.rcac.purdue.edu

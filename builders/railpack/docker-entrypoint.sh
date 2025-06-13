@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This is the Railpack builder. It clones a repository, prepares a build plan with Railpack, and builds and pushes an image.
 # Then, it notifies the backend to deploy the new version of the image.
@@ -22,9 +22,9 @@ buildctl \
  --tlsdir /certs \
  build \
  --frontend gateway.v0 \
- --opt source=ghcr.io/railwayapp/railpack:railpack-frontend \
+ --opt source=registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:latest \
  --local "context=/work/repo/$ROOT_DIRECTORY" \
- --local dockerfile=/work/railpack-plan.json \
+ --local dockerfile=/work \
  --export-cache type=registry,ref=$CACHE_TAG \
  --import-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
