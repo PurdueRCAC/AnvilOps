@@ -24,7 +24,7 @@ buildctl \
  --frontend gateway.v0 \
  --opt source=ghcr.io/railwayapp/railpack:railpack-frontend \
  --local "context=/work/repo/$ROOT_DIRECTORY" \
- --local dockerfile=/work/railpack-plan.json \
+ --local dockerfile=/work \
  --export-cache type=registry,ref=$CACHE_TAG \
  --import-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true
