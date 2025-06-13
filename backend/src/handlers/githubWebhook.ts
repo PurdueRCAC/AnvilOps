@@ -5,7 +5,7 @@ import type { components } from "../generated/openapi.ts";
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -102,19 +102,22 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
         const octokit = await getOctokit(app.org.githubInstallationId);
 
-        await buildAndDeploy(
-          app.orgId,
-          app.id,
-          app.imageRepo,
-          octokit,
-          payload.head_commit.id,
-          payload.head_commit.message,
-          await generateCloneURLWithCredentials(
+        await buildAndDeploy({
+          orgId: app.orgId,
+          appId: app.id,
+          imageRepo: app.imageRepo,
+          commitSha: payload.head_commit.id,
+          commitMessage: payload.head_commit.message,
+          cloneURL: await generateCloneURLWithCredentials(
             octokit,
             payload.repository.html_url,
           ),
-          app.deployments[0].config, // Reuse the config from the previous deployment
-        );
+          config: app.deployments[0].config, // Reuse the config from the previous deployment
+          createCheckRun: true,
+          octokit,
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+        });
       }
 
       return json(200, res, {});
@@ -138,16 +141,29 @@ export async function generateCloneURLWithCredentials(
   return url.toString();
 }
 
-export async function buildAndDeploy(
-  orgId: number,
-  appId: number,
-  imageRepo: string,
-  octokit: Octokit,
-  commitSha: string,
-  commitMessage: string,
-  cloneURL: string,
-  config: DeploymentConfigCreateWithoutDeploymentInput,
-) {
+type BuildAndDeployOptions = {
+  orgId: number;
+  appId: number;
+  imageRepo: string;
+  commitSha: string;
+  commitMessage: string;
+  cloneURL: string;
+  config: DeploymentConfigCreateWithoutDeploymentInput;
+} & (
+  | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
+  | { createCheckRun: false }
+);
+
+export async function buildAndDeploy({
+  orgId,
+  appId,
+  imageRepo,
+  commitSha,
+  commitMessage,
+  cloneURL,
+  config,
+  ...opts
+}: BuildAndDeployOptions) {
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
   const secret = randomBytes(32).toString("hex");
@@ -169,23 +185,23 @@ export async function buildAndDeploy(
   });
 
   let checkRun:
-    | Awaited<ReturnType<typeof octokit.rest.checks.create>>
+    | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
     | undefined;
 
-  try {
-    const repo = await getRepoById(octokit, deployment.app.repositoryId);
-
-    // Create a check on their commit that says the build is "in progress"
-    checkRun = await octokit.rest.checks.create({
-      head_sha: commitSha,
-      name: "AnvilOps",
-      status: "in_progress",
-      details_url: `https://anvilops.rcac.purdue.edu/org/${orgId}/app/${appId}/deployment/${deployment.id}`,
-      owner: repo.owner.login,
-      repo: repo.name,
-    });
-  } catch (e) {
-    console.error("Failed to create check run: ", e);
+  if (opts.createCheckRun) {
+    try {
+      // Create a check on their commit that says the build is "in progress"
+      checkRun = await opts.octokit.rest.checks.create({
+        head_sha: commitSha,
+        name: "AnvilOps",
+        status: "in_progress",
+        details_url: `https://anvilops.rcac.purdue.edu/org/${orgId}/app/${appId}/deployment/${deployment.id}`,
+        owner: opts.owner,
+        repo: opts.repo,
+      });
+    } catch (e) {
+      console.error("Failed to create check run: ", e);
+    }
   }
 
   let jobId: string;

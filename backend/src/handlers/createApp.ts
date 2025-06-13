@@ -121,15 +121,14 @@ const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await buildAndDeploy(
-      app.orgId,
-      app.id,
-      app.imageRepo,
-      octokit,
-      latestCommit.sha,
-      latestCommit.commit.message,
-      await generateCloneURLWithCredentials(octokit, repo.html_url),
-      {
+    await buildAndDeploy({
+      orgId: app.orgId,
+      appId: app.id,
+      imageRepo: app.imageRepo,
+      commitSha: latestCommit.sha,
+      commitMessage: latestCommit.commit.message,
+      cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
+      config: {
         port: appData.port,
         env: appData.env,
         secrets: JSON.stringify(appData.secrets),
@@ -137,7 +136,8 @@ const createApp: HandlerMap["createApp"] = async (
         dockerfilePath: appData.dockerfilePath,
         rootDir: appData.rootDir,
       },
-    );
+      createCheckRun: false,
+    });
   } catch (e) {
     console.error(e);
     return json(500, res, {
