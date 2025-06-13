@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim AS railpack
+FROM ubuntu:24.04 AS railpack
 
 # Install the Railpack CLI
 # https://railpack.com/installation
@@ -11,9 +11,16 @@ RUN wget https://github.com/railwayapp/railpack/releases/download/v${RAILPACK_VE
   tar -xzvf railpack-v${RAILPACK_VERSION}-x86_64-unknown-linux-musl.tar.gz && \
   mv ./railpack /usr/local/bin/railpack
 
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 
-RUN apt update && apt install -y git wget libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt update && \
+    apt install -y software-properties-common && \
+    # ^ This package includes `add-apt-repository`
+    add-apt-repository ppa:git-core/ppa && \
+    apt update && \
+    # ^ Get the latest version of Git from their PPA (we need 2.49.0 or later because we use the `git clone --revision` flag)
+    apt install -y git wget libssl3 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
 COPY --from=ghcr.io/jdx/mise:2025.5.8 --chmod=755 /usr/local/bin/mise /tmp/railpack/mise/mise-2025.5.8
