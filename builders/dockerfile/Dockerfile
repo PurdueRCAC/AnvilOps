@@ -10,6 +10,8 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
+
+COPY --chmod=755 pre-stop.sh /var/run
 COPY --chmod=755 docker-entrypoint.sh /var/run
 
 WORKDIR /work

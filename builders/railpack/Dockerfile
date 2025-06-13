@@ -26,6 +26,7 @@ COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
 COPY --from=ghcr.io/jdx/mise:2025.5.8 --chmod=755 /usr/local/bin/mise /tmp/railpack/mise/mise-2025.5.8
 COPY --from=railpack --chmod=755 /usr/local/bin/railpack /usr/bin/railpack
 
+COPY --chmod=755 pre-stop.sh /var/run
 COPY --chmod=755 docker-entrypoint.sh /var/run
 
 WORKDIR /work

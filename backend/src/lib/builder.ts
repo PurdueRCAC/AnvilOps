@@ -36,7 +36,8 @@ export async function createBuildJob({
       },
       spec: {
         ttlSecondsAfterFinished: 300, // Delete jobs 5 minutes after they complete
-        backoffLimit: 1,
+        backoffLimit: 1, // Retry builds up to 1 time if they exit with a non-zero status code
+        activeDeadlineSeconds: 30 * 60, // Kill builds after 30 minutes
         template: {
           spec: {
             containers: [
@@ -66,6 +67,13 @@ export async function createBuildJob({
                     : []),
                 ],
                 imagePullPolicy: "Always",
+                lifecycle: {
+                  preStop: {
+                    exec: {
+                      command: ["/bin/sh", "-c", "/var/run/pre-stop.sh"],
+                    },
+                  },
+                },
                 volumeMounts: [
                   {
                     mountPath: "/certs",
