@@ -27,6 +27,7 @@ import {
 } from "../types.ts";
 import { db } from "./db.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
+import { deleteNamespace } from "./kubernetes.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -275,12 +276,30 @@ const handlers = {
         return json(401, res, {});
       }
 
+      const apps = await db.app.findMany({
+        where: { orgId },
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      });
+      for (let app of apps) {
+        const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
+        if (hasResourcesStatus.includes(app.deployments[0].status)) {
+          try {
+            await deleteNamespace(app.subdomain);
+          } catch (err) {
+            console.error(err);
+          }
+          await db.deployment.update({
+            where: { id: app.deployments[0].id },
+            data: { status: "STOPPED" },
+          });
+        }
+      }
       await db.organization.delete({ where: { id: orgId } });
-
-      await db.app.deleteMany({ where: { orgId } });
-
-      // TODO: delete resources
-
       return res.status(200);
     } catch (e) {
       console.log((e as Error).message);
