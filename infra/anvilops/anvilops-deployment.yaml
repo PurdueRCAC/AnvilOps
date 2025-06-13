@@ -97,6 +97,11 @@ spec:
                   key: project-ns
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
+            - name: FIELD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-password
+                  key: field-encryption-key
             - name: DELETE_REPO_USER
               valueFrom:
                 secretKeyRef:
