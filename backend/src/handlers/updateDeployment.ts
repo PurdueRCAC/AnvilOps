@@ -57,6 +57,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           svcConfig,
           JSON.parse(deployment.config.secrets) as Secrets[],
         );
+        await db.deployment.update({
+          where: { id: deployment.id },
+          data: { status: "COMPLETE" },
+        });
       } catch (err) {
         console.error(err);
         await db.deployment.update({

@@ -7,7 +7,7 @@ import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
-  createDeployment,
+  buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
@@ -17,6 +17,20 @@ const createApp: HandlerMap["createApp"] = async (
   res,
 ) => {
   const appData = ctx.request.requestBody;
+
+  if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
+    return json(400, res, { code: 400, message: "Invalid root directory" });
+  }
+
+  if (appData.dockerfilePath) {
+    if (
+      appData.dockerfilePath.startsWith("/") ||
+      appData.dockerfilePath.includes(`"`)
+    ) {
+      return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
+    }
+  }
+
   const organization = await db.organization.findUnique({
     where: {
       id: appData.orgId,
@@ -90,6 +104,10 @@ const createApp: HandlerMap["createApp"] = async (
         repositoryBranch: appData.branch,
       },
     });
+    await db.app.update({
+      where: { id: app.id },
+      data: { imageRepo: `app-${app.orgId}-${app.id}` },
+    });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
       // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
@@ -103,9 +121,10 @@ const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await createDeployment(
+    await buildAndDeploy(
       app.orgId,
       app.id,
+      app.imageRepo,
       latestCommit.sha,
       latestCommit.commit.message,
       await generateCloneURLWithCredentials(octokit, repo.html_url),

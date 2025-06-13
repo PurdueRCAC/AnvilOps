@@ -97,6 +97,11 @@ spec:
                   key: project-ns
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
+            - name: DELETE_REPO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: registry-credentials
+                  key: delete-user
           volumeMounts:
             - mountPath: "/opt/creds"
               name: kube-auth

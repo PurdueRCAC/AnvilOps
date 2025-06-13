@@ -32,7 +32,7 @@ export async function createBuildJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
-        name: `build-app-image-${tag}`,
+        name: `build-image-${tag}`,
       },
       spec: {
         ttlSecondsAfterFinished: 300, // Delete jobs 5 minutes after they complete

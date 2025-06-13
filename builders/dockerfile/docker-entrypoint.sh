@@ -21,7 +21,7 @@ buildctl \
  build \
  --frontend dockerfile.v0 \
  --local context=. \
- --local dockerfile=$DOCKERFILE_PATH \
+ --local dockerfile="$DOCKERFILE_PATH" \
  --import-cache type=registry,ref=$CACHE_TAG \
  --export-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true \
