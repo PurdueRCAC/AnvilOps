@@ -39,7 +39,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     return json(403, res, {});
   }
 
-  if (status === "DEPLOYING" || status === "ERROR") {
+  if (
+    (status === "DEPLOYING" || status === "ERROR") &&
+    deployment.checkRunId !== null
+  ) {
     try {
       // The build completed. Update the check run with the result of the build (success or failure).
       const octokit = await getOctokit(deployment.app.org.githubInstallationId);
