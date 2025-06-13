@@ -98,5 +98,5 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   });
 
   // We're finally done! Redirect the user back to the frontend.
-  return redirect(302, res, "/projects");
+  return redirect(302, res, "/dashboard");
 };

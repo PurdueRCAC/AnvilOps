@@ -1,6 +1,7 @@
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import React from "react";
+import { useLocation } from "react-router-dom";
 
 export type User = components["schemas"]["User"];
 
@@ -19,6 +20,7 @@ export default function UserProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { pathname } = useLocation();
   const { data: user, isPending } = api.useQuery(
     "get",
     "/user/me",
@@ -27,7 +29,9 @@ export default function UserProvider({
       retry(failureCount, error) {
         if (error.code === 401) {
           // Unauthorized
-          window.location.href = "/api/login";
+          if (pathname !== "/") {
+            window.location.href = "/api/login";
+          }
           return false;
         }
         return failureCount < 3;

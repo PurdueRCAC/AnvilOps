@@ -18,14 +18,20 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     return json(401, res, {});
   }
 
-  if (!(status in ["BUILDING", "DEPLOYING", "ERROR"]))
+  if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => status === it)) {
     return json(400, res, {});
-
+  }
   const deployment = await db.deployment.update({
     where: { secret: secret },
     data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
     include: {
-      app: { include: { org: { select: { githubInstallationId: true } } } },
+      config: true,
+      app: {
+        select: {
+          repositoryId: true,
+          org: { select: { githubInstallationId: true } },
+        },
+      },
     },
   });
 
@@ -34,19 +40,23 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   }
 
   if (status === "DEPLOYING" || status === "ERROR") {
-    // The build completed. Update the check run with the result of the build (success or failure).
-    const octokit = await getOctokit(deployment.app.org.githubInstallationId);
+    try {
+      // The build completed. Update the check run with the result of the build (success or failure).
+      const octokit = await getOctokit(deployment.app.org.githubInstallationId);
 
-    // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
-    const repo = await getRepoById(octokit, deployment.app.repositoryId);
+      // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
+      const repo = await getRepoById(octokit, deployment.app.repositoryId);
 
-    await octokit.rest.checks.update({
-      check_run_id: deployment.checkRunId,
-      status: "completed",
-      conclusion: status === "DEPLOYING" ? "success" : "failure",
-      owner: repo.owner.login,
-      repo: repo.name,
-    });
+      await octokit.rest.checks.update({
+        check_run_id: deployment.checkRunId,
+        status: "completed",
+        conclusion: status === "DEPLOYING" ? "success" : "failure",
+        owner: repo.owner.login,
+        repo: repo.name,
+      });
+    } catch (e) {
+      console.error("Failed to update check run: ", e);
+    }
   }
 
   if (status === "DEPLOYING") {
@@ -61,10 +71,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       name: app.name,
       namespace: subdomain,
       image: deployment.imageTag,
-      env: app.env as Env,
-      secrets: JSON.parse(app.secrets) as Secrets[],
-      port: app.port,
-      replicas: app.replicas,
+      env: deployment.config.env as Env,
+      secrets: JSON.parse(deployment.config.secrets) as Secrets[],
+      port: deployment.config.port,
+      replicas: deployment.config.replicas,
     };
     const deployConfig = createDeploymentConfig(appParams);
     const svcConfig = createServiceConfig(appParams, subdomain);
@@ -73,8 +83,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         subdomain,
         deployConfig,
         svcConfig,
-        JSON.parse(app.secrets) as Secrets[],
+        JSON.parse(deployment.config.secrets) as Secrets[],
       );
+      await db.deployment.update({
+        where: { id: deployment.id },
+        data: { status: "COMPLETE" },
+      });
     } catch (err) {
       console.error(err);
       await db.deployment.update({

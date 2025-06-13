@@ -32,6 +32,44 @@ type AppParams = {
   replicas: number;
 };
 
+const resources = {
+  async namespaceExists(name: string) {
+    try {
+      await k8s.default.readNamespace({ name });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+
+  async deploymentExists(name: string, namespace: string) {
+    try {
+      await k8s.apps.readNamespacedDeployment({ name, namespace });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+
+  async serviceExists(name: string, namespace: string) {
+    try {
+      await k8s.default.readNamespacedService({ name, namespace });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+
+  async secretExists(name: string, namespace: string) {
+    try {
+      await k8s.default.readNamespacedSecret({ name, namespace });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+};
+
 export const createDeploymentConfig = (app: AppParams): V1Deployment => {
   const env: V1EnvVar[] = Object.keys(app.env).map((key) => ({
     name: key,
@@ -56,6 +94,8 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
   }
 
   return {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
     metadata: {
       name: app.name,
       namespace: app.namespace,
@@ -98,6 +138,8 @@ export const createServiceConfig = (
   name: string,
 ): V1Service => {
   return {
+    apiVersion: "v1",
+    kind: "Service",
     metadata: {
       name: name,
       namespace: app.namespace,
@@ -118,6 +160,43 @@ export const createServiceConfig = (
   };
 };
 
+const createSecretConfig = (secret: Secrets, namespace: string) => {
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: secret.name,
+      namespace,
+    },
+    stringData: secret.data,
+  };
+};
+
+const createNamespaceConfig = (namespace: string) => {
+  return {
+    metadata: {
+      name: namespace,
+      annotations: {
+        "field.cattle.io/projectId": `${process.env.PROJECT_NS}:${process.env.PROJECT_NAME}`,
+      },
+    },
+  };
+};
+
+const ensureNamespace = async (namespace: string) => {
+  const ns = createNamespaceConfig(namespace);
+  await k8s.default.createNamespace({ body: ns });
+  for (let i = 0; i < 20; i++) {
+    if (resources.namespaceExists(namespace)) {
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  throw new Error("Timed out waiting for namespace to create");
+};
+
 export const deleteNamespace = async (namespace: string) => {
   await k8s.default.deleteNamespace({
     name: namespace,
@@ -131,27 +210,29 @@ export const createOrUpdateApp = async (
   service?: V1Service,
   secrets?: Secrets[],
 ) => {
-  const ns = {
-    metadata: {
-      name: namespace,
-    },
-  };
-
-  // patch is the equivalent of kubectl apply -f
-  k8s.full.patch(ns);
+  if (!(await resources.namespaceExists(namespace))) {
+    await ensureNamespace(namespace);
+  }
   for (let secret of secrets) {
-    const body = {
-      metadata: {
-        name: secret.name,
-      },
-      stringData: secret.data,
-    };
-
-    await k8s.full.patch(body);
+    const body = createSecretConfig(secret, namespace);
+    if (await resources.secretExists(secret.name, namespace)) {
+      await k8s.full.patch(body);
+    } else {
+      await k8s.full.create(body);
+    }
   }
 
-  await k8s.full.patch(deployment);
-  await k8s.full.patch(service);
+  if (await resources.deploymentExists(deployment.metadata.name, namespace)) {
+    await k8s.full.patch(deployment);
+  } else {
+    await k8s.full.create(deployment);
+  }
+
+  if (await resources.serviceExists(service.metadata.name, namespace)) {
+    await k8s.full.patch(service);
+  } else {
+    await k8s.full.create(service);
+  }
 
   console.log(`App ${deployment.metadata.name} updated`);
 };

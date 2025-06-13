@@ -30,6 +30,7 @@ spec:
             - /certs/cert.pem
             - --tlskey
             - /certs/key.pem
+            - --debug
           resources:
             requests:
               cpu: 1000m
@@ -69,9 +70,6 @@ spec:
             secretName: buildkit-daemon-certs
         - name: buildkitd
           emptyDir: {}
-        - name: registry-credentials
-          secret:
-            secretName: registry-credentials
 ---
 apiVersion: v1
 kind: Service

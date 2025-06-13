@@ -515,12 +515,29 @@ paths:
       responses:
         "200":
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    format: int64
+                    description: The ID of the newly-created app
         "302":
           description: Redirecting to finish GitHub App installation
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
           description: Unauthorized
         "403":
           description: Contact owner to complete GitHub App installation
+        "409":
+          description: Subdomain is taken
         "500":
           description: Unexpected Error
           content:
@@ -572,6 +589,8 @@ paths:
           description: Success
         "401":
           description: Unauthorized
+        "400":
+          description: Malformed app
         "500":
           description: Unexpected Error
           content:
@@ -594,6 +613,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /app/{appId}/deployments:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [app]
+      description: List an app's recent deployments
+      operationId: listDeployments
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      format: int64
+                    commitHash:
+                      type: string
+                    commitMessage:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    updatedAt:
+                      type: string
+                      format: date-time
+                    status:
+                      type: string
+                required:
+                  [id, commitHash, commitMessage, createdAt, updatedAt, status]
+
   /deployment/update:
     description: Updates a deployment's status. Meant to be called from a build job.
     post:
@@ -691,6 +752,9 @@ components:
           type: string
         name:
           type: string
+        repositoryId:
+          type: number
+          format: int64
         repositoryURL:
           type: string
         config:
@@ -701,6 +765,8 @@ components:
               format: int64
             dockerfilePath:
               type: string
+            branch:
+              type: string
             replicas:
               type: integer
               format: int64
@@ -708,6 +774,7 @@ components:
               $ref: "#/components/schemas/Envs"
             secrets:
               $ref: "#/components/schemas/Secrets"
+          required: [port, dockerfilePath, branch, replicas, env, secrets]
       required:
         - id
         - orgId
@@ -722,9 +789,9 @@ components:
           format: int64
         name:
           type: string
-        repositoryURL:
-          type: string
-          format: uri
+        repositoryId:
+          type: number
+          format: int64
         subdomain:
           type: string
           format: hostname
@@ -733,6 +800,13 @@ components:
           format: int64
         dockerfilePath:
           type: string
+        rootDir:
+          type: string
+        branch:
+          type: string
+        builder:
+          type: string
+          enum: [dockerfile, railpack]
         env:
           $ref: "#/components/schemas/Envs"
         secrets:
@@ -740,9 +814,12 @@ components:
       required:
         - orgId
         - name
-        - repositoryURL
+        - repositoryId
         - subdomain
         - port
+        - rootDir
+        - branch
+        - builder
     Envs:
       type: object
       additionalProperties:

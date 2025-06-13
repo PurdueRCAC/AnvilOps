@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-9-f737f61bc495761c6985b66015b533f9738e24dd # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-54-865d685c0b06263cd14474a1e0564f92e4ca74e4 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -39,11 +39,6 @@ spec:
               value: anvilops
             - name: POSTGRES_HOSTNAME
               value: anvilops-postgres
-            - name: PRISMA_FIELD_ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: prisma-secrets
-                  key: field-key
             - name: CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -90,5 +85,36 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
-            - name: DEBUG
-              value: "*"
+            - name: PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-name
+            - name: PROJECT_NS
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-ns
+            - name: KUBECONFIG
+              value: "/opt/creds/kubeconfig"
+            - name: FIELD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-password
+                  key: field-encryption-key
+            - name: DELETE_REPO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: registry-credentials
+                  key: delete-user
+          volumeMounts:
+            - mountPath: "/opt/creds"
+              name: kube-auth
+              readOnly: true
+      volumes:
+        - name: kube-auth
+          secret:
+            secretName: kube-auth
+            items:
+              - key: kubeconfig
+                path: kubeconfig

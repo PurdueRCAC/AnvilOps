@@ -1,5 +1,5 @@
 # from https://blog.meain.io/2020/dynamic-reverse-proxy-kubernetes/
-apiVersion: apps/v1
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: proxyconf

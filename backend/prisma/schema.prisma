@@ -32,9 +32,9 @@ model User {
 
 model OrganizationMembership {
   userId          Int
-  user            User            @relation(fields: [userId], references: [id])
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId  Int
-  organization    Organization    @relation(fields: [organizationId], references: [id])
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   permissionLevel PermissionLevel
@@ -62,30 +62,29 @@ model Organization {
   newInstallationId Int?
 }
 
+enum ImageBuilder {
+  dockerfile
+  railpack
+}
+
 model App {
   id               Int          @id @default(autoincrement())
   orgId            Int
-  org              Organization @relation(fields: [orgId], references: [id])
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   name             String
-  repositoryURL    String
   repositoryId     Int
   repositoryBranch String       @default("main")
-  webhookSecret    String
-  dockerfilePath   String?
-  port             Int
   subdomain        String       @unique
-  env              Json?
-  secrets          String? /// @encrypted
-  replicas         Int          @default(1)
+  imageRepo        String       @default("")
   deployments      Deployment[]
 }
 
 model Deployment {
   id            Int              @id @default(autoincrement())
   appId         Int
-  app           App              @relation(fields: [appId], references: [id])
+  app           App              @relation(fields: [appId], references: [id], onDelete: Cascade)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   commitHash    String?
@@ -97,6 +96,20 @@ model Deployment {
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
   secret        String?          @unique
+  config        DeploymentConfig @relation(fields: [configId], references: [id])
+  configId      Int              @unique
+}
+
+model DeploymentConfig {
+  id             Int          @id @default(autoincrement())
+  builder        ImageBuilder
+  rootDir        String
+  dockerfilePath String?
+  port           Int
+  env            Json?
+  secrets        String?
+  replicas       Int          @default(1)
+  deployment     Deployment?
 }
 
 enum DeploymentStatus {
@@ -110,6 +123,8 @@ enum DeploymentStatus {
   COMPLETE
   // There was a problem somewhere during the process
   ERROR
+  // Deployment is no longer active
+  STOPPED
 }
 
 model Session {

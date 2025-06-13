@@ -1,9 +1,11 @@
 import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
+import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
+import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -31,18 +33,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
   switch (requestType) {
     case "repository": {
       switch (action) {
-        case "renamed": {
-          const payload = ctx.request
-            .requestBody as components["schemas"]["webhook-repository-renamed"];
-
-          // Change the repository URL of connected apps to point to the new URL
-          await db.app.updateMany({
-            where: { repositoryId: payload.repository.id },
-            data: {
-              repositoryURL: payload.repository.git_url,
-            },
-          });
-        }
         case "transferred": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-transferred"];
@@ -90,7 +80,14 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           repositoryId: repoId,
           org: { githubInstallationId: { not: null } },
         },
-        include: { org: { select: { githubInstallationId: true } } },
+        include: {
+          org: { select: { githubInstallationId: true } },
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
+        },
       });
 
       if (apps.length === 0) {
@@ -103,43 +100,21 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           continue;
         }
 
-        const imageTag =
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:${payload.head_commit.id}` as const;
-        const secret = randomBytes(32).toString("hex");
-        const deployment = await db.deployment.create({
-          data: {
-            appId: app.id,
-            commitHash: payload.head_commit.id,
-            commitMessage: payload.head_commit.message,
-            imageTag: imageTag,
-            secret: secret,
-          },
-        });
-
-        const jobId = await createBuildJob(
-          `${app.id}-${deployment.id}`,
-          "dockerfile",
-          payload.repository.git_url,
-          imageTag,
-          `registry.anvil.rcac.purdue.edu/anvilops/app-${app.orgId}-${app.id}:build-cache`,
-          secret,
-        );
-
-        // Create a check on their commit that says the build is "in progress"
         const octokit = await getOctokit(app.org.githubInstallationId);
-        const checkRun = await octokit.rest.checks.create({
-          head_sha: payload.head_commit.id,
-          name: "AnvilOps",
-          status: "in_progress",
-          details_url: `https://anvilops.rcac.purdue.edu/org/${app.orgId}/app/${app.id}/deployment/${deployment.id}`,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-        });
 
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: { builderJobId: jobId, checkRunId: checkRun.data.id },
-        });
+        await buildAndDeploy(
+          app.orgId,
+          app.id,
+          app.imageRepo,
+          octokit,
+          payload.head_commit.id,
+          payload.head_commit.message,
+          await generateCloneURLWithCredentials(
+            octokit,
+            payload.repository.html_url,
+          ),
+          app.deployments[0].config, // Reuse the config from the previous deployment
+        );
       }
 
       return json(200, res, {});
@@ -151,3 +126,89 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
   return json(200, res, {});
 };
+
+export async function generateCloneURLWithCredentials(
+  octokit: Octokit,
+  originalURL: string,
+) {
+  const { token } = (await octokit.auth({ type: "installation" })) as any;
+  const url = URL.parse(originalURL);
+  url.username = "x-access-token";
+  url.password = token;
+  return url.toString();
+}
+
+export async function buildAndDeploy(
+  orgId: number,
+  appId: number,
+  imageRepo: string,
+  octokit: Octokit,
+  commitSha: string,
+  commitMessage: string,
+  cloneURL: string,
+  config: DeploymentConfigCreateWithoutDeploymentInput,
+) {
+  const imageTag =
+    `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
+  const secret = randomBytes(32).toString("hex");
+  const deployment = await db.deployment.create({
+    data: {
+      app: { connect: { id: appId } },
+      commitHash: commitSha,
+      commitMessage: commitMessage,
+      imageTag: imageTag,
+      secret: secret,
+      config: {
+        create: config,
+      },
+    },
+    select: {
+      id: true,
+      app: { select: { repositoryId: true } },
+    },
+  });
+
+  let checkRun:
+    | Awaited<ReturnType<typeof octokit.rest.checks.create>>
+    | undefined;
+
+  try {
+    const repo = await getRepoById(octokit, deployment.app.repositoryId);
+
+    // Create a check on their commit that says the build is "in progress"
+    checkRun = await octokit.rest.checks.create({
+      head_sha: commitSha,
+      name: "AnvilOps",
+      status: "in_progress",
+      details_url: `https://anvilops.rcac.purdue.edu/org/${orgId}/app/${appId}/deployment/${deployment.id}`,
+      owner: repo.owner.login,
+      repo: repo.name,
+    });
+  } catch (e) {
+    console.error("Failed to create check run: ", e);
+  }
+
+  let jobId: string;
+  try {
+    jobId = await createBuildJob({
+      tag: imageRepo,
+      ref: commitSha,
+      gitRepoURL: cloneURL,
+      imageTag,
+      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+      deploymentSecret: secret,
+      config,
+    });
+  } catch (e) {
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "ERROR" },
+    });
+    throw new Error("Failed to create build job", { cause: e });
+  }
+
+  await db.deployment.update({
+    where: { id: deployment.id },
+    data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
+  });
+}
