@@ -163,6 +163,7 @@ export async function buildAndDeploy(
   try {
     jobId = await createBuildJob({
       tag: imageRepo,
+      ref: commitSha,
       gitRepoURL: cloneURL,
       imageTag,
       imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,

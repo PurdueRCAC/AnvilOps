@@ -1,8 +1,6 @@
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { k8s } from "./kubernetes.ts";
 
-type Builder = "railpack" | "dockerfile";
-
 type ImageTag = `${string}/${string}/${string}:${string}`;
 
 export async function createBuildJob({
@@ -11,6 +9,7 @@ export async function createBuildJob({
   imageTag,
   imageCacheTag,
   deploymentSecret,
+  ref,
   config,
 }: {
   tag: string;
@@ -18,6 +17,7 @@ export async function createBuildJob({
   imageTag: ImageTag;
   imageCacheTag: ImageTag;
   deploymentSecret: string;
+  ref: string;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 }) {
   if (!["dockerfile", "railpack"].includes(config.builder)) {
@@ -45,6 +45,7 @@ export async function createBuildJob({
                 image: `registry.anvil.rcac.purdue.edu/anvilops/${config.builder}-builder:latest`,
                 env: [
                   { name: "CLONE_URL", value: gitRepoURL },
+                  { name: "REF", value: ref },
                   { name: "IMAGE_TAG", value: imageTag },
                   { name: "CACHE_TAG", value: imageCacheTag },
                   { name: "DEPLOYMENT_API_SECRET", value: deploymentSecret },

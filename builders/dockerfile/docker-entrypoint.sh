@@ -6,14 +6,14 @@
 set -eo pipefail
 
 set_status() {
-  wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"$1\"}" -O- $DEPLOYMENT_API_URL/deployment/update
+  wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"$1\"}" -O- "$DEPLOYMENT_API_URL/deployment/update"
 }
 
 cd /work
 
-set_status BUILDING
+set_status "BUILDING"
 
-git clone $CLONE_URL --depth=1 .
+git clone "$CLONE_URL" --depth=1 --shallow-submodules --revision="$REF" .
 
 cd "$ROOT_DIRECTORY"
 
@@ -27,14 +27,14 @@ build() {
   --frontend dockerfile.v0 \
   --local context=. \
   --local dockerfile="$DOCKERFILE_PATH" \
-  --import-cache type=registry,ref=$CACHE_TAG \
-  --export-cache type=registry,ref=$CACHE_TAG \
-  --output type=image,name=$IMAGE_TAG,push=true \
+  --import-cache type=registry,ref="$CACHE_TAG" \
+  --export-cache type=registry,ref="$CACHE_TAG" \
+  --output type=image,name="$IMAGE_TAG",push=true \
   --progress plain
 }
 
 if build ; then
-  set_status DEPLOYING
+  set_status "DEPLOYING"
 else
-  set_status ERROR
+  set_status "ERROR"
 fi
