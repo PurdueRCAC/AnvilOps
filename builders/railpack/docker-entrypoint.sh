@@ -22,7 +22,7 @@ buildctl \
  --tlsdir /certs \
  build \
  --frontend gateway.v0 \
- --opt source=ghcr.io/railwayapp/railpack:railpack-frontend \
+ --opt source=registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:latest \
  --local "context=/work/repo/$ROOT_DIRECTORY" \
  --local dockerfile=/work \
  --export-cache type=registry,ref=$CACHE_TAG \
