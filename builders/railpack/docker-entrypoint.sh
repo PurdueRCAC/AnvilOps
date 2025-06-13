@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This is the Railpack builder. It clones a repository, prepares a build plan with Railpack, and builds and pushes an image.
 # Then, it notifies the backend to deploy the new version of the image.
