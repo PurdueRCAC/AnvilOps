@@ -526,6 +526,12 @@ paths:
                     description: The ID of the newly-created app
         "302":
           description: Redirecting to finish GitHub App installation
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
           description: Unauthorized
         "403":
