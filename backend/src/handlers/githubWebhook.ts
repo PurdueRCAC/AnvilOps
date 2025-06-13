@@ -76,9 +76,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
       // Look up the connected app and create a deployment job
       const apps = await db.app.findMany({
-        where: { repositoryId: repoId },
+        where: {
+          repositoryId: repoId,
+          org: { githubInstallationId: { not: null } },
+        },
         include: {
-          org: true,
+          org: { select: { githubInstallationId: true } },
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
@@ -99,18 +102,22 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
         const octokit = await getOctokit(app.org.githubInstallationId);
 
-        await buildAndDeploy(
-          app.orgId,
-          app.id,
-          app.imageRepo,
-          payload.head_commit.id,
-          payload.head_commit.message,
-          await generateCloneURLWithCredentials(
+        await buildAndDeploy({
+          orgId: app.orgId,
+          appId: app.id,
+          imageRepo: app.imageRepo,
+          commitSha: payload.head_commit.id,
+          commitMessage: payload.head_commit.message,
+          cloneURL: await generateCloneURLWithCredentials(
             octokit,
             payload.repository.html_url,
           ),
-          app.deployments[0].config, // Reuse the config from the previous deployment
-        );
+          config: app.deployments[0].config, // Reuse the config from the previous deployment
+          createCheckRun: true,
+          octokit,
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+        });
       }
 
       return json(200, res, {});
@@ -134,15 +141,29 @@ export async function generateCloneURLWithCredentials(
   return url.toString();
 }
 
-export async function buildAndDeploy(
-  orgId: number,
-  appId: number,
-  imageRepo: string,
-  commitSha: string,
-  commitMessage: string,
-  cloneURL: string,
-  config: DeploymentConfigCreateWithoutDeploymentInput,
-) {
+type BuildAndDeployOptions = {
+  orgId: number;
+  appId: number;
+  imageRepo: string;
+  commitSha: string;
+  commitMessage: string;
+  cloneURL: string;
+  config: DeploymentConfigCreateWithoutDeploymentInput;
+} & (
+  | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
+  | { createCheckRun: false }
+);
+
+export async function buildAndDeploy({
+  orgId,
+  appId,
+  imageRepo,
+  commitSha,
+  commitMessage,
+  cloneURL,
+  config,
+  ...opts
+}: BuildAndDeployOptions) {
   const imageTag =
     `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
   const secret = randomBytes(32).toString("hex");
@@ -157,7 +178,31 @@ export async function buildAndDeploy(
         create: config,
       },
     },
+    select: {
+      id: true,
+      app: { select: { repositoryId: true } },
+    },
   });
+
+  let checkRun:
+    | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
+    | undefined;
+
+  if (opts.createCheckRun) {
+    try {
+      // Create a check on their commit that says the build is "in progress"
+      checkRun = await opts.octokit.rest.checks.create({
+        head_sha: commitSha,
+        name: "AnvilOps",
+        status: "in_progress",
+        details_url: `https://anvilops.rcac.purdue.edu/org/${orgId}/app/${appId}/deployment/${deployment.id}`,
+        owner: opts.owner,
+        repo: opts.repo,
+      });
+    } catch (e) {
+      console.error("Failed to create check run: ", e);
+    }
+  }
 
   let jobId: string;
   try {
@@ -180,6 +225,6 @@ export async function buildAndDeploy(
 
   await db.deployment.update({
     where: { id: deployment.id },
-    data: { builderJobId: jobId },
+    data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
   });
 }
