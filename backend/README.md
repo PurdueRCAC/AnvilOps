@@ -69,6 +69,8 @@ Environment variables:
 
 Set the `DATABASE_URL` environment variable to a valid PostgreSQL connection string, including the username and password. In production, set the `password` key in the `postgres-password` secret. AnvilOps will attempt to connect to a database at the `anvilops-postgres` hostname with `anvilops` as the username and database name.
 
+In addition, set `FIELD_ENCRYPTION_KEY` to a 32-byte base64-encoded key, which will be used to encrypt the keys used to protect app secrets.
+
 If you need a temporary Postgres database, create one with Docker:
 
 ```sh
