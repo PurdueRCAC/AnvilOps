@@ -9,11 +9,11 @@ cd /work
 
 wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLOYMENT_API_SECRET\",\"status\":\"BUILDING\"}" -O- $DEPLOYMENT_API_URL/deployment/update
 
-git clone $CLONE_URL --depth=1 ./work
+git clone $CLONE_URL --depth=1 /work/repo
 
 # Railpack is a tool that generates BuildKit LLB from a repository by looking at the files it contains and making an educated guess on the repo's technologies, package managers, etc.
 # https://railpack.com/
-railpack prepare ./work --plan-out ./railpack-plan.json --info-out ./railpack-info.json
+railpack prepare "/work/repo/$ROOT_DIRECTORY" --plan-out /work/railpack-plan.json --info-out /work/railpack-info.json
 
 # https://railpack.com/guides/running-railpack-in-production/#building-with-buildkit
 buildctl \
@@ -23,8 +23,8 @@ buildctl \
  build \
  --frontend gateway.v0 \
  --opt source=ghcr.io/railwayapp/railpack:railpack-frontend \
- --local context=./work \
- --local dockerfile=./railpack-plan.json \
+ --local "context=/work/repo/$ROOT_DIRECTORY" \
+ --local dockerfile=/work/railpack-plan.json \
  --export-cache type=registry,ref=$CACHE_TAG \
  --import-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true

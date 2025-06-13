@@ -172,6 +172,31 @@ const createSecretConfig = (secret: Secrets, namespace: string) => {
   };
 };
 
+const createNamespaceConfig = (namespace: string) => {
+  return {
+    metadata: {
+      name: namespace,
+      annotations: {
+        "field.cattle.io/projectId": `${process.env.PROJECT_NS}:${process.env.PROJECT_NAME}`,
+      },
+    },
+  };
+};
+
+const ensureNamespace = async (namespace: string) => {
+  const ns = createNamespaceConfig(namespace);
+  await k8s.default.createNamespace({ body: ns });
+  for (let i = 0; i < 20; i++) {
+    if (resources.namespaceExists(namespace)) {
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  throw new Error("Timed out waiting for namespace to create");
+};
+
 export const deleteNamespace = async (namespace: string) => {
   await k8s.default.deleteNamespace({
     name: namespace,
@@ -185,17 +210,8 @@ export const createOrUpdateApp = async (
   service?: V1Service,
   secrets?: Secrets[],
 ) => {
-  const ns = {
-    metadata: {
-      name: namespace,
-      annotations: {
-        "field.cattle.io/projectId": `${process.env.PROJECT_NS}:${process.env.PROJECT_NAME}`,
-      },
-    },
-  };
-
   if (!(await resources.namespaceExists(namespace))) {
-    await k8s.default.createNamespace({ body: ns });
+    await ensureNamespace(namespace);
   }
   for (let secret of secrets) {
     const body = createSecretConfig(secret, namespace);

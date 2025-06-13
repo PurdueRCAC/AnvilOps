@@ -29,6 +29,7 @@ export const EnvVarGrid = ({
         <Fragment key={index}>
           <Input
             placeholder="NODE_ENV"
+            required={index !== envVars.length - 1}
             className="w-full"
             value={key}
             onChange={(e) => {

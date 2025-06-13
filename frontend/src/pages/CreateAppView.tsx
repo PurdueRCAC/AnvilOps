@@ -2,6 +2,7 @@ import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -15,9 +16,11 @@ import clsx from "clsx";
 import {
   BookMarked,
   Code2,
+  Container,
   FolderRoot,
   GitBranch,
   Globe,
+  Hammer,
   Link,
   Rocket,
   Server,
@@ -42,6 +45,10 @@ export default function CreateAppView() {
   const [environmentVariables, setEnvironmentVariables] = useState<
     { key: string; value: string }[]
   >([{ key: "", value: "" }]);
+
+  const [builder, setBuilder] = useState<"dockerfile" | "railpack">(
+    "dockerfile",
+  );
 
   const selectedOrg =
     selectedOrgId !== undefined
@@ -231,11 +238,19 @@ export default function CreateAppView() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="pb-1">
+            <div>
+              <Label className="pb-1 mb-2">
                 <FolderRoot className="inline" size={16} /> Root directory
               </Label>
-              <Input name="rootDir" placeholder="/" className="w-full" />
+              <Input
+                name="rootDir"
+                placeholder="./"
+                className="w-full mb-1"
+                pattern="^\.\/.*$"
+              />
+              <p className="opacity-50 text-xs">
+                Must start with <code>./</code>
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -289,6 +304,59 @@ export default function CreateAppView() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Hammer className="inline" size={16} /> Builder
+              </Label>
+              <RadioGroup
+                name="builder"
+                value={builder}
+                onValueChange={(newValue) =>
+                  setBuilder(newValue as "dockerfile" | "railpack")
+                }
+                required
+              >
+                <Label
+                  htmlFor="builder-dockerfile"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
+                  Dockerfile
+                  <p className="opacity-50">
+                    Builds your app using your Dockerfile.
+                  </p>
+                </Label>
+                <Label
+                  htmlFor="builder-railpack"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="railpack" id="builder-railpack" />
+                  Railpack
+                  <p className="opacity-50">
+                    Detects your project structure and builds your app
+                    automatically.
+                  </p>
+                </Label>
+              </RadioGroup>
+            </div>
+
+            {builder === "dockerfile" ? (
+              <div>
+                <Label className="pb-1 mb-2">
+                  <Container className="inline" size={16} /> Dockerfile Path
+                </Label>
+                <Input
+                  name="dockerfilePath"
+                  placeholder="Dockerfile"
+                  defaultValue="Dockerfile"
+                  className="w-full"
+                  required
+                />{" "}
+                <p className="opacity-50 text-xs mb-2 mt-1">
+                  Relative to the root directory.
+                </p>
+              </div>
+            ) : null}
             <Button
               className="mt-8"
               size="lg"

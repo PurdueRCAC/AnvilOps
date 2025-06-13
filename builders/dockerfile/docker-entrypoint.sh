@@ -11,6 +11,8 @@ wget --header="Content-Type: application/json" --post-data "{\"secret\":\"$DEPLO
 
 git clone $CLONE_URL --depth=1 .
 
+cd "$ROOT_DIRECTORY"
+
 buildctl \
  --addr=tcp://buildkitd:1234 \
  --wait \
@@ -19,7 +21,7 @@ buildctl \
  build \
  --frontend dockerfile.v0 \
  --local context=. \
- --local dockerfile=. \
+ --local dockerfile=$DOCKERFILE_PATH \
  --import-cache type=registry,ref=$CACHE_TAG \
  --export-cache type=registry,ref=$CACHE_TAG \
  --output type=image,name=$IMAGE_TAG,push=true \

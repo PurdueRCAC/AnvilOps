@@ -1,8 +1,8 @@
 diff --git a/node_modules/openapi-backend/backend.js b/node_modules/openapi-backend/backend.js
-index 1c13bb5..831adda 100644
+index 1c13bb5..4fb1149 100644
 --- a/node_modules/openapi-backend/backend.js
 +++ b/node_modules/openapi-backend/backend.js
-@@ -336,6 +336,12 @@ class OpenAPIBackend {
+@@ -336,6 +336,13 @@ class OpenAPIBackend {
                  }
                  return notImplementedHandler(context, ...handlerArgs);
              }
@@ -10,13 +10,14 @@ index 1c13bb5..831adda 100644
 +            if (this.validator.coerceTypes) {
 +                context.request.query = context.validation.coerced.query;
 +                context.request.params = context.validation.coerced.params;
++                context.request.headers = context.validation.coerced.headers;
 +            }
 +            
              // handle route
              return routeHandler(context, ...handlerArgs);
          }).bind(this)();
 diff --git a/node_modules/openapi-backend/validation.js b/node_modules/openapi-backend/validation.js
-index 914a03e..a72fe5e 100644
+index 914a03e..757de3d 100644
 --- a/node_modules/openapi-backend/validation.js
 +++ b/node_modules/openapi-backend/validation.js
 @@ -174,7 +174,7 @@ class OpenAPIValidator {
@@ -28,3 +29,11 @@ index 914a03e..a72fe5e 100644
          result.errors = [];
          if (!operation) {
              operation = this.router.matchOperation(req);
+@@ -244,6 +244,7 @@ class OpenAPIValidator {
+             else if (this.coerceTypes) {
+                 result.coerced.query = parameters.query;
+                 result.coerced.params = parameters.path;
++                result.coerced.headers = parameters.header;
+             }
+         }
+         if (_.isEmpty(result.errors)) {
