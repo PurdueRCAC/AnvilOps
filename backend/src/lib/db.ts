@@ -66,6 +66,9 @@ export const db = client.$extends({
         needs: { secrets: true },
         compute(dc) {
           try {
+            if (!dc.secrets) {
+              return "[]";
+            }
             return decryptSecret(dc.secrets);
           } catch (err) {
             console.error(err);

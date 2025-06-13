@@ -54,7 +54,7 @@ export async function createBuildJob({
                     value: "https://anvilops.rcac.purdue.edu/api",
                   },
                   { name: "DOCKER_CONFIG", value: "/creds" },
-                  { name: "ROOT_DIRECTORY", value: config.rootDir }, // TODO: sanitize this
+                  { name: "ROOT_DIRECTORY", value: config.rootDir },
                   // Dockerfile builder only
                   ...(config.builder === "dockerfile"
                     ? [
