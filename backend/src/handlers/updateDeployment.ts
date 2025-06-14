@@ -1,9 +1,5 @@
 import { db } from "../lib/db.ts";
-import {
-  createDeploymentConfig,
-  createOrUpdateApp,
-  createServiceConfig,
-} from "../lib/kubernetes.ts";
+import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
 
@@ -79,15 +75,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       port: deployment.config.port,
       replicas: deployment.config.replicas,
     };
-    const deployConfig = createDeploymentConfig(appParams);
-    const svcConfig = createServiceConfig(appParams, subdomain);
+    const { namespace, configs } = createAppConfigs(appParams);
     try {
-      await createOrUpdateApp(
-        subdomain,
-        deployConfig,
-        svcConfig,
-        JSON.parse(deployment.config.secrets) as Secrets[],
-      );
+      await createOrUpdateApp(app.name, namespace, configs);
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "COMPLETE" },

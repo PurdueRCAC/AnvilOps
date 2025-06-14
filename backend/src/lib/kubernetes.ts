@@ -3,14 +3,12 @@ import {
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
-  V1Deployment,
   V1EnvVar,
-  V1Namespace,
-  V1ObjectMeta,
-  V1Service,
   KubernetesObjectApi,
+  V1Secret,
 } from "@kubernetes/client-node";
 import { type Env, type Secrets } from "../types.ts";
+import { randomBytes } from "node:crypto";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -22,7 +20,15 @@ export const k8s = {
   full: KubernetesObjectApi.makeApiClient(kc),
 };
 
-type AppParams = {
+interface SvcParams {
+  name: string;
+  appName: string;
+  namespace: string;
+  targetPort: number;
+  port?: number;
+}
+
+interface AppParams {
   name: string;
   namespace: string;
   image: string;
@@ -30,47 +36,165 @@ type AppParams = {
   secrets: Secrets[];
   port: number;
   replicas: number;
+  storage?: StorageParams;
+}
+
+interface K8sObject {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    namespace?: string;
+  };
+}
+
+export type SupportedDB =
+  | { name: "postgres"; tag: "17" }
+  | { name: "mysql"; tag: 9 };
+type StorageParams = {
+  type: SupportedDB;
+  replicas: number;
+  amount: number;
 };
 
-const resources = {
-  async namespaceExists(name: string) {
-    try {
-      await k8s.default.readNamespace({ name });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
-
-  async deploymentExists(name: string, namespace: string) {
-    try {
-      await k8s.apps.readNamespacedDeployment({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
-
-  async serviceExists(name: string, namespace: string) {
-    try {
-      await k8s.default.readNamespacedService({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
-
-  async secretExists(name: string, namespace: string) {
-    try {
-      await k8s.default.readNamespacedSecret({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
+const resourceExists = async (data: K8sObject) => {
+  try {
+    await k8s.full.read(data);
+    return true;
+  } catch (err) {
+    return false;
+  }
 };
 
-export const createDeploymentConfig = (app: AppParams): V1Deployment => {
+const createStorageConfigs = (app: AppParams) => {
+  const storage = app.storage;
+  const resourceName = `${app.name}-${storage.type.name}`;
+
+  const password = randomBytes(32).toString("hex");
+  const env: V1EnvVar[] = [];
+  let mountPath: string;
+  let port: number;
+  let exportEnv: V1EnvVar[];
+  let secrets: (V1Secret & K8sObject)[];
+  switch (storage.type.name) {
+    case "postgres":
+      mountPath = "/var/lib/postgresql/data";
+      port = 5432;
+      env.push({ name: "POSTGRES_USER", value: app.name });
+      env.push({
+        name: "POSTGRES_PASSWORD",
+        valueFrom: {
+          secretKeyRef: {
+            name: "db-secret",
+            key: "password",
+          },
+        },
+      });
+      env.push({ name: "POSTGRES_DB", value: app.name });
+      exportEnv = env;
+      secrets.push(
+        createSecretConfig(
+          { name: "db-secret", data: { password } },
+          app.namespace,
+        ),
+      );
+      break;
+    case "mysql":
+      mountPath = "/var/lib/mysql";
+      port = 3306;
+      env.push({
+        name: "MYSQL_ROOT_PASSWORD",
+        valueFrom: {
+          secretKeyRef: {
+            name: "db-secret",
+            key: "password",
+          },
+        },
+      });
+      exportEnv = env;
+      secrets.push(
+        createSecretConfig(
+          { name: "db-secret", data: { password } },
+          app.namespace,
+        ),
+      );
+      break;
+  }
+
+  const storageSvc = createServiceConfig({
+    name: resourceName,
+    namespace: app.namespace,
+    appName: resourceName,
+    port: 5432,
+    targetPort: 5432,
+  });
+
+  const statefulSet = {
+    apiVersion: "apps/v1",
+    kind: "StatefulSet",
+    metadata: {
+      name: resourceName,
+      namespace: app.namespace,
+    },
+    spec: {
+      selector: {
+        matchLabels: {
+          app: resourceName,
+        },
+      },
+      serviceName: resourceName,
+      replicas: app.storage.replicas,
+      template: {
+        metadata: {
+          labels: {
+            app: resourceName,
+          },
+        },
+        spec: {
+          containers: [
+            {
+              name: resourceName,
+              image: `${storage.type.name}:${storage.type.tag}`,
+              ports: [
+                {
+                  containerPort: 5432,
+                  name: `${storage.type.name}`,
+                },
+              ],
+              volumeMounts: [
+                {
+                  name: `${app.name}-data`,
+                  mountPath,
+                },
+              ],
+              env,
+            },
+          ],
+        },
+      },
+      volumeClaimTemplates: [
+        {
+          metadata: {
+            name: `${app.name}-data`,
+          },
+          spec: {
+            accessModes: ["ReadWriteMany"],
+            storageClassName: "anvil-filesystem",
+            resources: {
+              requests: {
+                storage: `${app.storage.amount}Gi`,
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  return { storageSvc, statefulSet, exportEnv, secrets };
+};
+
+const createDeploymentConfig = (app: AppParams) => {
   const env: V1EnvVar[] = Object.keys(app.env).map((key) => ({
     name: key,
     value: app.env[key],
@@ -133,26 +257,23 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
   };
 };
 
-export const createServiceConfig = (
-  app: AppParams,
-  name: string,
-): V1Service => {
+const createServiceConfig = (svc: SvcParams) => {
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: {
-      name: name,
-      namespace: app.namespace,
+      name: svc.name,
+      namespace: svc.namespace,
     },
     spec: {
       type: "ClusterIP",
       selector: {
-        app: app.name,
+        app: svc.appName,
       },
       ports: [
         {
-          port: 80,
-          targetPort: app.port,
+          port: svc.port ?? 80,
+          targetPort: svc.targetPort,
           protocol: "TCP",
         },
       ],
@@ -174,6 +295,8 @@ const createSecretConfig = (secret: Secrets, namespace: string) => {
 
 const createNamespaceConfig = (namespace: string) => {
   return {
+    apiVersion: "v1",
+    kind: "Namespace",
     metadata: {
       name: namespace,
       annotations: {
@@ -183,11 +306,10 @@ const createNamespaceConfig = (namespace: string) => {
   };
 };
 
-const ensureNamespace = async (namespace: string) => {
-  const ns = createNamespaceConfig(namespace);
-  await k8s.default.createNamespace({ body: ns });
+const ensureNamespace = async (namespace: K8sObject) => {
+  await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {
-    if (resources.namespaceExists(namespace)) {
+    if (resourceExists(namespace)) {
       return;
     }
 
@@ -204,35 +326,47 @@ export const deleteNamespace = async (namespace: string) => {
   console.log(`Namespace ${namespace} deleted`);
 };
 
+export const createAppConfigs = (
+  app: AppParams,
+): { namespace: K8sObject; configs: K8sObject[] } => {
+  const namespace = createNamespaceConfig(app.namespace);
+  const secrets = app.secrets.map((secrets) =>
+    createSecretConfig(secrets, app.namespace),
+  );
+  const svc = createServiceConfig({
+    name: app.namespace,
+    namespace: app.namespace,
+    appName: app.name,
+    port: 80,
+    targetPort: app.port,
+  });
+  const deployment = createDeploymentConfig(app);
+  const configs: K8sObject[] = [];
+  if (app.storage) {
+    const { storageSvc, statefulSet, exportEnv, secrets } =
+      createStorageConfigs(app);
+    deployment.spec.template.spec.containers[0].env.push(...exportEnv);
+    configs.push(storageSvc, statefulSet, ...secrets);
+  }
+  configs.push(...secrets, svc, deployment);
+  return { namespace, configs };
+};
+
 export const createOrUpdateApp = async (
-  namespace: string,
-  deployment: V1Deployment,
-  service?: V1Service,
-  secrets?: Secrets[],
+  name: string,
+  namespace: K8sObject,
+  configs: K8sObject[],
 ) => {
-  if (!(await resources.namespaceExists(namespace))) {
+  if (!(await resourceExists(namespace))) {
     await ensureNamespace(namespace);
   }
-  for (let secret of secrets) {
-    const body = createSecretConfig(secret, namespace);
-    if (await resources.secretExists(secret.name, namespace)) {
-      await k8s.full.patch(body);
+
+  for (let config of configs) {
+    if (await resourceExists(config)) {
+      await k8s.full.patch(config);
     } else {
-      await k8s.full.create(body);
+      await k8s.full.create(config);
     }
   }
-
-  if (await resources.deploymentExists(deployment.metadata.name, namespace)) {
-    await k8s.full.patch(deployment);
-  } else {
-    await k8s.full.create(deployment);
-  }
-
-  if (await resources.serviceExists(service.metadata.name, namespace)) {
-    await k8s.full.patch(service);
-  } else {
-    await k8s.full.create(service);
-  }
-
-  console.log(`App ${deployment.metadata.name} updated`);
+  console.log(`App ${name} updated`);
 };

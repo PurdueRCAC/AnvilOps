@@ -2,11 +2,7 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import {
-  createDeploymentConfig,
-  createOrUpdateApp,
-  createServiceConfig,
-} from "../lib/kubernetes.ts";
+import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
 import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
@@ -71,11 +67,9 @@ const updateApp: HandlerMap["updateApp"] = async (
     appParams[key] = appData.config[key];
   }
 
-  const deployConfig = createDeploymentConfig(appParams);
-  const svcConfig = createServiceConfig(appParams, app.subdomain);
-  const secrets = appParams.secrets;
+  const { namespace, configs } = createAppConfigs(appParams);
   try {
-    await createOrUpdateApp(app.subdomain, deployConfig, svcConfig, secrets);
+    await createOrUpdateApp(app.name, namespace, configs);
     await db.deployment.update({
       where: { id: deployment.id },
       data: { status: "COMPLETE" },
