@@ -341,14 +341,14 @@ export const createAppConfigs = (
     targetPort: app.port,
   });
   const deployment = createDeploymentConfig(app);
-  const configs: K8sObject[] = [];
+  const configs: K8sObject[] = [...secrets, deployment, svc];
   if (app.storage) {
     const { storageSvc, statefulSet, exportEnv, secrets } =
       createStorageConfigs(app);
     deployment.spec.template.spec.containers[0].env.push(...exportEnv);
-    configs.push(storageSvc, statefulSet, ...secrets);
+    configs.unshift(...secrets);
+    configs.push(statefulSet, storageSvc);
   }
-  configs.push(...secrets, svc, deployment);
   return { namespace, configs };
 };
 
