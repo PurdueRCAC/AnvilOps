@@ -107,7 +107,7 @@ model DeploymentConfig {
   rootDir        String
   dockerfilePath String?
   port           Int
-  env            Json         @default("{}")
+  env            Json         @default("[]")
   secrets        String?
   replicas       Int          @default(1)
   deployment     Deployment?

@@ -3,7 +3,7 @@ import { Fragment, useEffect, type Dispatch } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
-type EnvVars = { key: string; value: string }[];
+type EnvVars = { name: string; value: string }[];
 
 export const EnvVarGrid = ({
   value: envVars,
@@ -14,27 +14,27 @@ export const EnvVarGrid = ({
 }) => {
   useEffect(() => {
     for (let i in envVars) {
-      if (envVars[i].key === "" && +i < envVars.length - 1) {
+      if (envVars[i].name === "" && +i < envVars.length - 1) {
         setEnvironmentVariables(envVars.toSpliced(+i, 1));
       }
     }
-    if (envVars[envVars.length - 1]?.key !== "") {
-      setEnvironmentVariables([...envVars, { key: "", value: "" }]);
+    if (envVars[envVars.length - 1]?.name !== "") {
+      setEnvironmentVariables([...envVars, { name: "", value: "" }]);
     }
   }, [envVars]);
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content] items-center gap-2">
-      {envVars.map(({ key, value }, index) => (
+      {envVars.map(({ name, value }, index) => (
         <Fragment key={index}>
           <Input
             placeholder="NODE_ENV"
             required={index !== envVars.length - 1}
             className="w-full"
-            value={key}
+            value={name}
             onChange={(e) => {
               const newList = structuredClone(envVars);
-              newList[index].key = e.currentTarget.value;
+              newList[index].name = e.currentTarget.value;
               setEnvironmentVariables(newList);
             }}
           />
