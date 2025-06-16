@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import clsx from "clsx";
 import {
@@ -25,15 +26,12 @@ import {
   Rocket,
   Server,
 } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function CreateAppView() {
-  const { data: orgs, isPending: orgsLoading } = api.useSuspenseQuery(
-    "get",
-    "/org/me",
-  );
+  const { user } = useContext(UserContext);
 
   const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
     undefined,
@@ -55,7 +53,7 @@ export default function CreateAppView() {
 
   const selectedOrg =
     selectedOrgId !== undefined
-      ? orgs?.find((it) => it.id === parseInt(selectedOrgId))
+      ? user?.orgs?.find((it) => it.id === parseInt(selectedOrgId))
       : undefined;
 
   const { data: repos, isPending: reposLoading } = api.useQuery(
@@ -145,15 +143,11 @@ export default function CreateAppView() {
               onSelect={(e) => e}
               id="selectOrg"
             >
-              <SelectValue
-                placeholder={
-                  orgsLoading ? "Loading..." : "Select an organization"
-                }
-              />
+              <SelectValue placeholder="Select an organization" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {orgs?.map((org) => (
+                {user?.orgs?.map((org) => (
                   <SelectItem key={org.id} value={org.id.toString()}>
                     {org.name}
                   </SelectItem>

@@ -307,28 +307,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-  /org/me:
-    get:
-      tags:
-        - org
-        - user
-      description: Get organizations current user belongs to
-      operationId: getOrgs
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserOrg"
-        "500":
-          description: Unexpected Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
   /org/{orgId}:
     parameters:

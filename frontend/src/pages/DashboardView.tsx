@@ -1,15 +1,17 @@
 import { Button } from "@/components/ui/button";
+import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
 
 export default function DashboardView() {
-  const { data: orgs } = api.useSuspenseQuery("get", "/org/me");
+  const { user } = useContext(UserContext);
 
   return (
     <main className="py-10 px-8">
       <h2 className="font-bold text-3xl mb-4">Your Apps</h2>
       <div className="flex flex-col gap-8">
-        {orgs?.map((org) => <OrgApps orgId={org.id} key={org.id} />)}
+        {user?.orgs?.map((org) => <OrgApps orgId={org.id} key={org.id} />)}
         <div>
           <h3 className="text-xl font-medium mb-2">Create App</h3>
           <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

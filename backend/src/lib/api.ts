@@ -75,46 +75,6 @@ const handlers = {
       json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-  getOrgs: async function (
-    ctx: Context,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["UserOrg"][] };
-      };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      const orgs = await db.organization.findMany({
-        where: { users: { some: { userId: req.user.id } } },
-        include: {
-          users: {
-            where: { userId: req.user.id },
-            select: {
-              permissionLevel: true,
-            },
-          },
-        },
-      });
-      const result = orgs.map((o) => ({
-        id: o.id,
-        name: o.name,
-        permissionLevel: o.users[0].permissionLevel,
-        githubConnected: o.githubInstallationId !== null,
-      }));
-      return json(200, res, result);
-    } catch (e) {
-      console.log((e as Error).message);
-      return json(500, res, { code: 500, message: "Something went wrong." });
-    }
-  },
   deleteUser: async function (
     ctx: Context,
     req: AuthenticatedRequest,

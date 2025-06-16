@@ -21,7 +21,7 @@ export default function UserProvider({
   children: React.ReactNode;
 }) {
   const { pathname } = useLocation();
-  const { data: user, isPending } = api.useQuery(
+  const { data: user, isPending } = api.useSuspenseQuery(
     "get",
     "/user/me",
     {},
