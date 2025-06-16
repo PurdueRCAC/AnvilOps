@@ -88,7 +88,22 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            include: { config: true, storageConfig: true },
+            include: {
+              config: {
+                select: {
+                  builder: true,
+                  dockerfilePath: true,
+                  env: true,
+                  port: true,
+                  replicas: true,
+                  rootDir: true,
+                  secrets: true,
+                },
+              },
+              storageConfig: {
+                select: { amount: true, replicas: true, image: true },
+              },
+            },
           },
         },
       });
