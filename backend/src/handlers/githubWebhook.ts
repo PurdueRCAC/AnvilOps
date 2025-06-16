@@ -235,6 +235,7 @@ export async function buildAndDeploy({
       imageTag,
       imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
       deploymentSecret: secret,
+      deploymentId: deployment.id,
       config,
     });
   } catch (e) {

@@ -1,5 +1,6 @@
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
+import { k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
@@ -24,6 +25,29 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     return json(404, res, {});
   }
 
+  let logs: string | undefined;
+  try {
+    const pods = await k8s.default.listNamespacedPod({
+      namespace: "anvilops-dev",
+      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+    });
+
+    if (pods.items.length !== 1) {
+      throw new Error(
+        "Invalid response - job is probably not available anymore",
+      );
+    }
+
+    const pod = pods.items[0];
+
+    logs = await k8s.default.readNamespacedPodLog({
+      namespace: "anvilops-dev",
+      name: pod.metadata.name,
+    });
+  } catch {
+    // Logs are unavailable - don't let that prevent us from returning the rest of the information
+  }
+
   return json(200, res, {
     commitHash: deployment.commitHash,
     commitMessage: deployment.commitMessage,
@@ -46,5 +70,6 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       image: deployment.storageConfig?.image,
       replicas: deployment.storageConfig?.replicas,
     },
+    logs,
   });
 };

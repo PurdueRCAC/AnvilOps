@@ -9,11 +9,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { components } from "@/generated/openapi";
+import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { GitBranch, Loader, LoaderIcon, Save, Server } from "lucide-react";
+import { GitBranch, Loader, Logs, Save, Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertDialogAction,
@@ -26,7 +26,7 @@ type App = components["schemas"]["App"];
 
 export default function AppView() {
   const params = useParams();
-  const { data: app, isPending } = api.useQuery("get", "/app/{appId}", {
+  const { data: app } = api.useSuspenseQuery("get", "/app/{appId}", {
     params: { path: { appId: parseInt(params.id!) } },
   });
 
@@ -42,17 +42,9 @@ export default function AppView() {
     }
   }, [app?.config?.env]);
 
-  if (!app || isPending) {
-    return (
-      <div className="flex w-full min-h-96 items-center justify-center">
-        <LoaderIcon className="animate-spin" size={48} />
-      </div>
-    );
-  }
-
   return (
     <main className="px-8 py-10">
-      <h2 className="text-3xl font-bold mb-4">{app.name}</h2>
+      <h1 className="text-3xl font-bold mb-4">{app.name}</h1>
       <Tabs defaultValue="overview">
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -114,6 +106,7 @@ const OverviewTab = ({ app }: { app: App }) => {
               <th>Commit Hash</th>
               <th>Commit Message</th>
               <th>Status</th>
+              <th>Logs</th>
             </tr>
           </thead>
           <tbody>
@@ -131,6 +124,13 @@ const OverviewTab = ({ app }: { app: App }) => {
                 <td>
                   <Status status={d.status as DeploymentStatus} />
                 </td>
+                <td>
+                  <Link to={`/app/${app.id}/deployment/${d.id}`}>
+                    <Button size="icon" variant="secondary">
+                      <Logs />
+                    </Button>
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -141,19 +141,16 @@ const OverviewTab = ({ app }: { app: App }) => {
 };
 
 type DeploymentStatus =
-  | "PENDING"
-  | "BUILDING"
-  | "DEPLOYING"
-  | "COMPLETE"
-  | "ERROR";
+  paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"]["status"];
 
-const Status = ({ status }: { status: DeploymentStatus }) => {
+export const Status = ({ status }: { status: DeploymentStatus }) => {
   const colors: Record<DeploymentStatus, string> = {
     PENDING: "bg-amber-500",
     BUILDING: "bg-blue-500",
     DEPLOYING: "bg-purple-500",
     COMPLETE: "bg-green-500",
     ERROR: "bg-red-500",
+    STOPPED: "bg-gray-600",
   };
 
   return (

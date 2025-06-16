@@ -11,6 +11,7 @@ export async function createBuildJob({
   imageCacheTag,
   deploymentSecret,
   ref,
+  deploymentId,
   config,
 }: {
   tag: string;
@@ -19,6 +20,7 @@ export async function createBuildJob({
   imageCacheTag: ImageTag;
   deploymentSecret: string;
   ref: string;
+  deploymentId: number;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 }) {
   if (!["dockerfile", "railpack"].includes(config.builder)) {
@@ -36,12 +38,20 @@ export async function createBuildJob({
     body: {
       metadata: {
         name: `build-image-${tag}-${label}`,
+        labels: {
+          "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+        },
       },
       spec: {
-        ttlSecondsAfterFinished: 300, // Delete jobs 5 minutes after they complete
+        ttlSecondsAfterFinished: 3 * 60 * 60, // Delete jobs 3 hours after they complete
         backoffLimit: 1, // Retry builds up to 1 time if they exit with a non-zero status code
         activeDeadlineSeconds: 30 * 60, // Kill builds after 30 minutes
         template: {
+          metadata: {
+            labels: {
+              "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+            },
+          },
           spec: {
             containers: [
               {

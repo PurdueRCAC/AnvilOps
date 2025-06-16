@@ -676,6 +676,10 @@ paths:
                     format: date-time
                   status:
                     type: string
+                    enum:
+                      [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+                  logs:
+                    type: string
                   config:
                     $ref: "#/components/schemas/DeploymentConfig"
                   storageConfig:
