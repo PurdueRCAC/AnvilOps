@@ -71,8 +71,10 @@ const resourceExists = async (data: K8sObject) => {
     await k8s.full.read(data);
     return true;
   } catch (err) {
-    if (err instanceof ApiException && err.code === 404) {
-      return false;
+    if (err instanceof ApiException) {
+      if ((data.kind === "Namespace" && err.code === 403) || err.code === 404) {
+        return false;
+      }
     }
     throw err;
   }
