@@ -105,7 +105,7 @@ export default function CreateAppView() {
               port: parseInt(formData.get("port")!.toString()),
               subdomain: formData.get("subdomain")!.toString(),
               dockerfilePath: formData.get("dockerfilePath")?.toString(),
-              env: environmentVariables,
+              env: environmentVariables.filter((it) => it.name.length > 0),
               repositoryId: selectedRepo!.id!,
               secrets: [
                 /* TODO */

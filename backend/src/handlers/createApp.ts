@@ -4,7 +4,7 @@ import { type App } from "../generated/prisma/client.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { type Env, json, redirect, type HandlerMap } from "../types.ts";
+import { json, redirect, type Env, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
   buildAndDeploy,
@@ -30,6 +30,13 @@ const createApp: HandlerMap["createApp"] = async (
 
   if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
     return json(400, res, { code: 400, message: "Invalid root directory" });
+  }
+
+  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
+    return json(400, res, {
+      code: 400,
+      message: "Some environment variable(s) are empty",
+    });
   }
 
   if (appData.dockerfilePath) {
