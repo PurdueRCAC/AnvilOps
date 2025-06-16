@@ -4,6 +4,7 @@ import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
+import { validateEnv } from "./createApp.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -11,6 +12,34 @@ const updateApp: HandlerMap["updateApp"] = async (
   res: ExpressResponse,
 ) => {
   const appData = ctx.request.requestBody;
+  const appConfig = appData.config;
+
+  if (appConfig.rootDir.startsWith("/") || appConfig.rootDir.includes(`"`)) {
+    return json(400, res, { code: 400, message: "Invalid root directory" });
+  }
+
+  if (appConfig.env?.some((it) => !it.name || it.name.length === 0)) {
+    return json(400, res, {
+      code: 400,
+      message: "Some environment variable(s) are empty",
+    });
+  }
+
+  if (appConfig.dockerfilePath) {
+    if (
+      appConfig.dockerfilePath.startsWith("/") ||
+      appConfig.dockerfilePath.includes(`"`)
+    ) {
+      return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
+    }
+  }
+
+  try {
+    validateEnv(appConfig.env, appConfig.secrets);
+  } catch (err) {
+    return json(400, res, { code: 400, message: err.message });
+  }
+
   const app = await db.app.findUnique({
     where: {
       id: appData.id,

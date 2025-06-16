@@ -11,8 +11,13 @@ import {
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
-const validateEnv = (env: Env[], secrets: Env[]) => {
+export const validateEnv = (
+  env: Env[] | undefined,
+  secrets: Env[] | undefined,
+) => {
   const envNames = new Set();
+  env = env ?? [];
+  secrets = secrets ?? [];
   for (let envVar of [...env, ...secrets]) {
     if (envNames.has(envVar.name)) {
       throw new Error("Duplicate environment variable: " + envVar);
@@ -157,10 +162,7 @@ const createApp: HandlerMap["createApp"] = async (
       config: {
         port: appData.port,
         env: appData.env,
-        secrets:
-          appData.secrets.length !== 0
-            ? JSON.stringify(appData.secrets)
-            : undefined,
+        secrets: appData.secrets ? JSON.stringify(appData.secrets) : undefined,
         builder: appData.builder,
         dockerfilePath: appData.dockerfilePath,
         rootDir: appData.rootDir,
