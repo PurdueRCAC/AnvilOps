@@ -49,11 +49,9 @@ interface K8sObject {
   };
 }
 
-export type SupportedDB =
-  | { name: "postgres"; tag: "17" }
-  | { name: "mysql"; tag: 9 };
+export const SUPPORTED_DBS = ["postgres:17", "mysql:9"];
 type StorageParams = {
-  type: SupportedDB;
+  image: string;
   replicas: number;
   amount: number;
 };
@@ -82,7 +80,11 @@ const resourceExists = async (data: K8sObject) => {
 
 const createStorageConfigs = (app: AppParams) => {
   const storage = app.storage;
-  const resourceName = `${app.name}-${storage.type.name}`;
+  if (!SUPPORTED_DBS.includes(storage.image)) {
+    throw new Error("Unsupported database");
+  }
+  const [imageName, imageTag] = storage.image.split(":");
+  const resourceName = `${app.name}-${imageName}`;
 
   const password = randomBytes(32).toString("hex");
   const env: V1EnvVar[] = [];
@@ -90,7 +92,7 @@ const createStorageConfigs = (app: AppParams) => {
   let port: number;
   let exportEnv: V1EnvVar[];
   let secrets: (V1Secret & K8sObject)[];
-  switch (storage.type.name) {
+  switch (imageName) {
     case "postgres":
       mountPath = "/var/lib/postgresql/data";
       port = 5432;
@@ -168,11 +170,11 @@ const createStorageConfigs = (app: AppParams) => {
           containers: [
             {
               name: resourceName,
-              image: `${storage.type.name}:${storage.type.tag}`,
+              image: `${storage.image}`,
               ports: [
                 {
                   containerPort: port,
-                  name: `${storage.type.name}`,
+                  name: `${imageName}`,
                 },
               ],
               volumeMounts: [

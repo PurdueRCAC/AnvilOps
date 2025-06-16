@@ -43,7 +43,14 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const deployment = await db.deployment.create({
     data: {
-      config: { create: lastDeploymentConfig },
+      config: {
+        create: {
+          ...appData.config,
+          secrets:
+            appData.config.secrets && JSON.stringify(appData.config.secrets),
+        },
+      },
+      storageConfig: appData.storage && { create: appData.storage },
       status: "DEPLOYING",
       app: { connect: { id: app.id } },
       imageTag: lastDeployment.imageTag,
@@ -57,10 +64,11 @@ const updateApp: HandlerMap["updateApp"] = async (
     name: app.name,
     namespace: app.subdomain,
     image: deployment.imageTag,
-    env: lastDeploymentConfig.env as Env,
-    secrets: JSON.parse(lastDeploymentConfig.secrets) as Secrets[],
+    env: appData.config.env as Env,
+    secrets: appData.config.secrets as Secrets[],
     port: lastDeploymentConfig.port,
     replicas: lastDeploymentConfig.replicas,
+    storage: appData.storage,
   };
 
   for (let key in appData.config) {

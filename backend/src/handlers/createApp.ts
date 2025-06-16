@@ -136,6 +136,7 @@ const createApp: HandlerMap["createApp"] = async (
         dockerfilePath: appData.dockerfilePath,
         rootDir: appData.rootDir,
       },
+      storageConfig: appData.storage,
       createCheckRun: false,
     });
   } catch (e) {

@@ -765,8 +765,13 @@ components:
               format: int64
             dockerfilePath:
               type: string
+            rootDir:
+              type: string
             branch:
               type: string
+            builder:
+              type: string
+              enum: [dockerfile, railpack]
             replicas:
               type: integer
               format: int64
@@ -774,7 +779,19 @@ components:
               $ref: "#/components/schemas/Envs"
             secrets:
               $ref: "#/components/schemas/Secrets"
-          required: [port, dockerfilePath, branch, replicas, env, secrets]
+          required:
+            [
+              port,
+              dockerfilePath,
+              rootDir,
+              branch,
+              builder,
+              replicas,
+              env,
+              secrets,
+            ]
+        storage:
+          $ref: "#/components/schemas/Storage"
       required:
         - id
         - orgId
@@ -811,6 +828,8 @@ components:
           $ref: "#/components/schemas/Envs"
         secrets:
           $ref: "#/components/schemas/Secrets"
+        storage:
+          $ref: "#/components/schemas/Storage"
       required:
         - orgId
         - name
@@ -833,6 +852,24 @@ components:
             type: string
           data:
             $ref: "#/components/schemas/Envs"
+        required:
+          - name
+          - data
+    Storage:
+      type: object
+      properties:
+        image:
+          type: string
+        replicas:
+          type: integer
+          format: int64
+        amount:
+          type: integer
+          format: int64
+      required:
+        - image
+        - replicas
+        - amount
     ApiError:
       type: object
       properties:
@@ -840,3 +877,6 @@ components:
           type: integer
         message:
           type: string
+      required:
+        - code
+        - message

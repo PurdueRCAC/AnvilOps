@@ -2,7 +2,10 @@ import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
-import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
+import type {
+  DeploymentConfigCreateWithoutDeploymentInput,
+  StorageConfigCreateWithoutDeploymentInput,
+} from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit } from "../lib/octokit.ts";
@@ -85,7 +88,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            include: { config: true },
+            include: { config: true, storageConfig: true },
           },
         },
       });
@@ -113,6 +116,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             payload.repository.html_url,
           ),
           config: app.deployments[0].config, // Reuse the config from the previous deployment
+          storageConfig: app.deployments[0].storageConfig,
           createCheckRun: true,
           octokit,
           owner: payload.repository.owner.login,
@@ -149,6 +153,7 @@ type BuildAndDeployOptions = {
   commitMessage: string;
   cloneURL: string;
   config: DeploymentConfigCreateWithoutDeploymentInput;
+  storageConfig?: StorageConfigCreateWithoutDeploymentInput;
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
   | { createCheckRun: false }
@@ -162,6 +167,7 @@ export async function buildAndDeploy({
   commitMessage,
   cloneURL,
   config,
+  storageConfig,
   ...opts
 }: BuildAndDeployOptions) {
   const imageTag =
@@ -177,6 +183,7 @@ export async function buildAndDeploy({
       config: {
         create: config,
       },
+      storageConfig: storageConfig && { create: storageConfig },
     },
     select: {
       id: true,

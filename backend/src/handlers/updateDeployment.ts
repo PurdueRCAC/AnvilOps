@@ -22,6 +22,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
     include: {
       config: true,
+      storageConfig: true,
       app: {
         select: {
           repositoryId: true,
@@ -74,6 +75,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       secrets: JSON.parse(deployment.config.secrets) as Secrets[],
       port: deployment.config.port,
       replicas: deployment.config.replicas,
+      storage: deployment.storageConfig,
     };
     const { namespace, configs } = createAppConfigs(appParams);
     try {
