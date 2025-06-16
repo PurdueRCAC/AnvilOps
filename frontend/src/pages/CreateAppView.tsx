@@ -47,9 +47,9 @@ export default function CreateAppView() {
     { key: string; value: string }[]
   >([{ key: "", value: "" }]);
 
-  const [builder, setBuilder] = useState<"dockerfile" | "railpack">(
-    "dockerfile",
-  );
+  const [builder, setBuilder] = useState<
+    "dockerfile" | "railpack" | undefined
+  >();
 
   const selectedOrg =
     selectedOrgId !== undefined
@@ -315,21 +315,21 @@ export default function CreateAppView() {
               >
                 <Label
                   htmlFor="builder-dockerfile"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
                 >
                   <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
                   Dockerfile
-                  <p className="opacity-50">
+                  <p className="opacity-50 font-normal">
                     Builds your app using your Dockerfile.
                   </p>
                 </Label>
                 <Label
                   htmlFor="builder-railpack"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
                 >
                   <RadioGroupItem value="railpack" id="builder-railpack" />
                   Railpack
-                  <p className="opacity-50">
+                  <p className="opacity-50 font-normal">
                     Detects your project structure and builds your app
                     automatically.
                   </p>
