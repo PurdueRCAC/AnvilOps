@@ -778,18 +778,8 @@ components:
             env:
               $ref: "#/components/schemas/Envs"
             secrets:
-              $ref: "#/components/schemas/Secrets"
-          required:
-            [
-              port,
-              dockerfilePath,
-              rootDir,
-              branch,
-              builder,
-              replicas,
-              env,
-              secrets,
-            ]
+              $ref: "#/components/schemas/Envs"
+          required: [port, dockerfilePath, rootDir, branch, builder, replicas]
         storage:
           $ref: "#/components/schemas/Storage"
       required:
@@ -827,7 +817,7 @@ components:
         env:
           $ref: "#/components/schemas/Envs"
         secrets:
-          $ref: "#/components/schemas/Secrets"
+          $ref: "#/components/schemas/Envs"
         storage:
           $ref: "#/components/schemas/Storage"
       required:
@@ -840,21 +830,15 @@ components:
         - branch
         - builder
     Envs:
-      type: object
-      additionalProperties:
-        type: string
-    Secrets:
       type: array
       items:
         type: object
         properties:
           name:
             type: string
-          data:
-            $ref: "#/components/schemas/Envs"
-        required:
-          - name
-          - data
+          value:
+            type: string
+        required: [name, value]
     Storage:
       type: object
       properties:

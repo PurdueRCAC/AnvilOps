@@ -7,8 +7,9 @@ import {
   KubernetesObjectApi,
   V1Secret,
   ApiException,
+  V1Namespace,
 } from "@kubernetes/client-node";
-import { type Env, type Secrets } from "../types.ts";
+import { type Env, isObjectEmpty } from "../types.ts";
 import { randomBytes } from "node:crypto";
 
 const kc = new KubeConfig();
@@ -29,12 +30,21 @@ interface SvcParams {
   port?: number;
 }
 
+interface DeploymentParams {
+  name: string;
+  namespace: string;
+  image: string;
+  env: V1EnvVar[];
+  port: number;
+  replicas: number;
+}
+
 interface AppParams {
   name: string;
   namespace: string;
   image: string;
-  env: Env;
-  secrets: Secrets[];
+  env: Env[];
+  secrets: Env[];
   port: number;
   replicas: number;
   storage?: StorageParams;
@@ -54,16 +64,6 @@ type StorageParams = {
   image: string;
   replicas: number;
   amount: number;
-};
-
-const validateEnv = (envs: V1EnvVar[]) => {
-  const envSet = new Set();
-  for (let env of envs) {
-    if (envSet.has(env.name)) {
-      throw new Error("Duplicate environment variable: " + env.name);
-    }
-    envSet.add(env.name);
-  }
 };
 
 const resourceExists = async (data: K8sObject) => {
@@ -88,32 +88,44 @@ const createStorageConfigs = (app: AppParams) => {
 
   const password = randomBytes(32).toString("hex");
   const env: V1EnvVar[] = [];
+  const secrets = {};
   let mountPath: string;
   let port: number;
-  let exportEnv: V1EnvVar[];
-  let secrets: (V1Secret & K8sObject)[];
   switch (imageName) {
     case "postgres":
       mountPath = "/var/lib/postgresql/data";
       port = 5432;
-      env.push({ name: "POSTGRES_USER", value: app.name });
+      env.push({
+        name: "POSTGRES_USER",
+        valueFrom: {
+          secretKeyRef: {
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_USER",
+          },
+        },
+      });
       env.push({
         name: "POSTGRES_PASSWORD",
         valueFrom: {
           secretKeyRef: {
-            name: "db-secret",
-            key: "password",
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_PASSWORD",
           },
         },
       });
-      env.push({ name: "POSTGRES_DB", value: app.name });
-      exportEnv = env;
-      secrets.push(
-        createSecretConfig(
-          { name: "db-secret", data: { password } },
-          app.namespace,
-        ),
-      );
+      env.push({
+        name: "POSTGRES_DB",
+        valueFrom: {
+          secretKeyRef: {
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_DB",
+          },
+        },
+      });
+
+      secrets["POSTGRES_USER"] = app.name;
+      secrets["POSTGRES_PASSWORD"] = password;
+      secrets["POSTGRES_DB"] = app.name;
       break;
     case "mysql":
       mountPath = "/var/lib/mysql";
@@ -122,18 +134,12 @@ const createStorageConfigs = (app: AppParams) => {
         name: "MYSQL_ROOT_PASSWORD",
         valueFrom: {
           secretKeyRef: {
-            name: "db-secret",
-            key: "password",
+            name: `${app.name}-secrets`,
+            key: "MYSQL_ROOT_PASSWORD",
           },
         },
       });
-      exportEnv = env;
-      secrets.push(
-        createSecretConfig(
-          { name: "db-secret", data: { password } },
-          app.namespace,
-        ),
-      );
+      secrets["MYSQL_ROOT_PASSWORD"] = password;
       break;
   }
 
@@ -207,60 +213,42 @@ const createStorageConfigs = (app: AppParams) => {
     },
   };
 
-  return { storageSvc, statefulSet, exportEnv, secrets };
+  return { storageSvc, statefulSet, env, secrets };
 };
 
-const createDeploymentConfig = (app: AppParams) => {
-  const env: V1EnvVar[] = Object.keys(app.env).map((key) => ({
-    name: key,
-    value: app.env[key],
-  }));
-  for (let secret of app.secrets) {
-    for (let key of Object.keys(secret.data)) {
-      env.push({
-        name: key,
-        valueFrom: {
-          secretKeyRef: {
-            name: secret.name,
-            key,
-          },
-        },
-      });
-    }
-  }
-
+const createDeploymentConfig = (deploy: DeploymentParams) => {
   return {
     apiVersion: "apps/v1",
     kind: "Deployment",
     metadata: {
-      name: app.name,
-      namespace: app.namespace,
+      name: deploy.name,
+      namespace: deploy.namespace,
     },
     spec: {
       selector: {
         matchLabels: {
-          app: app.name,
+          app: deploy.name,
         },
       },
-      replicas: app.replicas,
+      replicas: deploy.replicas,
       template: {
         metadata: {
           labels: {
-            app: app.name,
+            app: deploy.name,
           },
         },
         spec: {
           containers: [
             {
-              name: app.name,
-              image: app.image,
+              name: deploy.name,
+              image: deploy.image,
               ports: [
                 {
-                  containerPort: app.port,
+                  containerPort: deploy.port,
                   protocol: "TCP",
                 },
               ],
-              env,
+              env: deploy.env,
             },
           ],
         },
@@ -293,15 +281,53 @@ const createServiceConfig = (svc: SvcParams) => {
   };
 };
 
-const createSecretConfig = (secret: Secrets, namespace: string) => {
+const getEnvVars = (
+  env: Env[],
+  secrets: Env[],
+  secretName: string,
+): V1EnvVar[] => {
+  const envVars = [];
+  for (let envVar of env) {
+    envVars.push({
+      name: envVar.name,
+      value: envVar.value,
+    });
+  }
+
+  for (let envVar of secrets) {
+    envVars.push({
+      name: envVar.name,
+      valueFrom: {
+        secretKeyRef: {
+          name: secretName,
+          key: envVar.name,
+        },
+      },
+    });
+  }
+
+  return envVars;
+};
+
+const getSecretData = (secrets: Env[]) => {
+  return secrets.reduce((secretData, secret) => {
+    return Object.assign(secretData, { [secret.name]: secret.value });
+  }, {});
+};
+
+const createSecretConfig = (
+  secrets: { [key: string]: string },
+  name: string,
+  namespace: string,
+) => {
   return {
     apiVersion: "v1",
     kind: "Secret",
     metadata: {
-      name: secret.name,
+      name,
       namespace,
     },
-    stringData: secret.data,
+    stringData: secrets,
   };
 };
 
@@ -318,10 +344,10 @@ const createNamespaceConfig = (namespace: string) => {
   };
 };
 
-const ensureNamespace = async (namespace: K8sObject) => {
+const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
   await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {
-    if (resourceExists(namespace)) {
+    if (await resourceExists(namespace)) {
       return;
     }
 
@@ -342,9 +368,36 @@ export const createAppConfigs = (
   app: AppParams,
 ): { namespace: K8sObject; configs: K8sObject[] } => {
   const namespace = createNamespaceConfig(app.namespace);
-  const secrets = app.secrets.map((secrets) =>
-    createSecretConfig(secrets, app.namespace),
-  );
+  const configs: K8sObject[] = [];
+
+  const envVars = getEnvVars(app.env, app.secrets, `${app.name}-secrets`);
+  const secretData = getSecretData(app.secrets);
+  if (app.storage) {
+    const { storageSvc, statefulSet, env, secrets } = createStorageConfigs(app);
+    for (let e of env) {
+      if (e.name in app.env) {
+        throw new Error(`Environment variable ${e.name} already defined`);
+      }
+    }
+    // Collect environment variables to add to deployment
+    envVars.push(...env);
+
+    Object.assign(secretData, secrets);
+
+    configs.push(statefulSet, storageSvc);
+  }
+
+  if (!isObjectEmpty(secretData)) {
+    const secretConfig = createSecretConfig(
+      secretData,
+      `${app.name}-secrets`,
+      app.namespace,
+    );
+
+    // Secrets should be created first
+    configs.unshift(secretConfig);
+  }
+
   const svc = createServiceConfig({
     name: app.namespace,
     namespace: app.namespace,
@@ -352,25 +405,21 @@ export const createAppConfigs = (
     port: 80,
     targetPort: app.port,
   });
-  const deployment = createDeploymentConfig(app);
-  const configs: K8sObject[] = [...secrets, deployment, svc];
-  if (app.storage) {
-    const { storageSvc, statefulSet, exportEnv, secrets } =
-      createStorageConfigs(app);
-
-    const env = deployment.spec.template.spec.containers[0].env;
-    env.push(...exportEnv);
-    validateEnv(env);
-
-    configs.unshift(...secrets);
-    configs.push(statefulSet, storageSvc);
-  }
+  const deployment = createDeploymentConfig({
+    name: app.name,
+    namespace: app.namespace,
+    image: app.image,
+    env: envVars,
+    port: app.port,
+    replicas: app.replicas,
+  });
+  configs.push(deployment, svc);
   return { namespace, configs };
 };
 
 export const createOrUpdateApp = async (
   name: string,
-  namespace: K8sObject,
+  namespace: V1Namespace & K8sObject,
   configs: K8sObject[],
 ) => {
   if (!(await resourceExists(namespace))) {

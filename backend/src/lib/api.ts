@@ -23,7 +23,6 @@ import {
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
-  type Secrets,
 } from "../types.ts";
 import { db } from "./db.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
@@ -371,6 +370,13 @@ const handlers = {
 
       const lastDeploy = app.deployments[0].config;
 
+      const env: { [key: string]: { value: string; isSecret: boolean } } = {};
+      for (let key in lastDeploy.env as Env) {
+        env[key] = { value: lastDeploy[key].value, isSecret: false };
+      }
+      for (let key in JSON.parse(lastDeploy.secrets) as Env) {
+        env[key] = { value: lastDeploy[key].value, isSecret: true };
+      }
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -379,12 +385,13 @@ const handlers = {
         updatedAt: app.updatedAt.toISOString(),
         repositoryURL: repo.html_url,
         config: {
-          env: lastDeploy.env as Env,
-          secrets: JSON.parse(lastDeploy.secrets) as Secrets[],
+          env,
           replicas: lastDeploy.replicas,
           branch: app.repositoryBranch,
           dockerfilePath: lastDeploy.dockerfilePath,
           port: lastDeploy.port,
+          rootDir: lastDeploy.rootDir,
+          builder: lastDeploy.builder,
         },
       });
     } catch (e) {

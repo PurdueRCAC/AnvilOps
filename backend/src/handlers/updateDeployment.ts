@@ -1,7 +1,7 @@
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
+import { type Env, type HandlerMap, json } from "../types.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -71,8 +71,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       name: app.name,
       namespace: subdomain,
       image: deployment.imageTag,
-      env: deployment.config.env as Env,
-      secrets: JSON.parse(deployment.config.secrets) as Secrets[],
+      env: deployment.config.env as Env[],
+      secrets: (deployment.config.secrets
+        ? JSON.parse(deployment.config.secrets)
+        : []) as Env[],
       port: deployment.config.port,
       replicas: deployment.config.replicas,
       storage: deployment.storageConfig,

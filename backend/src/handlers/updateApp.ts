@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
-import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
+import { type Env, type HandlerMap, json } from "../types.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -41,14 +41,14 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const secret = randomBytes(32).toString("hex");
 
+  const config = {
+    ...appData.config,
+    secrets: JSON.stringify(appData.config.secrets),
+  };
   const deployment = await db.deployment.create({
     data: {
       config: {
-        create: {
-          ...appData.config,
-          secrets:
-            appData.config.secrets && JSON.stringify(appData.config.secrets),
-        },
+        create: config,
       },
       storageConfig: appData.storage && { create: appData.storage },
       status: "DEPLOYING",
@@ -64,8 +64,8 @@ const updateApp: HandlerMap["updateApp"] = async (
     name: app.name,
     namespace: app.subdomain,
     image: deployment.imageTag,
-    env: appData.config.env as Env,
-    secrets: appData.config.secrets as Secrets[],
+    env: appData.config.env,
+    secrets: appData.config.secrets,
     port: lastDeploymentConfig.port,
     replicas: lastDeploymentConfig.replicas,
     storage: appData.storage,

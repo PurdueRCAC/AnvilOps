@@ -72,7 +72,7 @@ export const db = client.$extends({
             return decryptSecret(dc.secrets);
           } catch (err) {
             console.error(err);
-            return "";
+            return "[]";
           }
         },
       },
