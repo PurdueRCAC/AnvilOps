@@ -183,7 +183,7 @@ export async function buildAndDeploy({
       config: {
         create: config,
       },
-      storageConfig: storageConfig && { create: storageConfig },
+      storageConfig: storageConfig ? { create: storageConfig } : undefined,
     },
     select: {
       id: true,
