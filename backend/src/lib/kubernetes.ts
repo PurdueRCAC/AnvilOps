@@ -6,6 +6,7 @@ import {
   V1EnvVar,
   KubernetesObjectApi,
   V1Secret,
+  ApiException,
 } from "@kubernetes/client-node";
 import { type Env, type Secrets } from "../types.ts";
 import { randomBytes } from "node:crypto";
@@ -57,12 +58,25 @@ type StorageParams = {
   amount: number;
 };
 
+const validateEnv = (envs: V1EnvVar[]) => {
+  const envSet = new Set();
+  for (let env of envs) {
+    if (envSet.has(env.name)) {
+      throw new Error("Duplicate environment variable: " + env.name);
+    }
+    envSet.add(env.name);
+  }
+};
+
 const resourceExists = async (data: K8sObject) => {
   try {
     await k8s.full.read(data);
     return true;
   } catch (err) {
-    return false;
+    if (err instanceof ApiException && err.code === 404) {
+      return false;
+    }
+    throw err;
   }
 };
 
@@ -125,8 +139,8 @@ const createStorageConfigs = (app: AppParams) => {
     name: resourceName,
     namespace: app.namespace,
     appName: resourceName,
-    port: 5432,
-    targetPort: 5432,
+    port,
+    targetPort: port,
   });
 
   const statefulSet = {
@@ -157,7 +171,7 @@ const createStorageConfigs = (app: AppParams) => {
               image: `${storage.type.name}:${storage.type.tag}`,
               ports: [
                 {
-                  containerPort: 5432,
+                  containerPort: port,
                   name: `${storage.type.name}`,
                 },
               ],
@@ -201,10 +215,6 @@ const createDeploymentConfig = (app: AppParams) => {
   }));
   for (let secret of app.secrets) {
     for (let key of Object.keys(secret.data)) {
-      if (key in app.env) {
-        throw new Error("Duplicate environment variable.");
-      }
-
       env.push({
         name: key,
         valueFrom: {
@@ -345,7 +355,11 @@ export const createAppConfigs = (
   if (app.storage) {
     const { storageSvc, statefulSet, exportEnv, secrets } =
       createStorageConfigs(app);
-    deployment.spec.template.spec.containers[0].env.push(...exportEnv);
+
+    const env = deployment.spec.template.spec.containers[0].env;
+    env.push(...exportEnv);
+    validateEnv(env);
+
     configs.unshift(...secrets);
     configs.push(statefulSet, storageSvc);
   }
