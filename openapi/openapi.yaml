@@ -307,28 +307,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-  /org/me:
-    get:
-      tags:
-        - org
-        - user
-      description: Get organizations current user belongs to
-      operationId: getOrgs
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserOrg"
-        "500":
-          description: Unexpected Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
   /org/{orgId}:
     parameters:
@@ -688,14 +666,15 @@ components:
           format: int64
         name:
           type: string
-        isOwner:
-          type: boolean
+        permissionLevel:
+          type: string
+          enum: [OWNER, USER]
         githubConnected:
           type: boolean
       required:
         - id
         - name
-        - isOwner
+        - permissionLevel
         - githubConnected
     User:
       type: object
@@ -707,13 +686,15 @@ components:
           type: string
         name:
           type: string
-        org:
-          $ref: "#/components/schemas/UserOrg"
+        orgs:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserOrg"
       required:
         - id
         - email
         - name
-        - org
+        - orgs
 
     Org:
       type: object

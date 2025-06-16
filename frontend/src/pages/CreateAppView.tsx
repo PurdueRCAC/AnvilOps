@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import clsx from "clsx";
 import {
@@ -25,12 +26,12 @@ import {
   Rocket,
   Server,
 } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function CreateAppView() {
-  const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
+  const { user } = useContext(UserContext);
 
   const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
     undefined,
@@ -46,13 +47,13 @@ export default function CreateAppView() {
     { name: string; value: string }[]
   >([{ name: "", value: "" }]);
 
-  const [builder, setBuilder] = useState<"dockerfile" | "railpack">(
-    "dockerfile",
-  );
+  const [builder, setBuilder] = useState<
+    "dockerfile" | "railpack" | undefined
+  >();
 
   const selectedOrg =
     selectedOrgId !== undefined
-      ? orgs?.find((it) => it.id === parseInt(selectedOrgId))
+      ? user?.orgs?.find((it) => it.id === parseInt(selectedOrgId))
       : undefined;
 
   const { data: repos, isPending: reposLoading } = api.useQuery(
@@ -134,15 +135,11 @@ export default function CreateAppView() {
               onSelect={(e) => e}
               id="selectOrg"
             >
-              <SelectValue
-                placeholder={
-                  orgsLoading ? "Loading..." : "Select an organization"
-                }
-              />
+              <SelectValue placeholder="Select an organization" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {orgs?.map((org) => (
+                {user?.orgs?.map((org) => (
                   <SelectItem key={org.id} value={org.id.toString()}>
                     {org.name}
                   </SelectItem>
@@ -310,21 +307,21 @@ export default function CreateAppView() {
               >
                 <Label
                   htmlFor="builder-dockerfile"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
                 >
                   <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
                   Dockerfile
-                  <p className="opacity-50">
+                  <p className="opacity-50 font-normal">
                     Builds your app using your Dockerfile.
                   </p>
                 </Label>
                 <Label
                   htmlFor="builder-railpack"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
                 >
                   <RadioGroupItem value="railpack" id="builder-railpack" />
                   Railpack
-                  <p className="opacity-50">
+                  <p className="opacity-50 font-normal">
                     Detects your project structure and builds your app
                     automatically.
                   </p>
@@ -399,7 +396,7 @@ export default function CreateAppView() {
               Deploy
             </Button>
           </>
-        ) : selectedOrg?.isOwner ? (
+        ) : selectedOrg?.permissionLevel === "OWNER" ? (
           <>
             <p className="mt-4">
               <strong>{selectedOrg?.name}</strong> has not been connected to

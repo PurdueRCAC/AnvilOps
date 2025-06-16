@@ -1,4 +1,3 @@
-import { api } from "@/lib/api";
 import { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import defaultPfp from "../assets/default_pfp.png";
@@ -23,18 +22,6 @@ import { UserContext } from "./UserProvider";
 export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
-  const { data: orgs, isPending: orgsLoading } = api.useQuery(
-    "get",
-    "/org/me",
-    {},
-    {
-      retry(failureCount, error) {
-        if (error.code === 401) return false;
-        return failureCount < 3;
-      },
-    },
-  );
-
   const navigate = useNavigate();
 
   const handleSelect = async (value: string) => {
@@ -48,24 +35,19 @@ export default function Navbar() {
         <Link to="/dashboard">AnvilOps</Link>
       </p>
       <div className="flex gap-4 justify-end">
-        {loading || orgsLoading ? null : user ? (
+        {loading ? null : user ? (
           <>
-            <Select
-              defaultValue={user?.org.id.toString()}
-              onValueChange={handleSelect}
-            >
+            <Select onValueChange={handleSelect}>
               <SelectTrigger className="p-6" size="sm">
                 <SelectValue placeholder="My Organizations" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {orgs
-                    ? orgs.map((org) => (
-                        <SelectItem value={org.id.toString()}>
-                          {org.name}
-                        </SelectItem>
-                      ))
-                    : null}
+                  {user?.orgs?.map((org) => (
+                    <SelectItem value={org.id.toString()}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>

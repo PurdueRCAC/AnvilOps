@@ -8,7 +8,8 @@ export async function deleteRepo(name: string) {
     method: "DELETE",
     headers,
   }).then((response) => {
-    if (!response.ok) {
+    if (!response.ok && response.status !== 404) {
+      // ^ 404 means the repository doesn't exist, so it has already been deleted or was never created
       throw new Error(response.statusText);
     }
   });
