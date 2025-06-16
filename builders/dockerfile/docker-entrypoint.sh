@@ -18,6 +18,9 @@ run_job() {
 
   cd "$ROOT_DIRECTORY"
 
+  DOCKERFILE_DIR=$(dirname "$DOCKERFILE_PATH")
+  DOCKERFILE_NAME=$(basename "$DOCKERFILE_PATH")
+
   build() {
     buildctl \
     --addr=tcp://buildkitd:1234 \
@@ -27,7 +30,8 @@ run_job() {
     build \
     --frontend dockerfile.v0 \
     --local context=. \
-    --local dockerfile="$DOCKERFILE_PATH" \
+    --local dockerfile="$DOCKERFILE_DIR" \
+    --opt filename="./$DOCKERFILE_NAME" \
     --import-cache type=registry,ref="$CACHE_TAG" \
     --export-cache type=registry,ref="$CACHE_TAG" \
     --output type=image,name="$IMAGE_TAG",push=true \
