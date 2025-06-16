@@ -187,7 +187,7 @@ const ensureNamespace = async (namespace: string) => {
   const ns = createNamespaceConfig(namespace);
   await k8s.default.createNamespace({ body: ns });
   for (let i = 0; i < 20; i++) {
-    if (resources.namespaceExists(namespace)) {
+    if (await resources.namespaceExists(namespace)) {
       return;
     }
 
