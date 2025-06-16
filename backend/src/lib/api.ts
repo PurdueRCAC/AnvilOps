@@ -26,8 +26,8 @@ import {
   type Secrets,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { getOctokit, getRepoById } from "./octokit.ts";
 import { deleteNamespace } from "./kubernetes.ts";
+import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -55,23 +55,20 @@ const handlers = {
     }>
   > {
     try {
-      const user = await db.user.findUnique({ where: { id: req.user.id } });
-      const membership = await db.organizationMembership.findFirst({
-        where: { userId: user.id },
-      });
-      const org = await db.organization.findUnique({
-        where: { id: membership.organizationId },
+      const user = await db.user.findUnique({
+        where: { id: req.user.id },
+        include: { orgs: { include: { organization: true } } },
       });
       return json(200, res, {
         id: user.id,
         email: user.email,
         name: user.name,
-        org: {
-          id: membership.organizationId,
-          name: org.name,
-          isOwner: membership.permissionLevel === "OWNER",
-          githubConnected: org.githubInstallationId !== null,
-        },
+        orgs: user.orgs.map((item) => ({
+          id: item.organization.id,
+          name: item.organization.name,
+          permissionLevel: item.permissionLevel,
+          githubConnected: item.organization.githubInstallationId !== null,
+        })),
       });
     } catch (e) {
       console.log((e as Error).message);
@@ -109,7 +106,7 @@ const handlers = {
       const result = orgs.map((o) => ({
         id: o.id,
         name: o.name,
-        isOwner: o.users[0].permissionLevel === "OWNER",
+        permissionLevel: o.users[0].permissionLevel,
         githubConnected: o.githubInstallationId !== null,
       }));
       return json(200, res, result);

@@ -688,14 +688,15 @@ components:
           format: int64
         name:
           type: string
-        isOwner:
-          type: boolean
+        permissionLevel:
+          type: string
+          enum: [OWNER, USER]
         githubConnected:
           type: boolean
       required:
         - id
         - name
-        - isOwner
+        - permissionLevel
         - githubConnected
     User:
       type: object
@@ -707,13 +708,15 @@ components:
           type: string
         name:
           type: string
-        org:
-          $ref: "#/components/schemas/UserOrg"
+        orgs:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserOrg"
       required:
         - id
         - email
         - name
-        - org
+        - orgs
 
     Org:
       type: object

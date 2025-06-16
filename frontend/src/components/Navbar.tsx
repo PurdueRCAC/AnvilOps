@@ -50,10 +50,7 @@ export default function Navbar() {
       <div className="flex gap-4 justify-end">
         {loading || orgsLoading ? null : user ? (
           <>
-            <Select
-              defaultValue={user?.org.id.toString()}
-              onValueChange={handleSelect}
-            >
+            <Select onValueChange={handleSelect}>
               <SelectTrigger className="p-6" size="sm">
                 <SelectValue placeholder="My Organizations" />
               </SelectTrigger>

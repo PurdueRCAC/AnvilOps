@@ -30,7 +30,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function CreateAppView() {
-  const { data: orgs, isPending: orgsLoading } = api.useQuery("get", "/org/me");
+  const { data: orgs, isPending: orgsLoading } = api.useSuspenseQuery(
+    "get",
+    "/org/me",
+  );
 
   const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
     undefined,
@@ -371,7 +374,7 @@ export default function CreateAppView() {
               Deploy
             </Button>
           </>
-        ) : selectedOrg?.isOwner ? (
+        ) : selectedOrg?.permissionLevel === "OWNER" ? (
           <>
             <p className="mt-4">
               <strong>{selectedOrg?.name}</strong> has not been connected to
