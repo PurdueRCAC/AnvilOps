@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { k8s } from "./kubernetes.ts";
 
@@ -28,11 +29,13 @@ export async function createBuildJob({
     );
   }
 
+  const label = randomBytes(4).toString("hex");
+
   const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
-        name: `build-image-${tag}`,
+        name: `build-image-${tag}-${label}`,
       },
       spec: {
         ttlSecondsAfterFinished: 300, // Delete jobs 5 minutes after they complete
