@@ -1,13 +1,13 @@
 diff --git a/node_modules/openapi-backend/backend.js b/node_modules/openapi-backend/backend.js
-index 1c13bb5..4fb1149 100644
+index 1c13bb5..e024440 100644
 --- a/node_modules/openapi-backend/backend.js
 +++ b/node_modules/openapi-backend/backend.js
 @@ -336,6 +336,13 @@ class OpenAPIBackend {
                  }
                  return notImplementedHandler(context, ...handlerArgs);
              }
-+            
-+            if (this.validator.coerceTypes) {
++
++            if (this.validator.coerceTypes && validate) {
 +                context.request.query = context.validation.coerced.query;
 +                context.request.params = context.validation.coerced.params;
 +                context.request.headers = context.validation.coerced.headers;

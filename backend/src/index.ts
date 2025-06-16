@@ -4,12 +4,12 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import session from "express-session";
+import morgan from "morgan";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { DATABASE_URL } from "./lib/db.ts";
-import morgan from "morgan";
 
 if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
   throw new Error("Credentials not set");
@@ -24,7 +24,6 @@ if (!DATABASE_URL) {
 }
 
 const app = express();
-app.use(express.json());
 const port = 3000;
 
 app.use(cookieParser());
@@ -51,6 +50,9 @@ app.use(
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
 app.use(morgan("combined"));
+
+app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
+app.use(/^\/api(?!\/github\/webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
 
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);
@@ -80,9 +82,6 @@ app.use(
   "/ghes-3.16.yaml",
   express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml")),
 );
-
-app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
-app.use(/^\/api(?!\/github\/webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
 
 app.listen(port, (err) => {
   if (err !== undefined) {
