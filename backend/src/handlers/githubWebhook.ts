@@ -242,6 +242,18 @@ export async function buildAndDeploy({
       where: { id: deployment.id },
       data: { status: "ERROR" },
     });
+    if (opts.createCheckRun && checkRun?.data?.id) {
+      // If a check run was created, make sure it's marked as failed
+      try {
+        await opts.octokit.rest.checks.update({
+          check_run_id: checkRun?.data?.id,
+          owner: opts.owner,
+          repo: opts.repo,
+          status: "completed",
+          conclusion: "failure",
+        });
+      } catch {}
+    }
     throw new Error("Failed to create build job", { cause: e });
   }
 
