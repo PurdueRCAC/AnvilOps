@@ -633,6 +633,63 @@ paths:
                 required:
                   [id, commitHash, commitMessage, createdAt, updatedAt, status]
 
+  /app/{appId}/deployments/{deploymentId}:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: deploymentId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [app]
+      description: Get an app's deployment by its ID
+      operationId: getDeployment
+      responses:
+        "404":
+          description: Deployment not found
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                    format: int64
+                  commitHash:
+                    type: string
+                  commitMessage:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                  config:
+                    $ref: "#/components/schemas/DeploymentConfig"
+                  storageConfig:
+                    $ref: "#/components/schemas/Storage"
+                required:
+                  - id
+                  - commitHash
+                  - commitMessage
+                  - createdAt
+                  - updatedAt
+                  - status
+                  - config
+                  - storageConfig
+
   /deployment/update:
     description: Updates a deployment's status. Meant to be called from a build job.
     post:
@@ -739,28 +796,7 @@ components:
         repositoryURL:
           type: string
         config:
-          type: object
-          properties:
-            port:
-              type: integer
-              format: int64
-            dockerfilePath:
-              type: string
-            rootDir:
-              type: string
-            branch:
-              type: string
-            builder:
-              type: string
-              enum: [dockerfile, railpack]
-            replicas:
-              type: integer
-              format: int64
-            env:
-              $ref: "#/components/schemas/Envs"
-            secrets:
-              $ref: "#/components/schemas/Envs"
-          required: [port, dockerfilePath, rootDir, branch, builder, replicas]
+          $ref: "#/components/schemas/DeploymentConfig"
         storage:
           $ref: "#/components/schemas/Storage"
       required:
@@ -769,6 +805,29 @@ components:
         - name
         - repositoryURL
         - config
+    DeploymentConfig:
+      type: object
+      properties:
+        port:
+          type: integer
+          format: int64
+        dockerfilePath:
+          type: string
+        rootDir:
+          type: string
+        branch:
+          type: string
+        builder:
+          type: string
+          enum: [dockerfile, railpack]
+        replicas:
+          type: integer
+          format: int64
+        env:
+          $ref: "#/components/schemas/Envs"
+        secrets:
+          $ref: "#/components/schemas/Envs"
+      required: [port, dockerfilePath, rootDir, branch, builder, replicas]
     NewApp:
       type: object
       properties:

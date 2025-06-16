@@ -8,6 +8,7 @@ import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
+import { getDeployment } from "../handlers/getDeployment.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
@@ -360,6 +361,7 @@ const handlers = {
   listOrgRepos,
   listRepoBranches,
   listDeployments,
+  getDeployment,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

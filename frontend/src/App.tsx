@@ -9,6 +9,7 @@ import { queryClient } from "./lib/api";
 import AppView from "./pages/AppView";
 import CreateAppView from "./pages/CreateAppView";
 import DashboardView from "./pages/DashboardView";
+import { DeploymentView } from "./pages/DeploymentView";
 import LandingView from "./pages/LandingView";
 
 function App() {
@@ -31,6 +32,14 @@ function App() {
             element={
               <RequireAuth redirectTo="/api/login">
                 <AppView />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/app/:appId/deployment/:deploymentId"
+            element={
+              <RequireAuth redirectTo="/api/login">
+                <DeploymentView />
               </RequireAuth>
             }
           />

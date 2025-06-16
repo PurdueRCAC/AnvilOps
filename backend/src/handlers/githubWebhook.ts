@@ -217,7 +217,7 @@ export async function buildAndDeploy({
         head_sha: commitSha,
         name: "AnvilOps",
         status: "in_progress",
-        details_url: `https://anvilops.rcac.purdue.edu/org/${orgId}/app/${appId}/deployment/${deployment.id}`,
+        details_url: `https://anvilops.rcac.purdue.edu/app/${appId}/deployment/${deployment.id}`,
         owner: opts.owner,
         repo: opts.repo,
       });
