@@ -68,6 +68,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
 
     const subdomain = app.subdomain;
     const appParams = {
+      appId: app.id,
       name: app.name,
       namespace: subdomain,
       image: deployment.imageTag,

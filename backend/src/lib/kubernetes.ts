@@ -1,16 +1,15 @@
 import {
+  ApiException,
   AppsV1Api,
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
-  V1EnvVar,
   KubernetesObjectApi,
-  V1Secret,
-  ApiException,
+  V1EnvVar,
   V1Namespace,
 } from "@kubernetes/client-node";
-import { type Env, isObjectEmpty } from "../types.ts";
 import { randomBytes } from "node:crypto";
+import { type Env, isObjectEmpty } from "../types.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -31,6 +30,7 @@ interface SvcParams {
 }
 
 interface DeploymentParams {
+  appId: number;
   name: string;
   namespace: string;
   image: string;
@@ -40,6 +40,7 @@ interface DeploymentParams {
 }
 
 interface AppParams {
+  appId: number;
   name: string;
   namespace: string;
   image: string;
@@ -237,6 +238,7 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
         metadata: {
           labels: {
             app: deploy.name,
+            "anvilops.rcac.purdue.edu/app-id": deploy.appId,
           },
         },
         spec: {
@@ -408,6 +410,7 @@ export const createAppConfigs = (
     targetPort: app.port,
   });
   const deployment = createDeploymentConfig({
+    appId: app.appId,
     name: app.name,
     namespace: app.namespace,
     image: app.image,

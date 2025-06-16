@@ -11,7 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { GitBranch, Loader, Logs, Save, Server } from "lucide-react";
+import {
+  GitBranch,
+  Loader,
+  Logs,
+  SatelliteDish,
+  Save,
+  Server,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -64,6 +71,9 @@ export default function AppView() {
           <Button className="mt-8">
             <Save /> Save
           </Button>
+        </TabsContent>
+        <TabsContent value="logs">
+          <LogsTab app={app} />
         </TabsContent>
         <TabsContent value="danger">
           <DangerZoneTab app={app} />
@@ -157,6 +167,29 @@ export const Status = ({ status }: { status: DeploymentStatus }) => {
     <div className="inline-flex items-center gap-1">
       <div className={`size-2 rounded-full ${colors[status]}`} />
       {status.substring(0, 1) + status.toLowerCase().substring(1)}
+    </div>
+  );
+};
+
+const LogsTab = ({ app }: { app: App }) => {
+  const { data } = api.useQuery(
+    "get",
+    "/app/{appId}/logs",
+    { params: { path: { appId: app.id } } },
+    { refetchInterval: 3000 },
+  );
+
+  return (
+    <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4">
+      {data?.available ? (
+        <pre>
+          <code>{data.logs}</code>
+        </pre>
+      ) : (
+        <p className="flex gap-2 text-lg font-medium">
+          <SatelliteDish /> Logs Unavailable
+        </p>
+      )}
     </div>
   );
 };

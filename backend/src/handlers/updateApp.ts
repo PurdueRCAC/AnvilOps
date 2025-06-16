@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
-import { type Env, type HandlerMap, json } from "../types.ts";
+import { type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
@@ -90,6 +90,7 @@ const updateApp: HandlerMap["updateApp"] = async (
   });
 
   const appParams = {
+    appId: app.id,
     name: app.name,
     namespace: app.subdomain,
     image: deployment.imageTag,

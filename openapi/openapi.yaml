@@ -633,6 +633,36 @@ paths:
                 required:
                   [id, commitHash, commitMessage, createdAt, updatedAt, status]
 
+  /app/{appId}/logs:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [app]
+      description: Get an app's recent logs
+      operationId: getAppLogs
+      responses:
+        "404":
+          description: App not found
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                    description: Whether the app has an active Pod with logs to view
+                  logs:
+                    type: string
+                required: [available, logs]
+
   /app/{appId}/deployments/{deploymentId}:
     parameters:
       - name: appId
