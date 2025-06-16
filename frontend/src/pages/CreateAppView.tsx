@@ -44,8 +44,8 @@ export default function CreateAppView() {
   );
 
   const [environmentVariables, setEnvironmentVariables] = useState<
-    { key: string; value: string }[]
-  >([{ key: "", value: "" }]);
+    { name: string; value: string }[]
+  >([{ name: "", value: "" }]);
 
   const [builder, setBuilder] = useState<
     "dockerfile" | "railpack" | undefined
@@ -105,15 +105,7 @@ export default function CreateAppView() {
               port: parseInt(formData.get("port")!.toString()),
               subdomain: formData.get("subdomain")!.toString(),
               dockerfilePath: formData.get("dockerfilePath")?.toString(),
-              env: environmentVariables.reduce(
-                (acc, current) => {
-                  if (current.key !== "") {
-                    acc[current.key] = current.value;
-                  }
-                  return acc;
-                },
-                {} as Record<string, string>,
-              ),
+              env: environmentVariables,
               repositoryId: selectedRepo!.id!,
               secrets: [
                 /* TODO */
@@ -354,6 +346,42 @@ export default function CreateAppView() {
                 </p>
               </div>
             ) : null}
+
+            <div className="space-y-2">
+              <Label className="pb-1">
+                <Hammer className="inline" size={16} /> Attach a database
+              </Label>
+              <RadioGroup
+                name="builder"
+                value={builder}
+                onValueChange={(newValue) =>
+                  setBuilder(newValue as "dockerfile" | "railpack")
+                }
+                required
+              >
+                <Label
+                  htmlFor="builder-dockerfile"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
+                  Dockerfile
+                  <p className="opacity-50">
+                    Builds your app using your Dockerfile.
+                  </p>
+                </Label>
+                <Label
+                  htmlFor="builder-railpack"
+                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
+                >
+                  <RadioGroupItem value="railpack" id="builder-railpack" />
+                  Railpack
+                  <p className="opacity-50">
+                    Detects your project structure and builds your app
+                    automatically.
+                  </p>
+                </Label>
+              </RadioGroup>
+            </div>
             <Button
               className="mt-8"
               size="lg"

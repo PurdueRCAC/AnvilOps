@@ -4,12 +4,22 @@ import { type App } from "../generated/prisma/client.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { json, redirect, type HandlerMap } from "../types.ts";
+import { type Env, json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
+
+const validateEnv = (env: Env[], secrets: Env[]) => {
+  const envNames = new Set();
+  for (let envVar of [...env, ...secrets]) {
+    if (envNames.has(envVar.name)) {
+      throw new Error("Duplicate environment variable: " + envVar);
+    }
+    envNames.add(envVar.name);
+  }
+};
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -29,6 +39,12 @@ const createApp: HandlerMap["createApp"] = async (
     ) {
       return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
     }
+  }
+
+  try {
+    validateEnv(appData.env, appData.secrets);
+  } catch (err) {
+    return json(400, res, { code: 400, message: err.message });
   }
 
   const organization = await db.organization.findUnique({
@@ -120,6 +136,9 @@ const createApp: HandlerMap["createApp"] = async (
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 
+  // TODO: Check if env vars from storage have been duplicated
+  // TODO: Validate storage image - check if supported
+
   try {
     await buildAndDeploy({
       orgId: app.orgId,
@@ -131,11 +150,15 @@ const createApp: HandlerMap["createApp"] = async (
       config: {
         port: appData.port,
         env: appData.env,
-        secrets: JSON.stringify(appData.secrets),
+        secrets:
+          appData.secrets.length !== 0
+            ? JSON.stringify(appData.secrets)
+            : undefined,
         builder: appData.builder,
         dockerfilePath: appData.dockerfilePath,
         rootDir: appData.rootDir,
       },
+      storageConfig: appData.storage,
       createCheckRun: false,
     });
   } catch (e) {

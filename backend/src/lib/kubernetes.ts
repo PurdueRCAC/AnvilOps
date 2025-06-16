@@ -3,14 +3,14 @@ import {
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
-  V1Deployment,
   V1EnvVar,
-  V1Namespace,
-  V1ObjectMeta,
-  V1Service,
   KubernetesObjectApi,
+  V1Secret,
+  ApiException,
+  V1Namespace,
 } from "@kubernetes/client-node";
-import { type Env, type Secrets } from "../types.ts";
+import { type Env, isObjectEmpty } from "../types.ts";
+import { randomBytes } from "node:crypto";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -22,109 +22,233 @@ export const k8s = {
   full: KubernetesObjectApi.makeApiClient(kc),
 };
 
-type AppParams = {
+interface SvcParams {
+  name: string;
+  appName: string;
+  namespace: string;
+  targetPort: number;
+  port?: number;
+}
+
+interface DeploymentParams {
   name: string;
   namespace: string;
   image: string;
-  env: Env;
-  secrets: Secrets[];
+  env: V1EnvVar[];
   port: number;
   replicas: number;
+}
+
+interface AppParams {
+  name: string;
+  namespace: string;
+  image: string;
+  env: Env[];
+  secrets: Env[];
+  port: number;
+  replicas: number;
+  storage?: StorageParams;
+}
+
+interface K8sObject {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    namespace?: string;
+  };
+}
+
+export const SUPPORTED_DBS = ["postgres:17", "mysql:9"];
+type StorageParams = {
+  image: string;
+  replicas: number;
+  amount: number;
 };
 
-const resources = {
-  async namespaceExists(name: string) {
-    try {
-      await k8s.default.readNamespace({ name });
-      return true;
-    } catch (err) {
+const resourceExists = async (data: K8sObject) => {
+  try {
+    await k8s.full.read(data);
+    return true;
+  } catch (err) {
+    if (err instanceof ApiException && err.code === 404) {
       return false;
     }
-  },
-
-  async deploymentExists(name: string, namespace: string) {
-    try {
-      await k8s.apps.readNamespacedDeployment({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
-
-  async serviceExists(name: string, namespace: string) {
-    try {
-      await k8s.default.readNamespacedService({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
-
-  async secretExists(name: string, namespace: string) {
-    try {
-      await k8s.default.readNamespacedSecret({ name, namespace });
-      return true;
-    } catch (err) {
-      return false;
-    }
-  },
+    throw err;
+  }
 };
 
-export const createDeploymentConfig = (app: AppParams): V1Deployment => {
-  const env: V1EnvVar[] = Object.keys(app.env).map((key) => ({
-    name: key,
-    value: app.env[key],
-  }));
-  for (let secret of app.secrets) {
-    for (let key of Object.keys(secret.data)) {
-      if (key in app.env) {
-        throw new Error("Duplicate environment variable.");
-      }
+const createStorageConfigs = (app: AppParams) => {
+  const storage = app.storage;
+  if (!SUPPORTED_DBS.includes(storage.image)) {
+    throw new Error("Unsupported database");
+  }
+  const [imageName, imageTag] = storage.image.split(":");
+  const resourceName = `${app.name}-${imageName}`;
 
+  const password = randomBytes(32).toString("hex");
+  const env: V1EnvVar[] = [];
+  const secrets = {};
+  let mountPath: string;
+  let port: number;
+  switch (imageName) {
+    case "postgres":
+      mountPath = "/var/lib/postgresql/data";
+      port = 5432;
       env.push({
-        name: key,
+        name: "POSTGRES_USER",
         valueFrom: {
           secretKeyRef: {
-            name: secret.name,
-            key,
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_USER",
           },
         },
       });
-    }
+      env.push({
+        name: "POSTGRES_PASSWORD",
+        valueFrom: {
+          secretKeyRef: {
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_PASSWORD",
+          },
+        },
+      });
+      env.push({
+        name: "POSTGRES_DB",
+        valueFrom: {
+          secretKeyRef: {
+            name: `${app.name}-secrets`,
+            key: "POSTGRES_DB",
+          },
+        },
+      });
+
+      secrets["POSTGRES_USER"] = app.name;
+      secrets["POSTGRES_PASSWORD"] = password;
+      secrets["POSTGRES_DB"] = app.name;
+      break;
+    case "mysql":
+      mountPath = "/var/lib/mysql";
+      port = 3306;
+      env.push({
+        name: "MYSQL_ROOT_PASSWORD",
+        valueFrom: {
+          secretKeyRef: {
+            name: `${app.name}-secrets`,
+            key: "MYSQL_ROOT_PASSWORD",
+          },
+        },
+      });
+      secrets["MYSQL_ROOT_PASSWORD"] = password;
+      break;
   }
 
-  return {
+  const storageSvc = createServiceConfig({
+    name: resourceName,
+    namespace: app.namespace,
+    appName: resourceName,
+    port,
+    targetPort: port,
+  });
+
+  const statefulSet = {
     apiVersion: "apps/v1",
-    kind: "Deployment",
+    kind: "StatefulSet",
     metadata: {
-      name: app.name,
+      name: resourceName,
       namespace: app.namespace,
     },
     spec: {
       selector: {
         matchLabels: {
-          app: app.name,
+          app: resourceName,
         },
       },
-      replicas: app.replicas,
+      serviceName: resourceName,
+      replicas: app.storage.replicas,
       template: {
         metadata: {
           labels: {
-            app: app.name,
+            app: resourceName,
           },
         },
         spec: {
           containers: [
             {
-              name: app.name,
-              image: app.image,
+              name: resourceName,
+              image: `${storage.image}`,
               ports: [
                 {
-                  containerPort: app.port,
-                  protocol: "TCP",
+                  containerPort: port,
+                  name: `${imageName}`,
+                },
+              ],
+              volumeMounts: [
+                {
+                  name: `${app.name}-data`,
+                  mountPath,
                 },
               ],
               env,
+            },
+          ],
+        },
+      },
+      volumeClaimTemplates: [
+        {
+          metadata: {
+            name: `${app.name}-data`,
+          },
+          spec: {
+            accessModes: ["ReadWriteMany"],
+            storageClassName: "anvil-filesystem",
+            resources: {
+              requests: {
+                storage: `${app.storage.amount}Gi`,
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  return { storageSvc, statefulSet, env, secrets };
+};
+
+const createDeploymentConfig = (deploy: DeploymentParams) => {
+  return {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
+    metadata: {
+      name: deploy.name,
+      namespace: deploy.namespace,
+    },
+    spec: {
+      selector: {
+        matchLabels: {
+          app: deploy.name,
+        },
+      },
+      replicas: deploy.replicas,
+      template: {
+        metadata: {
+          labels: {
+            app: deploy.name,
+          },
+        },
+        spec: {
+          containers: [
+            {
+              name: deploy.name,
+              image: deploy.image,
+              ports: [
+                {
+                  containerPort: deploy.port,
+                  protocol: "TCP",
+                },
+              ],
+              env: deploy.env,
             },
           ],
         },
@@ -133,26 +257,23 @@ export const createDeploymentConfig = (app: AppParams): V1Deployment => {
   };
 };
 
-export const createServiceConfig = (
-  app: AppParams,
-  name: string,
-): V1Service => {
+const createServiceConfig = (svc: SvcParams) => {
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: {
-      name: name,
-      namespace: app.namespace,
+      name: svc.name,
+      namespace: svc.namespace,
     },
     spec: {
       type: "ClusterIP",
       selector: {
-        app: app.name,
+        app: svc.appName,
       },
       ports: [
         {
-          port: 80,
-          targetPort: app.port,
+          port: svc.port ?? 80,
+          targetPort: svc.targetPort,
           protocol: "TCP",
         },
       ],
@@ -160,20 +281,60 @@ export const createServiceConfig = (
   };
 };
 
-const createSecretConfig = (secret: Secrets, namespace: string) => {
+const getEnvVars = (
+  env: Env[],
+  secrets: Env[],
+  secretName: string,
+): V1EnvVar[] => {
+  const envVars = [];
+  for (let envVar of env) {
+    envVars.push({
+      name: envVar.name,
+      value: envVar.value,
+    });
+  }
+
+  for (let envVar of secrets) {
+    envVars.push({
+      name: envVar.name,
+      valueFrom: {
+        secretKeyRef: {
+          name: secretName,
+          key: envVar.name,
+        },
+      },
+    });
+  }
+
+  return envVars;
+};
+
+const getSecretData = (secrets: Env[]) => {
+  return secrets.reduce((secretData, secret) => {
+    return Object.assign(secretData, { [secret.name]: secret.value });
+  }, {});
+};
+
+const createSecretConfig = (
+  secrets: { [key: string]: string },
+  name: string,
+  namespace: string,
+) => {
   return {
     apiVersion: "v1",
     kind: "Secret",
     metadata: {
-      name: secret.name,
+      name,
       namespace,
     },
-    stringData: secret.data,
+    stringData: secrets,
   };
 };
 
 const createNamespaceConfig = (namespace: string) => {
   return {
+    apiVersion: "v1",
+    kind: "Namespace",
     metadata: {
       name: namespace,
       annotations: {
@@ -183,11 +344,10 @@ const createNamespaceConfig = (namespace: string) => {
   };
 };
 
-const ensureNamespace = async (namespace: string) => {
-  const ns = createNamespaceConfig(namespace);
-  await k8s.default.createNamespace({ body: ns });
+const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
+  await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {
-    if (await resources.namespaceExists(namespace)) {
+    if (await resourceExists(namespace)) {
       return;
     }
 
@@ -204,35 +364,74 @@ export const deleteNamespace = async (namespace: string) => {
   console.log(`Namespace ${namespace} deleted`);
 };
 
+export const createAppConfigs = (
+  app: AppParams,
+): { namespace: K8sObject; configs: K8sObject[] } => {
+  const namespace = createNamespaceConfig(app.namespace);
+  const configs: K8sObject[] = [];
+
+  const envVars = getEnvVars(app.env, app.secrets, `${app.name}-secrets`);
+  const secretData = getSecretData(app.secrets);
+  if (app.storage) {
+    const { storageSvc, statefulSet, env, secrets } = createStorageConfigs(app);
+    for (let e of env) {
+      if (e.name in app.env) {
+        throw new Error(`Environment variable ${e.name} already defined`);
+      }
+    }
+    // Collect environment variables to add to deployment
+    envVars.push(...env);
+
+    Object.assign(secretData, secrets);
+
+    configs.push(statefulSet, storageSvc);
+  }
+
+  if (!isObjectEmpty(secretData)) {
+    const secretConfig = createSecretConfig(
+      secretData,
+      `${app.name}-secrets`,
+      app.namespace,
+    );
+
+    // Secrets should be created first
+    configs.unshift(secretConfig);
+  }
+
+  const svc = createServiceConfig({
+    name: app.namespace,
+    namespace: app.namespace,
+    appName: app.name,
+    port: 80,
+    targetPort: app.port,
+  });
+  const deployment = createDeploymentConfig({
+    name: app.name,
+    namespace: app.namespace,
+    image: app.image,
+    env: envVars,
+    port: app.port,
+    replicas: app.replicas,
+  });
+  configs.push(deployment, svc);
+  return { namespace, configs };
+};
+
 export const createOrUpdateApp = async (
-  namespace: string,
-  deployment: V1Deployment,
-  service?: V1Service,
-  secrets?: Secrets[],
+  name: string,
+  namespace: V1Namespace & K8sObject,
+  configs: K8sObject[],
 ) => {
-  if (!(await resources.namespaceExists(namespace))) {
+  if (!(await resourceExists(namespace))) {
     await ensureNamespace(namespace);
   }
-  for (let secret of secrets) {
-    const body = createSecretConfig(secret, namespace);
-    if (await resources.secretExists(secret.name, namespace)) {
-      await k8s.full.patch(body);
+
+  for (let config of configs) {
+    if (await resourceExists(config)) {
+      await k8s.full.patch(config);
     } else {
-      await k8s.full.create(body);
+      await k8s.full.create(config);
     }
   }
-
-  if (await resources.deploymentExists(deployment.metadata.name, namespace)) {
-    await k8s.full.patch(deployment);
-  } else {
-    await k8s.full.create(deployment);
-  }
-
-  if (await resources.serviceExists(service.metadata.name, namespace)) {
-    await k8s.full.patch(service);
-  } else {
-    await k8s.full.create(service);
-  }
-
-  console.log(`App ${deployment.metadata.name} updated`);
+  console.log(`App ${name} updated`);
 };

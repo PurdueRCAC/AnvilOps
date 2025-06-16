@@ -70,12 +70,9 @@ export const redirect = <
 };
 
 export type Env = {
-  [key: string]: string;
+  name: string;
+  value: string;
 };
 
-export type Secrets = {
-  name: string;
-  data: {
-    [key: string]: string;
-  };
-};
+export const isObjectEmpty = (obj: {}) =>
+  obj && Object.keys(obj).length === 0 && obj.constructor === Object;

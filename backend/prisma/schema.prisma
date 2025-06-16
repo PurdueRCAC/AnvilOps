@@ -98,6 +98,7 @@ model Deployment {
   secret        String?          @unique
   config        DeploymentConfig @relation(fields: [configId], references: [id])
   configId      Int              @unique
+  storageConfig StorageConfig?
 }
 
 model DeploymentConfig {
@@ -106,10 +107,19 @@ model DeploymentConfig {
   rootDir        String
   dockerfilePath String?
   port           Int
-  env            Json         @default("{}")
+  env            Json         @default("[]")
   secrets        String?
   replicas       Int          @default(1)
   deployment     Deployment?
+}
+
+model StorageConfig {
+  id         Int        @id @default(autoincrement())
+  image      String
+  replicas   Int
+  amount     Int
+  deployment Deployment @relation(fields: [deployId], references: [id])
+  deployId   Int        @unique
 }
 
 enum DeploymentStatus {

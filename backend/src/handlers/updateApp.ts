@@ -2,12 +2,8 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import {
-  createDeploymentConfig,
-  createOrUpdateApp,
-  createServiceConfig,
-} from "../lib/kubernetes.ts";
-import { type Env, type HandlerMap, json, type Secrets } from "../types.ts";
+import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
+import { type Env, type HandlerMap, json } from "../types.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -45,9 +41,16 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const secret = randomBytes(32).toString("hex");
 
+  const config = {
+    ...appData.config,
+    secrets: JSON.stringify(appData.config.secrets),
+  };
   const deployment = await db.deployment.create({
     data: {
-      config: { create: lastDeploymentConfig },
+      config: {
+        create: config,
+      },
+      storageConfig: appData.storage && { create: appData.storage },
       status: "DEPLOYING",
       app: { connect: { id: app.id } },
       imageTag: lastDeployment.imageTag,
@@ -61,21 +64,20 @@ const updateApp: HandlerMap["updateApp"] = async (
     name: app.name,
     namespace: app.subdomain,
     image: deployment.imageTag,
-    env: lastDeploymentConfig.env as Env,
-    secrets: JSON.parse(lastDeploymentConfig.secrets) as Secrets[],
+    env: appData.config.env,
+    secrets: appData.config.secrets,
     port: lastDeploymentConfig.port,
     replicas: lastDeploymentConfig.replicas,
+    storage: appData.storage,
   };
 
   for (let key in appData.config) {
     appParams[key] = appData.config[key];
   }
 
-  const deployConfig = createDeploymentConfig(appParams);
-  const svcConfig = createServiceConfig(appParams, app.subdomain);
-  const secrets = appParams.secrets;
+  const { namespace, configs } = createAppConfigs(appParams);
   try {
-    await createOrUpdateApp(app.subdomain, deployConfig, svcConfig, secrets);
+    await createOrUpdateApp(app.name, namespace, configs);
     await db.deployment.update({
       where: { id: deployment.id },
       data: { status: "COMPLETE" },
