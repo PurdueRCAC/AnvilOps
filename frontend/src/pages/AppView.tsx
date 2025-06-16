@@ -30,7 +30,7 @@ export default function AppView() {
     params: { path: { appId: parseInt(params.id!) } },
   });
 
-  const [env, setEnv] = useState<{ key: string; value: string }[]>([]);
+  const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
 
   useEffect(() => {
     if (
@@ -38,9 +38,7 @@ export default function AppView() {
       Object.keys(app.config.env).length > 0 &&
       env.length === 0
     ) {
-      setEnv(
-        Object.entries(app.config.env).map(([key, value]) => ({ key, value })),
-      );
+      setEnv(app.config.env);
     }
   }, [app?.config?.env]);
 

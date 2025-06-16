@@ -347,41 +347,6 @@ export default function CreateAppView() {
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <Label className="pb-1">
-                <Hammer className="inline" size={16} /> Attach a database
-              </Label>
-              <RadioGroup
-                name="builder"
-                value={builder}
-                onValueChange={(newValue) =>
-                  setBuilder(newValue as "dockerfile" | "railpack")
-                }
-                required
-              >
-                <Label
-                  htmlFor="builder-dockerfile"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
-                >
-                  <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
-                  Dockerfile
-                  <p className="opacity-50">
-                    Builds your app using your Dockerfile.
-                  </p>
-                </Label>
-                <Label
-                  htmlFor="builder-railpack"
-                  className="flex items-center gap-2 border rounded-lg p-4 has-checked:bg-gray-100 hover:bg-gray-50"
-                >
-                  <RadioGroupItem value="railpack" id="builder-railpack" />
-                  Railpack
-                  <p className="opacity-50">
-                    Detects your project structure and builds your app
-                    automatically.
-                  </p>
-                </Label>
-              </RadioGroup>
-            </div>
             <Button
               className="mt-8"
               size="lg"

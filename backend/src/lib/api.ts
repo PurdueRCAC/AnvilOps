@@ -327,13 +327,6 @@ const handlers = {
 
       const lastDeploy = app.deployments[0].config;
 
-      const env: { [key: string]: { value: string; isSecret: boolean } } = {};
-      for (let key in lastDeploy.env as Env) {
-        env[key] = { value: lastDeploy[key].value, isSecret: false };
-      }
-      for (let key in JSON.parse(lastDeploy.secrets) as Env) {
-        env[key] = { value: lastDeploy[key].value, isSecret: true };
-      }
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -342,7 +335,7 @@ const handlers = {
         updatedAt: app.updatedAt.toISOString(),
         repositoryURL: repo.html_url,
         config: {
-          env,
+          env: lastDeploy.env as Env[],
           replicas: lastDeploy.replicas,
           branch: app.repositoryBranch,
           dockerfilePath: lastDeploy.dockerfilePath,
