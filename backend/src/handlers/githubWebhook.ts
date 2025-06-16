@@ -101,7 +101,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
                 },
               },
               storageConfig: {
-                select: { amount: true, replicas: true, image: true },
+                select: {
+                  amount: true,
+                  replicas: true,
+                  image: true,
+                  port: true,
+                  mountPath: true,
+                },
               },
             },
           },

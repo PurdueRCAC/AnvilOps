@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
-import { type HandlerMap, json } from "../types.ts";
+import { type Env, type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
@@ -13,7 +13,6 @@ const updateApp: HandlerMap["updateApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
   const appConfig = appData.config;
-
   if (appConfig.rootDir.startsWith("/") || appConfig.rootDir.includes(`"`)) {
     return json(400, res, { code: 400, message: "Invalid root directory" });
   }
@@ -36,6 +35,9 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   try {
     validateEnv(appConfig.env, appConfig.secrets);
+    if (appData.storage && appData.storage.env.length !== 0) {
+      validateEnv(appData.storage.env, []);
+    }
   } catch (err) {
     return json(400, res, { code: 400, message: err.message });
   }
@@ -98,7 +100,10 @@ const updateApp: HandlerMap["updateApp"] = async (
     secrets: appData.config.secrets,
     port: lastDeploymentConfig.port,
     replicas: lastDeploymentConfig.replicas,
-    storage: appData.storage,
+    storage: {
+      ...appData.storage,
+      env: appData.storage.env as Env[],
+    },
   };
 
   for (let key in appData.config) {

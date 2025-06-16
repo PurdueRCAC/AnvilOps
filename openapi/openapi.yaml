@@ -924,10 +924,19 @@ components:
         amount:
           type: integer
           format: int64
+        port:
+          type: integer
+          format: int64
+        mountPath:
+          type: string
+        env:
+          $ref: "#/components/schemas/Envs"
       required:
         - image
         - replicas
         - amount
+        - port
+        - mountPath
     ApiError:
       type: object
       properties:

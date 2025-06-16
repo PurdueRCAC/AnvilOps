@@ -1,14 +1,13 @@
 import {
-  ApiException,
   AppsV1Api,
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
-  V1EnvVar,
+  ApiException,
   V1Namespace,
+  V1EnvVar,
 } from "@kubernetes/client-node";
-import { randomBytes } from "node:crypto";
 import { type Env, isObjectEmpty } from "../types.ts";
 
 const kc = new KubeConfig();
@@ -65,6 +64,9 @@ type StorageParams = {
   image: string;
   replicas: number;
   amount: number;
+  port: number;
+  mountPath: string;
+  env: Env[];
 };
 
 const resourceExists = async (data: K8sObject) => {
@@ -83,68 +85,19 @@ const resourceExists = async (data: K8sObject) => {
 
 const createStorageConfigs = (app: AppParams) => {
   const storage = app.storage;
-  if (!SUPPORTED_DBS.includes(storage.image)) {
-    throw new Error("Unsupported database");
-  }
-  const [imageName, imageTag] = storage.image.split(":");
-  const resourceName = `${app.name}-${imageName}`;
+  const resourceName = `${app.name}-storage`;
 
-  const password = randomBytes(32).toString("hex");
-  const env: V1EnvVar[] = [];
-  const secrets = {};
-  let mountPath: string;
-  let port: number;
-  switch (imageName) {
-    case "postgres":
-      mountPath = "/var/lib/postgresql/data";
-      port = 5432;
-      env.push({
-        name: "POSTGRES_USER",
-        valueFrom: {
-          secretKeyRef: {
-            name: `${app.name}-secrets`,
-            key: "POSTGRES_USER",
-          },
-        },
-      });
-      env.push({
-        name: "POSTGRES_PASSWORD",
-        valueFrom: {
-          secretKeyRef: {
-            name: `${app.name}-secrets`,
-            key: "POSTGRES_PASSWORD",
-          },
-        },
-      });
-      env.push({
-        name: "POSTGRES_DB",
-        valueFrom: {
-          secretKeyRef: {
-            name: `${app.name}-secrets`,
-            key: "POSTGRES_DB",
-          },
-        },
-      });
-
-      secrets["POSTGRES_USER"] = app.name;
-      secrets["POSTGRES_PASSWORD"] = password;
-      secrets["POSTGRES_DB"] = app.name;
-      break;
-    case "mysql":
-      mountPath = "/var/lib/mysql";
-      port = 3306;
-      env.push({
-        name: "MYSQL_ROOT_PASSWORD",
-        valueFrom: {
-          secretKeyRef: {
-            name: `${app.name}-secrets`,
-            key: "MYSQL_ROOT_PASSWORD",
-          },
-        },
-      });
-      secrets["MYSQL_ROOT_PASSWORD"] = password;
-      break;
-  }
+  const env = getEnvVars([], app.env, `${app.name}-db-secrets`);
+  const secrets =
+    app.env.length !== 0
+      ? createSecretConfig(
+          getSecretData(app.env),
+          `${app.name}-db-secrets`,
+          app.namespace,
+        )
+      : null;
+  let mountPath = storage.mountPath;
+  let port = storage.port;
 
   const storageSvc = createServiceConfig({
     name: resourceName,
@@ -183,7 +136,6 @@ const createStorageConfigs = (app: AppParams) => {
               ports: [
                 {
                   containerPort: port,
-                  name: `${imageName}`,
                 },
               ],
               volumeMounts: [
@@ -216,7 +168,7 @@ const createStorageConfigs = (app: AppParams) => {
     },
   };
 
-  return { storageSvc, statefulSet, env, secrets };
+  return { storageSvc, statefulSet, secrets };
 };
 
 const createDeploymentConfig = (deploy: DeploymentParams) => {
@@ -376,21 +328,6 @@ export const createAppConfigs = (
 
   const envVars = getEnvVars(app.env, app.secrets, `${app.name}-secrets`);
   const secretData = getSecretData(app.secrets);
-  if (app.storage) {
-    const { storageSvc, statefulSet, env, secrets } = createStorageConfigs(app);
-    for (let e of env) {
-      if (e.name in app.env) {
-        throw new Error(`Environment variable ${e.name} already defined`);
-      }
-    }
-    // Collect environment variables to add to deployment
-    envVars.push(...env);
-
-    Object.assign(secretData, secrets);
-
-    configs.push(statefulSet, storageSvc);
-  }
-
   if (!isObjectEmpty(secretData)) {
     const secretConfig = createSecretConfig(
       secretData,
@@ -400,6 +337,12 @@ export const createAppConfigs = (
 
     // Secrets should be created first
     configs.unshift(secretConfig);
+  }
+
+  if (app.storage) {
+    const { storageSvc, statefulSet, secrets } = createStorageConfigs(app);
+    if (secrets) configs.unshift(secrets);
+    configs.push(statefulSet, storageSvc);
   }
 
   const svc = createServiceConfig({

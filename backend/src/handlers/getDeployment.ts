@@ -69,6 +69,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       amount: deployment.storageConfig?.amount,
       image: deployment.storageConfig?.image,
       replicas: deployment.storageConfig?.replicas,
+      port: deployment.storageConfig?.port,
+      mountPath: deployment.storageConfig?.mountPath,
     },
     logs,
   });

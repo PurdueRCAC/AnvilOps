@@ -51,6 +51,11 @@ export default function CreateAppView() {
     "dockerfile" | "railpack" | undefined
   >();
 
+  const [database, setDatabase] = useState<string>("none");
+  const [storageEnv, setStorageEnv] = useState<
+    { name: string; value: string }[]
+  >([{ name: "", value: "" }]);
+
   const selectedOrg =
     selectedOrgId !== undefined
       ? user?.orgs?.find((it) => it.id === parseInt(selectedOrgId))
@@ -115,6 +120,21 @@ export default function CreateAppView() {
                 | "dockerfile"
                 | "railpack",
               rootDir: formData.get("rootDir")!.toString(),
+              storage:
+                database !== "none"
+                  ? {
+                      image: formData.get("storageImage")!.toString(),
+                      replicas: parseInt(
+                        formData.get("storageReplicas")!.toString(),
+                      ),
+                      port: parseInt(formData.get("storagePort")!.toString()),
+                      amount: parseInt(
+                        formData.get("storageAmount")!.toString(),
+                      ),
+                      mountPath: formData.get("storageMountPath")!.toString(),
+                      env: storageEnv.filter((it) => it.name.length > 0),
+                    }
+                  : undefined,
             },
           });
 
@@ -346,6 +366,90 @@ export default function CreateAppView() {
                 </p>
               </div>
             ) : null}
+            <div>
+              <Label className="pb-1">Configure Storage</Label>
+              <RadioGroup
+                name="storageImage"
+                value={database}
+                onValueChange={(value) => setDatabase(value)}
+                defaultValue=""
+                required
+              >
+                <Label
+                  htmlFor="storage-none"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+                >
+                  <RadioGroupItem value="none" id="storage-none" />
+                  None
+                  <p className="opacity-50 font-normal">
+                    No persistent storage needed.
+                  </p>
+                </Label>
+                <Label
+                  htmlFor="storage-custom"
+                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+                >
+                  <RadioGroupItem value="custom" id="storage-custom" />
+                  Custom...
+                </Label>
+              </RadioGroup>
+              {database !== "none" ? (
+                <div className="space-y-2">
+                  <Label className="pb-1 mb-2 mt-2">Image</Label>
+                  <Input
+                    name="storageImage"
+                    placeholder="postgres:17"
+                    required
+                  />
+                  <div className="flex space-x-8">
+                    <div className="w-full gap-1">
+                      <Label className="pb-1 mb-2">Storage amount</Label>
+                      <div className="relative w-full flex items-center">
+                        <Input
+                          name="storageAmount"
+                          type="number"
+                          placeholder="1"
+                          required
+                        />
+                        <p>GiB</p>
+                      </div>
+                    </div>
+                    <div className="w-full">
+                      <Label className="pb-1 mb-2">Replicas</Label>
+                      <Input id="storageReplicas" required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="storagePort" className="pb-1 mb-2">
+                      <Server className="inline" size={16} /> Port Number
+                    </Label>
+                    <Input
+                      id="storagePort"
+                      placeholder="3000"
+                      className="w-full"
+                      type="number"
+                      required
+                      min="1"
+                      max="65536"
+                    />
+                    <Label className="pb-1">Mount Path</Label>
+                    <Input
+                      name="storageMountPath"
+                      placeholder="/var/lib/postgresql/data"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="pb-1">
+                      <Code2 className="inline" size={16} /> Environment
+                      Variables
+                    </Label>
+                    <EnvVarGrid value={storageEnv} setValue={setStorageEnv} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
             <Button
               className="mt-8"

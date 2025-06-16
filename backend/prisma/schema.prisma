@@ -118,7 +118,10 @@ model StorageConfig {
   image      String
   replicas   Int
   amount     Int
-  deployment Deployment @relation(fields: [deployId], references: [id])
+  port       Int
+  mountPath  String
+  env        Json       @default("[]")
+  deployment Deployment @relation(fields: [deployId], references: [id], onDelete: Cascade)
   deployId   Int        @unique
 }
 
