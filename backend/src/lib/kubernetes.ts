@@ -238,7 +238,7 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
         metadata: {
           labels: {
             app: deploy.name,
-            "anvilops.rcac.purdue.edu/app-id": deploy.appId,
+            "anvilops.rcac.purdue.edu/app-id": deploy.appId.toString(),
           },
         },
         spec: {
