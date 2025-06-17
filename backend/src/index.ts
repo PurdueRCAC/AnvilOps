@@ -51,8 +51,12 @@ app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
 app.use(morgan("combined"));
 
-app.use("/api/github/webhook", bodyParser.text({ type: "application/json" })); // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
-app.use(/^\/api(?!\/github\/webhook)/, bodyParser.json()); // For everything else, parse the body as JSON
+// For GitHub webhooks, we need to access the request body as a string to verify it against the signature
+// For log ingestion, the request body is a series of JSON objects separated by newlines
+app.use(/^\/api((\/github\/webhook)|(\/logs\/ingest))/, bodyParser.text());
+
+// For everything else, the request body should be valid JSON
+app.use(/^\/api(?!((\/github\/webhook)|(\/logs\/ingest)))/, bodyParser.json());
 
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);
