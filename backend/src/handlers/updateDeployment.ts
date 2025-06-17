@@ -79,10 +79,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         : []) as Env[],
       port: deployment.config.port,
       replicas: deployment.config.replicas,
-      storage: {
-        ...deployment.storageConfig,
-        env: deployment.storageConfig.env as Env[],
-      },
+      storage: deployment.storageConfig
+        ? {
+            ...deployment.storageConfig,
+            env: deployment.storageConfig.env as Env[],
+          }
+        : undefined,
       loggingIngestSecret: app.logIngestSecret,
     };
     const { namespace, configs } = createAppConfigs(appParams);

@@ -88,13 +88,14 @@ const resourceExists = async (data: K8sObject) => {
 
 const createStorageConfigs = (app: AppParams) => {
   const storage = app.storage;
+  console.log(storage);
   const resourceName = `${app.name}-storage`;
 
-  const env = getEnvVars([], app.env, `${app.name}-db-secrets`);
+  const env = getEnvVars([], storage.env, `${app.name}-db-secrets`);
   const secrets =
-    app.env.length !== 0
+    storage.env.length !== 0
       ? createSecretConfig(
-          getSecretData(app.env),
+          getSecretData(storage.env),
           `${app.name}-db-secrets`,
           app.namespace,
         )

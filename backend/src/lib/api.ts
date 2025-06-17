@@ -257,6 +257,11 @@ const handlers = {
             data: { status: "STOPPED" },
           });
         }
+
+        await db.storageConfig.deleteMany({
+          where: { deployment: { appId: app.id } },
+        });
+        await db.deployment.deleteMany({ where: { appId: app.id } });
       }
       await db.organization.delete({ where: { id: orgId } });
       return res.status(200);
