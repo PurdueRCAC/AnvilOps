@@ -428,7 +428,6 @@ export default function CreateAppView() {
               <div className="space-y-2">
                 <Label className="pb-1">Configure Storage</Label>
                 <RadioGroup
-                  name="storageImage"
                   value={database}
                   onValueChange={(value) => setDatabase(value)}
                   defaultValue=""
@@ -504,7 +503,7 @@ export default function CreateAppView() {
                           *
                         </span>
                       </div>
-                      <Input id="storageReplicas" defaultValue="1" required />
+                      <Input name="storageReplicas" defaultValue="1" required />
                     </div>
                   </div>
                   <div className="space-y-2 pt-2">
@@ -520,7 +519,7 @@ export default function CreateAppView() {
                       </span>
                     </div>
                     <Input
-                      id="storagePort"
+                      name="storagePort"
                       placeholder="3000"
                       className="w-full"
                       type="number"
