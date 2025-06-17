@@ -63,8 +63,9 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
   await db.log.createMany({
     data: lines.map((line) => ({
       content: line,
-      deploymentId:
+      deploymentId: parseInt(
         line["kubernetes"]["labels"]["anvil.rcac.purdue.edu/deployment-id"],
+      ),
       type: logType,
       timestamp: new Date(line["time"]),
     })),
