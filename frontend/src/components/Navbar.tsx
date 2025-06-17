@@ -36,7 +36,9 @@ export default function Navbar() {
                   <p>{user.name}</p>
                   <p className="opacity-50">{user.email}</p>
                 </DropdownMenuLabel>
-                <DropdownMenuItem>My Organizations</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/organizations">My Organizations</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <form action="/api/logout" method="POST">
                   <Button type="submit">Sign Out</Button>
