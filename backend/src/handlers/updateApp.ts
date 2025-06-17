@@ -92,6 +92,7 @@ const updateApp: HandlerMap["updateApp"] = async (
   });
 
   const appParams = {
+    deploymentId: deployment.id,
     appId: app.id,
     name: app.name,
     namespace: app.subdomain,
@@ -104,6 +105,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       ...appData.storage,
       env: appData.storage.env as Env[],
     },
+    loggingIngestSecret: app.logIngestSecret,
   };
 
   for (let key in appData.config) {

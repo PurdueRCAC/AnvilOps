@@ -23,7 +23,7 @@ run_job() {
 
   build() {
     buildctl \
-    --addr=tcp://buildkitd:1234 \
+    --addr="$BUILDKITD_ADDRESS" \
     --wait \
     --tlsdir /certs \
     --debug \

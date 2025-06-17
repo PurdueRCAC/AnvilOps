@@ -18,10 +18,12 @@ type TransformHeaders<HeadersIn extends Record<string, string>> = {
   [H in keyof HeadersIn as Lowercase<string & H>]: HeadersIn[H];
 };
 
+type ValuesOf<T> = T[keyof T];
+
 export type HandlerMap = {
   [O in keyof apiOperations]: (
     ctx: Context<
-      apiOperations[O]["requestBody"]["content"]["application/json"],
+      ValuesOf<apiOperations[O]["requestBody"]["content"]>,
       apiOperations[O]["parameters"]["path"],
       apiOperations[O]["parameters"]["query"],
       TransformHeaders<apiOperations[O]["parameters"]["header"]>,

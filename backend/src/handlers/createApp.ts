@@ -1,4 +1,5 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
@@ -130,6 +131,7 @@ const createApp: HandlerMap["createApp"] = async (
           },
         },
         repositoryBranch: appData.branch,
+        logIngestSecret: randomBytes(48).toString("hex"),
       },
     });
     app = await db.app.update({

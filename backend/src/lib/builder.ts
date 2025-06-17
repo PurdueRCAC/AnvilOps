@@ -43,13 +43,14 @@ export async function createBuildJob({
         },
       },
       spec: {
-        ttlSecondsAfterFinished: 3 * 60 * 60, // Delete jobs 3 hours after they complete
+        ttlSecondsAfterFinished: 5 * 60, // Delete jobs 5 minutes after they complete
         backoffLimit: 1, // Retry builds up to 1 time if they exit with a non-zero status code
         activeDeadlineSeconds: 30 * 60, // Kill builds after 30 minutes
         template: {
           metadata: {
             labels: {
               "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+              "anvilops.rcac.purdue.edu/collect-logs": "true",
             },
           },
           spec: {
@@ -66,6 +67,10 @@ export async function createBuildJob({
                   {
                     name: "DEPLOYMENT_API_URL",
                     value: "https://anvilops.rcac.purdue.edu/api",
+                  },
+                  {
+                    name: "BUILDKITD_ADDRESS",
+                    value: "tcp://buildkitd:1234",
                   },
                   { name: "DOCKER_CONFIG", value: "/creds" },
                   { name: "ROOT_DIRECTORY", value: config.rootDir },
