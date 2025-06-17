@@ -23,7 +23,7 @@ run_job() {
     
     # https://railpack.com/guides/running-railpack-in-production/#building-with-buildkit
     buildctl \
-      --addr=tcp://buildkitd:1234 \
+      --addr="$BUILDKITD_ADDRESS" \
       --wait \
       --tlsdir /certs \
       build \

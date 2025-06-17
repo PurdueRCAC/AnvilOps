@@ -111,7 +111,11 @@ router.post("/logout", (req, res, next) => {
   });
 });
 
-const ALLOWED_ROUTES = ["/deployment/update", "/github/webhook"];
+const ALLOWED_ROUTES = [
+  "/deployment/update",
+  "/github/webhook",
+  "/logs/ingest",
+];
 router.use((req, res, next) => {
   if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {
     next();

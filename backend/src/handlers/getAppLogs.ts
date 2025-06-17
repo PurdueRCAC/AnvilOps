@@ -1,7 +1,6 @@
-import type { V1Pod } from "@kubernetes/client-node";
+import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
@@ -20,32 +19,14 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     return json(404, res, {});
   }
 
-  const namespace = app.subdomain;
-
-  const pods = await k8s.default.listNamespacedPod({
-    namespace,
-    labelSelector: `anvilops.rcac.purdue.edu/app-id=${app.id}`,
+  const logs = await db.log.findMany({
+    where: { deployment: { appId: app.id }, type: LogType.RUNTIME },
+    orderBy: { timestamp: "desc" },
+    take: 1000,
   });
 
-  if (!pods || pods.items.length === 0) {
-    return json(200, res, { available: false, logs: "" });
-  }
-
-  let mostRecentPod: V1Pod = pods.items[0];
-
-  for (const pod of pods.items) {
-    if (
-      new Date(pod.status.startTime).getTime() >
-      new Date(mostRecentPod.status.startTime).getTime()
-    ) {
-      mostRecentPod = pod;
-    }
-  }
-
-  const logs = await k8s.default.readNamespacedPodLog({
-    namespace,
-    name: mostRecentPod.metadata.name,
+  return json(200, res, {
+    available: true,
+    logs: logs.map((line) => (line.content as any).log).join("\n"),
   });
-
-  return json(200, res, { available: true, logs });
 };

@@ -107,6 +107,11 @@ spec:
                 secretKeyRef:
                   name: registry-credentials
                   key: delete-user
+            - name: BUILD_LOGGING_INGEST_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: logging-ingest-secret
+                  key: secret
           volumeMounts:
             - mountPath: "/opt/creds"
               name: kube-auth

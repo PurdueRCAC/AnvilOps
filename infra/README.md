@@ -13,6 +13,7 @@ Before deploying these manifests, add the following secrets in the `anvilops-dev
 5. `cilogon-credentials` - contains a `client-id`, a `client-secret`, and a `session-secret` used during the authentication flow.
 6. `app-config` - contains `project-name` and `project-ns`, the name and namespace of the Rancher project to group apps in.
 7. `kube-auth` - contains a kubeconfig file under the key `kubeconfig`.
+8. `logging-ingest-secret` - contains a random string in a key called `secret`.
 
 ### Logging
 

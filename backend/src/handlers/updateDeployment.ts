@@ -68,6 +68,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
 
     const subdomain = app.subdomain;
     const appParams = {
+      deploymentId: deployment.id,
       appId: app.id,
       name: app.name,
       namespace: subdomain,
@@ -82,6 +83,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         ...deployment.storageConfig,
         env: deployment.storageConfig.env as Env[],
       },
+      loggingIngestSecret: app.logIngestSecret,
     };
     const { namespace, configs } = createAppConfigs(appParams);
     try {

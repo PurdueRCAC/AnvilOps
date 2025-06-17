@@ -1,12 +1,12 @@
 import {
+  ApiException,
   AppsV1Api,
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
-  ApiException,
-  V1Namespace,
   V1EnvVar,
+  V1Namespace,
 } from "@kubernetes/client-node";
 import { type Env, isObjectEmpty } from "../types.ts";
 
@@ -29,6 +29,7 @@ interface SvcParams {
 }
 
 interface DeploymentParams {
+  deploymentId: number;
   appId: number;
   name: string;
   namespace: string;
@@ -39,12 +40,14 @@ interface DeploymentParams {
 }
 
 interface AppParams {
+  deploymentId: number;
   appId: number;
   name: string;
   namespace: string;
   image: string;
   env: Env[];
   secrets: Env[];
+  loggingIngestSecret: string;
   port: number;
   replicas: number;
   storage?: StorageParams;
@@ -191,6 +194,8 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
           labels: {
             app: deploy.name,
             "anvilops.rcac.purdue.edu/app-id": deploy.appId.toString(),
+            "anvilops.rcac.purdue.edu/deployment-id":
+              deploy.deploymentId.toString(),
             "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
@@ -301,6 +306,80 @@ const createNamespaceConfig = (namespace: string) => {
   };
 };
 
+/**
+ * Creates the configuration needed for the kube-logging opereator to forward logs from the user's pod to our backend.
+ */
+const createLogConfig = (namespace: string, appId: number, secret: string) => {
+  return [
+    {
+      apiVersion: "v1",
+      kind: "Secret",
+      metadata: {
+        name: "anvilops-internal-logging-ingest",
+        namespace,
+      },
+      stringData: {
+        secret: secret,
+      },
+    },
+    {
+      apiVersion: "logging.banzaicloud.io/v1beta1",
+      kind: "Flow",
+      metadata: {
+        name: "log-generator",
+        namespace,
+      },
+      spec: {
+        match: [
+          {
+            select: {
+              labels: {
+                "anvilops.rcac.purdue.edu/collect-logs": "true",
+              },
+            },
+          },
+        ],
+        localOutputRefs: ["http"],
+      },
+    },
+    {
+      apiVersion: "logging.banzaicloud.io/v1beta1",
+      kind: "Output",
+      metadata: {
+        name: "http",
+        namespace,
+      },
+      spec: {
+        http: {
+          // https://kube-logging.dev/docs/configuration/plugins/outputs/http/
+          endpoint: `https://anvilops.rcac.purdue.edu/api/logs/ingest?type=runtime&appId=${appId}`,
+          auth: {
+            username: {
+              value: "anvilops",
+            },
+            password: {
+              // https://kube-logging.dev/docs/configuration/plugins/outputs/secret/
+              valueFrom: {
+                secretKeyRef: {
+                  name: "anvilops-internal-logging-ingest",
+                  key: "secret",
+                },
+              },
+            },
+          },
+          content_type: "application/json",
+          buffer: {
+            type: "memory",
+            tags: "time",
+            timekey: "1s",
+            timekey_wait: "0s",
+          },
+        },
+      },
+    },
+  ];
+};
+
 const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
   await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {
@@ -353,7 +432,9 @@ export const createAppConfigs = (
     port: 80,
     targetPort: app.port,
   });
+
   const deployment = createDeploymentConfig({
+    deploymentId: app.deploymentId,
     appId: app.appId,
     name: app.name,
     namespace: app.namespace,
@@ -362,7 +443,14 @@ export const createAppConfigs = (
     port: app.port,
     replicas: app.replicas,
   });
-  configs.push(deployment, svc);
+
+  const logs = createLogConfig(
+    app.namespace,
+    app.appId,
+    app.loggingIngestSecret,
+  );
+
+  configs.push(deployment, svc, ...logs);
   return { namespace, configs };
 };
 

@@ -666,9 +666,34 @@ paths:
   /logs/ingest:
     post:
       operationId: ingestLogs
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [build, runtime]
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: appId
+          in: query
+          schema:
+            type: number
+            format: int64
       responses:
         "200":
           description: Success
+        "400":
+          description: Bad request (no app ID specified when it was required)
+        "403":
+          description: Invalid credentials
+        "422":
+          description: Unexpected authentication type (expected Basic) or log type (expected build or runtime)
+        "500":
+          description: Internal server error
 
   /app/{appId}/deployments/{deploymentId}:
     parameters:
