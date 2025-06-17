@@ -61,7 +61,7 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     data: lines.map((line) => ({
       content: line,
       deploymentId: parseInt(
-        line["kubernetes"]["labels"]["anvil.rcac.purdue.edu/deployment-id"],
+        line["kubernetes"]["labels"]["anvilops.rcac.purdue.edu/deployment-id"],
       ),
       type: logType,
       timestamp: new Date(line["time"]),
