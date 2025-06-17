@@ -27,6 +27,9 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
 
   return json(200, res, {
     available: true,
-    logs: logs.map((line) => (line.content as any).log).join("\n"),
+    logs: logs
+      .toReversed()
+      .map((line) => ((line.content as any).log as string).trim())
+      .join("\n"),
   });
 };

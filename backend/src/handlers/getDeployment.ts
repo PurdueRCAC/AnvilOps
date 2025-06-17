@@ -27,7 +27,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
   const logs = await db.log.findMany({
     where: { deploymentId: deployment.id, type: LogType.BUILD },
-    orderBy: { timestamp: "desc" },
+    orderBy: { timestamp: "asc" },
     take: 5000,
   });
 
@@ -55,6 +55,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       port: deployment.storageConfig?.port,
       mountPath: deployment.storageConfig?.mountPath,
     },
-    logs: logs.map((line) => (line.content as any).log).join("\n"),
+    logs: logs
+      .map((line) => ((line.content as any).log as string).trim())
+      .join("\n"),
   });
 };
