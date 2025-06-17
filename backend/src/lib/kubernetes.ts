@@ -5,6 +5,7 @@ import {
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
+  PatchStrategy,
   V1EnvVar,
   V1Namespace,
 } from "@kubernetes/client-node";
@@ -468,7 +469,14 @@ export const createOrUpdateApp = async (
 
   for (let config of configs) {
     if (await resourceExists(config)) {
-      await k8s.full.patch(config);
+      await k8s.full.patch(
+        config,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        PatchStrategy.MergePatch, // The default is PatchStrategy.StrategicMergePatch, which can target individual array items, but it doesn't work with custom resources (we're using `flow` and `output` from the kube-logging operator).
+      );
     } else {
       await k8s.full.create(config);
     }
