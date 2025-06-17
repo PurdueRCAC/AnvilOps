@@ -145,10 +145,18 @@ export default function CreateAppView() {
       >
         <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
         <div className="space-y-2">
-          <Label htmlFor="selectOrg" className="pb-1">
-            <Globe className="inline" size={16} />
-            Organization
-          </Label>
+          <div className="flex text-baseline gap-2">
+            <Label htmlFor="selectOrg" className="pb-1">
+              <Globe className="inline" size={16} />
+              Organization
+            </Label>
+            <span
+              className="text-red-500 cursor-default"
+              title="This field is required."
+            >
+              *
+            </span>
+          </div>
           <Select onValueChange={setSelectedOrg} name="org">
             <SelectTrigger
               className="w-full"
@@ -171,16 +179,25 @@ export default function CreateAppView() {
         {selectedOrg === undefined || selectedOrg.githubConnected ? (
           <>
             <div className="space-y-2">
-              <Label
-                htmlFor="selectRepo"
-                className={clsx(
-                  "pb-1",
-                  (selectedOrgId === undefined || reposLoading) && "opacity-50",
-                )}
-              >
-                <BookMarked className="inline" size={16} />
-                Repository
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label
+                  htmlFor="selectRepo"
+                  className={clsx(
+                    "pb-1",
+                    (selectedOrgId === undefined || reposLoading) &&
+                      "opacity-50",
+                  )}
+                >
+                  <BookMarked className="inline" size={16} />
+                  Repository
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <Select
                 name="repo"
                 disabled={selectedOrgId === undefined || reposLoading}
@@ -209,17 +226,25 @@ export default function CreateAppView() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="selectBranch"
-                className={clsx(
-                  "pb-1",
-                  (selectedRepoId === undefined || branchesLoading) &&
-                    "opacity-50",
-                )}
-              >
-                <GitBranch className="inline" size={16} />
-                Branch
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label
+                  htmlFor="selectBranch"
+                  className={clsx(
+                    "pb-1",
+                    (selectedRepoId === undefined || branchesLoading) &&
+                      "opacity-50",
+                  )}
+                >
+                  <GitBranch className="inline" size={16} />
+                  Branch
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <Select
                 name="branch"
                 disabled={selectedRepoId === undefined || branchesLoading}
@@ -248,14 +273,23 @@ export default function CreateAppView() {
               </Select>
             </div>
             <div>
-              <Label className="pb-1 mb-2">
-                <FolderRoot className="inline" size={16} /> Root directory
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label className="pb-1 mb-2">
+                  <FolderRoot className="inline" size={16} /> Root directory
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <Input
                 name="rootDir"
                 placeholder="./"
                 className="w-full mb-1"
                 pattern="^\.\/.*$"
+                required
               />
               <p className="opacity-50 text-xs">
                 Must start with <code>./</code>
@@ -263,9 +297,17 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <Label className="pb-1">
-                <Link className="inline" size={16} /> Public URL
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label className="pb-1">
+                  <Link className="inline" size={16} /> Public URL
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <div className="flex relative items-center gap-2">
                 <span className="absolute left-2 text-sm opacity-50">
                   https://
@@ -289,9 +331,17 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <Label className="pb-1">
-                <Server className="inline" size={16} /> Port Number
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label className="pb-1">
+                  <Server className="inline" size={16} /> Port Number
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <Input
                 name="port"
                 placeholder="3000"
@@ -314,9 +364,17 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <Label className="pb-1">
-                <Hammer className="inline" size={16} /> Builder
-              </Label>
+              <div className="flex text-baseline gap-2">
+                <Label className="pb-1">
+                  <Hammer className="inline" size={16} /> Builder
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
               <RadioGroup
                 name="builder"
                 value={builder}
@@ -367,62 +425,100 @@ export default function CreateAppView() {
               </div>
             ) : null}
             <div>
-              <Label className="pb-1">Configure Storage</Label>
-              <RadioGroup
-                name="storageImage"
-                value={database}
-                onValueChange={(value) => setDatabase(value)}
-                defaultValue=""
-                required
-              >
-                <Label
-                  htmlFor="storage-none"
-                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+              <div className="space-y-2">
+                <Label className="pb-1">Configure Storage</Label>
+                <RadioGroup
+                  name="storageImage"
+                  value={database}
+                  onValueChange={(value) => setDatabase(value)}
+                  defaultValue=""
+                  required
                 >
-                  <RadioGroupItem value="none" id="storage-none" />
-                  None
-                  <p className="opacity-50 font-normal">
-                    No persistent storage needed.
-                  </p>
-                </Label>
-                <Label
-                  htmlFor="storage-custom"
-                  className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
-                >
-                  <RadioGroupItem value="custom" id="storage-custom" />
-                  Custom...
-                </Label>
-              </RadioGroup>
+                  <Label
+                    htmlFor="storage-none"
+                    className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+                  >
+                    <RadioGroupItem value="none" id="storage-none" />
+                    None
+                    <p className="opacity-50 font-normal">
+                      No persistent storage needed.
+                    </p>
+                  </Label>
+                  <Label
+                    htmlFor="storage-custom"
+                    className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+                  >
+                    <RadioGroupItem value="custom" id="storage-custom" />
+                    Custom...
+                  </Label>
+                </RadioGroup>
+              </div>
               {database !== "none" ? (
-                <div className="space-y-2">
-                  <Label className="pb-1 mb-2 mt-2">Image</Label>
-                  <Input
-                    name="storageImage"
-                    placeholder="postgres:17"
-                    required
-                  />
-                  <div className="flex space-x-8">
+                <>
+                  <div className="space-y-2 pt-2">
+                    <div className="flex text-baseline gap-2">
+                      <Label className="pb-1 mb-2">Image</Label>
+                      <span
+                        className="text-red-500 cursor-default"
+                        title="This field is required."
+                      >
+                        *
+                      </span>
+                    </div>
+                    <Input
+                      name="storageImage"
+                      placeholder="postgres:17"
+                      required
+                    />
+                  </div>
+                  <div className="flex space-x-8 space-y-2 pt-2">
                     <div className="w-full gap-1">
-                      <Label className="pb-1 mb-2">Storage amount</Label>
+                      <div className="flex text-baseline gap-2">
+                        <Label className="pb-1 mb-2">Storage amount</Label>
+                        <span
+                          className="text-red-500 cursor-default"
+                          title="This field is required."
+                        >
+                          *
+                        </span>
+                      </div>
                       <div className="relative w-full flex items-center">
                         <Input
                           name="storageAmount"
                           type="number"
                           placeholder="1"
+                          min="1"
+                          max="2x"
                           required
                         />
                         <p>GiB</p>
                       </div>
                     </div>
                     <div className="w-full">
-                      <Label className="pb-1 mb-2">Replicas</Label>
-                      <Input id="storageReplicas" required />
+                      <div className="flex text-baseline gap-2">
+                        <Label className="pb-1 mb-2">Replicas</Label>
+                        <span
+                          className="text-red-500 cursor-default"
+                          title="This field is required."
+                        >
+                          *
+                        </span>
+                      </div>
+                      <Input id="storageReplicas" defaultValue="1" required />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="storagePort" className="pb-1 mb-2">
-                      <Server className="inline" size={16} /> Port Number
-                    </Label>
+                  <div className="space-y-2 pt-2">
+                    <div className="flex text-baseline gap-2">
+                      <Label htmlFor="storagePort" className="pb-1 mb-2">
+                        <Server className="inline" size={16} /> Port Number
+                      </Label>
+                      <span
+                        className="text-red-500 cursor-default"
+                        title="This field is required."
+                      >
+                        *
+                      </span>
+                    </div>
                     <Input
                       id="storagePort"
                       placeholder="3000"
@@ -432,7 +528,17 @@ export default function CreateAppView() {
                       min="1"
                       max="65536"
                     />
-                    <Label className="pb-1">Mount Path</Label>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <div className="flex text-baseline gap-2">
+                      <Label className="pb-1">Mount Path</Label>
+                      <span
+                        className="text-red-500 cursor-default"
+                        title="This field is required."
+                      >
+                        *
+                      </span>
+                    </div>
                     <Input
                       name="storageMountPath"
                       placeholder="/var/lib/postgresql/data"
@@ -440,14 +546,14 @@ export default function CreateAppView() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="pb-1">
+                  <div className="space-y-2 pt-2">
+                    <Label className="pb-1 mb-2">
                       <Code2 className="inline" size={16} /> Environment
                       Variables
                     </Label>
                     <EnvVarGrid value={storageEnv} setValue={setStorageEnv} />
                   </div>
-                </div>
+                </>
               ) : null}
             </div>
 
