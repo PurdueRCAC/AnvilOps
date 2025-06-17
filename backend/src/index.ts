@@ -55,7 +55,7 @@ app.use(morgan("combined"));
 // For log ingestion, the request body is a series of JSON objects separated by newlines
 app.use(
   /^\/api((\/github\/webhook)|(\/logs\/ingest))/,
-  bodyParser.text({ type: "application/json" }),
+  bodyParser.text({ type: ["application/json", "application/jsonl"] }),
 );
 
 // For everything else, the request body should be valid JSON

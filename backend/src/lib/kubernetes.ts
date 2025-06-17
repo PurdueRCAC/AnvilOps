@@ -368,7 +368,7 @@ const createLogConfig = (namespace: string, appId: number, secret: string) => {
               },
             },
           },
-          content_type: "application/json",
+          content_type: "application/jsonl",
           buffer: {
             type: "memory",
             tags: "time",

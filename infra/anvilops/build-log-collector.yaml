@@ -31,7 +31,7 @@ spec:
           secretKeyRef:
             name: logging-ingest-secret
             key: secret
-    content_type: application/json
+    content_type: application/jsonl # jsonl = newline-delimited JSON objects (https://jsonlines.org/)
     buffer:
       type: memory
       tags: time

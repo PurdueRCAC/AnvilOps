@@ -685,7 +685,7 @@ paths:
             format: int64
       requestBody:
         content:
-          application/json: # The HTTP log output sends a request with a Content-Type of application/json, but it's actually 1 JSON object per line
+          application/jsonl: # jsonl = newline-delimited JSON objects (https://jsonlines.org/)
             schema:
               type: string
       responses:
