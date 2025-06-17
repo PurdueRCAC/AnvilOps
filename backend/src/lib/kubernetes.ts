@@ -374,6 +374,8 @@ const createLogConfig = (namespace: string, appId: number, secret: string) => {
             tags: "time",
             timekey: "1s",
             timekey_wait: "0s",
+            flush_mode: "immediate",
+            flush_interval: "1s",
           },
         },
       },
