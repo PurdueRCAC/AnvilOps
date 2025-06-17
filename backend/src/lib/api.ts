@@ -14,6 +14,7 @@ import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
+import { ingestLogs } from "../handlers/ingestLogs.ts";
 import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
@@ -364,6 +365,7 @@ const handlers = {
   listDeployments,
   getDeployment,
   getAppLogs,
+  ingestLogs,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

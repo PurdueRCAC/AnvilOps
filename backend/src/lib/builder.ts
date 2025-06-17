@@ -50,6 +50,7 @@ export async function createBuildJob({
           metadata: {
             labels: {
               "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+              "anvilops.rcac.purdue.edu/collect-logs": "true",
             },
           },
           spec: {

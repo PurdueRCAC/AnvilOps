@@ -1,0 +1,25 @@
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Flow
+metadata:
+  name: log-generator
+spec:
+  match:
+    - select:
+        labels:
+          anvilops.rcac.purdue.edu/collect-logs: "true"
+  localOutputRefs:
+    - http
+---
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Output
+metadata:
+  name: http
+spec:
+  http:
+    endpoint: https://anvilops.rcac.purdue.edu/api/logs/ingest
+    content_type: application/json
+    buffer:
+      type: memory
+      tags: time
+      timekey: 1s
+      timekey_wait: 0s

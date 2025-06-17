@@ -13,3 +13,13 @@ Before deploying these manifests, add the following secrets in the `anvilops-dev
 5. `cilogon-credentials` - contains a `client-id`, a `client-secret`, and a `session-secret` used during the authentication flow.
 6. `app-config` - contains `project-name` and `project-ns`, the name and namespace of the Rancher project to group apps in.
 7. `kube-auth` - contains a kubeconfig file under the key `kubeconfig`.
+
+### Logging
+
+To store build and runtime logs from tenant pods, you will need to install the [Kubernetes logging operator](https://kube-logging.dev/). You can do so with Helm:
+
+```sh
+helm upgrade --install --wait --create-namespace --namespace logging logging-operator oci://ghcr.io/kube-logging/helm-charts/logging-operator
+```
+
+Then, follow [this guide](https://kube-logging.dev/docs/quickstarts/single/#configure-the-logging-operator) to create a `logging` resource (steps 1-3).

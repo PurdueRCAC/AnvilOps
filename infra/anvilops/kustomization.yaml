@@ -8,3 +8,4 @@ resources:
   - ingress.yaml
   - imageupdate.yaml
   - buildkitd.yaml
+  - tenant-logging.yaml
