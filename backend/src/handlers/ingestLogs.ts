@@ -54,11 +54,8 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
 
   const lines = (req.body as string)
     .split("\n")
+    .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line));
-
-  for (const line of lines) {
-    console.log(line);
-  }
 
   await db.log.createMany({
     data: lines.map((line) => ({
