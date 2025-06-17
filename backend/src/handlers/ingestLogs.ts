@@ -58,13 +58,14 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     .map((line) => JSON.parse(line));
 
   await db.log.createMany({
-    data: lines.map((line) => ({
+    data: lines.map((line, i) => ({
       content: line,
       deploymentId: parseInt(
         line["kubernetes"]["labels"]["anvilops.rcac.purdue.edu/deployment-id"],
       ),
       type: logType,
       timestamp: new Date(line["time"]),
+      index: i,
     })),
   });
 

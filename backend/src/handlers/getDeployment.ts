@@ -27,7 +27,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
   const logs = await db.log.findMany({
     where: { deploymentId: deployment.id, type: LogType.BUILD },
-    orderBy: { timestamp: "asc" },
+    orderBy: [{ timestamp: "asc" }, { index: "asc" }],
     take: 5000,
   });
 

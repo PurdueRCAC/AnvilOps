@@ -134,6 +134,7 @@ model Log {
   deploymentId Int
   deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
   timestamp    DateTime
+  index        Int        @default(0) // Used to order logs with the same timestamp
   content      Json
 }
 
