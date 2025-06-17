@@ -53,7 +53,10 @@ app.use(morgan("combined"));
 
 // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
 // For log ingestion, the request body is a series of JSON objects separated by newlines
-app.use(/^\/api((\/github\/webhook)|(\/logs\/ingest))/, bodyParser.text());
+app.use(
+  /^\/api((\/github\/webhook)|(\/logs\/ingest))/,
+  bodyParser.text({ type: "application/json" }),
+);
 
 // For everything else, the request body should be valid JSON
 app.use(/^\/api(?!((\/github\/webhook)|(\/logs\/ingest)))/, bodyParser.json());
