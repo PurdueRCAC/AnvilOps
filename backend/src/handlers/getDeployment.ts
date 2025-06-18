@@ -1,3 +1,4 @@
+import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { k8s } from "../lib/kubernetes.ts";
@@ -17,7 +18,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     include: {
       config: true,
       storageConfig: true,
-      app: { select: { repositoryBranch: true } },
+      app: { select: { repositoryBranch: true, subdomain: true, name: true } },
     },
   });
 
@@ -25,28 +26,28 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     return json(404, res, {});
   }
 
-  let logs: string | undefined;
-  try {
-    const pods = await k8s.default.listNamespacedPod({
-      namespace: "anvilops-dev",
-      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
-    });
+  const logs = await db.log.findMany({
+    where: { deploymentId: deployment.id, type: LogType.BUILD },
+    orderBy: [{ timestamp: "asc" }, { index: "asc" }],
+    take: 5000,
+  });
 
-    if (pods.items.length !== 1) {
-      throw new Error(
-        "Invalid response - job is probably not available anymore",
-      );
-    }
+  const pods = await k8s.default.listNamespacedPod({
+    namespace: deployment.app.subdomain,
+    labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+  });
 
-    const pod = pods.items[0];
+  const podStatus = pods?.items?.[0]?.status;
+  const scheduled =
+    podStatus?.conditions?.find((it) => it.type === "PodScheduled")?.status ===
+    "True";
+  const ready =
+    podStatus?.conditions?.find((it) => it.type === "Ready")?.status === "True";
 
-    logs = await k8s.default.readNamespacedPodLog({
-      namespace: "anvilops-dev",
-      name: pod.metadata.name,
-    });
-  } catch {
-    // Logs are unavailable - don't let that prevent us from returning the rest of the information
-  }
+  const state = Object.keys(
+    podStatus?.containerStatuses?.[0]?.state ?? {},
+  )?.[0];
+  const stateReason = podStatus?.containerStatuses?.[0]?.state?.[state]?.reason;
 
   return json(200, res, {
     commitHash: deployment.commitHash,
@@ -54,7 +55,17 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
     id: deployment.id,
+    appId: deployment.appId,
     status: deployment.status,
+    podStatus: podStatus
+      ? {
+          scheduled,
+          ready,
+          phase: podStatus?.phase as any,
+          state,
+          stateReason,
+        }
+      : undefined,
     config: {
       branch: deployment.app.repositoryBranch,
       builder: deployment.config.builder,
@@ -72,6 +83,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       port: deployment.storageConfig?.port,
       mountPath: deployment.storageConfig?.mountPath,
     },
-    logs,
+    logs: logs
+      .map((line) => ((line.content as any).log as string).trim())
+      .join("\n"),
   });
 };

@@ -618,6 +618,9 @@ paths:
                     id:
                       type: number
                       format: int64
+                    appId:
+                      type: number
+                      format: int64
                     commitHash:
                       type: string
                     commitMessage:
@@ -629,15 +632,26 @@ paths:
                       type: string
                       format: date-time
                     status:
-                      type: string
-                required:
-                  [id, commitHash, commitMessage, createdAt, updatedAt, status]
+                      $ref: "#/components/schemas/DeploymentStatus"
+                  required:
+                    - id
+                    - appId
+                    - commitHash
+                    - commitMessage
+                    - createdAt
+                    - updatedAt
+                    - status
 
-  /app/{appId}/logs:
+  /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
       - name: appId
         in: path
-        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: deploymentId
+        in: path
         required: true
         schema:
           type: integer
@@ -646,6 +660,11 @@ paths:
       tags: [app]
       description: Get an app's recent logs
       operationId: getAppLogs
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/LogType"
       responses:
         "404":
           description: App not found
@@ -656,12 +675,59 @@ paths:
               schema:
                 type: object
                 properties:
-                  available:
-                    type: boolean
-                    description: Whether the app has an active Pod with logs to view
                   logs:
-                    type: string
-                required: [available, logs]
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: string
+                          format: date-time
+                        log:
+                          type: string
+                        type:
+                          $ref: "#/components/schemas/LogType"
+                        id:
+                          type: number
+                          format: int64
+                required: [logs]
+
+  /logs/ingest:
+    post:
+      operationId: ingestLogs
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [build, runtime]
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: appId
+          in: query
+          schema:
+            type: number
+            format: int64
+      requestBody:
+        content:
+          application/jsonl: # jsonl = newline-delimited JSON objects (https://jsonlines.org/)
+            schema:
+              type: string
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request (no app ID specified when it was required)
+        "403":
+          description: Invalid credentials
+        "422":
+          description: Unexpected authentication type (expected Basic) or log type (expected build or runtime)
+        "500":
+          description: Internal server error
 
   /app/{appId}/deployments/{deploymentId}:
     parameters:
@@ -694,6 +760,9 @@ paths:
                   id:
                     type: number
                     format: int64
+                  appId:
+                    type: number
+                    format: int64
                   commitHash:
                     type: string
                   commitMessage:
@@ -705,17 +774,28 @@ paths:
                     type: string
                     format: date-time
                   status:
-                    type: string
-                    enum:
-                      [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
-                  logs:
-                    type: string
+                    $ref: "#/components/schemas/DeploymentStatus"
                   config:
                     $ref: "#/components/schemas/DeploymentConfig"
                   storageConfig:
                     $ref: "#/components/schemas/Storage"
+                  podStatus:
+                    type: object
+                    properties:
+                      scheduled:
+                        type: boolean
+                      ready:
+                        type: boolean
+                      phase:
+                        type: string
+                        enum: [Pending, Running, Succeeded, Failed, Unknown]
+                      state:
+                        type: string
+                      stateReason:
+                        type: string
                 required:
                   - id
+                  - appId
                   - commitHash
                   - commitMessage
                   - createdAt
@@ -866,12 +946,18 @@ components:
           $ref: "#/components/schemas/DeploymentConfig"
         storage:
           $ref: "#/components/schemas/Storage"
+        subdomain:
+          type: string
+        activeDeployment:
+          type: number
+          format: int64
       required:
         - id
         - orgId
         - name
         - repositoryURL
         - config
+        - subdomain
     DeploymentConfig:
       type: object
       properties:
@@ -895,6 +981,12 @@ components:
         secrets:
           $ref: "#/components/schemas/Envs"
       required: [port, dockerfilePath, rootDir, branch, builder, replicas]
+    DeploymentStatus:
+      type: string
+      enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+    LogType:
+      type: string
+      enum: [SYSTEM, BUILD, RUNTIME]
     NewApp:
       type: object
       properties:

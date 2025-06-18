@@ -1,12 +1,13 @@
 import {
+  ApiException,
   AppsV1Api,
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
-  ApiException,
-  V1Namespace,
+  PatchStrategy,
   V1EnvVar,
+  V1Namespace,
 } from "@kubernetes/client-node";
 import { type Env, isObjectEmpty } from "../types.ts";
 
@@ -29,6 +30,7 @@ interface SvcParams {
 }
 
 interface DeploymentParams {
+  deploymentId: number;
   appId: number;
   name: string;
   namespace: string;
@@ -39,12 +41,14 @@ interface DeploymentParams {
 }
 
 interface AppParams {
+  deploymentId: number;
   appId: number;
   name: string;
   namespace: string;
   image: string;
   env: Env[];
   secrets: Env[];
+  loggingIngestSecret: string;
   port: number;
   replicas: number;
   storage?: StorageParams;
@@ -85,13 +89,14 @@ const resourceExists = async (data: K8sObject) => {
 
 const createStorageConfigs = (app: AppParams) => {
   const storage = app.storage;
+  console.log(storage);
   const resourceName = `${app.name}-storage`;
 
-  const env = getEnvVars([], app.env, `${app.name}-db-secrets`);
+  const env = getEnvVars([], storage.env, `${app.name}-db-secrets`);
   const secrets =
-    app.env.length !== 0
+    storage.env.length !== 0
       ? createSecretConfig(
-          getSecretData(app.env),
+          getSecretData(storage.env),
           `${app.name}-db-secrets`,
           app.namespace,
         )
@@ -191,6 +196,9 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
           labels: {
             app: deploy.name,
             "anvilops.rcac.purdue.edu/app-id": deploy.appId.toString(),
+            "anvilops.rcac.purdue.edu/deployment-id":
+              deploy.deploymentId.toString(),
+            "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
         spec: {
@@ -287,7 +295,7 @@ const createSecretConfig = (
   };
 };
 
-const createNamespaceConfig = (namespace: string) => {
+export const createNamespaceConfig = (namespace: string) => {
   return {
     apiVersion: "v1",
     kind: "Namespace",
@@ -298,6 +306,86 @@ const createNamespaceConfig = (namespace: string) => {
       },
     },
   };
+};
+
+/**
+ * Creates the configuration needed for the kube-logging opereator to forward logs from the user's pod to our backend.
+ */
+export const createLogConfig = (
+  namespace: string,
+  appId: number,
+  secret: string,
+) => {
+  return [
+    {
+      apiVersion: "v1",
+      kind: "Secret",
+      metadata: {
+        name: "anvilops-internal-logging-ingest",
+        namespace,
+      },
+      stringData: {
+        secret: secret,
+      },
+    },
+    {
+      apiVersion: "logging.banzaicloud.io/v1beta1",
+      kind: "Flow",
+      metadata: {
+        name: `${namespace}-log-flow`,
+        namespace,
+      },
+      spec: {
+        match: [
+          {
+            select: {
+              labels: {
+                "anvilops.rcac.purdue.edu/collect-logs": "true",
+              },
+            },
+          },
+        ],
+        localOutputRefs: [`${namespace}-log-output`],
+      },
+    },
+    {
+      apiVersion: "logging.banzaicloud.io/v1beta1",
+      kind: "Output",
+      metadata: {
+        name: `${namespace}-log-output`,
+        namespace,
+      },
+      spec: {
+        http: {
+          // https://kube-logging.dev/docs/configuration/plugins/outputs/http/
+          endpoint: `https://anvilops.rcac.purdue.edu/api/logs/ingest?type=runtime&appId=${appId}`,
+          auth: {
+            username: {
+              value: "anvilops",
+            },
+            password: {
+              // https://kube-logging.dev/docs/configuration/plugins/outputs/secret/
+              valueFrom: {
+                secretKeyRef: {
+                  name: "anvilops-internal-logging-ingest",
+                  key: "secret",
+                },
+              },
+            },
+          },
+          content_type: "application/jsonl",
+          buffer: {
+            type: "memory",
+            tags: "time",
+            timekey: "1s",
+            timekey_wait: "0s",
+            flush_mode: "immediate",
+            flush_interval: "1s",
+          },
+        },
+      },
+    },
+  ];
 };
 
 const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
@@ -352,7 +440,9 @@ export const createAppConfigs = (
     port: 80,
     targetPort: app.port,
   });
+
   const deployment = createDeploymentConfig({
+    deploymentId: app.deploymentId,
     appId: app.appId,
     name: app.name,
     namespace: app.namespace,
@@ -361,7 +451,14 @@ export const createAppConfigs = (
     port: app.port,
     replicas: app.replicas,
   });
-  configs.push(deployment, svc);
+
+  const logs = createLogConfig(
+    app.namespace,
+    app.appId,
+    app.loggingIngestSecret,
+  );
+
+  configs.push(...logs, deployment, svc);
   return { namespace, configs };
 };
 
@@ -376,7 +473,14 @@ export const createOrUpdateApp = async (
 
   for (let config of configs) {
     if (await resourceExists(config)) {
-      await k8s.full.patch(config);
+      await k8s.full.patch(
+        config,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        PatchStrategy.MergePatch, // The default is PatchStrategy.StrategicMergePatch, which can target individual array items, but it doesn't work with custom resources (we're using `flow` and `output` from the kube-logging operator).
+      );
     } else {
       await k8s.full.create(config);
     }

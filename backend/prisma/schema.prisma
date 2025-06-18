@@ -79,6 +79,7 @@ model App {
   subdomain        String       @unique
   imageRepo        String       @default("")
   deployments      Deployment[]
+  logIngestSecret  String       @unique
 }
 
 model Deployment {
@@ -99,6 +100,7 @@ model Deployment {
   config        DeploymentConfig @relation(fields: [configId], references: [id])
   configId      Int              @unique
   storageConfig StorageConfig?
+  logs          Log[]
 }
 
 model DeploymentConfig {
@@ -123,6 +125,26 @@ model StorageConfig {
   env        Json       @default("[]")
   deployment Deployment @relation(fields: [deployId], references: [id], onDelete: Cascade)
   deployId   Int        @unique
+}
+
+model Log {
+  id           Int        @id @default(autoincrement())
+  createdAt    DateTime   @default(now())
+  type         LogType
+  deploymentId Int
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  timestamp    DateTime
+  index        Int        @default(0) // Used to order logs with the same timestamp
+  content      Json
+}
+
+enum LogType {
+  // System logs created by the AnvilOps backend
+  SYSTEM
+  // Logs from users' image builds
+  BUILD
+  // Logs from users' pods
+  RUNTIME
 }
 
 enum DeploymentStatus {

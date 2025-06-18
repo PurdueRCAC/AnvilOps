@@ -16,13 +16,17 @@ export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-gold backdrop-blur-xl h-16">
-      <p className="text-2xl font-semibold">
-        <Link to="/dashboard" className="font-main">
-          AnvilOps
-        </Link>
+    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-white/50 backdrop-blur-xl h-16 z-50">
+      <p className="text-lg font-bold">
+        <Link to={user ? "/dashboard" : "/"}>AnvilOps</Link>
       </p>
-      <div className="flex gap-4 justify-end">
+      <div className="flex gap-4 justify-end items-center">
+        {user && (
+          <>
+            <Link to="/">Home</Link>
+            <Link to="/dashboard">Dashboard</Link>
+          </>
+        )}
         {loading ? null : user ? (
           <>
             <DropdownMenu>
@@ -33,18 +37,19 @@ export default function Navbar() {
                   className="w-12 h-12"
                 />
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64">
-                <DropdownMenuLabel>
+              <DropdownMenuContent>
+                <DropdownMenuItem className="flex flex-col items-start gap-0">
                   <p>{user.name}</p>
                   <p className="opacity-50">{user.email}</p>
-                </DropdownMenuLabel>
-                <DropdownMenuItem asChild>
-                  <Link to="/organizations">My Organizations</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <form action="/api/logout" method="POST">
-                  <Button type="submit">Sign Out</Button>
-                </form>
+                <DropdownMenuItem>
+                  <form action="/api/logout" method="POST">
+                    <button type="submit" className="text-destructive">
+                      Sign Out
+                    </button>
+                  </form>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </>

@@ -1,5 +1,10 @@
 import { db } from "../lib/db.ts";
-import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
+import {
+  createAppConfigs,
+  createLogConfig,
+  createNamespaceConfig,
+  createOrUpdateApp,
+} from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
 
@@ -59,6 +64,20 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     }
   }
 
+  if (status === "BUILDING") {
+    // When the app starts building, create/patch the logging configs early so that the kube-logging operator
+    // has time to observe the changes and start watching our new pods for logs.
+    const app = await db.app.findUnique({
+      where: {
+        id: deployment.appId,
+      },
+    });
+
+    const namespace = createNamespaceConfig(app.subdomain);
+    const configs = createLogConfig(app.subdomain, app.id, app.logIngestSecret);
+    await createOrUpdateApp(app.name, namespace, configs);
+  }
+
   if (status === "DEPLOYING") {
     const app = await db.app.findUnique({
       where: {
@@ -68,6 +87,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
 
     const subdomain = app.subdomain;
     const appParams = {
+      deploymentId: deployment.id,
       appId: app.id,
       name: app.name,
       namespace: subdomain,
@@ -78,10 +98,13 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         : []) as Env[],
       port: deployment.config.port,
       replicas: deployment.config.replicas,
-      storage: {
-        ...deployment.storageConfig,
-        env: deployment.storageConfig.env as Env[],
-      },
+      storage: deployment.storageConfig
+        ? {
+            ...deployment.storageConfig,
+            env: deployment.storageConfig.env as Env[],
+          }
+        : undefined,
+      loggingIngestSecret: app.logIngestSecret,
     };
     const { namespace, configs } = createAppConfigs(appParams);
     try {

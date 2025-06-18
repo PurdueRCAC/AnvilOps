@@ -8,3 +8,4 @@ resources:
   - ingress.yaml
   - imageupdate.yaml
   - buildkitd.yaml
+  - build-log-collector.yaml
