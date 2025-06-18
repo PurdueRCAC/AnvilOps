@@ -1,5 +1,6 @@
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
+import { k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
@@ -27,6 +28,29 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     orderBy: [{ timestamp: "desc" }, { index: "desc" }],
     take: 1000,
   });
+
+  if (logs.length === 0 && ctx.request.query.type === "RUNTIME") {
+    // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
+    const pods = await k8s.default.listNamespacedPod({
+      namespace: app.subdomain,
+      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
+    });
+    const pod = pods?.items?.[0];
+    if (pod?.metadata?.name) {
+      const logs = await k8s.default.readNamespacedPodLog({
+        namespace: app.subdomain,
+        name: pod.metadata.name,
+      });
+      return json(200, res, {
+        logs: logs.split("\n").map((line, i) => ({
+          log: line,
+          time: pod.metadata.creationTimestamp.toISOString(),
+          type: "RUNTIME" as const,
+          id: i,
+        })),
+      });
+    }
+  }
 
   return json(200, res, {
     logs: logs.toReversed().map((line) => ({
