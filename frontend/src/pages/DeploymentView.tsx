@@ -1,5 +1,6 @@
+import { Logs } from "@/components/Logs";
 import { api } from "@/lib/api";
-import { ArrowLeft, GitCommit, SatelliteDish } from "lucide-react";
+import { ArrowLeft, GitCommit } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Status } from "./AppView";
 
@@ -59,24 +60,7 @@ export const DeploymentView = () => {
         Started at {format.format(new Date(deployment.createdAt))} &middot; Last
         updated {format.format(new Date(deployment.updatedAt))}.
       </p>
-      <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4">
-        {deployment.logs ? (
-          <pre>
-            <code>{deployment.logs}</code>
-          </pre>
-        ) : (
-          <>
-            <p className="flex gap-2 text-lg font-medium">
-              <SatelliteDish /> Logs Unavailable
-            </p>
-            <p className="opacity-50 ml-8">
-              {["PENDING", "BUILDING"].includes(deployment.status)
-                ? "Waiting for the build to start."
-                : "Build logs expire after a few hours."}
-            </p>
-          </>
-        )}
-      </div>
+      <Logs deployment={deployment} type="BUILD" />
     </main>
   );
 };

@@ -37,6 +37,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
     id: deployment.id,
+    appId: deployment.appId,
     status: deployment.status,
     config: {
       branch: deployment.app.repositoryBranch,

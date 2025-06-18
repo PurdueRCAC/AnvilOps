@@ -30,7 +30,7 @@ export default function Navbar() {
   };
 
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-white/50 backdrop-blur-xl h-16">
+    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-white/50 backdrop-blur-xl h-16 z-50">
       <p className="text-lg font-bold">
         <Link to="/dashboard">AnvilOps</Link>
       </p>

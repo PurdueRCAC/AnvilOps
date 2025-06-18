@@ -1,4 +1,3 @@
-import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -20,16 +19,17 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   }
 
   const logs = await db.log.findMany({
-    where: { deployment: { appId: app.id }, type: LogType.RUNTIME },
+    where: { deployment: { appId: app.id }, type: ctx.request.query.type },
     orderBy: [{ timestamp: "desc" }, { index: "desc" }],
     take: 1000,
   });
 
   return json(200, res, {
-    available: true,
-    logs: logs
-      .toReversed()
-      .map((line) => ((line.content as any).log as string).trim())
-      .join("\n"),
+    logs: logs.toReversed().map((line) => ({
+      log: (line.content as any).log as string,
+      time: line.timestamp.toISOString(),
+      type: line.type,
+      id: line.id,
+    })),
   });
 };

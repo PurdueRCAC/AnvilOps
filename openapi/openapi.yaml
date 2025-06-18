@@ -618,6 +618,9 @@ paths:
                     id:
                       type: number
                       format: int64
+                    appId:
+                      type: number
+                      format: int64
                     commitHash:
                       type: string
                     commitMessage:
@@ -629,15 +632,26 @@ paths:
                       type: string
                       format: date-time
                     status:
-                      type: string
-                required:
-                  [id, commitHash, commitMessage, createdAt, updatedAt, status]
+                      $ref: "#/components/schemas/DeploymentStatus"
+                  required:
+                    - id
+                    - appId
+                    - commitHash
+                    - commitMessage
+                    - createdAt
+                    - updatedAt
+                    - status
 
-  /app/{appId}/logs:
+  /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
       - name: appId
         in: path
-        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: deploymentId
+        in: path
         required: true
         schema:
           type: integer
@@ -646,6 +660,11 @@ paths:
       tags: [app]
       description: Get an app's recent logs
       operationId: getAppLogs
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/LogType"
       responses:
         "404":
           description: App not found
@@ -656,12 +675,22 @@ paths:
               schema:
                 type: object
                 properties:
-                  available:
-                    type: boolean
-                    description: Whether the app has an active Pod with logs to view
                   logs:
-                    type: string
-                required: [available, logs]
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: string
+                          format: date-time
+                        log:
+                          type: string
+                        type:
+                          $ref: "#/components/schemas/LogType"
+                        id:
+                          type: number
+                          format: int64
+                required: [logs]
 
   /logs/ingest:
     post:
@@ -731,6 +760,9 @@ paths:
                   id:
                     type: number
                     format: int64
+                  appId:
+                    type: number
+                    format: int64
                   commitHash:
                     type: string
                   commitMessage:
@@ -742,17 +774,14 @@ paths:
                     type: string
                     format: date-time
                   status:
-                    type: string
-                    enum:
-                      [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
-                  logs:
-                    type: string
+                    $ref: "#/components/schemas/DeploymentStatus"
                   config:
                     $ref: "#/components/schemas/DeploymentConfig"
                   storageConfig:
                     $ref: "#/components/schemas/Storage"
                 required:
                   - id
+                  - appId
                   - commitHash
                   - commitMessage
                   - createdAt
@@ -899,6 +928,12 @@ components:
         secrets:
           $ref: "#/components/schemas/Envs"
       required: [port, dockerfilePath, rootDir, branch, builder, replicas]
+    DeploymentStatus:
+      type: string
+      enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+    LogType:
+      type: string
+      enum: [SYSTEM, BUILD, RUNTIME]
     NewApp:
       type: object
       properties:

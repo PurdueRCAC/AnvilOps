@@ -1,4 +1,5 @@
 import { EnvVarGrid } from "@/components/EnvVarGrid";
+import { Logs } from "@/components/Logs";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,14 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import {
-  GitBranch,
-  Loader,
-  Logs,
-  SatelliteDish,
-  Save,
-  Server,
-} from "lucide-react";
+import { GitBranch, Loader, LogsIcon, Save, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -137,7 +131,7 @@ const OverviewTab = ({ app }: { app: App }) => {
                 <td>
                   <Link to={`/app/${app.id}/deployment/${d.id}`}>
                     <Button size="icon" variant="secondary">
-                      <Logs />
+                      <LogsIcon />
                     </Button>
                   </Link>
                 </td>
@@ -172,26 +166,19 @@ export const Status = ({ status }: { status: DeploymentStatus }) => {
 };
 
 const LogsTab = ({ app }: { app: App }) => {
-  const { data } = api.useQuery(
+  const { data: deployments } = api.useSuspenseQuery(
     "get",
-    "/app/{appId}/logs",
+    "/app/{appId}/deployments",
     { params: { path: { appId: app.id } } },
-    { refetchInterval: 3000 },
   );
 
-  return (
-    <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4">
-      {data?.available ? (
-        <pre>
-          <code>{data.logs}</code>
-        </pre>
-      ) : (
-        <p className="flex gap-2 text-lg font-medium">
-          <SatelliteDish /> Logs Unavailable
-        </p>
-      )}
-    </div>
-  );
+  const mostRecentDeployment = deployments?.[0];
+
+  if (!mostRecentDeployment) {
+    return <Loader className="animate-spin" />;
+  }
+
+  return <Logs deployment={mostRecentDeployment} type="RUNTIME" />;
 };
 
 const DangerZoneTab = ({ app }: { app: App }) => {

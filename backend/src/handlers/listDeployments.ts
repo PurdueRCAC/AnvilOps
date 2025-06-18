@@ -23,6 +23,7 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     res,
     deployments.map((d) => ({
       id: d.id,
+      appId: d.appId,
       commitHash: d.commitHash,
       commitMessage: d.commitMessage,
       status: d.status,
