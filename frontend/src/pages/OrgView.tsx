@@ -173,14 +173,6 @@ const OrgSection = ({
             ) : null} */}
         <Card title="Apps">
           <Suspense fallback={<p>Loading...</p>}>
-            {/* {
-                        data.apps.length === 0 ? <div className="w-full h-full flex flex-col justify-center items-center">
-                            <p className="opacity-50">You don't have any apps.</p>
-                            <Link to="/create-app" className="inline-block">
-                                <Button>Deploy Now</Button>
-                            </Link>
-                        </div> : null
-                    } */}
             <div className="overflow-y-auto h-90">
               {data.apps.map((app) => (
                 <div key={`app-${orgId}-${app.id}`}>

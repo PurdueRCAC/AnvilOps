@@ -197,7 +197,7 @@ const handlers = {
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            select: { status: true },
+            select: { status: true, commitHash: true },
           },
         },
       });
@@ -220,7 +220,30 @@ const handlers = {
           },
         },
       });
-      return res.status(200).json({
+
+      let appRes = [];
+      if (apps) {
+        const octokit = await getOctokit(result.githubInstallationId);
+        appRes = await Promise.all(
+          apps.map(async (app) => {
+            const repo = await getRepoById(octokit, app.repositoryId);
+            return {
+              id: app.id,
+              name: app.name,
+              status: app.deployments[0].status,
+              repositoryURL: repo.html_url,
+              branch: app.repositoryBranch,
+              commitHash: app.deployments[0].commitHash,
+              link:
+                app.deployments[0].status === "COMPLETE"
+                  ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                  : undefined,
+            };
+          }),
+        );
+      }
+
+      return json(200, res, {
         id: result.id,
         name: result.name,
         members: users.map((user) => ({
@@ -229,7 +252,7 @@ const handlers = {
           email: user.email,
           permissionLevel: user.orgs[0].permissionLevel,
         })),
-        apps,
+        apps: appRes,
       });
     } catch (e) {
       console.log((e as Error).message);

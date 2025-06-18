@@ -826,7 +826,17 @@ components:
               status:
                 type: string
                 enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
-            required: [id, name, status]
+              repositoryURL:
+                type: string
+                format: uri
+              branch:
+                type: string
+              commitHash:
+                type: string
+              link:
+                type: string
+                format: uri
+            required: [id, name, status, repositoryURL, branch]
       required:
         - id
         - name

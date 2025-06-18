@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
+import { ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Status } from "./AppView";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);
@@ -18,21 +20,9 @@ export default function DashboardView() {
             <Link to="/create-app" className="h-42 xl:h-52 w-full">
               <Button
                 variant="secondary"
-                className="w-full h-full hover:ring-2 hover:ring-gray-400"
+                className="w-full h-full hover:ring-2 hover:ring-gray-400 hover:bg-gold-3"
               >
-                <svg
-                  viewBox="0 0 15 15"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-1/3 h-1/3 size-auto"
-                >
-                  <path
-                    d="M8 2.75C8 2.47386 7.77614 2.25 7.5 2.25C7.22386 2.25 7 2.47386 7 2.75V7H2.75C2.47386 7 2.25 7.22386 2.25 7.5C2.25 7.77614 2.47386 8 2.75 8H7V12.25C7 12.5261 7.22386 12.75 7.5 12.75C7.77614 12.75 8 12.5261 8 12.25V8H12.25C12.5261 8 12.75 7.77614 12.75 7.5C12.75 7.22386 12.5261 7 12.25 7H8V2.75Z"
-                    fill="currentColor"
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                  ></path>
-                </svg>
+                <Plus className="size-20" strokeWidth="1" />
               </Button>
             </Link>
           </div>
@@ -43,6 +33,7 @@ export default function DashboardView() {
 }
 
 const OrgApps = ({ orgId }: { orgId: number }) => {
+  const navigate = useNavigate();
   const { data: org } = api.useSuspenseQuery("get", "/org/{orgId}", {
     params: {
       path: {
@@ -51,23 +42,66 @@ const OrgApps = ({ orgId }: { orgId: number }) => {
     },
   });
 
+  org.apps = [
+    {
+      id: 1,
+      name: "name",
+      status: "PENDING",
+      branch: "main",
+      repositoryURL: "https://github.com/octocat/spoon-knife",
+      commitHash: "06f807b4f6aa7344b5273bb009aaf09e8773f3e3",
+      link: "https://app1.anvilops.rcac.purdue.edu",
+    },
+  ];
   return (
     <div>
       <h3 className="text-xl font-medium mb-2">{org?.name}</h3>
       {org.apps.length == 0 ? (
         <p className="opacity-50">No apps found in this organization.</p>
       ) : (
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {org
             ? org.apps.map((app) => (
-                <Link to={`/app/${app.id}`} className="h-42 xl:h-52 w-full">
-                  <Button
-                    variant="secondary"
-                    className="w-full h-full hover:ring-2 hover:ring-gray-400 text-xl"
-                  >
-                    {app.name}
-                  </Button>
-                </Link>
+                <Button
+                  variant="secondary"
+                  className="w-full h-28 hover:ring-2 hover:ring-gray-400 hover:bg-gold-1 text-xl text-left relative"
+                  onClick={(_) => navigate(`/app/${app.id}`)}
+                >
+                  <div className="h-3/4 w-full">
+                    <div>
+                      <p>{app.name}</p>
+                      {app.commitHash ? (
+                        <p className="text-sm">
+                          Commit <code>{app.commitHash?.slice(0, 8)} </code>
+                          on{" "}
+                          <a
+                            href={`${app.repositoryURL}/tree/${app.branch}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <GitBranch className="inline" size={16} />{" "}
+                            <code>{app.branch}</code>
+                          </a>
+                        </p>
+                      ) : null}
+                      <Status
+                        status={app.status}
+                        className="text-base text-black-4"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right absolute right-4 bottom-4 lg:bottom-5 lg:right-6">
+                    {app.link ? (
+                      <a
+                        href={app.link}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-base text-black-4 space-x-1"
+                      >
+                        <span>View Deployment</span>
+                        <ExternalLink className="size-4 inline" />
+                      </a>
+                    ) : null}
+                  </div>
+                </Button>
               ))
             : null}
         </div>

@@ -16,9 +16,11 @@ export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-white/50 backdrop-blur-xl h-16">
-      <p className="text-lg font-bold">
-        <Link to="/dashboard">AnvilOps</Link>
+    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-gold backdrop-blur-xl h-16">
+      <p className="text-2xl font-semibold">
+        <Link to="/dashboard" className="font-main">
+          AnvilOps
+        </Link>
       </p>
       <div className="flex gap-4 justify-end">
         {loading ? null : user ? (
