@@ -55,6 +55,19 @@ const OrgApps = ({
     },
   });
 
+  org.githubInstallationId = 2;
+  org.apps = [
+    {
+      id: 1,
+      name: "App 1",
+      status: "PENDING",
+      repositoryURL: "https://github.com/octocat/spoon-knife",
+      branch: "main",
+      commitHash: "12345678910",
+      link: "app1.anvilops.rcac.purdue.edu",
+    },
+  ];
+
   const apps =
     org.apps.length == 0 ? (
       <p className="opacity-50">No apps found in this organization.</p>
@@ -63,7 +76,7 @@ const OrgApps = ({
         {org.apps.map((app) => (
           <Button
             variant="secondary"
-            className="w-full h-28 hover:ring-2 hover:ring-gray-400 hover:bg-gold-1 text-xl text-left relative"
+            className="w-full h-28 hover:ring-2 hover:ring-gray-400 hover:bg-gold text-xl text-left relative"
             onClick={(_) => navigate(`/app/${app.id}`)}
           >
             <div className="h-3/4 w-full">
