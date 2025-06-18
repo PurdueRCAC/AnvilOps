@@ -191,10 +191,44 @@ const handlers = {
         return json(401, res, {});
       }
 
-      const apps = await db.app.findMany({ where: { orgId } });
+      const apps = await db.app.findMany({
+        where: { orgId },
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: { status: true },
+          },
+        },
+      });
+      const users = await db.user.findMany({
+        where: {
+          orgs: {
+            some: {
+              organizationId: orgId,
+            },
+          },
+        },
+        include: {
+          orgs: {
+            where: {
+              organizationId: orgId,
+            },
+            select: {
+              permissionLevel: true,
+            },
+          },
+        },
+      });
       return res.status(200).json({
         id: result.id,
         name: result.name,
+        members: users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          permissionLevel: user.orgs[0].permissionLevel,
+        })),
         apps,
       });
     } catch (e) {
@@ -258,7 +292,7 @@ const handlers = {
         }
       }
       await db.organization.delete({ where: { id: orgId } });
-      return res.status(200);
+      return json(200, res, {});
     } catch (e) {
       console.log((e as Error).message);
       return json(500, res, { code: 500, message: "Something went wrong." });

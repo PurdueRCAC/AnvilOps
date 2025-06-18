@@ -150,7 +150,7 @@ const OverviewTab = ({ app }: { app: App }) => {
   );
 };
 
-type DeploymentStatus =
+export type DeploymentStatus =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"]["status"];
 
 export const Status = ({ status }: { status: DeploymentStatus }) => {

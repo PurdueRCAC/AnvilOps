@@ -775,6 +775,7 @@ components:
           format: int64
         email:
           type: string
+          format: email
         name:
           type: string
         orgs:
@@ -795,6 +796,23 @@ components:
           format: int64
         name:
           type: string
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              name:
+                type: string
+              email:
+                type: string
+                format: email
+              permissionLevel:
+                type: string
+                enum: [OWNER, USER]
+            required: [id, name, email, permissionLevel]
         apps:
           type: array
           items:
@@ -805,9 +823,14 @@ components:
                 format: int64
               name:
                 type: string
+              status:
+                type: string
+                enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+            required: [id, name, status]
       required:
         - id
         - name
+        - members
         - apps
     App:
       type: object
