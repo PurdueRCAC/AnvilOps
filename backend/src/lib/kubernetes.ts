@@ -295,7 +295,7 @@ const createSecretConfig = (
   };
 };
 
-const createNamespaceConfig = (namespace: string) => {
+export const createNamespaceConfig = (namespace: string) => {
   return {
     apiVersion: "v1",
     kind: "Namespace",
@@ -311,7 +311,11 @@ const createNamespaceConfig = (namespace: string) => {
 /**
  * Creates the configuration needed for the kube-logging opereator to forward logs from the user's pod to our backend.
  */
-const createLogConfig = (namespace: string, appId: number, secret: string) => {
+export const createLogConfig = (
+  namespace: string,
+  appId: number,
+  secret: string,
+) => {
   return [
     {
       apiVersion: "v1",

@@ -1,5 +1,10 @@
 import { db } from "../lib/db.ts";
-import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
+import {
+  createAppConfigs,
+  createLogConfig,
+  createNamespaceConfig,
+  createOrUpdateApp,
+} from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
 
@@ -57,6 +62,20 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     } catch (e) {
       console.error("Failed to update check run: ", e);
     }
+  }
+
+  if (status === "BUILDING") {
+    // When the app starts building, create/patch the logging configs early so that the kube-logging operator
+    // has time to observe the changes and start watching our new pods for logs.
+    const app = await db.app.findUnique({
+      where: {
+        id: deployment.appId,
+      },
+    });
+
+    const namespace = createNamespaceConfig(app.subdomain);
+    const configs = createLogConfig(app.subdomain, app.id, app.logIngestSecret);
+    await createOrUpdateApp(app.name, namespace, configs);
   }
 
   if (status === "DEPLOYING") {
