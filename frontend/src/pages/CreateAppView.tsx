@@ -145,7 +145,7 @@ export default function CreateAppView() {
       >
         <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
         <div className="space-y-2">
-          <div className="flex text-baseline gap-2">
+          <div className="flex items-baseline gap-2">
             <Label htmlFor="selectOrg" className="pb-1">
               <Globe className="inline" size={16} />
               Organization
@@ -179,7 +179,7 @@ export default function CreateAppView() {
         {selectedOrg === undefined || selectedOrg.githubConnected ? (
           <>
             <div className="space-y-2">
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label
                   htmlFor="selectRepo"
                   className={clsx(
@@ -226,7 +226,7 @@ export default function CreateAppView() {
               </Select>
             </div>
             <div className="space-y-2">
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label
                   htmlFor="selectBranch"
                   className={clsx(
@@ -273,7 +273,7 @@ export default function CreateAppView() {
               </Select>
             </div>
             <div>
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label className="pb-1 mb-2">
                   <FolderRoot className="inline" size={16} /> Root directory
                 </Label>
@@ -297,7 +297,7 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label className="pb-1">
                   <Link className="inline" size={16} /> Public URL
                 </Label>
@@ -331,7 +331,7 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label className="pb-1">
                   <Server className="inline" size={16} /> Port Number
                 </Label>
@@ -364,7 +364,7 @@ export default function CreateAppView() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex text-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <Label className="pb-1">
                   <Hammer className="inline" size={16} /> Builder
                 </Label>
@@ -455,7 +455,7 @@ export default function CreateAppView() {
               {database !== "none" ? (
                 <>
                   <div className="space-y-2 pt-2">
-                    <div className="flex text-baseline gap-2">
+                    <div className="flex items-baseline gap-2">
                       <Label className="pb-1 mb-2">Image</Label>
                       <span
                         className="text-red-500 cursor-default"
@@ -472,7 +472,7 @@ export default function CreateAppView() {
                   </div>
                   <div className="flex space-x-8 space-y-2 pt-2">
                     <div className="w-full gap-1">
-                      <div className="flex text-baseline gap-2">
+                      <div className="flex items-baseline gap-2">
                         <Label className="pb-1 mb-2">Storage amount</Label>
                         <span
                           className="text-red-500 cursor-default"
@@ -494,7 +494,7 @@ export default function CreateAppView() {
                       </div>
                     </div>
                     <div className="w-full">
-                      <div className="flex text-baseline gap-2">
+                      <div className="flex items-baseline gap-2">
                         <Label className="pb-1 mb-2">Replicas</Label>
                         <span
                           className="text-red-500 cursor-default"
@@ -507,7 +507,7 @@ export default function CreateAppView() {
                     </div>
                   </div>
                   <div className="space-y-2 pt-2">
-                    <div className="flex text-baseline gap-2">
+                    <div className="flex items-baseline gap-2">
                       <Label htmlFor="storagePort" className="pb-1 mb-2">
                         <Server className="inline" size={16} /> Port Number
                       </Label>
@@ -529,7 +529,7 @@ export default function CreateAppView() {
                     />
                   </div>
                   <div className="space-y-2 pt-2">
-                    <div className="flex text-baseline gap-2">
+                    <div className="flex items-baseline gap-2">
                       <Label className="pb-1">Mount Path</Label>
                       <span
                         className="text-red-500 cursor-default"

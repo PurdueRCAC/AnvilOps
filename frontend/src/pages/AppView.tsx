@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
+import { cn } from "@/lib/utils";
 import { GitHubIcon } from "./CreateAppView";
 
 type App = components["schemas"]["App"];
@@ -303,10 +304,16 @@ const OverviewTab = ({
   );
 };
 
-type DeploymentStatus =
+export type DeploymentStatus =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"]["status"];
 
-export const Status = ({ status }: { status: DeploymentStatus }) => {
+export const Status = ({
+  status,
+  className,
+}: {
+  status: DeploymentStatus;
+  className?: string;
+}) => {
   const colors: Record<DeploymentStatus, string> = {
     PENDING: "bg-amber-500",
     BUILDING: "bg-blue-500",
@@ -317,7 +324,7 @@ export const Status = ({ status }: { status: DeploymentStatus }) => {
   };
 
   return (
-    <div className="inline-flex items-center gap-2">
+    <div className={cn("inline-flex items-center gap-2", className)}>
       <div className={`size-2 rounded-full ${colors[status]}`} />
       {status.substring(0, 1) + status.toLowerCase().substring(1)}
     </div>

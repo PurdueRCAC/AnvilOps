@@ -11,6 +11,7 @@ import CreateAppView from "./pages/CreateAppView";
 import DashboardView from "./pages/DashboardView";
 import { DeploymentView } from "./pages/DeploymentView";
 import LandingView from "./pages/LandingView";
+import OrgView from "./pages/OrgView";
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
               </RequireAuth>
             }
           />
+          <Route path="/organizations" element={<OrgView />} />
         </Routes>
       </UserProvider>
       <Toaster />

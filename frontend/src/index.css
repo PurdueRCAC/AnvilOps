@@ -39,6 +39,16 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-gold: oklch(0.7945 0.0592 82.35);
+  --color-gold-4: oklch(0.5613 0.077 77.6);
+  --color-gold-3: oklch(0.7606 0.155467 88.1747);
+  --color-gold-2: oklch(0.7967 0.1373 91.48);
+  --color-gold-1: oklch(0.8863 0.0773 92.89);
+  --color-black-4: oklch(0.4629 0.0124 261.76);
+  --color-black-3: oklch(0.5525 0.0144 271.15);
+  --color-black-2: oklch(0.6809 0.0077 39.44);
+  --color-black-1: oklch(0.809 0.0058 3.38);
+  --font-head: "acumin-pro", sans-serif;
 }
 
 :root {
@@ -74,6 +84,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --default-font-family: "acumin-pro";
 }
 
 .dark {

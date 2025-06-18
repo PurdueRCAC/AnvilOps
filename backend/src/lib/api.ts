@@ -193,11 +193,69 @@ const handlers = {
         return json(401, res, {});
       }
 
-      const apps = await db.app.findMany({ where: { orgId } });
-      return res.status(200).json({
+      const apps = await db.app.findMany({
+        where: { orgId },
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: { status: true, commitHash: true },
+          },
+        },
+      });
+      const users = await db.user.findMany({
+        where: {
+          orgs: {
+            some: {
+              organizationId: orgId,
+            },
+          },
+        },
+        include: {
+          orgs: {
+            where: {
+              organizationId: orgId,
+            },
+            select: {
+              permissionLevel: true,
+            },
+          },
+        },
+      });
+
+      let appRes = [];
+      if (apps.length > 0) {
+        const octokit = await getOctokit(result.githubInstallationId);
+        appRes = await Promise.all(
+          apps.map(async (app) => {
+            const repo = await getRepoById(octokit, app.repositoryId);
+            return {
+              id: app.id,
+              name: app.name,
+              status: app.deployments[0].status,
+              repositoryURL: repo.html_url,
+              branch: app.repositoryBranch,
+              commitHash: app.deployments[0].commitHash,
+              link:
+                app.deployments[0].status === "COMPLETE"
+                  ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                  : undefined,
+            };
+          }),
+        );
+      }
+
+      return json(200, res, {
         id: result.id,
         name: result.name,
-        apps,
+        members: users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          permissionLevel: user.orgs[0].permissionLevel,
+        })),
+        githubInstallationId: result.githubInstallationId,
+        apps: appRes,
       });
     } catch (e) {
       console.log((e as Error).message);
@@ -265,7 +323,7 @@ const handlers = {
         await db.deployment.deleteMany({ where: { appId: app.id } });
       }
       await db.organization.delete({ where: { id: orgId } });
-      return res.status(200);
+      return json(200, res, {});
     } catch (e) {
       console.log((e as Error).message);
       return json(500, res, { code: 500, message: "Something went wrong." });
