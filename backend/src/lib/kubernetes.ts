@@ -454,7 +454,7 @@ export const createAppConfigs = (
     app.loggingIngestSecret,
   );
 
-  configs.push(deployment, svc, ...logs);
+  configs.push(...logs, deployment, svc);
   return { namespace, configs };
 };
 
