@@ -93,7 +93,7 @@ const OrgApps = ({
                 <a
                   href={app.link}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-base text-black-4 space-x-1"
+                  className="text-base text-black-4 space-x-1 hover:underline"
                 >
                   <span>View Deployment</span>
                   <ExternalLink className="size-4 inline" />
