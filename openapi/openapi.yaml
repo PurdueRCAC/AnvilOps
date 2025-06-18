@@ -779,6 +779,20 @@ paths:
                     $ref: "#/components/schemas/DeploymentConfig"
                   storageConfig:
                     $ref: "#/components/schemas/Storage"
+                  podStatus:
+                    type: object
+                    properties:
+                      scheduled:
+                        type: boolean
+                      ready:
+                        type: boolean
+                      phase:
+                        type: string
+                        enum: [Pending, Running, Succeeded, Failed, Unknown]
+                      state:
+                        type: string
+                      stateReason:
+                        type: string
                 required:
                   - id
                   - appId
@@ -899,12 +913,18 @@ components:
           $ref: "#/components/schemas/DeploymentConfig"
         storage:
           $ref: "#/components/schemas/Storage"
+        subdomain:
+          type: string
+        activeDeployment:
+          type: number
+          format: int64
       required:
         - id
         - orgId
         - name
         - repositoryURL
         - config
+        - subdomain
     DeploymentConfig:
       type: object
       properties:

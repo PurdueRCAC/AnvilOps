@@ -1,6 +1,7 @@
 import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
+import { k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
@@ -17,7 +18,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     include: {
       config: true,
       storageConfig: true,
-      app: { select: { repositoryBranch: true } },
+      app: { select: { repositoryBranch: true, subdomain: true, name: true } },
     },
   });
 
@@ -31,6 +32,21 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     take: 5000,
   });
 
+  const pods = await k8s.default.listNamespacedPod({
+    namespace: deployment.app.subdomain,
+    labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+  });
+
+  const podStatus = pods?.items?.[0]?.status;
+  const scheduled =
+    podStatus?.conditions?.find((it) => it.type === "PodScheduled")?.status ===
+    "True";
+  const ready =
+    podStatus?.conditions?.find((it) => it.type === "Ready")?.status === "True";
+
+  const state = Object.keys(podStatus?.containerStatuses?.[0]?.state)?.[0];
+  const stateReason = podStatus?.containerStatuses?.[0]?.state?.[state]?.reason;
+
   return json(200, res, {
     commitHash: deployment.commitHash,
     commitMessage: deployment.commitMessage,
@@ -39,6 +55,15 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     id: deployment.id,
     appId: deployment.appId,
     status: deployment.status,
+    podStatus: podStatus
+      ? {
+          scheduled,
+          ready,
+          phase: podStatus?.phase as any,
+          state,
+          stateReason,
+        }
+      : undefined,
     config: {
       branch: deployment.app.repositoryBranch,
       builder: deployment.config.builder,

@@ -1,3 +1,4 @@
+import type { V1Deployment } from "@kubernetes/client-node";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -28,7 +29,7 @@ import {
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { deleteNamespace } from "./kubernetes.ts";
+import { deleteNamespace, k8s } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
@@ -335,6 +336,19 @@ const handlers = {
 
       const lastDeploy = app.deployments[0].config;
 
+      let k8sDeployment: V1Deployment | undefined;
+      try {
+        k8sDeployment = await k8s.apps.readNamespacedDeployment({
+          namespace: app.subdomain,
+          name: app.name,
+        });
+      } catch {}
+
+      const activeDeployment =
+        k8sDeployment?.spec?.template?.metadata?.labels?.[
+          "anvilops.rcac.purdue.edu/deployment-id"
+        ];
+
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -342,6 +356,7 @@ const handlers = {
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
         repositoryURL: repo.html_url,
+        subdomain: app.subdomain,
         config: {
           env: lastDeploy.env as Env[],
           replicas: lastDeploy.replicas,
@@ -351,6 +366,9 @@ const handlers = {
           rootDir: lastDeploy.rootDir,
           builder: lastDeploy.builder,
         },
+        activeDeployment: activeDeployment
+          ? parseInt(activeDeployment)
+          : undefined,
       });
     } catch (e) {
       console.log((e as Error).message);

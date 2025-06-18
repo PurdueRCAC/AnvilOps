@@ -19,7 +19,11 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   }
 
   const logs = await db.log.findMany({
-    where: { deployment: { appId: app.id }, type: ctx.request.query.type },
+    where: {
+      deploymentId: ctx.request.params.deploymentId,
+      deployment: { appId: app.id },
+      type: ctx.request.query.type,
+    },
     orderBy: [{ timestamp: "desc" }, { index: "desc" }],
     take: 1000,
   });

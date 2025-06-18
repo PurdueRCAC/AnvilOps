@@ -1,5 +1,5 @@
-import { PrismaClient } from "../generated/prisma/client.ts";
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
+import { PrismaClient } from "../generated/prisma/client.ts";
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
