@@ -332,7 +332,7 @@ export const createLogConfig = (
       apiVersion: "logging.banzaicloud.io/v1beta1",
       kind: "Flow",
       metadata: {
-        name: "log-generator",
+        name: `${namespace}-log-flow`,
         namespace,
       },
       spec: {
@@ -345,14 +345,14 @@ export const createLogConfig = (
             },
           },
         ],
-        localOutputRefs: ["http"],
+        localOutputRefs: [`${namespace}-log-output`],
       },
     },
     {
       apiVersion: "logging.banzaicloud.io/v1beta1",
       kind: "Output",
       metadata: {
-        name: "http",
+        name: `${namespace}-log-output`,
         namespace,
       },
       spec: {
