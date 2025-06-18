@@ -121,6 +121,16 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@utility purdue-gradient {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-gold),
+    var(--color-gold) 60%,
+    var(--color-black) 60%,
+    var(--color-black) 100%
+  );
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
