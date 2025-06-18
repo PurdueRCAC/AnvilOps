@@ -44,7 +44,9 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   const ready =
     podStatus?.conditions?.find((it) => it.type === "Ready")?.status === "True";
 
-  const state = Object.keys(podStatus?.containerStatuses?.[0]?.state)?.[0];
+  const state = Object.keys(
+    podStatus?.containerStatuses?.[0]?.state ?? {},
+  )?.[0];
   const stateReason = podStatus?.containerStatuses?.[0]?.state?.[state]?.reason;
 
   return json(200, res, {
