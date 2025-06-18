@@ -224,7 +224,7 @@ const handlers = {
       });
 
       let appRes = [];
-      if (apps) {
+      if (apps.length > 0) {
         const octokit = await getOctokit(result.githubInstallationId);
         appRes = await Promise.all(
           apps.map(async (app) => {
@@ -254,6 +254,7 @@ const handlers = {
           email: user.email,
           permissionLevel: user.orgs[0].permissionLevel,
         })),
+        githubInstallationId: result.githubInstallationId,
         apps: appRes,
       });
     } catch (e) {
