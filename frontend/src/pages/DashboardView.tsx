@@ -67,7 +67,7 @@ const OrgApps = ({
           >
             <div className="h-3/4 w-full">
               <div>
-                <p>{app.name}</p>
+                <p>{app.displayName}</p>
                 {app.commitHash ? (
                   <p className="text-sm">
                     Commit <code>{app.commitHash?.slice(0, 8)} </code>

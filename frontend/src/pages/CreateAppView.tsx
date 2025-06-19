@@ -25,6 +25,7 @@ import {
   Hammer,
   HardDrive,
   Link,
+  Loader,
   Rocket,
   Server,
 } from "lucide-react";
@@ -68,7 +69,10 @@ export default function CreateAppView() {
       ? repos?.find((it) => it.id === parseInt(selectedRepoId))
       : undefined;
 
-  const { mutateAsync: createApp } = api.useMutation("post", "/app");
+  const { mutateAsync: createApp, isPending: createPending } = api.useMutation(
+    "post",
+    "/app",
+  );
 
   const navigate = useNavigate();
 
@@ -217,8 +221,16 @@ export default function CreateAppView() {
             />
 
             <Button className="mt-8" size="lg" type="submit">
-              <Rocket />
-              Deploy
+              {createPending ? (
+                <>
+                  <Loader className="animate-spin" /> Deploying...
+                </>
+              ) : (
+                <>
+                  <Rocket />
+                  Deploy
+                </>
+              )}
             </Button>
           </>
         ) : selectedOrg?.permissionLevel === "OWNER" ? (
