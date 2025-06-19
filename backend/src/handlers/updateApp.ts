@@ -34,12 +34,42 @@ const updateApp: HandlerMap["updateApp"] = async (
     });
   }
 
+  if (appConfig.port < 0 || appConfig.port > 65535) {
+    return json(400, res, {
+      code: 400,
+      message: "Invalid port number",
+    });
+  }
+
   if (appConfig.dockerfilePath) {
     if (
       appConfig.dockerfilePath.startsWith("/") ||
       appConfig.dockerfilePath.includes(`"`)
     ) {
       return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
+    }
+  }
+
+  if (appData.storage) {
+    if (!appData.storage.image.includes(":")) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid image (Must be in the foramt repository:tag)",
+      });
+    }
+
+    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
+      return json(400, res, {
+        code: 400,
+        message:
+          "Invalid storage capacity (Must be a positive value less than 10",
+      });
+    }
+    if (appData.storage.port < 0 || appData.storage.port > 65535) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid port number",
+      });
     }
   }
 
