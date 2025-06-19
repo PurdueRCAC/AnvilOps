@@ -76,6 +76,7 @@ export default function OrgView() {
           <>
             {user?.orgs?.map((org) => (
               <OrgSection
+                key={org.id}
                 name={org.name}
                 orgId={org.id}
                 permissionLevel={org.permissionLevel}
@@ -98,8 +99,8 @@ const Card = ({
 }) => {
   return (
     <div className="w-full md:min-w-80 md:max-w-1/5 h-60 md:h-90 flex-grow">
-      <h4 className="text-md lg:text-lg pl-2">{title}</h4>
-      <div className="w-full h-full bg-slate-50 rounded-md shadow-slate-300 shadow-sm">
+      <h4 className="text-md lg:text-lg mb-2 opacity-50">{title}</h4>
+      <div className="w-full h-full bg-stone-50 rounded-md shadow-stone-300 shadow-sm">
         {children}
       </div>
     </div>
@@ -124,17 +125,16 @@ const OrgSection = ({
   const submitDelete = deleteOrg(orgId);
 
   return (
-    <div key={orgId} className="mt-2">
+    <div key={orgId} className="mt-8">
       <h3 className="text-xl font-medium mb-2">{name}</h3>
-      <hr className="solid border-t-2"></hr>
       <div className="flex flex-wrap lg:justify-start space-x-10 space-y-10 w-full">
         <Card title="Members">
           <Suspense fallback={<p>Loading...</p>}>
-            <div className="">
+            <div>
               {data.members.map((m) => (
                 <div
-                  key={`org-${orgId}-${m.id}}`}
-                  className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-slate-300 first:rounded-t-md hover:bg-slate-200"
+                  key={m.id}
+                  className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors"
                 >
                   <div className="space-x-2">
                     <span className="text-md">{m.name}</span>
@@ -144,20 +144,22 @@ const OrgSection = ({
                       </a>
                     </span>
                   </div>
-                  {m.permissionLevel === "OWNER" ? (
-                    <p className="opacity-50">Owner</p>
-                  ) : null}
-                  {permissionLevel === "OWNER" &&
-                  m.permissionLevel !== "OWNER" ? (
-                    <Button
-                      variant="ghost"
-                      type="button"
-                      className="text-sm hover:bg-slate-300"
-                      title="Remove User"
-                    >
-                      <X className="text-red-500 size-5" />
-                    </Button>
-                  ) : null}
+                  <div className="flex items-center justify-end gap-4">
+                    {m.permissionLevel === "OWNER" ? (
+                      <p className="opacity-50">Owner</p>
+                    ) : null}
+                    {permissionLevel === "OWNER" &&
+                    m.permissionLevel !== "OWNER" ? (
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className="text-sm hover:bg-stone-300"
+                        title="Remove User"
+                      >
+                        <X className="text-red-500 size-5" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
@@ -176,7 +178,7 @@ const OrgSection = ({
               {data.apps.map((app) => (
                 <div key={`app-${orgId}-${app.id}`}>
                   <Link to={`/app/${app.id}`}>
-                    <div className="w-full flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-slate-300 first:rounded-t-md hover:bg-slate-200">
+                    <div className="w-full flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors">
                       <p className="text-md">{app.name}</p>
                       <div className="w-24">
                         <Status status={app.status as DeploymentStatus} />
@@ -189,8 +191,8 @@ const OrgSection = ({
           </Suspense>
         </Card>
         <Card title="Danger">
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="w-11/12 h-11/12 flex flex-col items-center justify-center space-y-5 bg-slate-200 shadow-inner">
+          <div className="flex items-center justify-center p-4 size-full">
+            <div className="flex flex-col items-center justify-center gap-4 bg-stone-200/50 rounded-sm shadow-inner size-full">
               {permissionLevel !== "OWNER" ? (
                 <Button
                   variant="destructive"
