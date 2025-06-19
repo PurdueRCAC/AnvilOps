@@ -2,9 +2,18 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
-import { type HandlerMap, json } from "../types.ts";
+import {
+  createAppConfigs,
+  createOrUpdateApp,
+  deleteStorage,
+} from "../lib/kubernetes.ts";
+import { type Env, type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
+import {
+  buildAndDeploy,
+  generateCloneURLWithCredentials,
+} from "./githubWebhook.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -53,7 +62,7 @@ const updateApp: HandlerMap["updateApp"] = async (
           createdAt: "desc",
         },
         take: 1,
-        include: { config: true },
+        include: { config: true, storageConfig: true },
       },
     },
   });
@@ -79,6 +88,67 @@ const updateApp: HandlerMap["updateApp"] = async (
   const lastDeployment = app.deployments[0];
   let lastDeploymentConfig = app.deployments[0].config;
   delete lastDeploymentConfig.id;
+
+  if (lastDeployment.status != "ERROR") {
+    await db.deployment.update({
+      where: { id: lastDeployment.id },
+      data: { status: "STOPPED" },
+    });
+  }
+
+  if (appConfig.branch !== app.repositoryBranch) {
+    const githubInstallationId = await db.organization
+      .findFirst({
+        where: {
+          apps: {
+            some: {
+              id: app.id,
+            },
+          },
+        },
+        select: {
+          githubInstallationId: true,
+        },
+      })
+      .then((res) => res.githubInstallationId);
+    const octokit = await getOctokit(githubInstallationId);
+    const repo = await getRepoById(octokit, app.repositoryId);
+    try {
+      await buildAndDeploy({
+        appId: app.id,
+        orgId: app.orgId,
+        imageRepo: app.imageRepo,
+        commitSha: lastDeployment.commitHash,
+        commitMessage: `Redeploy of ${lastDeployment.commitHash.slice(0, 8)}`,
+        cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
+        config: {
+          port: appData.config.port,
+          env: appData.config.env,
+          secrets: appData.config.secrets
+            ? JSON.stringify(appData.config.secrets)
+            : undefined,
+          builder: appData.config.builder,
+          dockerfilePath: appData.config.dockerfilePath,
+          rootDir: appData.config.rootDir,
+        },
+        storageConfig: appData.storage
+          ? {
+              ...appData.storage,
+              env: appData.storage.env as Env[],
+            }
+          : undefined,
+        createCheckRun: false,
+      });
+    } catch (err) {
+      console.error(err);
+      return json(500, res, {
+        code: 500,
+        message: "Failed to create a deployment for your app.",
+      });
+    }
+
+    return json(200, res, {});
+  }
 
   const secret = randomBytes(32).toString("hex");
 
@@ -135,6 +205,9 @@ const updateApp: HandlerMap["updateApp"] = async (
       where: { id: deployment.id },
       data: { status: "COMPLETE" },
     });
+    if (appData.storage === null && lastDeployment.storageConfig) {
+      await deleteStorage(app.name, app.subdomain);
+    }
   } catch (err) {
     console.error(err);
     await db.deployment.update({

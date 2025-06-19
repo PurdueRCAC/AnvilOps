@@ -89,15 +89,14 @@ const resourceExists = async (data: K8sObject) => {
 
 const createStorageConfigs = (app: AppParams) => {
   const storage = app.storage;
-  console.log(storage);
   const resourceName = `${app.name}-storage`;
 
-  const env = getEnvVars([], storage.env, `${app.name}-db-secrets`);
+  const env = getEnvVars([], storage.env, resourceName);
   const secrets =
     storage.env.length !== 0
       ? createSecretConfig(
           getSecretData(storage.env),
-          `${app.name}-db-secrets`,
+          resourceName,
           app.namespace,
         )
       : null;
@@ -145,7 +144,7 @@ const createStorageConfigs = (app: AppParams) => {
               ],
               volumeMounts: [
                 {
-                  name: `${app.name}-data`,
+                  name: `${resourceName}-data`,
                   mountPath,
                 },
               ],
@@ -157,7 +156,7 @@ const createStorageConfigs = (app: AppParams) => {
       volumeClaimTemplates: [
         {
           metadata: {
-            name: `${app.name}-data`,
+            name: `${resourceName}-data`,
           },
           spec: {
             accessModes: ["ReadWriteMany"],
@@ -309,7 +308,7 @@ export const createNamespaceConfig = (namespace: string) => {
 };
 
 /**
- * Creates the configuration needed for the kube-logging opereator to forward logs from the user's pod to our backend.
+ * Creates the configuration needed for the kube-logging operator to forward logs from the user's pod to our backend.
  */
 export const createLogConfig = (
   namespace: string,
@@ -406,6 +405,46 @@ export const deleteNamespace = async (namespace: string) => {
     name: namespace,
   });
   console.log(`Namespace ${namespace} deleted`);
+};
+
+export const deleteStorage = async (appName: string, namespace: string) => {
+  const name = `${appName}-storage`;
+  if (
+    await resourceExists({
+      apiVersion: "apps/v1",
+      kind: "StatefulSet",
+      metadata: { name, namespace },
+    })
+  ) {
+    await k8s.apps.deleteNamespacedStatefulSet({
+      name: `${appName}-storage`,
+      namespace,
+    });
+  }
+  if (
+    await resourceExists({
+      apiVersion: "v1",
+      kind: "Service",
+      metadata: { name, namespace },
+    })
+  ) {
+    await k8s.default.deleteNamespacedService({
+      name: `${appName}-storage`,
+      namespace,
+    });
+  }
+  if (
+    await resourceExists({
+      apiVersion: "v1",
+      kind: "Secret",
+      metadata: { name, namespace },
+    })
+  ) {
+    await k8s.default.deleteNamespacedSecret({
+      name: `${appName}-storage`,
+      namespace,
+    });
+  }
 };
 
 export const createAppConfigs = (
