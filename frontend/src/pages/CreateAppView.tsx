@@ -286,6 +286,7 @@ export default function CreateAppView() {
               </div>
               <Input
                 name="rootDir"
+                defaultValue="./"
                 placeholder="./"
                 className="w-full mb-1"
                 pattern="^\.\/.*$"

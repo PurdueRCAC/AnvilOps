@@ -498,8 +498,8 @@ const api = new OpenAPIBackend({
 
 api.init();
 
-const handler = (req: ExpressRequest, res: ExpressResponse) => {
-  api.handleRequest(req as Request, req, res);
+const handler = async (req: ExpressRequest, res: ExpressResponse) => {
+  await api.handleRequest(req as Request, req, res);
 };
 
 export default handler;

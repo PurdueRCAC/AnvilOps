@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import {
   CheckCheck,
   CloudCheck,
@@ -41,7 +42,6 @@ import {
   AlertDialogHeader,
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
-import { cn } from "@/lib/utils";
 import { GitHubIcon } from "./CreateAppView";
 
 type App = components["schemas"]["App"];
@@ -361,60 +361,68 @@ const DangerZoneTab = ({ app }: { app: App }) => {
   const [text, setText] = useState("");
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger>
-        <Button variant="destructive">Delete Project</Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Confirm delete project</AlertDialogTitle>
-          <AlertDialogDescription>
-            <p>
-              This action cannot be undone.
-              <ul className="*:list-disc *:ml-4 mt-2 mb-4">
-                <li>
-                  Your AnvilOps project and all associated deployments and
-                  infrastructure will be deleted.
-                </li>
-                <li>
-                  Your project's subdomain will become available for other
-                  projects to use.
-                </li>
-                <li>Your Git repository will be unaffected.</li>
-              </ul>
-            </p>
-            <p className="mb-2">
-              Type the project name <b>{app.name}</b> to continue.
-            </p>
-            <Input
-              placeholder={app.name}
-              value={text}
-              onChange={(e) => setText(e.currentTarget.value)}
-            />
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={text !== app.name}
-            onClick={async () => {
-              try {
-                await deleteProject({
-                  params: { path: { appId: appId } },
-                });
-              } catch (e) {
-                toast.error("There was a problem deleting your project.");
-                return;
-              }
-              toast.success("Your project has been deleted.");
-              navigate("/dashboard");
-            }}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      <h2 className="text-xl font-medium mb-2">Delete Project</h2>
+      <p className="opacity-50 mb-4">
+        Permanently delete all deployments, logs, and compute resources
+        associated with this project without affecting the source Git
+        repository.
+      </p>
+      <AlertDialog>
+        <AlertDialogTrigger>
+          <Button variant="destructive">Delete Project</Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm delete project</AlertDialogTitle>
+            <AlertDialogDescription>
+              <p>
+                This action cannot be undone.
+                <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                  <li>
+                    Your AnvilOps project and all associated deployments and
+                    infrastructure will be deleted.
+                  </li>
+                  <li>
+                    Your project's subdomain will become available for other
+                    projects to use.
+                  </li>
+                  <li>Your Git repository will be unaffected.</li>
+                </ul>
+              </p>
+              <p className="mb-2">
+                Type the project name <b>{app.name}</b> to continue.
+              </p>
+              <Input
+                placeholder={app.name}
+                value={text}
+                onChange={(e) => setText(e.currentTarget.value)}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={text !== app.name}
+              onClick={async () => {
+                try {
+                  await deleteProject({
+                    params: { path: { appId: appId } },
+                  });
+                } catch (e) {
+                  toast.error("There was a problem deleting your project.");
+                  return;
+                }
+                toast.success("Your project has been deleted.");
+                navigate("/dashboard");
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

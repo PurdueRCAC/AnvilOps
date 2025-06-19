@@ -7,7 +7,7 @@
     "start": "node --env-file=.env --experimental-strip-types src/index.ts",
     "start:prod": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
-    "dev": "nodemon src/index.ts -x 'node --env-file=.env --experimental-strip-types src/index.ts'",
+    "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
     "postinstall": "patch-package"
   },
   "author": "",
@@ -36,7 +36,6 @@
     "@types/express-session": "^1.18.1",
     "@types/morgan": "^1.9.10",
     "@types/passport": "^1.0.17",
-    "nodemon": "^3.1.10",
     "prisma": "^6.8.2",
     "typescript": "^5.8.3"
   }

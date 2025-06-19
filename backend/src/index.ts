@@ -49,7 +49,11 @@ app.use(
 
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 
-app.use(morgan("combined"));
+app.use(
+  morgan(
+    `:remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms`,
+  ),
+);
 
 // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
 // For log ingestion, the request body is a series of JSON objects separated by newlines
