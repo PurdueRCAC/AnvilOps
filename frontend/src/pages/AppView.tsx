@@ -75,7 +75,7 @@ export default function AppView() {
 
   return (
     <main className="px-8 py-10 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">{app.name}</h1>
+      <h1 className="text-3xl font-bold mb-2">{app.displayName}</h1>
       <Tooltip>
         {app.activeDeployment === undefined && !appLoading ? (
           <p className="opacity-50 flex items-center gap-2">
@@ -424,7 +424,7 @@ const ConfigTab = ({ app, setTab }: { app: App; setTab: Dispatch<string> }) => {
             *
           </span>
         </div>
-        <Input name="name" required defaultValue={app.name} />
+        <Input name="name" required defaultValue={app.displayName} />
       </div>
       <div>
         <div className="flex items-baseline gap-2 mb-2">
@@ -530,10 +530,10 @@ const DangerZoneTab = ({ app }: { app: App }) => {
                 </ul>
               </p>
               <p className="mb-2">
-                Type the project name <b>{app.name}</b> to continue.
+                Type the project name <b>{app.displayName}</b> to continue.
               </p>
               <Input
-                placeholder={app.name}
+                placeholder={app.displayName}
                 value={text}
                 onChange={(e) => setText(e.currentTarget.value)}
               />
@@ -543,7 +543,7 @@ const DangerZoneTab = ({ app }: { app: App }) => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={text !== app.name}
+              disabled={text !== app.displayName}
               onClick={async () => {
                 try {
                   await deleteProject({

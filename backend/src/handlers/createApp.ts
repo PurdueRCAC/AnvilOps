@@ -123,6 +123,7 @@ const createApp: HandlerMap["createApp"] = async (
     app = await db.app.create({
       data: {
         name: appData.name,
+        displayName: appData.name,
         repositoryId: appData.repositoryId,
         subdomain: appData.subdomain,
         org: {

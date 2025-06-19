@@ -80,7 +80,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       where: { id: app.id },
       data: {
         repositoryBranch: appConfig.branch ?? app.repositoryBranch,
-        name: appData.name ?? app.name,
+        displayName: appData.name ?? app.name,
       },
     });
   }

@@ -231,7 +231,7 @@ const handlers = {
             const repo = await getRepoById(octokit, app.repositoryId);
             return {
               id: app.id,
-              name: app.name,
+              name: app.displayName,
               status: app.deployments[0].status,
               repositoryURL: repo.html_url,
               branch: app.repositoryBranch,
@@ -412,7 +412,7 @@ const handlers = {
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
-        name: app.name,
+        displayName: app.displayName,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
         repositoryId: repo.id,

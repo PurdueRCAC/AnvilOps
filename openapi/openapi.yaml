@@ -938,7 +938,7 @@ components:
           type: string
         updatedAt:
           type: string
-        name:
+        displayName:
           type: string
         repositoryId:
           type: number
@@ -959,7 +959,7 @@ components:
         - orgId
         - createdAt
         - updatedAt
-        - name
+        - displayName
         - repositoryId
         - repositoryURL
         - config

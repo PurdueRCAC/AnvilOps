@@ -42,7 +42,7 @@ export const DeploymentView = () => {
         to={`/app/${app.id}`}
       >
         <ArrowLeft size={16} />
-        {app.name}
+        {app.displayName}
       </Link>
       <h1 className="text-3xl font-bold mb-2">
         {deployment.commitMessage ?? <i>Untitled deployment</i>}
