@@ -901,7 +901,7 @@ components:
               id:
                 type: integer
                 format: int64
-              name:
+              displayName:
                 type: string
               status:
                 type: string
@@ -916,7 +916,7 @@ components:
               link:
                 type: string
                 format: uri
-            required: [id, name, status, repositoryURL, branch]
+            required: [id, displayName, status, repositoryURL, branch]
         githubInstallationId:
           type: integer
           format: int64

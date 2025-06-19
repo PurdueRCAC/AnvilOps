@@ -3,7 +3,7 @@ import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import { ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Status } from "./AppView";
 import { GitHubIcon } from "./CreateAppView";
 
@@ -45,7 +45,6 @@ const OrgApps = ({
   orgId: number;
   permissionLevel: "OWNER" | "USER";
 }) => {
-  const navigate = useNavigate();
   const { data: org } = api.useSuspenseQuery("get", "/org/{orgId}", {
     params: {
       path: {
@@ -60,48 +59,43 @@ const OrgApps = ({
     ) : (
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {org.apps.map((app) => (
-          <Button
-            variant="secondary"
-            className="w-full h-28 hover:ring-2 hover:ring-gray-400 hover:bg-gold text-xl text-left relative"
-            onClick={(_) => navigate(`/app/${app.id}`)}
-          >
-            <div className="h-3/4 w-full">
-              <div>
-                <p>{app.name}</p>
-                {app.commitHash ? (
-                  <p className="text-sm">
-                    Commit <code>{app.commitHash?.slice(0, 8)} </code>
-                    on{" "}
-                    <a
-                      href={`${app.repositoryURL}/tree/${app.branch}`}
-                      target="_blank"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <GitBranch className="inline" size={16} />{" "}
-                      <code>{app.branch}</code>
-                    </a>
-                  </p>
-                ) : null}
-                <Status
-                  status={app.status}
-                  className="text-base text-black-4"
-                />
-              </div>
+          <div className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative">
+            <div>
+              <p className="text-xl font-medium mb-1">
+                <Link to={`/app/${app.id}`}>
+                  {app.displayName}
+                  {/* Make this link's tap target take up the entire card */}
+                  <span className="absolute inset-0" />
+                </Link>
+              </p>
+              {app.commitHash ? (
+                <p className="text-sm text-black-4">
+                  Commit <code>{app.commitHash?.slice(0, 8)} </code>
+                  on{" "}
+                  <a
+                    href={`${app.repositoryURL}/tree/${app.branch}`}
+                    target="_blank"
+                  >
+                    <GitBranch className="inline" size={16} />{" "}
+                    <code>{app.branch}</code>
+                  </a>
+                </p>
+              ) : null}
             </div>
-            <div className="text-right absolute right-4 bottom-4 lg:bottom-5 lg:right-6">
+            <div className="flex justify-between items-center">
+              <Status status={app.status} className="text-base text-black-4" />
               {app.link ? (
                 <a
                   href={app.link}
                   target="_blank"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-base text-black-4 space-x-1 hover:underline"
+                  className="text-base text-black-4 space-x-1 hover:underline z-10"
                 >
                   <span>View Deployment</span>
                   <ExternalLink className="size-4 inline" />
                 </a>
               ) : null}
             </div>
-          </Button>
+          </div>
         ))}
       </div>
     );

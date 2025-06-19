@@ -179,7 +179,7 @@ const OrgSection = ({
                 <div key={`app-${orgId}-${app.id}`}>
                   <Link to={`/app/${app.id}`}>
                     <div className="w-full flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors">
-                      <p className="text-md">{app.name}</p>
+                      <p className="text-md">{app.displayName}</p>
                       <div className="w-24">
                         <Status status={app.status as DeploymentStatus} />
                       </div>

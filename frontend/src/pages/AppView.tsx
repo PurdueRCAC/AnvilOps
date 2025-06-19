@@ -45,12 +45,17 @@ import {
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
 import { AppConfigFormFields, GitHubIcon } from "./CreateAppView";
+import type { RefetchOptions } from "@tanstack/react-query";
 
 type App = components["schemas"]["App"];
 
 export default function AppView() {
   const params = useParams();
-  const { data: app, isPending: appLoading } = api.useSuspenseQuery(
+  const {
+    data: app,
+    isPending: appLoading,
+    refetch,
+  } = api.useSuspenseQuery(
     "get",
     "/app/{appId}",
     {
@@ -158,7 +163,7 @@ export default function AppView() {
           <OverviewTab app={app} activeDeployment={currentDeployment?.id} />
         </TabsContent>
         <TabsContent value="configuration">
-          <ConfigTab app={app} setTab={setTab} />
+          <ConfigTab app={app} setTab={setTab} refetch={refetch} />
         </TabsContent>
         <TabsContent value="logs">
           <LogsTab app={app} />
@@ -328,7 +333,15 @@ export const Status = ({
   );
 };
 
-const ConfigTab = ({ app, setTab }: { app: App; setTab: Dispatch<string> }) => {
+const ConfigTab = ({
+  app,
+  setTab,
+  refetch,
+}: {
+  app: App;
+  setTab: Dispatch<string>;
+  refetch: (options: RefetchOptions | undefined) => Promise<any>;
+}) => {
   const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
   const [storageEnv, setStorageEnv] = useState<
     { name: string; value: string }[]
@@ -405,6 +418,7 @@ const ConfigTab = ({ app, setTab }: { app: App; setTab: Dispatch<string> }) => {
 
           toast.success("App updated successfully!");
           setTab("overview");
+          refetch({});
         } catch (e) {
           console.error(e);
           toast.error("There was a problem reconfiguring your app.");

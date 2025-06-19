@@ -8,13 +8,13 @@ import {
   deleteStorage,
   NAMESPACE_PREFIX,
 } from "../lib/kubernetes.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -111,7 +111,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       where: { id: app.id },
       data: {
         repositoryBranch: appConfig.branch ?? app.repositoryBranch,
-        displayName: appData.name ?? app.name,
+        displayName: appData.name ?? app.displayName,
       },
     });
   }

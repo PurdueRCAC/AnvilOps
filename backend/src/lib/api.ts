@@ -223,7 +223,7 @@ const handlers = {
         },
       });
 
-      let appRes = [];
+      let appRes: components["schemas"]["Org"]["apps"] = [];
       if (apps.length > 0) {
         const octokit = await getOctokit(result.githubInstallationId);
         appRes = await Promise.all(
@@ -231,7 +231,7 @@ const handlers = {
             const repo = await getRepoById(octokit, app.repositoryId);
             return {
               id: app.id,
-              name: app.displayName,
+              displayName: app.displayName,
               status: app.deployments[0].status,
               repositoryURL: repo.html_url,
               branch: app.repositoryBranch,
@@ -240,7 +240,7 @@ const handlers = {
                 app.deployments[0].status === "COMPLETE"
                   ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
                   : undefined,
-            };
+            } satisfies components["schemas"]["Org"]["apps"][0];
           }),
         );
       }
