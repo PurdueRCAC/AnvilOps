@@ -312,7 +312,7 @@ export const AppConfigFormFields = ({
     defaults?.config?.builder,
   );
   const [database, setDatabase] = useState<string>(
-    defaults?.storage?.image ?? "none",
+    defaults?.storage ? "custom" : "none",
   );
   return (
     <>
