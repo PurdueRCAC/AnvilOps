@@ -12,7 +12,19 @@ export default function DashboardView() {
 
   return (
     <main className="py-10 px-8">
-      <h2 className="font-bold text-3xl mb-4">Your Apps</h2>
+      <div className="flex items-start">
+        <h2 className="font-bold text-3xl mb-4 w-48 h-14 inline-block">
+          Your Apps
+        </h2>
+        <div className="w-fit h-14">
+          <Link to="/create-app">
+            <Button className="w-fit h-10 flex items-center hover:bg-black hover:text-gold-1 shadow-black-3 hover:shadow-sm">
+              <p className="text-base">Create an App</p>
+              <Plus className="size-5" strokeWidth="1" />
+            </Button>
+          </Link>
+        </div>
+      </div>
       <div className="flex flex-col gap-8">
         {user?.orgs?.map((org) => (
           <OrgApps
@@ -21,19 +33,6 @@ export default function DashboardView() {
             permissionLevel={org.permissionLevel}
           />
         ))}
-        <div>
-          <h3 className="text-xl font-medium mb-2">Create App</h3>
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link to="/create-app" className="h-42 xl:h-52 w-full">
-              <Button
-                variant="secondary"
-                className="w-full h-full hover:ring-2 hover:ring-gray-400 hover:bg-gold-3"
-              >
-                <Plus className="size-20" strokeWidth="1" />
-              </Button>
-            </Link>
-          </div>
-        </div>
       </div>
     </main>
   );
@@ -55,19 +54,6 @@ const OrgApps = ({
     },
   });
 
-  org.githubInstallationId = 2;
-  org.apps = [
-    {
-      id: 1,
-      name: "App 1",
-      status: "PENDING",
-      repositoryURL: "https://github.com/octocat/spoon-knife",
-      branch: "main",
-      commitHash: "12345678910",
-      link: "app1.anvilops.rcac.purdue.edu",
-    },
-  ];
-
   const apps =
     org.apps.length == 0 ? (
       <p className="opacity-50">No apps found in this organization.</p>
@@ -88,6 +74,7 @@ const OrgApps = ({
                     on{" "}
                     <a
                       href={`${app.repositoryURL}/tree/${app.branch}`}
+                      target="_blank"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <GitBranch className="inline" size={16} />{" "}
@@ -105,6 +92,7 @@ const OrgApps = ({
               {app.link ? (
                 <a
                   href={app.link}
+                  target="_blank"
                   onClick={(e) => e.stopPropagation()}
                   className="text-base text-black-4 space-x-1 hover:underline"
                 >
