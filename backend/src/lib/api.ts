@@ -413,6 +413,7 @@ const handlers = {
         name: app.name,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
+        repositoryId: repo.id,
         repositoryURL: repo.html_url,
         subdomain: app.subdomain,
         config: {

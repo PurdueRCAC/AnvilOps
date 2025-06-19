@@ -1,4 +1,3 @@
-import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { Logs } from "@/components/Logs";
 import {
   AlertDialog,
@@ -9,6 +8,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -31,7 +31,8 @@ import {
   Loader,
   LogsIcon,
   Save,
-  Server,
+  Scale3D,
+  TextCursorInput,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -42,7 +43,7 @@ import {
   AlertDialogHeader,
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
-import { GitHubIcon } from "./CreateAppView";
+import { AppConfigFormFields, GitHubIcon } from "./CreateAppView";
 
 type App = components["schemas"]["App"];
 
@@ -56,18 +57,6 @@ export default function AppView() {
     },
     { refetchInterval: 10_000 },
   );
-
-  const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
-
-  useEffect(() => {
-    if (
-      app?.config?.env !== undefined &&
-      Object.keys(app.config.env).length > 0 &&
-      env.length === 0
-    ) {
-      setEnv(app.config.env);
-    }
-  }, [app?.config?.env]);
 
   const { data: currentDeployment, isPending: loadingCurrentDeployment } =
     api.useQuery(
@@ -162,14 +151,7 @@ export default function AppView() {
           <OverviewTab app={app} activeDeployment={currentDeployment?.id} />
         </TabsContent>
         <TabsContent value="configuration">
-          <h3 className="flex items-center gap-2 text-xl font-medium mb-2">
-            <Server className="inline" />
-            Environment variables
-          </h3>
-          <EnvVarGrid value={env} setValue={setEnv} />
-          <Button className="mt-8">
-            <Save /> Save
-          </Button>
+          <ConfigTab app={app} />
         </TabsContent>
         <TabsContent value="logs">
           <LogsTab app={app} />
@@ -336,6 +318,136 @@ export const Status = ({
       <div className={`size-2 rounded-full ${colors[status]}`} />
       {status.substring(0, 1) + status.toLowerCase().substring(1)}
     </div>
+  );
+};
+
+const ConfigTab = ({ app }: { app: App }) => {
+  const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
+  const [storageEnv, setStorageEnv] = useState<
+    { name: string; value: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (
+      app?.config?.env !== undefined &&
+      Object.keys(app.config.env).length > 0 &&
+      env.length === 0
+    ) {
+      setEnv(app.config.env);
+    }
+  }, [app?.config?.env]);
+
+  useEffect(() => {
+    if (
+      app?.storage?.env !== undefined &&
+      Object.keys(app.storage.env).length > 0 &&
+      storageEnv.length === 0
+    ) {
+      setStorageEnv(app.storage.env);
+    }
+  }, [app?.storage?.env]);
+
+  const { mutateAsync: updateApp } = api.useMutation("put", "/app/{appId}");
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.currentTarget);
+        try {
+          await updateApp({
+            params: { path: { appId: app.id } },
+            body: {
+              name: formData.get("name")!.toString(),
+              config: {
+                port: parseInt(formData.get("port")!.toString()),
+                dockerfilePath:
+                  formData.get("dockerfilePath")?.toString() ?? "",
+                env: env.filter((it) => it.name.length > 0),
+                secrets: [
+                  /* TODO */
+                ],
+                branch: formData.get("branch")!.toString(),
+                builder: formData.get("builder")!.toString() as
+                  | "dockerfile"
+                  | "railpack",
+                rootDir: formData.get("rootDir")!.toString(),
+                replicas: parseInt(formData.get("replicas")!.toString()),
+              },
+              storage:
+                formData.get("database") !== "none"
+                  ? {
+                      image: formData.get("storageImage")!.toString(),
+                      replicas: parseInt(
+                        formData.get("storageReplicas")!.toString(),
+                      ),
+                      port: parseInt(formData.get("storagePort")!.toString()),
+                      amount: parseInt(
+                        formData.get("storageAmount")!.toString(),
+                      ),
+                      mountPath: formData.get("storageMountPath")!.toString(),
+                      env: storageEnv.filter((it) => it.name.length > 0),
+                    }
+                  : undefined,
+            },
+          });
+
+          toast.success("App updated successfully!");
+        } catch (e) {
+          console.error(e);
+          toast.error("There was a problem reconfiguring your app.");
+        }
+      }}
+      className="flex flex-col gap-8"
+    >
+      <div>
+        <div className="flex items-baseline gap-2 mb-2">
+          <Label className="pb-1">
+            <TextCursorInput className="inline" size={16} /> App Name
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <Input name="name" required defaultValue={app.name} />
+      </div>
+      <div>
+        <div className="flex items-baseline gap-2 mb-2">
+          <Label className="pb-1">
+            <Scale3D className="inline" size={16} /> Replicas
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <Input
+          name="replicas"
+          placeholder="1"
+          required
+          defaultValue={app.config.replicas}
+        />
+      </div>
+      <AppConfigFormFields
+        env={env}
+        setEnv={setEnv}
+        storageEnv={storageEnv}
+        setStorageEnv={setStorageEnv}
+        orgId={app.orgId}
+        repoId={app.repositoryId}
+        defaults={{ config: app.config, storage: app.storage }}
+        hideSubdomainInput
+      />
+      <Button className="mt-8 max-w-max">
+        <Save /> Save
+      </Button>
+    </form>
   );
 };
 

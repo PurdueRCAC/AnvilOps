@@ -44,8 +44,8 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const app = await db.app.findUnique({
     where: {
-      id: appData.id,
-      orgId: appData.orgId,
+      id: ctx.request.params.appId,
+      org: { users: { some: { userId: req.user.id } } },
     },
     include: {
       deployments: {
@@ -66,6 +66,16 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(400, res, {});
   }
 
+  if (appConfig.branch || appData.name) {
+    await db.app.update({
+      where: { id: app.id },
+      data: {
+        repositoryBranch: appConfig.branch ?? app.repositoryBranch,
+        name: appData.name ?? app.name,
+      },
+    });
+  }
+
   const lastDeployment = app.deployments[0];
   let lastDeploymentConfig = app.deployments[0].config;
   delete lastDeploymentConfig.id;
@@ -81,7 +91,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       config: {
         create: config,
       },
-      storageConfig: appData.storage && { create: appData.storage },
+      storageConfig: appData.storage ? { create: appData.storage } : null,
       status: "DEPLOYING",
       app: { connect: { id: app.id } },
       imageTag: lastDeployment.imageTag,
@@ -108,7 +118,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     loggingIngestSecret: app.logIngestSecret,
   };
 
-  for (let key in appData.config) {
+  for (let key in ["name", "env", "secrets", "port", "replicas", "storage"]) {
     appParams[key] = appData.config[key];
   }
 
