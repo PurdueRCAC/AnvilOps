@@ -1,3 +1,4 @@
+import { V1PodList } from "@kubernetes/client-node";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { k8s } from "../lib/kubernetes.ts";
@@ -31,10 +32,17 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
 
   if (logs.length === 0 && ctx.request.query.type === "RUNTIME") {
     // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
-    const pods = await k8s.default.listNamespacedPod({
-      namespace: app.subdomain,
-      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
-    });
+    let pods: V1PodList;
+    try {
+      pods = await k8s.default.listNamespacedPod({
+        namespace: app.subdomain,
+        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
+      });
+    } catch (err) {
+      // Namespace may not be ready yet
+      pods = { apiVersion: "v1", items: [] };
+    }
+
     const pod = pods?.items?.[0];
     if (pod?.metadata?.name) {
       const logs = await k8s.default.readNamespacedPodLog({

@@ -1,3 +1,4 @@
+import { V1PodList } from "@kubernetes/client-node";
 import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
@@ -32,10 +33,16 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     take: 5000,
   });
 
-  const pods = await k8s.default.listNamespacedPod({
-    namespace: deployment.app.subdomain,
-    labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
-  });
+  let pods: V1PodList;
+  try {
+    pods = await k8s.default.listNamespacedPod({
+      namespace: deployment.app.subdomain,
+      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+    });
+  } catch (err) {
+    // Namespace may not be ready yet
+    pods = { apiVersion: "v1", items: [] };
+  }
 
   const podStatus = pods?.items?.[0]?.status;
   const scheduled =

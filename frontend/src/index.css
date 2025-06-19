@@ -121,6 +121,25 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@utility purdue-gradient {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-gold),
+    var(--color-gold) 60%,
+    var(--color-black) 60%,
+    var(--color-black) 100%
+  );
+}
+
+[data-slot="tabs-trigger"][data-state="active"] > * {
+  border-bottom: 3px solid var(--color-gold);
+}
+
+[data-slot="tabs-trigger"]:hover > * {
+  border-bottom: 3px solid var(--color-gold);
+  transition: all 0.15s cubic-bezier(1, 0.25, 0, 0.75) 0s;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

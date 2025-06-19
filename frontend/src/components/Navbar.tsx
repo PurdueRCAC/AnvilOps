@@ -16,7 +16,7 @@ export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 border-b gap-4 bg-gold backdrop-blur-xl h-16 z-50">
+    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 bg-gold sm:purdue-gradient border-b gap-4 backdrop-blur-xl h-16 z-50">
       <p className="text-xl font-bold">
         <Link
           to={user ? "/dashboard" : "/"}
@@ -29,8 +29,12 @@ export default function Navbar() {
       <div className="flex gap-8 justify-end items-center">
         {user && (
           <>
-            <Link to="/">Home</Link>
-            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/" className="sm:text-white">
+              Home
+            </Link>
+            <Link to="/dashboard" className="sm:text-white">
+              Dashboard
+            </Link>
           </>
         )}
         {loading ? null : user ? (

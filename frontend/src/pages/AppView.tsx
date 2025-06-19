@@ -145,10 +145,18 @@ export default function AppView() {
       </Tooltip>
       <Tabs defaultValue="overview">
         <TabsList className="my-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="configuration">Configuration</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
-          <TabsTrigger value="danger">Danger</TabsTrigger>
+          <TabsTrigger value="overview" className="tab">
+            <span className="tab-content">Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="configuration">
+            <span className="tab-content">Configuration</span>
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            <span className="tab-content">Logs</span>
+          </TabsTrigger>
+          <TabsTrigger value="danger">
+            <span className="tab-content">Danger</span>
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab app={app} activeDeployment={currentDeployment?.id} />
