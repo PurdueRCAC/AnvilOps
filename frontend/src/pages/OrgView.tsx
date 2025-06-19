@@ -189,50 +189,52 @@ const OrgSection = ({
           </Suspense>
         </Card>
         <Card title="Danger">
-          <div className="w-full h-full flex flex-col items-center justify-center space-y-5">
-            {permissionLevel !== "OWNER" ? (
-              <Button
-                variant="destructive"
-                className="shadow-red-700 shadow-sm disabled:shadow-none"
-              >
-                Leave Organization
-              </Button>
-            ) : (
-              <>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-11/12 h-11/12 flex flex-col items-center justify-center space-y-5 bg-slate-200 shadow-inner">
+              {permissionLevel !== "OWNER" ? (
                 <Button
-                  variant="outline"
-                  className="border border-red-400 text-bold text-red-600 hover:text-red-700 shadow-red-300 shadow-xs hover:shadow-red-400 hover:shadow-sm"
+                  variant="destructive"
+                  className="shadow-red-700 shadow-sm disabled:shadow-none"
                 >
-                  Transfer Ownership
+                  Leave Organization
                 </Button>
-                <InputConfirmDialog
-                  name="Delete Organization"
-                  title="Delete Organization"
-                  submitName="Delete"
-                  requiredText={name}
-                  description={
-                    <>
-                      <p>This action cannot be undone.</p>
-                      <ul className="*:list-disc *:ml-4 mt-2 mb-4">
-                        <li>
-                          Your AnvilOps organization and all associated apps,
-                          deployments, and infrastructure will be deleted.
-                        </li>
-                        <li>
-                          Your GitHub account and repositories will be
-                          unaffected.
-                        </li>
-                      </ul>
-                      <p className="mb-2">
-                        Type the organization name <b>{name}</b> to continue.
-                      </p>
-                    </>
-                  }
-                  destructive={true}
-                  submit={submitDelete}
-                />
-              </>
-            )}
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    className="border border-red-400 text-bold text-red-600 hover:text-red-700 shadow-red-800 shadow-sm hover:shadow-md"
+                  >
+                    Transfer Ownership
+                  </Button>
+                  <InputConfirmDialog
+                    name="Delete Organization"
+                    title="Delete Organization"
+                    submitName="Delete"
+                    requiredText={name}
+                    description={
+                      <>
+                        <p>This action cannot be undone.</p>
+                        <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                          <li>
+                            Your AnvilOps organization and all associated apps,
+                            deployments, and infrastructure will be deleted.
+                          </li>
+                          <li>
+                            Your GitHub account and repositories will be
+                            unaffected.
+                          </li>
+                        </ul>
+                        <p className="mb-2">
+                          Type the organization name <b>{name}</b> to continue.
+                        </p>
+                      </>
+                    }
+                    destructive={true}
+                    submit={submitDelete}
+                  />
+                </>
+              )}
+            </div>
           </div>
         </Card>
       </div>
@@ -268,7 +270,10 @@ const InputConfirmDialog = ({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={destructive ? "destructive" : "default"}>
+        <Button
+          variant={destructive ? "destructive" : "default"}
+          className="shadow-sm"
+        >
           {name}
         </Button>
       </DialogTrigger>
