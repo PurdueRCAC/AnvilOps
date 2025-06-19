@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: anvilops
-          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-139-d54a2837163d965c40a57f9831defe9e523e808b # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+          image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-140-6fdec456a81f9395137f64e03202c95925ac1c38 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
           imagePullPolicy: Always
           ports:
             - name: http
