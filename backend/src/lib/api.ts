@@ -370,7 +370,7 @@ const handlers = {
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            include: { config: true },
+            include: { config: true, storageConfig: true },
           },
         },
       });
@@ -407,6 +407,8 @@ const handlers = {
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
+      const storage = app.deployments[0].storageConfig;
+
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -425,6 +427,16 @@ const handlers = {
           rootDir: lastDeploy.rootDir,
           builder: lastDeploy.builder,
         },
+        storage: storage
+          ? {
+              amount: storage.amount,
+              image: storage.image,
+              mountPath: storage.mountPath,
+              port: storage.port,
+              replicas: storage.replicas,
+              env: storage.env as Env[],
+            }
+          : undefined,
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)
           : undefined,
