@@ -3,7 +3,7 @@ import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import { ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Status } from "./AppView";
 import { GitHubIcon } from "./CreateAppView";
 
@@ -45,7 +45,6 @@ const OrgApps = ({
   orgId: number;
   permissionLevel: "OWNER" | "USER";
 }) => {
-  const navigate = useNavigate();
   const { data: org } = api.useSuspenseQuery("get", "/org/{orgId}", {
     params: {
       path: {

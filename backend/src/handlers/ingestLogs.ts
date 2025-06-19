@@ -55,7 +55,36 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
   const lines = (req.body as string)
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line));
+    .map((line) => ({
+      content: JSON.parse(line),
+      deploymentId: parseInt(
+        line["kubernetes"]?.["labels"]?.[
+          "anvilops.rcac.purdue.edu/deployment-id"
+        ],
+      ),
+    }));
+
+  const deploymentIds = [...new Set(lines.map((line) => line.deploymentId))];
+
+  // Filter out any lines that point to a deployment that doesn't exist (or that the client shouldn't be able to see)
+  const validDeployments = await db.deployment.findMany({
+    where: {
+      id: { in: deploymentIds },
+      ...(ctx.request.query.type === "runtime"
+        ? { app: { logIngestSecret: password } }
+        : {}),
+    },
+    select: { id: true, app: { select: { logIngestSecret: true } } },
+  });
+
+  const ids = validDeployments.map((d) => d.id);
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!ids.includes(lines[i].deploymentId)) {
+      lines.splice(i, 1);
+      i--;
+    }
+  }
 
   await db.log.createMany({
     data: lines
