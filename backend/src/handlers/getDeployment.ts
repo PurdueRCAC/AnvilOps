@@ -2,7 +2,7 @@ import { V1PodList } from "@kubernetes/client-node";
 import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/kubernetes.ts";
+import { k8s, NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
@@ -36,7 +36,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   let pods: V1PodList;
   try {
     pods = await k8s.default.listNamespacedPod({
-      namespace: deployment.app.subdomain,
+      namespace: NAMESPACE_PREFIX + deployment.app.subdomain,
       labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
     });
   } catch (err) {

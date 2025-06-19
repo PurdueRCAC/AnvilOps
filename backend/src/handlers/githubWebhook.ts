@@ -8,7 +8,11 @@ import type {
 } from "../generated/prisma/models.ts";
 import { createBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
-import { createNamespaceConfig, createOrUpdateApp } from "../lib/kubernetes.ts";
+import {
+  createNamespaceConfig,
+  createOrUpdateApp,
+  NAMESPACE_PREFIX,
+} from "../lib/kubernetes.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
@@ -272,7 +276,9 @@ export async function buildAndDeploy({
 
   try {
     // Eagerly create the app's K8s namespace
-    const namespace = createNamespaceConfig(deployment.app.subdomain);
+    const namespace = createNamespaceConfig(
+      NAMESPACE_PREFIX + deployment.app.subdomain,
+    );
     await createOrUpdateApp(deployment.app.name, namespace, []);
   } catch {
     // If there was an error creating the namespace now, it'll be retried later when the build finishes

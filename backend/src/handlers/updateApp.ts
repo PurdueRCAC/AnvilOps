@@ -6,6 +6,7 @@ import {
   createAppConfigs,
   createOrUpdateApp,
   deleteStorage,
+  NAMESPACE_PREFIX,
 } from "../lib/kubernetes.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
@@ -179,7 +180,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     deploymentId: deployment.id,
     appId: app.id,
     name: app.name,
-    namespace: app.subdomain,
+    namespace: NAMESPACE_PREFIX + app.subdomain,
     image: deployment.imageTag,
     env: appData.config.env,
     secrets: appData.config.secrets,
@@ -206,7 +207,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       data: { status: "COMPLETE" },
     });
     if (appData.storage === null && lastDeployment.storageConfig) {
-      await deleteStorage(app.name, app.subdomain);
+      await deleteStorage(app.name, NAMESPACE_PREFIX + app.subdomain);
     }
   } catch (err) {
     console.error(err);

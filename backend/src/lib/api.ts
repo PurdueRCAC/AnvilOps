@@ -29,7 +29,7 @@ import {
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { deleteNamespace, k8s } from "./kubernetes.ts";
+import { deleteNamespace, k8s, NAMESPACE_PREFIX } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
@@ -307,7 +307,7 @@ const handlers = {
         const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
         if (hasResourcesStatus.includes(app.deployments[0].status)) {
           try {
-            await deleteNamespace(app.subdomain);
+            await deleteNamespace(NAMESPACE_PREFIX + app.subdomain);
           } catch (err) {
             console.error(err);
           }
@@ -397,7 +397,7 @@ const handlers = {
       let k8sDeployment: V1Deployment | undefined;
       try {
         k8sDeployment = await k8s.apps.readNamespacedDeployment({
-          namespace: app.subdomain,
+          namespace: NAMESPACE_PREFIX + app.subdomain,
           name: app.name,
         });
       } catch {}

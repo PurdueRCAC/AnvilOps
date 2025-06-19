@@ -4,6 +4,7 @@ import {
   createLogConfig,
   createNamespaceConfig,
   createOrUpdateApp,
+  NAMESPACE_PREFIX,
 } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
@@ -73,8 +74,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       },
     });
 
-    const namespace = createNamespaceConfig(app.subdomain);
-    const configs = createLogConfig(app.subdomain, app.id, app.logIngestSecret);
+    const namespace = createNamespaceConfig(NAMESPACE_PREFIX + app.subdomain);
+    const configs = createLogConfig(
+      NAMESPACE_PREFIX + app.subdomain,
+      app.id,
+      app.logIngestSecret,
+    );
     await createOrUpdateApp(app.name, namespace, configs);
   }
 
@@ -85,12 +90,11 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       },
     });
 
-    const subdomain = app.subdomain;
     const appParams = {
       deploymentId: deployment.id,
       appId: app.id,
       name: app.name,
-      namespace: subdomain,
+      namespace: NAMESPACE_PREFIX + app.subdomain,
       image: deployment.imageTag,
       env: deployment.config.env as Env[],
       secrets: (deployment.config.secrets
