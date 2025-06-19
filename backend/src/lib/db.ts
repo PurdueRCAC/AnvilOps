@@ -55,9 +55,6 @@ const client = new PrismaClient({
     deployment: {
       secret: true,
     },
-    app: {
-      name: true, // Unless we're dealing with Kubernetes resources, we should use the displayName instead.
-    },
   },
 });
 
