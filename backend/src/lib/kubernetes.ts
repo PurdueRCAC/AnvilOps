@@ -21,6 +21,8 @@ export const k8s = {
   full: KubernetesObjectApi.makeApiClient(kc),
 };
 
+export const NAMESPACE_PREFIX = "anvilops-";
+
 interface SvcParams {
   name: string;
   appName: string;

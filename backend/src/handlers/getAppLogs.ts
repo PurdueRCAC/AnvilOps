@@ -1,7 +1,7 @@
 import { V1PodList } from "@kubernetes/client-node";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/kubernetes.ts";
+import { k8s, NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
@@ -35,7 +35,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     let pods: V1PodList;
     try {
       pods = await k8s.default.listNamespacedPod({
-        namespace: app.subdomain,
+        namespace: NAMESPACE_PREFIX + app.subdomain,
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
       });
     } catch (err) {
@@ -46,7 +46,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     const pod = pods?.items?.[0];
     if (pod?.metadata?.name) {
       const logs = await k8s.default.readNamespacedPodLog({
-        namespace: app.subdomain,
+        namespace: NAMESPACE_PREFIX + app.subdomain,
         name: pod.metadata.name,
       });
       return json(200, res, {

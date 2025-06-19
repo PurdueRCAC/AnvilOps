@@ -6,6 +6,7 @@ import {
   createAppConfigs,
   createOrUpdateApp,
   deleteStorage,
+  NAMESPACE_PREFIX,
 } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type Env, type HandlerMap, json } from "../types.ts";
@@ -33,12 +34,42 @@ const updateApp: HandlerMap["updateApp"] = async (
     });
   }
 
+  if (appConfig.port < 0 || appConfig.port > 65535) {
+    return json(400, res, {
+      code: 400,
+      message: "Invalid port number",
+    });
+  }
+
   if (appConfig.dockerfilePath) {
     if (
       appConfig.dockerfilePath.startsWith("/") ||
       appConfig.dockerfilePath.includes(`"`)
     ) {
       return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
+    }
+  }
+
+  if (appData.storage) {
+    if (!appData.storage.image.includes(":")) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid image (Must be in the foramt repository:tag)",
+      });
+    }
+
+    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
+      return json(400, res, {
+        code: 400,
+        message:
+          "Invalid storage capacity (Must be a positive value less than 10",
+      });
+    }
+    if (appData.storage.port < 0 || appData.storage.port > 65535) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid port number",
+      });
     }
   }
 
@@ -179,7 +210,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     deploymentId: deployment.id,
     appId: app.id,
     name: app.name,
-    namespace: app.subdomain,
+    namespace: NAMESPACE_PREFIX + app.subdomain,
     image: deployment.imageTag,
     env: appData.config.env,
     secrets: appData.config.secrets,
@@ -206,7 +237,7 @@ const updateApp: HandlerMap["updateApp"] = async (
       data: { status: "COMPLETE" },
     });
     if (appData.storage === null && lastDeployment.storageConfig) {
-      await deleteStorage(app.name, app.subdomain);
+      await deleteStorage(app.name, NAMESPACE_PREFIX + app.subdomain);
     }
   } catch (err) {
     console.error(err);

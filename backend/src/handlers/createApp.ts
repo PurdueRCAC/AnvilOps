@@ -45,6 +45,13 @@ const createApp: HandlerMap["createApp"] = async (
     });
   }
 
+  if (appData.port < 0 || appData.port > 65535) {
+    return json(400, res, {
+      code: 400,
+      message: "Invalid port number",
+    });
+  }
+
   if (appData.dockerfilePath) {
     if (
       appData.dockerfilePath.startsWith("/") ||
@@ -54,8 +61,34 @@ const createApp: HandlerMap["createApp"] = async (
     }
   }
 
+  if (appData.storage) {
+    if (!appData.storage.image.includes(":")) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid image (Must be in the foramt repository:tag)",
+      });
+    }
+
+    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
+      return json(400, res, {
+        code: 400,
+        message:
+          "Invalid storage capacity (Must be a positive value less than 10",
+      });
+    }
+    if (appData.storage.port < 0 || appData.storage.port > 65535) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid port number",
+      });
+    }
+  }
+
   try {
     validateEnv(appData.env, appData.secrets);
+    if (appData.storage && appData.storage.env.length !== 0) {
+      validateEnv(appData.storage.env, []);
+    }
   } catch (err) {
     return json(400, res, { code: 400, message: err.message });
   }
