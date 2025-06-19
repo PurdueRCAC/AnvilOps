@@ -20,6 +20,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   CheckCheck,
+  CircleDashed,
   CloudCheck,
   CloudCog,
   CloudLightning,
@@ -34,7 +35,7 @@ import {
   Scale3D,
   TextCursorInput,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -49,7 +50,7 @@ type App = components["schemas"]["App"];
 
 export default function AppView() {
   const params = useParams();
-  const { data: app } = api.useSuspenseQuery(
+  const { data: app, isPending: appLoading } = api.useSuspenseQuery(
     "get",
     "/app/{appId}",
     {
@@ -70,11 +71,17 @@ export default function AppView() {
       { enabled: app.activeDeployment !== undefined },
     );
 
+  const [tab, setTab] = useState("overview");
+
   return (
     <main className="px-8 py-10 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-2">{app.name}</h1>
       <Tooltip>
-        {loadingCurrentDeployment ? (
+        {app.activeDeployment === undefined && !appLoading ? (
+          <p className="opacity-50 flex items-center gap-2">
+            <CircleDashed /> Waiting to deploy...
+          </p>
+        ) : loadingCurrentDeployment ? (
           <p className="opacity-50 flex items-center gap-2">
             <Loader className="animate-spin" /> Loading...
           </p>
@@ -132,7 +139,7 @@ export default function AppView() {
           </>
         ) : null}
       </Tooltip>
-      <Tabs defaultValue="overview">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="my-4">
           <TabsTrigger value="overview" className="tab">
             <span className="tab-content">Overview</span>
@@ -151,7 +158,7 @@ export default function AppView() {
           <OverviewTab app={app} activeDeployment={currentDeployment?.id} />
         </TabsContent>
         <TabsContent value="configuration">
-          <ConfigTab app={app} />
+          <ConfigTab app={app} setTab={setTab} />
         </TabsContent>
         <TabsContent value="logs">
           <LogsTab app={app} />
@@ -321,7 +328,7 @@ export const Status = ({
   );
 };
 
-const ConfigTab = ({ app }: { app: App }) => {
+const ConfigTab = ({ app, setTab }: { app: App; setTab: Dispatch<string> }) => {
   const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
   const [storageEnv, setStorageEnv] = useState<
     { name: string; value: string }[]
@@ -347,7 +354,10 @@ const ConfigTab = ({ app }: { app: App }) => {
     }
   }, [app?.storage?.env]);
 
-  const { mutateAsync: updateApp } = api.useMutation("put", "/app/{appId}");
+  const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
+    "put",
+    "/app/{appId}",
+  );
 
   return (
     <form
@@ -394,6 +404,7 @@ const ConfigTab = ({ app }: { app: App }) => {
           });
 
           toast.success("App updated successfully!");
+          setTab("overview");
         } catch (e) {
           console.error(e);
           toast.error("There was a problem reconfiguring your app.");
@@ -444,8 +455,16 @@ const ConfigTab = ({ app }: { app: App }) => {
         defaults={{ config: app.config, storage: app.storage }}
         hideSubdomainInput
       />
-      <Button className="mt-8 max-w-max">
-        <Save /> Save
+      <Button className="mt-8 max-w-max" disabled={updatePending}>
+        {updatePending ? (
+          <>
+            <Loader className="animate-spin" /> Saving...
+          </>
+        ) : (
+          <>
+            <Save /> Save
+          </>
+        )}
       </Button>
     </form>
   );

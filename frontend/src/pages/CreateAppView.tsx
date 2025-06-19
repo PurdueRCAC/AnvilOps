@@ -97,7 +97,7 @@ export default function CreateAppView() {
                 | "railpack",
               rootDir: formData.get("rootDir")!.toString(),
               storage:
-                formData.get("database") !== "none"
+                formData.has("database") && formData.get("database") !== "none"
                   ? {
                       image: formData.get("storageImage")!.toString(),
                       replicas: parseInt(
@@ -133,7 +133,7 @@ export default function CreateAppView() {
               *
             </span>
           </div>
-          <Select onValueChange={setSelectedOrg} name="org">
+          <Select required onValueChange={setSelectedOrg} name="org">
             <SelectTrigger
               className="w-full"
               onSelect={(e) => e}
@@ -175,6 +175,7 @@ export default function CreateAppView() {
                 </span>
               </div>
               <Select
+                required
                 name="repo"
                 disabled={selectedOrgId === undefined || reposLoading}
                 onValueChange={setSelectedRepo}
@@ -335,6 +336,7 @@ export const AppConfigFormFields = ({
           </span>
         </div>
         <Select
+          required
           name="branch"
           disabled={repoId === undefined || branchesLoading}
           defaultValue={defaults?.config?.branch}
@@ -507,6 +509,7 @@ export const AppConfigFormFields = ({
             Configure Storage
           </Label>
           <RadioGroup
+            name="database"
             value={database}
             onValueChange={(value) => setDatabase(value)}
             defaultValue="none"

@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { createAppConfigs, createOrUpdateApp } from "../lib/kubernetes.ts";
-import { type Env, type HandlerMap, json } from "../types.ts";
+import { type HandlerMap, json } from "../types.ts";
 import { validateEnv } from "./createApp.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
@@ -50,7 +50,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     include: {
       deployments: {
         orderBy: {
-          createdAt: "asc",
+          createdAt: "desc",
         },
         take: 1,
         include: { config: true },
@@ -82,16 +82,20 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const secret = randomBytes(32).toString("hex");
 
-  const config = {
-    ...appData.config,
-    secrets: JSON.stringify(appData.config.secrets),
-  };
   const deployment = await db.deployment.create({
     data: {
       config: {
-        create: config,
+        create: {
+          builder: appData.config.builder,
+          port: appData.config.port,
+          rootDir: appData.config.rootDir,
+          dockerfilePath: appData.config.dockerfilePath,
+          env: appData.config.env,
+          replicas: appData.config.replicas,
+          secrets: JSON.stringify(appData.config.secrets),
+        },
       },
-      storageConfig: appData.storage ? { create: appData.storage } : null,
+      storageConfig: appData.storage ? { create: appData.storage } : undefined,
       status: "DEPLOYING",
       app: { connect: { id: app.id } },
       imageTag: lastDeployment.imageTag,
@@ -111,10 +115,12 @@ const updateApp: HandlerMap["updateApp"] = async (
     secrets: appData.config.secrets,
     port: lastDeploymentConfig.port,
     replicas: lastDeploymentConfig.replicas,
-    storage: {
-      ...appData.storage,
-      env: appData.storage.env as Env[],
-    },
+    storage: appData.storage
+      ? {
+          ...appData.storage,
+          env: appData.storage?.env,
+        }
+      : undefined,
     loggingIngestSecret: app.logIngestSecret,
   };
 
