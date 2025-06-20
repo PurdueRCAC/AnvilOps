@@ -88,6 +88,14 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       where: {
         id: deployment.appId,
       },
+      include: {
+        deployments: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 2,
+        },
+      },
     });
 
     const appParams = {
@@ -117,6 +125,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         where: { id: deployment.id },
         data: { status: "COMPLETE" },
       });
+      if (app.deployments.length === 2) {
+        await db.deployment.update({
+          where: { id: app.deployments[1].id },
+          data: { status: "STOPPED" },
+        });
+      }
     } catch (err) {
       console.error(err);
       await db.deployment.update({
