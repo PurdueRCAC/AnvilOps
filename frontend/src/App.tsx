@@ -12,6 +12,7 @@ import DashboardView from "./pages/DashboardView";
 import { DeploymentView } from "./pages/DeploymentView";
 import LandingView from "./pages/LandingView";
 import OrgView from "./pages/OrgView";
+import NotFoundView from "./pages/NotFoundView";
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
             }
           />
           <Route path="/organizations" element={<OrgView />} />
+          <Route path="*" element={<NotFoundView />} />
         </Routes>
       </UserProvider>
       <Toaster />
