@@ -95,10 +95,10 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
         if (!line.deploymentId || isNaN(line.deploymentId)) return null;
 
         return {
-          content: line,
+          content: line.content,
           deploymentId: line.deploymentId,
           type: logType,
-          timestamp: new Date(line["time"]),
+          timestamp: new Date(line.content["time"]),
           index: i,
         };
       })
