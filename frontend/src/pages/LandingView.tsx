@@ -9,9 +9,11 @@ import {
   AppWindow,
   Container,
   GitCommit,
+  GitPullRequestArrow,
   Hammer,
   History,
   LayoutDashboard,
+  LifeBuoy,
   TrendingUp,
   Undo2,
 } from "lucide-react";
@@ -57,9 +59,10 @@ export default function LandingView() {
         <Button>Deploy Now</Button>
       </Link>
 
-      <h1 className="text-4xl font-bold mb-4 mt-16">
+      <h2 className="text-4xl font-bold mb-4 mt-16 flex gap-2">
+        <GitPullRequestArrow size={38} />
         Seamless Git Integration
-      </h1>
+      </h2>
       <p className="mb-8">
         AnvilOps continuously keeps your deployment in sync with your Git
         repository. <br />
@@ -95,9 +98,10 @@ export default function LandingView() {
         </div>
       </div>
 
-      <h1 className="text-4xl font-bold mb-4 mt-16">
+      <h2 className="text-4xl font-bold mb-4 mt-16 flex gap-2">
+        <LifeBuoy size={38} />
         Kubernetes is hard. Let us handle it for you.
-      </h1>
+      </h2>
       <div className="grid grid-cols-2 max-w-4xl gap-4">
         <div className="rounded-md bg-gray-50 border border-input p-4">
           <h3 className="text-lg font-bold">Without AnvilOps</h3>
@@ -122,10 +126,10 @@ export default function LandingView() {
         </div>
       </div>
 
-      <h1 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
+      <h2 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
         <History size={38} />
         Monitor and roll back your deployments
-      </h1>
+      </h2>
       <p>
         Each push to the selected branch creates a new deployment on the
         cluster.
@@ -219,10 +223,10 @@ export default function LandingView() {
       <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
       <Accordion type="single" collapsible>
         <AccordionItem value="q1">
-          <AccordionTrigger className="font-bold">
+          <AccordionTrigger className="font-bold text-lg">
             What is the Anvil Composable Subsystem?
           </AccordionTrigger>
-          <AccordionContent className="text-pretty p-4">
+          <AccordionContent className="text-pretty p-4 text-base">
             Anvil Composable Subsystem is a Kubernetes based private cloud
             managed with Rancher that provides a platform for creating
             composable infrastructure on demand. This cloud-style flexibility
@@ -239,10 +243,10 @@ export default function LandingView() {
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="q2">
-          <AccordionTrigger className="font-bold">
+          <AccordionTrigger className="font-bold text-lg">
             What languages and frameworks are supported?
           </AccordionTrigger>
-          <AccordionContent className="text-pretty p-4">
+          <AccordionContent className="text-pretty p-4 text-base">
             Any application with a Dockerfile is supported. We also support
             zero-configuration deployments from every language and framework
             that{" "}
