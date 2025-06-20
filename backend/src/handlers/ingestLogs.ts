@@ -55,14 +55,17 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
   const lines = (req.body as string)
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => ({
-      content: JSON.parse(line),
-      deploymentId: parseInt(
-        line["kubernetes"]?.["labels"]?.[
-          "anvilops.rcac.purdue.edu/deployment-id"
-        ],
-      ),
-    }));
+    .map((line) => {
+      const parsed = JSON.parse(line);
+      return {
+        content: parsed,
+        deploymentId: parseInt(
+          parsed?.["kubernetes"]?.["labels"]?.[
+            "anvilops.rcac.purdue.edu/deployment-id"
+          ],
+        ),
+      };
+    });
 
   const deploymentIds = [...new Set(lines.map((line) => line.deploymentId))];
 
@@ -89,16 +92,11 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
   await db.log.createMany({
     data: lines
       .map((line, i) => {
-        const deploymentId = parseInt(
-          line?.["kubernetes"]?.["labels"]?.[
-            "anvilops.rcac.purdue.edu/deployment-id"
-          ],
-        );
-        if (!deploymentId || isNaN(deploymentId)) return null;
+        if (!line.deploymentId || isNaN(line.deploymentId)) return null;
 
         return {
           content: line,
-          deploymentId: deploymentId,
+          deploymentId: line.deploymentId,
           type: logType,
           timestamp: new Date(line["time"]),
           index: i,
