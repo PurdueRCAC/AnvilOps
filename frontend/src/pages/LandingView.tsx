@@ -5,8 +5,29 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { AppWindow, GitCommit, Hammer } from "lucide-react";
+import { AppWindow, Container, GitCommit, Hammer, History } from "lucide-react";
+import {
+  FaHtml5,
+  FaJava,
+  FaNodeJs,
+  FaPhp,
+  FaPython,
+  FaRust,
+} from "react-icons/fa";
+import { RiNextjsLine, RiRemixRunLine } from "react-icons/ri";
+import {
+  SiAstro,
+  SiDeno,
+  SiDjango,
+  SiElixir,
+  SiNuxtdotjs,
+  SiRuby,
+  SiRubyonrails,
+  SiVite,
+} from "react-icons/si";
+import { BiLogoGoLang } from "react-icons/bi";
 import { Link } from "react-router-dom";
+import { GitHubIcon } from "./CreateAppView";
 
 export default function LandingView() {
   return (
@@ -94,13 +115,77 @@ export default function LandingView() {
       <h1 className="text-4xl font-bold mb-4 mt-16">
         Monitor and rollback your deployments
       </h1>
-      {/* Each Git push creates a new deployment with a copy of the previous one's configuration. A deployment captures all the configuration needed to run your app. Roll back to a previous deployment at any time. */}
+      <p className="text-2xl text-black-4">
+        Each push to the selected branch creates a new deployment on the
+        cluster. Roll back the deployment to a previous commit at any time.
+      </p>
 
-      <h1 className="text-4xl font-bold mb-4 mt-16">
-        Bring your repository as-is
+      <h1 className="text-4xl font-bold mb-4 flex gap-2">
+        <GitHubIcon className="w-8 inline" /> Bring your repository as-is
       </h1>
-      {/* We use Railpack to build your app without a Dockerfile. (List the supported languages and frameworks) */}
-
+      <p className="flex gap-2 text-2xl text-black-4">
+        <Container size={36} /> Railpack analyzes your repository to build a
+        container image— no need for a Dockerfile!
+      </p>
+      <p className="font-bold text-2xl text-black-3">
+        Supported languages and frameworks:
+      </p>
+      <div className="py-3 flex gap-5 flex-wrap">
+        <a href="https://nodejs.org/">
+          <FaNodeJs size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://nextjs.org/">
+          <RiNextjsLine size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://remix.run/">
+          <RiRemixRunLine
+            size={56}
+            className="text-black-4 hover:text-gold-4"
+          />
+        </a>
+        <a href="https://vite.dev/">
+          <SiVite size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://astro.build/">
+          <SiAstro size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://nuxt.com/">
+          <SiNuxtdotjs size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://python.org/">
+          <FaPython size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://djangoproject.com/">
+          <SiDjango size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://go.dev/">
+          <BiLogoGoLang size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://php.net/">
+          <FaPhp size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTML">
+          <FaHtml5 size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://java.com/">
+          <FaJava size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://ruby-lang.org/en/">
+          <SiRuby size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://rubyonrails.org/">
+          <SiRubyonrails size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://deno.com/">
+          <SiDeno size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://rust-lang.org/">
+          <FaRust size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+        <a href="https://elixir-lang.org/">
+          <SiElixir size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
+      </div>
       <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
       <Accordion type="single" collapsible>
         <AccordionItem value="q1">
