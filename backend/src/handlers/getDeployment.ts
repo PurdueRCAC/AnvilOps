@@ -1,5 +1,4 @@
 import { V1PodList } from "@kubernetes/client-node";
-import { LogType } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { k8s, NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
@@ -26,12 +25,6 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   if (!deployment) {
     return json(404, res, {});
   }
-
-  const logs = await db.log.findMany({
-    where: { deploymentId: deployment.id, type: LogType.BUILD },
-    orderBy: [{ timestamp: "asc" }, { index: "asc" }],
-    take: 5000,
-  });
 
   let pods: V1PodList;
   try {
@@ -90,8 +83,5 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       port: deployment.storageConfig?.port,
       mountPath: deployment.storageConfig?.mountPath,
     },
-    logs: logs
-      .map((line) => ((line.content as any).log as string).trim())
-      .join("\n"),
   });
 };

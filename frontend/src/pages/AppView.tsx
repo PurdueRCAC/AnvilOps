@@ -18,6 +18,7 @@ import {
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { RefetchOptions } from "@tanstack/react-query";
 import {
   CheckCheck,
   CircleDashed,
@@ -45,7 +46,6 @@ import {
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
 import { AppConfigFormFields, GitHubIcon } from "./CreateAppView";
-import type { RefetchOptions } from "@tanstack/react-query";
 
 type App = components["schemas"]["App"];
 
@@ -160,7 +160,11 @@ export default function AppView() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
-          <OverviewTab app={app} activeDeployment={currentDeployment?.id} />
+          <OverviewTab
+            app={app}
+            activeDeployment={currentDeployment?.id}
+            refetch={refetch}
+          />
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigTab app={app} setTab={setTab} refetch={refetch} />
@@ -179,15 +183,39 @@ export default function AppView() {
 const OverviewTab = ({
   app,
   activeDeployment,
+  refetch: refetchApp,
 }: {
   app: App;
   activeDeployment: number | undefined;
+  refetch: () => void;
 }) => {
   const { data: deployments, isPending } = api.useSuspenseQuery(
     "get",
     "/app/{appId}/deployments",
     { params: { path: { appId: app.id } } },
+    {
+      refetchInterval: ({ state: { data } }) => {
+        if (!data) return false;
+        switch (data[0].status) {
+          case "PENDING":
+            return 1_000;
+          case "BUILDING":
+            return 5_000;
+          case "DEPLOYING":
+            return 1_000;
+          default:
+            return 30_000;
+        }
+      },
+    },
   );
+
+  useEffect(() => {
+    // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
+    if (deployments?.[0]?.status === "COMPLETE") {
+      refetchApp();
+    }
+  }, [deployments?.[0]?.status]);
 
   const format = new Intl.DateTimeFormat(undefined, {
     dateStyle: "short",
