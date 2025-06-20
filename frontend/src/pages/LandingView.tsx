@@ -103,7 +103,7 @@ export default function LandingView() {
         Kubernetes is hard. Let us handle it for you.
       </h2>
       <div className="grid grid-cols-2 max-w-4xl gap-4">
-        <div className="rounded-md bg-gray-50 border border-input p-4">
+        <div className="rounded-md bg-stone-50 border border-input p-4">
           <h3 className="text-lg font-bold">Without AnvilOps</h3>
           <ol className="list-decimal pl-4 space-y-1 mt-2">
             <li>Install Docker and kubectl</li>
@@ -115,7 +115,7 @@ export default function LandingView() {
             <li>Apply configurations to your cluster</li>
           </ol>
         </div>
-        <div className="rounded-md bg-gray-50 border border-input p-4">
+        <div className="rounded-md bg-stone-50 border border-input p-4">
           <h3 className="text-lg font-bold">With AnvilOps</h3>
           <ol className="list-decimal pl-4 space-y-1 mt-2">
             <li>Sign in to AnvilOps</li>
