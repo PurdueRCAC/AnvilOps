@@ -1,4 +1,3 @@
-import { Anvil } from "lucide-react";
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import defaultPfp from "../assets/default_pfp.png";
@@ -11,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { UserContext } from "./UserProvider";
-
+import logo from "../assets/anvilops.png";
 export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
@@ -22,8 +21,7 @@ export default function Navbar() {
           to={user ? "/dashboard" : "/"}
           className="flex items-center gap-2"
         >
-          <Anvil />
-          AnvilOps
+          <img src={logo} className="h-10" />
         </Link>
       </p>
       <div className="flex gap-8 justify-end items-center">
