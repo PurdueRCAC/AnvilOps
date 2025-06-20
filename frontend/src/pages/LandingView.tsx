@@ -5,10 +5,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { AppWindow, Container, GitCommit, Hammer, History } from "lucide-react";
+import {
+  AppWindow,
+  Container,
+  GitCommit,
+  Hammer,
+  History,
+  LayoutDashboard,
+  TrendingUp,
+  Undo2,
+} from "lucide-react";
 import {
   FaHtml5,
   FaJava,
+  FaLaravel,
   FaNodeJs,
   FaPhp,
   FaPython,
@@ -112,22 +122,39 @@ export default function LandingView() {
         </div>
       </div>
 
-      <h1 className="text-4xl font-bold mb-4 mt-16">
-        Monitor and rollback your deployments
+      <h1 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
+        <History size={38} />
+        Monitor and roll back your deployments
       </h1>
-      <p className="text-2xl text-black-4">
+      <p>
         Each push to the selected branch creates a new deployment on the
-        cluster. Roll back the deployment to a previous commit at any time.
+        cluster.
       </p>
-
-      <h1 className="text-4xl font-bold mb-4 flex gap-2">
+      <div className="space-y-2 mt-2">
+        <p className="flex gap-1">
+          <LayoutDashboard />
+          <span className="font-bold">Rapid status updates.</span> View log
+          streams and monitor the health of your deployment in real time.
+        </p>
+        <p className="flex gap-1">
+          <Undo2 />
+          <span className="font-bold">Made a bad commit?</span> Roll back to a
+          previous deployment at any time.
+        </p>
+        <p className="flex gap-1">
+          <TrendingUp />
+          <span className="font-bold">Ready to grow?</span> Update your app
+          configuration with replicas, autoscaling, storage, and more.
+        </p>
+      </div>
+      <h1 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
         <GitHubIcon className="w-8 inline" /> Bring your repository as-is
       </h1>
-      <p className="flex gap-2 text-2xl text-black-4">
-        <Container size={36} /> Railpack analyzes your repository to build a
+      <p className="flex gap-1">
+        <Container size={24} /> Railpack analyzes your repository to build a
         container image— no need for a Dockerfile!
       </p>
-      <p className="font-bold text-2xl text-black-3">
+      <p className="font-bold text-black-3">
         Supported languages and frameworks:
       </p>
       <div className="py-3 flex gap-5 flex-wrap">
@@ -164,6 +191,9 @@ export default function LandingView() {
         <a href="https://php.net/">
           <FaPhp size={56} className="text-black-4 hover:text-gold-4" />
         </a>
+        <a href="https://laravel.com/">
+          <FaLaravel size={56} className="text-black-4 hover:text-gold-4" />
+        </a>
         <a href="https://developer.mozilla.org/en-US/docs/Web/HTML">
           <FaHtml5 size={56} className="text-black-4 hover:text-gold-4" />
         </a>
@@ -199,6 +229,13 @@ export default function LandingView() {
             provides researchers the ability to self-deploy and manage
             persistent services to complement HPC workflows and run
             container-based data analysis tools and applications.
+            <p>
+              Visit{" "}
+              <a className="underline">
+                https://www.rcac.purdue.edu/knowledge/anvil/composable
+              </a>{" "}
+              for more information.
+            </p>
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="q2">
