@@ -33,6 +33,9 @@ export default function Navbar() {
             <Link to="/dashboard" className="sm:text-white">
               Dashboard
             </Link>
+            <Link to="/organizations" className="sm:text-white">
+              Organizations
+            </Link>
           </>
         )}
         {loading ? null : user ? (
