@@ -212,22 +212,26 @@ const updateApp: HandlerMap["updateApp"] = async (
     name: app.name,
     namespace: NAMESPACE_PREFIX + app.subdomain,
     image: deployment.imageTag,
-    env: appData.config.env,
-    secrets: appData.config.secrets,
-    port: lastDeploymentConfig.port,
-    replicas: lastDeploymentConfig.replicas,
-    storage: appData.storage
-      ? {
-          ...appData.storage,
-          env: appData.storage?.env,
-        }
-      : undefined,
+    env: appData.config.env ?? (lastDeployment.config.env as Env[]),
+    secrets:
+      appData.config.secrets ??
+      (JSON.parse(lastDeployment.config.secrets) as Env[]),
+    port: appData.config.port ?? lastDeploymentConfig.port,
+    replicas: appData.config.replicas ?? lastDeploymentConfig.replicas,
+    storage:
+      appData.storage === undefined
+        ? {
+            ...lastDeployment.storageConfig,
+            env: lastDeployment.storageConfig.env as Env[],
+          }
+        : appData.storage
+          ? {
+              ...appData.storage,
+              env: appData.storage?.env,
+            }
+          : undefined,
     loggingIngestSecret: app.logIngestSecret,
   };
-
-  for (let key in ["name", "env", "secrets", "port", "replicas", "storage"]) {
-    appParams[key] = appData.config[key];
-  }
 
   const { namespace, configs } = createAppConfigs(appParams);
   try {
