@@ -1,3 +1,9 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { AppWindow, GitCommit, Hammer } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -94,6 +100,40 @@ export default function LandingView() {
         Bring your repository as-is
       </h1>
       {/* We use Railpack to build your app without a Dockerfile. (List the supported languages and frameworks) */}
+
+      <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
+      <Accordion type="single" collapsible>
+        <AccordionItem value="q1">
+          <AccordionTrigger className="font-bold">
+            What is the Anvil Composable Subsystem?
+          </AccordionTrigger>
+          <AccordionContent className="text-pretty p-4">
+            Anvil Composable Subsystem is a Kubernetes based private cloud
+            managed with Rancher that provides a platform for creating
+            composable infrastructure on demand. This cloud-style flexibility
+            provides researchers the ability to self-deploy and manage
+            persistent services to complement HPC workflows and run
+            container-based data analysis tools and applications.
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="q2">
+          <AccordionTrigger className="font-bold">
+            What languages and frameworks are supported?
+          </AccordionTrigger>
+          <AccordionContent className="text-pretty p-4">
+            Any application with a Dockerfile is supported. We also support
+            zero-configuration deployments from every language and framework
+            that{" "}
+            <a className="font-medium underline" href="https://railpack.com/">
+              Railpack
+            </a>{" "}
+            supports, including Node.js (including Next.js, Remix, Vite, Astro,
+            Nuxt, and Angular), Python (including Django), Go, PHP (including
+            Laravel), HTML, Java (including Spring Boot), Ruby, Deno, Rust,
+            Elixir, and shell scripts.
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* CTA section at the bottom */}
     </div>
