@@ -73,7 +73,18 @@ export default function AppView() {
           path: { appId: app.id, deploymentId: app.activeDeployment! },
         },
       },
-      { enabled: app.activeDeployment !== undefined },
+      {
+        enabled: app.activeDeployment !== undefined,
+        refetchInterval({ state: { data } }) {
+          if (data?.podStatus?.ready === false) {
+            if (data?.podStatus?.scheduled) {
+              return 1_000;
+            }
+            return 3_000;
+          }
+          return 10_000;
+        },
+      },
     );
 
   const [tab, setTab] = useState("overview");
