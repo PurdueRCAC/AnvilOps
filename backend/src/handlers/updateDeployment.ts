@@ -1,12 +1,10 @@
 import { db } from "../lib/db.ts";
 import {
-  createAppConfigs,
+  createAppConfigsFromDeployment,
   createOrUpdateApp,
-  getNamespace,
-  type AppParams,
 } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { json, type Env, type HandlerMap } from "../types.ts";
+import { json, type HandlerMap } from "../types.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -29,6 +27,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       config: { include: { mounts: true } },
       app: {
         select: {
+          name: true,
+          logIngestSecret: true,
+          subdomain: true,
           deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
         },
@@ -81,23 +82,18 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       },
     });
 
-    const appParams: AppParams = {
-      deploymentId: deployment.id,
-      appId: app.id,
-      name: app.name,
-      namespace: getNamespace(app.subdomain),
-      image: deployment.imageTag,
-      env: deployment.config.env as Env[],
-      secrets: (deployment.config.secrets
-        ? JSON.parse(deployment.config.secrets)
-        : []) as Env[],
-      port: deployment.config.port,
-      replicas: deployment.config.replicas,
-      loggingIngestSecret: app.logIngestSecret,
-      mounts: deployment.config.mounts,
-    };
-    const { namespace, configs } = createAppConfigs(appParams);
+    const { namespace, configs } = createAppConfigsFromDeployment(deployment);
     try {
+      await db.app.update({
+        where: { id: app.id },
+        data: {
+          // Make future redeploys use this image tag since it's the most recent successful build
+          deploymentConfigTemplate: {
+            update: { imageTag: deployment.imageTag },
+          },
+        },
+      });
+
       await createOrUpdateApp(app.name, namespace, configs);
       await db.deployment.update({
         where: { id: deployment.id },

@@ -999,7 +999,7 @@ components:
           type: string
           nullable: true
           description: Required when source == "git"
-          enum: [dockerfile, railpack]
+          enum: [dockerfile, railpack, null]
         # Source options > OCI image
         imageTag:
           type: string
@@ -1074,7 +1074,7 @@ components:
         builder:
           type: string
           nullable: true
-          enum: [dockerfile, railpack]
+          enum: [dockerfile, railpack, null]
         # Source options > OCI image
         imageTag:
           type: string

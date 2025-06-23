@@ -53,20 +53,6 @@ interface DeploymentParams {
   mounts: { path: string; amountInMiB: number }[];
 }
 
-export interface AppParams {
-  deploymentId: number;
-  appId: number;
-  name: string;
-  namespace: string;
-  image: string;
-  env: Env[];
-  secrets: Env[];
-  loggingIngestSecret: string;
-  port: number;
-  replicas: number;
-  mounts: { path: string; amountInMiB: number }[];
-}
-
 interface K8sObject {
   apiVersion: string;
   kind: string;
@@ -75,16 +61,6 @@ interface K8sObject {
     namespace?: string;
   };
 }
-
-export const SUPPORTED_DBS = ["postgres:17", "mysql:9"];
-type StorageParams = {
-  image: string;
-  replicas: number;
-  amount: number;
-  port: number;
-  mountPath: string;
-  env: Env[];
-};
 
 const resourceExists = async (data: K8sObject) => {
   try {
@@ -361,34 +337,21 @@ export const createAppConfigsFromDeployment = (
     };
   },
 ) => {
-  return createAppConfigs({
-    appId: deployment.appId,
-    deploymentId: deployment.id,
-    env: deployment.config.env as Env[],
-    image: deployment.imageTag,
-    loggingIngestSecret: deployment.app.logIngestSecret,
-    name: deployment.app.name,
-    namespace: getNamespace(deployment.app.subdomain),
-    port: deployment.config.port,
-    replicas: deployment.config.replicas,
-    secrets: JSON.parse(deployment.config.secrets) as Env[],
-    mounts: deployment.config.mounts,
-  });
-};
+  const app = deployment.app;
+  const conf = deployment.config;
+  const namespaceName = getNamespace(app.subdomain);
 
-export const createAppConfigs = (
-  app: AppParams,
-): { namespace: K8sObject; configs: K8sObject[] } => {
-  const namespace = createNamespaceConfig(app.namespace);
+  const namespace = createNamespaceConfig(namespaceName);
   const configs: K8sObject[] = [];
 
-  const envVars = getEnvVars(app.env, app.secrets, `${app.name}-secrets`);
-  const secretData = getSecretData(app.secrets);
+  const secrets = JSON.parse(conf.secrets) as Env[];
+  const envVars = getEnvVars(conf.env as Env[], secrets, `${app.name}-secrets`);
+  const secretData = getSecretData(secrets);
   if (!isObjectEmpty(secretData)) {
     const secretConfig = createSecretConfig(
       secretData,
       `${app.name}-secrets`,
-      app.namespace,
+      namespaceName,
     );
 
     // Secrets should be created first
@@ -396,29 +359,29 @@ export const createAppConfigs = (
   }
 
   const svc = createServiceConfig({
-    name: app.namespace,
-    namespace: app.namespace,
+    name: namespaceName,
+    namespace: namespaceName,
     appName: app.name,
     port: 80,
-    targetPort: app.port,
+    targetPort: conf.port,
   });
 
   const statefulSet = createStatefulSetConfig({
-    deploymentId: app.deploymentId,
-    appId: app.appId,
+    deploymentId: deployment.id,
+    appId: deployment.appId,
     name: app.name,
-    namespace: app.namespace,
-    image: app.image,
+    namespace: namespaceName,
+    image: deployment.imageTag,
     env: envVars,
-    port: app.port,
-    replicas: app.replicas,
-    mounts: app.mounts,
+    port: conf.port,
+    replicas: conf.replicas,
+    mounts: conf.mounts,
   });
 
   const logs = createLogConfig(
-    app.namespace,
-    app.appId,
-    app.loggingIngestSecret,
+    namespaceName,
+    deployment.appId,
+    app.logIngestSecret,
   );
 
   configs.push(...logs, statefulSet, svc);
