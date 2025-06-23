@@ -1,4 +1,5 @@
 import { EnvVarGrid } from "@/components/EnvVarGrid";
+import { MountsGrid, type Mounts } from "@/components/MountsGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,17 +18,19 @@ import { api } from "@/lib/api";
 import clsx from "clsx";
 import {
   BookMarked,
+  Cable,
   Code2,
   Container,
+  Database,
   FolderRoot,
   GitBranch,
   Globe,
   Hammer,
-  HardDrive,
   Link,
   Loader,
   Rocket,
   Server,
+  Tag,
 } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
 import { useNavigate } from "react-router-dom";
@@ -36,85 +39,59 @@ import { toast } from "sonner";
 export default function CreateAppView() {
   const { user } = useContext(UserContext);
 
-  const [selectedOrgId, setSelectedOrg] = useState<string | undefined>(
-    undefined,
-  );
-
-  const [selectedRepoId, setSelectedRepo] = useState<string | undefined>(
-    undefined,
-  );
-
-  const [environmentVariables, setEnvironmentVariables] = useState<
-    { name: string; value: string }[]
-  >([{ name: "", value: "" }]);
-
-  const [storageEnv, setStorageEnv] = useState<
-    { name: string; value: string }[]
-  >([{ name: "", value: "" }]);
-
-  const selectedOrg =
-    selectedOrgId !== undefined
-      ? user?.orgs?.find((it) => it.id === parseInt(selectedOrgId))
-      : undefined;
-
-  const { data: repos, isPending: reposLoading } = api.useQuery(
-    "get",
-    "/org/{orgId}/repos",
-    { params: { path: { orgId: parseInt(selectedOrgId!) } } },
-    { enabled: selectedOrgId !== undefined && selectedOrg?.githubConnected },
-  );
-
-  const selectedRepo =
-    selectedRepoId !== undefined
-      ? repos?.find((it) => it.id === parseInt(selectedRepoId))
-      : undefined;
-
   const { mutateAsync: createApp, isPending: createPending } = api.useMutation(
     "post",
     "/app",
   );
+
+  const [formState, setFormState] = useState<AppInfoFormData>({
+    env: [],
+    mounts: [],
+    orgId: undefined,
+    source: "git",
+    builder: "railpack",
+  });
 
   const navigate = useNavigate();
 
   return (
     <div className="flex max-w-prose mx-auto">
       <form
-        className="flex flex-col gap-4 w-full my-10"
+        className="flex flex-col gap-6 w-full my-10"
         onSubmit={async (e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
+
+          let appName = "untitled";
+          if (formState.source === "git") {
+            appName = formData.get("repoName")!.toString();
+          } else if (formState.source === "image") {
+            const tag = formData.get("imageTag")!.toString().split("/");
+            appName = tag[tag.length - 1].split(":")[0];
+          }
+
           const result = await createApp({
             body: {
-              orgId: selectedOrg!.id,
-              name: selectedRepo!.name!,
+              source: formState.source!,
+              orgId: formState.orgId!,
+              name: appName,
               port: parseInt(formData.get("port")!.toString()),
               subdomain: formData.get("subdomain")!.toString(),
-              dockerfilePath: formData.get("dockerfilePath")?.toString(),
-              env: environmentVariables.filter((it) => it.name.length > 0),
-              repositoryId: selectedRepo!.id!,
+              dockerfilePath:
+                formData.get("dockerfilePath")?.toString() ?? null,
+              env: formState.env.filter((it) => it.name.length > 0),
+              repositoryId: formState.repoId ?? null,
               secrets: [
                 /* TODO */
               ],
-              branch: formData.get("branch")!.toString(),
-              builder: formData.get("builder")!.toString() as
+              branch: formData.get("branch")?.toString() ?? null,
+              builder: (formData.get("builder")?.toString() ?? null) as
                 | "dockerfile"
-                | "railpack",
-              rootDir: formData.get("rootDir")!.toString(),
-              storage:
-                formData.has("database") && formData.get("database") !== "none"
-                  ? {
-                      image: formData.get("storageImage")!.toString(),
-                      replicas: parseInt(
-                        formData.get("storageReplicas")!.toString(),
-                      ),
-                      port: parseInt(formData.get("storagePort")!.toString()),
-                      amount: parseInt(
-                        formData.get("storageAmount")!.toString(),
-                      ),
-                      mountPath: formData.get("storageMountPath")!.toString(),
-                      env: storageEnv.filter((it) => it.name.length > 0),
-                    }
-                  : undefined,
+                | "railpack"
+                | null,
+              rootDir: formData.get("rootDir")?.toString() ?? null,
+              mounts: formState.mounts.filter((it) => it.path.length > 0),
+              imageTag: formData.get("imageTag")?.toString() ?? null,
             },
           });
 
@@ -137,12 +114,15 @@ export default function CreateAppView() {
               *
             </span>
           </div>
-          <Select required onValueChange={setSelectedOrg} name="org">
-            <SelectTrigger
-              className="w-full"
-              onSelect={(e) => e}
-              id="selectOrg"
-            >
+          <Select
+            required
+            onValueChange={(orgId) =>
+              setFormState({ ...formState, orgId: parseInt(orgId!) })
+            }
+            value={formState.orgId?.toString()}
+            name="org"
+          >
+            <SelectTrigger className="w-full" id="selectOrg">
               <SelectValue placeholder="Select an organization" />
             </SelectTrigger>
             <SelectContent>
@@ -156,112 +136,21 @@ export default function CreateAppView() {
             </SelectContent>
           </Select>
         </div>
-        {selectedOrg === undefined || selectedOrg.githubConnected ? (
-          <>
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <Label
-                  htmlFor="selectRepo"
-                  className={clsx(
-                    "pb-1",
-                    (selectedOrgId === undefined || reposLoading) &&
-                      "opacity-50",
-                  )}
-                >
-                  <BookMarked className="inline" size={16} />
-                  Repository
-                </Label>
-                <span
-                  className="text-red-500 cursor-default"
-                  title="This field is required."
-                >
-                  *
-                </span>
-              </div>
-              <Select
-                required
-                name="repo"
-                disabled={selectedOrgId === undefined || reposLoading}
-                onValueChange={setSelectedRepo}
-              >
-                <SelectTrigger className="w-full peer" id="selectRepo">
-                  <SelectValue
-                    placeholder={
-                      reposLoading && selectedOrgId !== undefined
-                        ? "Loading..."
-                        : "Select a repository"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {selectedOrgId !== undefined
-                      ? repos?.map((repo) => (
-                          <SelectItem key={repo.id} value={repo.id!.toString()}>
-                            {repo.owner}/{repo.name}
-                          </SelectItem>
-                        ))
-                      : null}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <AppConfigFormFields
-              env={environmentVariables}
-              setEnv={setEnvironmentVariables}
-              storageEnv={storageEnv}
-              setStorageEnv={setStorageEnv}
-              orgId={selectedOrgId ? parseInt(selectedOrgId) : undefined}
-              repoId={
-                selectedOrg?.githubConnected && selectedRepoId
-                  ? parseInt(selectedRepoId)
-                  : undefined
-              }
-            />
+        <AppConfigFormFields state={formState} setState={setFormState} />
 
-            <Button className="mt-8" size="lg" type="submit">
-              {createPending ? (
-                <>
-                  <Loader className="animate-spin" /> Deploying...
-                </>
-              ) : (
-                <>
-                  <Rocket />
-                  Deploy
-                </>
-              )}
-            </Button>
-          </>
-        ) : selectedOrg?.permissionLevel === "OWNER" ? (
-          <>
-            <p className="mt-4">
-              <strong>{selectedOrg?.name}</strong> has not been connected to
-              GitHub.
-            </p>
-            <p className="mb-4">
-              AnvilOps integrates with GitHub to deploy your app as soon as you
-              push to your repository.
-            </p>
-            <a
-              className="flex w-full"
-              href={`/api/org/${selectedOrg?.id}/install-github-app`}
-            >
-              <Button className="w-full" type="button">
-                <GitHubIcon />
-                Install GitHub App
-              </Button>
-            </a>
-          </>
-        ) : (
-          <>
-            <p className="my-4">
-              <strong>{selectedOrg?.name}</strong> has not been connected to
-              GitHub. Ask the owner of your organization to install the AnvilOps
-              GitHub App.
-            </p>
-          </>
-        )}
+        <Button className="mt-8" size="lg" type="submit">
+          {createPending ? (
+            <>
+              <Loader className="animate-spin" /> Deploying...
+            </>
+          ) : (
+            <>
+              <Rocket />
+              Deploy
+            </>
+          )}
+        </Button>
       </form>
     </div>
   );
@@ -282,28 +171,42 @@ export const GitHubIcon = ({ className }: { className?: string }) => (
 
 type Env = { name: string; value: string }[];
 
+export type AppInfoFormData = {
+  env: Env;
+  mounts: Mounts;
+  orgId?: number;
+  repoId?: number;
+  source?: "git" | "image";
+  builder?: "dockerfile" | "railpack";
+};
+
 export const AppConfigFormFields = ({
-  env,
-  setEnv,
-  storageEnv,
-  setStorageEnv,
-  orgId,
-  repoId,
+  state,
+  setState,
   hideSubdomainInput,
   defaults,
 }: {
-  env: Env;
-  setEnv: Dispatch<Env>;
-  storageEnv: Env;
-  setStorageEnv: Dispatch<Env>;
-  orgId: number | undefined;
-  repoId: number | undefined;
+  state: AppInfoFormData;
+  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
   hideSubdomainInput?: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
-    storage?: components["schemas"]["Storage"];
   };
 }) => {
+  const { source, builder, env, mounts, orgId, repoId } = state;
+
+  const { user } = useContext(UserContext);
+
+  const selectedOrg =
+    orgId !== undefined ? user?.orgs?.find((it) => it.id === orgId) : undefined;
+
+  const { data: repos, isPending: reposLoading } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos",
+    { params: { path: { orgId: orgId! } } },
+    { enabled: orgId !== undefined && selectedOrg?.githubConnected },
+  );
+
   const { data: branches, isPending: branchesLoading } = api.useQuery(
     "get",
     "/org/{orgId}/repos/{repoId}/branches",
@@ -320,25 +223,44 @@ export const AppConfigFormFields = ({
     },
   );
 
-  const [builder, setBuilder] = useState<"dockerfile" | "railpack" | undefined>(
-    defaults?.config?.builder,
-  );
-  const [database, setDatabase] = useState<string>(
-    defaults?.storage ? "custom" : "none",
-  );
+  if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
+    return selectedOrg?.permissionLevel === "OWNER" ? (
+      <>
+        <p className="mt-4">
+          <strong>{selectedOrg?.name}</strong> has not been connected to GitHub.
+        </p>
+        <p className="mb-4">
+          AnvilOps integrates with GitHub to deploy your app as soon as you push
+          to your repository.
+        </p>
+        <a
+          className="flex w-full"
+          href={`/api/org/${selectedOrg?.id}/install-github-app`}
+        >
+          <Button className="w-full" type="button">
+            <GitHubIcon />
+            Install GitHub App
+          </Button>
+        </a>
+      </>
+    ) : (
+      <>
+        <p className="my-4">
+          <strong>{selectedOrg?.name}</strong> has not been connected to GitHub.
+          Ask the owner of your organization to install the AnvilOps GitHub App.
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
+      <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
-          <Label
-            htmlFor="selectBranch"
-            className={clsx(
-              "pb-1",
-              (repoId === undefined || branchesLoading) && "opacity-50",
-            )}
-          >
-            <GitBranch className="inline" size={16} />
-            Branch
+          <Label htmlFor="deploymentSource" className="pb-1">
+            <Cable className="inline" size={16} />
+            Deployment Source
           </Label>
           <span
             className="text-red-500 cursor-default"
@@ -349,50 +271,248 @@ export const AppConfigFormFields = ({
         </div>
         <Select
           required
-          name="branch"
-          disabled={repoId === undefined || branchesLoading}
-          defaultValue={defaults?.config?.branch}
+          value={source}
+          onValueChange={(source) =>
+            setState((prev) => ({ ...prev, source: source as "git" | "image" }))
+          }
+          name="source"
         >
-          <SelectTrigger className="w-full" id="selectBranch">
-            <SelectValue placeholder="Select a branch" />
+          <SelectTrigger className="w-full" id="deploymentSource">
+            <SelectValue placeholder="Select deployment source" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              {repoId !== undefined
-                ? branches?.branches?.map((branch) => (
-                    <SelectItem key={branch} value={branch}>
-                      {branch}
-                    </SelectItem>
-                  ))
-                : null}
+              <SelectItem value="git">Git Repository</SelectItem>
+              <SelectItem value="image">OCI Image</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <Label className="pb-1 mb-2">
-            <FolderRoot className="inline" size={16} /> Root directory
-          </Label>
-          <span
-            className="text-red-500 cursor-default"
-            title="This field is required."
-          >
-            *
-          </span>
-        </div>
-        <Input
-          defaultValue={defaults?.config?.rootDir ?? "./"}
-          name="rootDir"
-          placeholder="./"
-          className="w-full mb-1"
-          pattern="^\.\/.*$"
-          required
-        />
-        <p className="opacity-50 text-xs">
-          Must start with <code>./</code>
-        </p>
-      </div>
+      {source === "git" ? (
+        <>
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label
+                htmlFor="selectRepo"
+                className={clsx(
+                  "pb-1",
+                  (orgId === undefined || reposLoading) && "opacity-50",
+                )}
+              >
+                <BookMarked className="inline" size={16} />
+                Repository
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+
+            <Select
+              required
+              name="repo"
+              disabled={orgId === undefined || reposLoading}
+              onValueChange={(repo) =>
+                setState((prev) => ({ ...prev, repoId: parseInt(repo) }))
+              }
+              value={repoId?.toString()}
+            >
+              <SelectTrigger className="w-full peer" id="selectRepo">
+                <SelectValue
+                  placeholder={
+                    reposLoading && orgId !== undefined
+                      ? "Loading..."
+                      : "Select a repository"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {orgId !== undefined
+                    ? repos?.map((repo) => (
+                        <SelectItem key={repo.id} value={repo.id!.toString()}>
+                          {repo.owner}/{repo.name}
+                        </SelectItem>
+                      ))
+                    : null}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <input
+            // This is used to generate the app's name when the form is submitted
+            type="hidden"
+            name="repoName"
+            value={repos?.find((it) => it.id === repoId)?.name}
+          />
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label
+                htmlFor="selectBranch"
+                className={clsx(
+                  "pb-1",
+                  (repoId === undefined || branchesLoading) && "opacity-50",
+                )}
+              >
+                <GitBranch className="inline" size={16} />
+                Branch
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <Select
+              required
+              name="branch"
+              disabled={repoId === undefined || branchesLoading}
+              defaultValue={defaults?.config?.branch ?? undefined}
+            >
+              <SelectTrigger className="w-full" id="selectBranch">
+                <SelectValue placeholder="Select a branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {repoId !== undefined
+                    ? branches?.branches?.map((branch) => (
+                        <SelectItem key={branch} value={branch}>
+                          {branch}
+                        </SelectItem>
+                      ))
+                    : null}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      ) : source === "image" ? (
+        <>
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label className="pb-1 mb-2">
+                <Tag className="inline" size={16} /> Image tag
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <Input
+              defaultValue={defaults?.config?.imageTag ?? undefined}
+              name="imageTag"
+              placeholder="nginx:latest"
+              className="w-full"
+              // Docker image name format: https://pkg.go.dev/github.com/distribution/reference#pkg-overview
+              // Regex: https://stackoverflow.com/a/39672069
+              pattern="^(?:(?=[^:\/]{4,253})(?!-)[a-zA-Z0-9\-]{1,63}(?<!-)(?:\.(?!-)[a-zA-Z0-9\-]{1,63}(?<!-))*(?::[0-9]{1,5})?\/)?((?![._\-])(?:[a-z0-9._\-]*)(?<![._\-])(?:\/(?![._\-])[a-z0-9._\-]*(?<![._\-]))*)(?::(?![.\-])[a-zA-Z0-9_.\-]{1,128})?$"
+              required
+            />
+          </div>
+        </>
+      ) : null}
+
+      {source === "git" && (
+        <>
+          <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Build Options</h3>
+
+          <div>
+            <div className="flex items-baseline gap-2">
+              <Label className="pb-1 mb-2">
+                <FolderRoot className="inline" size={16} /> Root directory
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <Input
+              defaultValue={defaults?.config?.rootDir ?? "./"}
+              name="rootDir"
+              placeholder="./"
+              className="w-full mb-1"
+              pattern="^\.\/.*$"
+              required
+            />
+            <p className="opacity-50 text-xs">
+              Must start with <code>./</code>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label className="pb-1">
+                <Hammer className="inline" size={16} /> Builder
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <RadioGroup
+              name="builder"
+              value={builder}
+              onValueChange={(newValue) =>
+                setState((prev) => ({
+                  ...prev,
+                  builder: newValue as "dockerfile" | "railpack",
+                }))
+              }
+              required
+            >
+              <Label
+                htmlFor="builder-dockerfile"
+                className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+              >
+                <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
+                Dockerfile
+                <p className="opacity-50 font-normal">
+                  Builds your app using your Dockerfile.
+                </p>
+              </Label>
+              <Label
+                htmlFor="builder-railpack"
+                className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+              >
+                <RadioGroupItem value="railpack" id="builder-railpack" />
+                Railpack
+                <p className="opacity-50 font-normal">
+                  Detects your project structure and builds your app
+                  automatically.
+                </p>
+              </Label>
+            </RadioGroup>
+          </div>
+          {builder === "dockerfile" ? (
+            <div>
+              <Label className="pb-1 mb-2">
+                <Container className="inline" size={16} /> Dockerfile Path
+              </Label>
+              <Input
+                name="dockerfilePath"
+                placeholder="Dockerfile"
+                defaultValue={defaults?.config?.dockerfilePath ?? "Dockerfile"}
+                className="w-full"
+                required
+              />
+              <p className="opacity-50 text-xs mb-2 mt-1">
+                Relative to the root directory.
+              </p>
+            </div>
+          ) : null}
+        </>
+      )}
+
+      <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Deployment Options</h3>
+
       {!hideSubdomainInput && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
@@ -453,207 +573,25 @@ export const AppConfigFormFields = ({
         <Label className="pb-1">
           <Code2 className="inline" size={16} /> Environment Variables
         </Label>
-        <EnvVarGrid value={env} setValue={setEnv} />
+        <EnvVarGrid
+          value={env}
+          setValue={(env) => {
+            setState((prev) => ({ ...prev, env }));
+          }}
+        />
       </div>
       <div className="space-y-2">
-        <div className="flex items-baseline gap-2">
-          <Label className="pb-1">
-            <Hammer className="inline" size={16} /> Builder
-          </Label>
-          <span
-            className="text-red-500 cursor-default"
-            title="This field is required."
-          >
-            *
-          </span>
-        </div>
-        <RadioGroup
-          name="builder"
-          value={builder}
-          onValueChange={(newValue) =>
-            setBuilder(newValue as "dockerfile" | "railpack")
-          }
-          required
-        >
-          <Label
-            htmlFor="builder-dockerfile"
-            className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
-          >
-            <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
-            Dockerfile
-            <p className="opacity-50 font-normal">
-              Builds your app using your Dockerfile.
-            </p>
-          </Label>
-          <Label
-            htmlFor="builder-railpack"
-            className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
-          >
-            <RadioGroupItem value="railpack" id="builder-railpack" />
-            Railpack
-            <p className="opacity-50 font-normal">
-              Detects your project structure and builds your app automatically.
-            </p>
-          </Label>
-        </RadioGroup>
-      </div>
-      {builder === "dockerfile" ? (
-        <div>
-          <Label className="pb-1 mb-2">
-            <Container className="inline" size={16} /> Dockerfile Path
-          </Label>
-          <Input
-            name="dockerfilePath"
-            placeholder="Dockerfile"
-            defaultValue={defaults?.config?.dockerfilePath ?? "Dockerfile"}
-            className="w-full"
-            required
-          />
-          <p className="opacity-50 text-xs mb-2 mt-1">
-            Relative to the root directory.
-          </p>
-        </div>
-      ) : null}
-      <div>
-        <div className="space-y-2">
-          <Label className="pb-1 mb-2">
-            <HardDrive className="inline" size={16} />
-            Configure Storage
-          </Label>
-          <RadioGroup
-            name="database"
-            value={database}
-            onValueChange={(value) => setDatabase(value)}
-            defaultValue="none"
-            required
-          >
-            <Label
-              htmlFor="storage-none"
-              className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
-            >
-              <RadioGroupItem value="none" id="storage-none" />
-              None
-              <p className="opacity-50 font-normal">
-                No persistent storage needed.
-              </p>
-            </Label>
-            <Label
-              htmlFor="storage-custom"
-              className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
-            >
-              <RadioGroupItem value="custom" id="storage-custom" />
-              Custom...
-            </Label>
-          </RadioGroup>
-        </div>
-        {database !== "none" ? (
-          <div className="flex flex-col gap-4 mt-4 p-4 rounded-lg border border-input">
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <Label className="pb-1">Image</Label>
-                <span
-                  className="text-red-500 cursor-default"
-                  title="This field is required."
-                >
-                  *
-                </span>
-              </div>
-              <Input
-                name="storageImage"
-                placeholder="postgres:17"
-                required
-                defaultValue={defaults?.storage?.image}
-              />
-            </div>
-            <div className="flex space-x-8 space-y-2">
-              <div className="w-full gap-1">
-                <div className="flex items-baseline gap-2">
-                  <Label className="pb-1 mb-2">Storage amount</Label>
-                  <span
-                    className="text-red-500 cursor-default"
-                    title="This field is required."
-                  >
-                    *
-                  </span>
-                </div>
-                <div className="relative w-full flex items-center gap-2">
-                  <Input
-                    name="storageAmount"
-                    type="number"
-                    placeholder="1"
-                    min="1"
-                    max="2x"
-                    required
-                    defaultValue={defaults?.storage?.amount}
-                  />
-                  <p>GiB</p>
-                </div>
-              </div>
-              <div className="w-full">
-                <div className="flex items-baseline gap-2">
-                  <Label className="pb-1 mb-2">Replicas</Label>
-                  <span
-                    className="text-red-500 cursor-default"
-                    title="This field is required."
-                  >
-                    *
-                  </span>
-                </div>
-                <Input
-                  name="storageReplicas"
-                  type="number"
-                  required
-                  defaultValue={defaults?.storage?.replicas ?? 1}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <Label htmlFor="storagePort" className="pb-1">
-                  Port Number
-                </Label>
-                <span
-                  className="text-red-500 cursor-default"
-                  title="This field is required."
-                >
-                  *
-                </span>
-              </div>
-              <Input
-                name="storagePort"
-                placeholder="5432"
-                className="w-full"
-                type="number"
-                required
-                min="1"
-                max="65536"
-                defaultValue={defaults?.storage?.port}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <Label className="pb-1">Mount Path</Label>
-                <span
-                  className="text-red-500 cursor-default"
-                  title="This field is required."
-                >
-                  *
-                </span>
-              </div>
-              <Input
-                name="storageMountPath"
-                placeholder="/var/lib/postgresql/data"
-                className="w-full"
-                required
-                defaultValue={defaults?.storage?.mountPath}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="pb-1 mb-2">Environment Variables</Label>
-              <EnvVarGrid value={storageEnv} setValue={setStorageEnv} />
-            </div>
-          </div>
-        ) : null}
+        <Label className="pb-1">
+          <Database className="inline" size={16} /> Volume Mounts
+        </Label>
+        <p className="opacity-50 text-sm">
+          Preserve files contained at these paths across app restarts. All other
+          files will be discarded.
+        </p>
+        <MountsGrid
+          value={mounts}
+          setValue={(mounts) => setState((prev) => ({ ...prev, mounts }))}
+        />
       </div>
     </>
   );

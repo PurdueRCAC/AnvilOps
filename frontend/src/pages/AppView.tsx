@@ -45,7 +45,11 @@ import {
   AlertDialogHeader,
 } from "../components/ui/alert-dialog";
 import { Input } from "../components/ui/input";
-import { AppConfigFormFields, GitHubIcon } from "./CreateAppView";
+import {
+  AppConfigFormFields,
+  GitHubIcon,
+  type AppInfoFormData,
+} from "./CreateAppView";
 
 type App = components["schemas"]["App"];
 
@@ -207,7 +211,7 @@ const OverviewTab = ({
     {
       refetchInterval: ({ state: { data } }) => {
         if (!data) return false;
-        switch (data[0].status) {
+        switch (data?.[0]?.status) {
           case "PENDING":
             return 1_000;
           case "BUILDING":
@@ -364,6 +368,15 @@ export const Status = ({
     STOPPED: "bg-gray-600",
   };
 
+  if (!status || !colors[status]) {
+    return (
+      <div className={cn("inline-flex items-center gap-2", className)}>
+        <div className={`size-2 rounded-full bg-gray-300`} />
+        Unknown
+      </div>
+    );
+  }
+
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
       <div className={`size-2 rounded-full ${colors[status]}`} />
@@ -381,30 +394,14 @@ const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
-  const [env, setEnv] = useState<{ name: string; value: string }[]>([]);
-  const [storageEnv, setStorageEnv] = useState<
-    { name: string; value: string }[]
-  >([]);
-
-  useEffect(() => {
-    if (
-      app?.config?.env !== undefined &&
-      Object.keys(app.config.env).length > 0 &&
-      env.length === 0
-    ) {
-      setEnv(app.config.env);
-    }
-  }, [app?.config?.env]);
-
-  useEffect(() => {
-    if (
-      app?.storage?.env !== undefined &&
-      Object.keys(app.storage.env).length > 0 &&
-      storageEnv.length === 0
-    ) {
-      setStorageEnv(app.storage.env);
-    }
-  }, [app?.storage?.env]);
+  const [formState, setFormState] = useState<AppInfoFormData>({
+    env: app?.config?.env ?? [],
+    mounts: app?.config?.mounts ?? [],
+    builder: app?.config?.builder ?? "railpack",
+    orgId: app.orgId,
+    repoId: app?.config?.repositoryId ?? undefined,
+    source: app?.config?.source ?? "git",
+  });
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
     "put",
@@ -423,35 +420,25 @@ const ConfigTab = ({
             body: {
               name: formData.get("name")!.toString(),
               config: {
+                source: formState.source!,
                 port: parseInt(formData.get("port")!.toString()),
                 dockerfilePath:
-                  formData.get("dockerfilePath")?.toString() ?? "",
-                env: env.filter((it) => it.name.length > 0),
+                  formData.get("dockerfilePath")?.toString() ?? null,
+                env: formState.env.filter((it) => it.name.length > 0),
+                repositoryId: formState.repoId ?? null,
                 secrets: [
                   /* TODO */
                 ],
-                branch: formData.get("branch")!.toString(),
-                builder: formData.get("builder")!.toString() as
+                branch: formData.get("branch")?.toString() ?? null,
+                builder: (formData.get("builder")?.toString() ?? null) as
                   | "dockerfile"
-                  | "railpack",
-                rootDir: formData.get("rootDir")!.toString(),
+                  | "railpack"
+                  | null,
+                rootDir: formData.get("rootDir")?.toString() ?? null,
+                mounts: formState.mounts.filter((it) => it.path.length > 0),
+                imageTag: formData.get("imageTag")?.toString() ?? null,
                 replicas: parseInt(formData.get("replicas")!.toString()),
               },
-              storage:
-                formData.get("database") !== "none"
-                  ? {
-                      image: formData.get("storageImage")!.toString(),
-                      replicas: parseInt(
-                        formData.get("storageReplicas")!.toString(),
-                      ),
-                      port: parseInt(formData.get("storagePort")!.toString()),
-                      amount: parseInt(
-                        formData.get("storageAmount")!.toString(),
-                      ),
-                      mountPath: formData.get("storageMountPath")!.toString(),
-                      env: storageEnv.filter((it) => it.name.length > 0),
-                    }
-                  : undefined,
             },
           });
 
@@ -499,13 +486,9 @@ const ConfigTab = ({
         />
       </div>
       <AppConfigFormFields
-        env={env}
-        setEnv={setEnv}
-        storageEnv={storageEnv}
-        setStorageEnv={setStorageEnv}
-        orgId={app.orgId}
-        repoId={app.repositoryId}
-        defaults={{ config: app.config, storage: app.storage }}
+        state={formState}
+        setState={setFormState}
+        defaults={{ config: app.config }}
         hideSubdomainInput
       />
       <Button className="mt-8 max-w-max" disabled={updatePending}>

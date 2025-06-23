@@ -2,30 +2,21 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
+import { DeploymentSource } from "../generated/prisma/enums.ts";
+import type {
+  DeploymentConfigCreateInput,
+  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
+} from "../generated/prisma/models.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { json, redirect, type Env, type HandlerMap } from "../types.ts";
+import { validateDeploymentConfig } from "../lib/validate.ts";
+import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
-
-export const validateEnv = (
-  env: Env[] | undefined,
-  secrets: Env[] | undefined,
-) => {
-  const envNames = new Set();
-  env = env ?? [];
-  secrets = secrets ?? [];
-  for (let envVar of [...env, ...secrets]) {
-    if (envNames.has(envVar.name)) {
-      throw new Error("Duplicate environment variable: " + envVar);
-    }
-    envNames.add(envVar.name);
-  }
-};
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -34,63 +25,12 @@ const createApp: HandlerMap["createApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
 
-  if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
-    return json(400, res, { code: 400, message: "Invalid root directory" });
-  }
-
-  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
-    return json(400, res, {
-      code: 400,
-      message: "Some environment variable(s) are empty",
-    });
-  }
-
-  if (appData.port < 0 || appData.port > 65535) {
-    return json(400, res, {
-      code: 400,
-      message: "Invalid port number",
-    });
-  }
-
-  if (appData.dockerfilePath) {
-    if (
-      appData.dockerfilePath.startsWith("/") ||
-      appData.dockerfilePath.includes(`"`)
-    ) {
-      return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
+  {
+    console.log(appData);
+    const validation = validateDeploymentConfig(appData);
+    if (!validation.valid) {
+      return json(400, res, { code: 400, message: validation.message });
     }
-  }
-
-  if (appData.storage) {
-    if (!appData.storage.image.includes(":")) {
-      return json(400, res, {
-        code: 400,
-        message: "Invalid image (Must be in the foramt repository:tag)",
-      });
-    }
-
-    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
-      return json(400, res, {
-        code: 400,
-        message:
-          "Invalid storage capacity (Must be a positive value less than 10",
-      });
-    }
-    if (appData.storage.port < 0 || appData.storage.port > 65535) {
-      return json(400, res, {
-        code: 400,
-        message: "Invalid port number",
-      });
-    }
-  }
-
-  try {
-    validateEnv(appData.env, appData.secrets);
-    if (appData.storage && appData.storage.env.length !== 0) {
-      validateEnv(appData.storage.env, []);
-    }
-  } catch (err) {
-    return json(400, res, { code: 400, message: err.message });
   }
 
   const organization = await db.organization.findUnique({
@@ -152,20 +92,38 @@ const createApp: HandlerMap["createApp"] = async (
   ).data[0];
 
   let app: App;
+
+  const deploymentConfig: DeploymentConfigCreateInput & {
+    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
+  } = {
+    source: convertSource(appData.source),
+    repositoryId: appData.repositoryId,
+    branch: appData.branch,
+    port: appData.port,
+    env: appData.env,
+    secrets: appData.secrets ? JSON.stringify(appData.secrets) : undefined,
+    builder: appData.builder,
+    dockerfilePath: appData.dockerfilePath,
+    rootDir: appData.rootDir,
+    mounts: { createMany: { data: appData.mounts } },
+    imageTag: appData.imageTag,
+  };
+
   try {
     app = await db.app.create({
       data: {
         name: appData.name,
         displayName: appData.name,
-        repositoryId: appData.repositoryId,
         subdomain: appData.subdomain,
         org: {
           connect: {
             id: appData.orgId,
           },
         },
-        repositoryBranch: appData.branch,
         logIngestSecret: randomBytes(48).toString("hex"),
+        deploymentConfigTemplate: {
+          create: deploymentConfig,
+        },
       },
     });
     app = await db.app.update({
@@ -184,9 +142,6 @@ const createApp: HandlerMap["createApp"] = async (
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 
-  // TODO: Check if env vars from storage have been duplicated
-  // TODO: Validate storage image - check if supported
-
   try {
     await buildAndDeploy({
       orgId: app.orgId,
@@ -195,15 +150,7 @@ const createApp: HandlerMap["createApp"] = async (
       commitSha: latestCommit.sha,
       commitMessage: latestCommit.commit.message,
       cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
-      config: {
-        port: appData.port,
-        env: appData.env,
-        secrets: appData.secrets ? JSON.stringify(appData.secrets) : undefined,
-        builder: appData.builder,
-        dockerfilePath: appData.dockerfilePath,
-        rootDir: appData.rootDir,
-      },
-      storageConfig: appData.storage,
+      config: deploymentConfig,
       createCheckRun: false,
     });
   } catch (e) {
@@ -216,5 +163,16 @@ const createApp: HandlerMap["createApp"] = async (
 
   return json(200, res, { id: app.id });
 };
+
+export function convertSource(input: string) {
+  switch (input) {
+    case "git":
+      return DeploymentSource.GIT;
+    case "image":
+      return DeploymentSource.IMAGE;
+    default:
+      return null;
+  }
+}
 
 export default createApp;

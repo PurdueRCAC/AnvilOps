@@ -68,7 +68,6 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     }
   }
 
-  await db.storageConfig.deleteMany({ where: { deployment: { appId } } });
   await db.deployment.deleteMany({ where: { appId } });
 
   try {

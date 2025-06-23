@@ -25,6 +25,8 @@ export const EnvVarGrid = ({
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content] items-center gap-2">
+      <span className="text-sm col-span-2">Name</span>
+      <span className="text-sm col-span-2">Value</span>
       {envVars.map(({ name, value }, index) => (
         <Fragment key={index}>
           <Input

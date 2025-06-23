@@ -1,13 +1,12 @@
 import { db } from "../lib/db.ts";
 import {
   createAppConfigs,
-  createLogConfig,
-  createNamespaceConfig,
   createOrUpdateApp,
-  NAMESPACE_PREFIX,
+  getNamespace,
+  type AppParams,
 } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { type Env, type HandlerMap, json } from "../types.ts";
+import { json, type Env, type HandlerMap } from "../types.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -27,13 +26,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     where: { secret: secret },
     data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
     include: {
-      config: true,
-      storageConfig: true,
+      config: { include: { mounts: true } },
       app: {
         select: {
-          repositoryId: true,
           org: { select: { githubInstallationId: true } },
         },
+        include: { deploymentConfigTemplate: true },
       },
     },
   });
@@ -51,7 +49,10 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       const octokit = await getOctokit(deployment.app.org.githubInstallationId);
 
       // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
-      const repo = await getRepoById(octokit, deployment.app.repositoryId);
+      const repo = await getRepoById(
+        octokit,
+        deployment.app.deploymentConfigTemplate.repositoryId,
+      );
 
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,
@@ -63,24 +64,6 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     } catch (e) {
       console.error("Failed to update check run: ", e);
     }
-  }
-
-  if (status === "BUILDING") {
-    // When the app starts building, create/patch the logging configs early so that the kube-logging operator
-    // has time to observe the changes and start watching our new pods for logs.
-    const app = await db.app.findUnique({
-      where: {
-        id: deployment.appId,
-      },
-    });
-
-    const namespace = createNamespaceConfig(NAMESPACE_PREFIX + app.subdomain);
-    const configs = createLogConfig(
-      NAMESPACE_PREFIX + app.subdomain,
-      app.id,
-      app.logIngestSecret,
-    );
-    await createOrUpdateApp(app.name, namespace, configs);
   }
 
   if (status === "DEPLOYING") {
@@ -98,11 +81,11 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       },
     });
 
-    const appParams = {
+    const appParams: AppParams = {
       deploymentId: deployment.id,
       appId: app.id,
       name: app.name,
-      namespace: NAMESPACE_PREFIX + app.subdomain,
+      namespace: getNamespace(app.subdomain),
       image: deployment.imageTag,
       env: deployment.config.env as Env[],
       secrets: (deployment.config.secrets
@@ -110,13 +93,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         : []) as Env[],
       port: deployment.config.port,
       replicas: deployment.config.replicas,
-      storage: deployment.storageConfig
-        ? {
-            ...deployment.storageConfig,
-            env: deployment.storageConfig.env as Env[],
-          }
-        : undefined,
       loggingIngestSecret: app.logIngestSecret,
+      mounts: deployment.config.mounts,
     };
     const { namespace, configs } = createAppConfigs(appParams);
     try {
