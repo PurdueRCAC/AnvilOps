@@ -1,4 +1,4 @@
-import type { V1ReplicaSet } from "@kubernetes/client-node";
+import type { V1StatefulSet } from "@kubernetes/client-node";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -397,9 +397,9 @@ const handlers = {
         app.deploymentConfigTemplate.repositoryId,
       );
 
-      let k8sDeployment: V1ReplicaSet | undefined;
+      let k8sDeployment: V1StatefulSet | undefined;
       try {
-        k8sDeployment = await k8s.apps.readNamespacedReplicaSet({
+        k8sDeployment = await k8s.apps.readNamespacedStatefulSet({
           namespace: getNamespace(app.subdomain),
           name: app.name,
         });

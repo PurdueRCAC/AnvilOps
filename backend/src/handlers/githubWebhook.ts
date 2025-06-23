@@ -188,7 +188,7 @@ export async function buildAndDeploy({
   ...opts
 }: BuildAndDeployOptions) {
   const imageTag =
-    config.source === "IMAGE"
+    config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
       : (`registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const);
   const secret = randomBytes(32).toString("hex");
