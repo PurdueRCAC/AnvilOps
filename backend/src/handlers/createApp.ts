@@ -11,7 +11,7 @@ import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
-import { NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
+import { NAMESPACE_PREFIX, resourceExists } from "../lib/kubernetes.ts";
 import { components, operations } from "../generated/openapi.ts";
 
 export const validateEnv = (
@@ -37,7 +37,7 @@ const createApp: HandlerMap["createApp"] = async (
   const appData = ctx.request.requestBody;
 
   try {
-    validateAppConfig(appData);
+    await validateAppConfig(appData);
   } catch (err) {
     return json(400, res, {
       code: 400,
@@ -169,7 +169,7 @@ const createApp: HandlerMap["createApp"] = async (
   return json(200, res, { id: app.id });
 };
 
-const validateAppConfig = (
+const validateAppConfig = async (
   appData: operations["createApp"]["requestBody"]["content"]["application/json"],
 ) => {
   if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
@@ -211,9 +211,20 @@ const validateAppConfig = (
   const MAX_NS_LENGTH = 63 - NAMESPACE_PREFIX.length;
   if (
     appData.subdomain.length > MAX_NS_LENGTH ||
-    appData.subdomain.match(/^[a-zA-Z0-9-]+$/) == null
+    appData.subdomain.match(/^[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?$/) ==
+      null
   ) {
     throw new Error("Invalid subdomain");
+  }
+
+  if (
+    await resourceExists({
+      apiVersion: "v1",
+      kind: "Namespace",
+      metadata: { name: NAMESPACE_PREFIX + appData.subdomain },
+    })
+  ) {
+    throw new Error("Subdomain is unavailable");
   }
 
   validateEnv(appData.env, appData.secrets);

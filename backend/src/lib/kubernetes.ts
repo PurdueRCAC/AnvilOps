@@ -65,7 +65,6 @@ interface K8sObject {
   };
 }
 
-export const SUPPORTED_DBS = ["postgres:17", "mysql:9"];
 type StorageParams = {
   image: string;
   replicas: number;
@@ -75,12 +74,13 @@ type StorageParams = {
   env: Env[];
 };
 
-const resourceExists = async (data: K8sObject) => {
+export const resourceExists = async (data: K8sObject) => {
   try {
     await k8s.full.read(data);
     return true;
   } catch (err) {
     if (err instanceof ApiException) {
+      // Assumes a namespace does not exist if request results in 403 Forbidden - potential false negative
       if ((data.kind === "Namespace" && err.code === 403) || err.code === 404) {
         return false;
       }
