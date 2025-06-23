@@ -204,7 +204,10 @@ export const AppConfigFormFields = ({
     "get",
     "/org/{orgId}/repos",
     { params: { path: { orgId: orgId! } } },
-    { enabled: orgId !== undefined && selectedOrg?.githubConnected },
+    {
+      enabled:
+        orgId !== undefined && selectedOrg?.githubConnected && source === "git",
+    },
   );
 
   const { data: branches, isPending: branchesLoading } = api.useQuery(
@@ -219,7 +222,7 @@ export const AppConfigFormFields = ({
       },
     },
     {
-      enabled: orgId !== undefined && repoId !== undefined,
+      enabled: orgId !== undefined && repoId !== undefined && source === "git",
     },
   );
 
