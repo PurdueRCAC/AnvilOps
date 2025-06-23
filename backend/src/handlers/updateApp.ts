@@ -148,12 +148,6 @@ const updateApp: HandlerMap["updateApp"] = async (
     mounts: { createMany: { data: appConfig.mounts } },
   };
 
-  // Update the "template" used to create new deployments without user intervention
-  await db.deploymentConfig.update({
-    where: { id: app.deploymentConfigTemplateId },
-    data: updatedDeploymentConfig,
-  });
-
   // Create a new deployment from the template
   const deployment = await db.deployment.create({
     data: {
@@ -191,7 +185,16 @@ const updateApp: HandlerMap["updateApp"] = async (
         status: "ERROR",
       },
     });
+
+    return json(200, res, {});
   }
+
+  // Now that the deployment succeeded, we know that the deployment config applies correctly.
+  // Update the template config so that new deployments are based on this updated configuration.
+  await db.deploymentConfig.update({
+    where: { id: app.deploymentConfigTemplateId },
+    data: updatedDeploymentConfig,
+  });
 
   return json(200, res, {});
 };
