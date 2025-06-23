@@ -34,17 +34,17 @@ export function validateDeploymentConfig(appData: {
 
   if (appData.source === "git") {
     if (appData.builder === "dockerfile") {
-      if (
-        !appData.dockerfilePath ||
-        appData.dockerfilePath.startsWith("/") ||
-        appData.dockerfilePath.includes(`"`)
-      ) {
-        return { valid: false, message: "Invalid Dockerfile path" };
-      } else {
+      if (!appData.dockerfilePath) {
         return {
           valid: false,
           message: "Dockerfile path must be provided",
         };
+      }
+      if (
+        appData.dockerfilePath.startsWith("/") ||
+        appData.dockerfilePath.includes(`"`)
+      ) {
+        return { valid: false, message: "Invalid Dockerfile path" };
       }
     }
   } else if (appData.source === "image") {
