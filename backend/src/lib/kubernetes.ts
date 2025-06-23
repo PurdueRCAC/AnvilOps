@@ -98,6 +98,7 @@ const createStatefulSetConfig = (deploy: DeploymentParams) => {
           app: deploy.name,
         },
       },
+      serviceName: deploy.namespace,
       replicas: deploy.replicas,
       template: {
         metadata: {
