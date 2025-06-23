@@ -48,48 +48,58 @@ const createApp: HandlerMap["createApp"] = async (
     return json(401, res, {});
   }
 
-  if (!organization.githubInstallationId) {
-    const isOwner = !!(await db.organizationMembership.findFirst({
-      where: {
-        userId: req.user.id,
-        organizationId: appData.orgId,
-        permissionLevel: "OWNER",
-      },
-    }));
-    if (isOwner) {
-      const state = await createState(req.user.id, appData.orgId);
-      return redirect(
-        302,
-        res,
-        `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
-      );
-    } else {
-      return json(403, res, {
-        code: 403,
-        message: "Owner needs to install GitHub App in organization.",
+  let commitSha = "unknown",
+    commitMessage = "Initial deployment",
+    cloneURL: string | undefined = undefined;
+
+  if (appData.source === "git") {
+    if (!organization.githubInstallationId) {
+      const isOwner = !!(await db.organizationMembership.findFirst({
+        where: {
+          userId: req.user.id,
+          organizationId: appData.orgId,
+          permissionLevel: "OWNER",
+        },
+      }));
+      if (isOwner) {
+        const state = await createState(req.user.id, appData.orgId);
+        return redirect(
+          302,
+          res,
+          `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
+        );
+      } else {
+        return json(403, res, {
+          code: 403,
+          message: "Owner needs to install GitHub App in organization.",
+        });
+      }
+    }
+
+    let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
+
+    try {
+      octokit = await getOctokit(organization.githubInstallationId);
+      repo = await getRepoById(octokit, appData.repositoryId);
+    } catch (err) {
+      return json(500, res, {
+        code: 500,
+        message: "Failed to look up GitHub repository.",
       });
     }
+
+    const latestCommit = (
+      await octokit.rest.repos.listCommits({
+        per_page: 1,
+        owner: repo.owner.login,
+        repo: repo.name,
+      })
+    ).data[0];
+
+    commitSha = latestCommit.sha;
+    commitMessage = latestCommit.commit.message;
+    cloneURL = await generateCloneURLWithCredentials(octokit, repo.html_url);
   }
-
-  let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
-
-  try {
-    octokit = await getOctokit(organization.githubInstallationId);
-    repo = await getRepoById(octokit, appData.repositoryId);
-  } catch (err) {
-    return json(500, res, {
-      code: 500,
-      message: "Failed to look up GitHub repository.",
-    });
-  }
-
-  const latestCommit = (
-    await octokit.rest.repos.listCommits({
-      per_page: 1,
-      owner: repo.owner.login,
-      repo: repo.name,
-    })
-  ).data[0];
 
   let app: App;
 
@@ -147,9 +157,9 @@ const createApp: HandlerMap["createApp"] = async (
       orgId: app.orgId,
       appId: app.id,
       imageRepo: app.imageRepo,
-      commitSha: latestCommit.sha,
-      commitMessage: latestCommit.commit.message,
-      cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
+      commitSha: commitSha,
+      commitMessage: commitMessage,
+      cloneURL: appData.source === "git" ? cloneURL : undefined,
       config: deploymentConfig,
       createCheckRun: false,
     });

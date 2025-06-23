@@ -168,7 +168,7 @@ type BuildAndDeployOptions = {
   imageRepo: string;
   commitSha: string;
   commitMessage: string;
-  cloneURL: string;
+  cloneURL: string | null;
   config: DeploymentConfigCreateWithoutDeploymentInput & {
     mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
   };
