@@ -12,7 +12,7 @@ import {
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 import { NAMESPACE_PREFIX, resourceExists } from "../lib/kubernetes.ts";
-import { components, operations } from "../generated/openapi.ts";
+import { type operations } from "../generated/openapi.ts";
 
 export const validateEnv = (
   env: Env[] | undefined,

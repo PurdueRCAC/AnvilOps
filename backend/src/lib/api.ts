@@ -29,7 +29,12 @@ import {
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { deleteNamespace, k8s, NAMESPACE_PREFIX } from "./kubernetes.ts";
+import {
+  deleteNamespace,
+  k8s,
+  NAMESPACE_PREFIX,
+  resourceExists,
+} from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
@@ -446,6 +451,43 @@ const handlers = {
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
+
+  isSubdomainAvailable: async function (
+    ctx: Context<never, never, { subdomain: string }>,
+    req: ExpressRequest,
+    res: ExpressResponse,
+  ): Promise<
+    HandlerResponse<{
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": { available: boolean } };
+      };
+      500: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["ApiError"] };
+      };
+    }>
+  > {
+    const subdomain = ctx.request.query.subdomain;
+    try {
+      const namespaceExists = resourceExists({
+        apiVersion: "v1",
+        kind: "Namespace",
+        metadata: { name: NAMESPACE_PREFIX + subdomain },
+      });
+      const subdomainUsedByApp = db.app.count({
+        where: { subdomain },
+      });
+      const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
+        .map((value) => !!value)
+        .reduce((prev, cur) => prev && !cur, true);
+      return json(200, res, { available: canUse });
+    } catch (err) {
+      console.error(err);
+      return json(500, res, { code: 500, message: "Something went wrong." });
+    }
+  },
+
   createApp,
   updateApp,
   deleteApp,
