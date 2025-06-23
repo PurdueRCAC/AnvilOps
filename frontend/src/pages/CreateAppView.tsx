@@ -86,44 +86,48 @@ export default function CreateAppView() {
         onSubmit={async (e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
-          const result = await createApp({
-            body: {
-              orgId: selectedOrg!.id,
-              name: selectedRepo!.name!,
-              port: parseInt(formData.get("port")!.toString()),
-              subdomain: formData.get("subdomain")!.toString(),
-              dockerfilePath: formData.get("dockerfilePath")?.toString(),
-              env: environmentVariables.filter((it) => it.name.length > 0),
-              repositoryId: selectedRepo!.id!,
-              secrets: [
-                /* TODO */
-              ],
-              branch: formData.get("branch")!.toString(),
-              builder: formData.get("builder")!.toString() as
-                | "dockerfile"
-                | "railpack",
-              rootDir: formData.get("rootDir")!.toString(),
-              storage:
-                formData.has("database") && formData.get("database") !== "none"
-                  ? {
-                      image: formData.get("storageImage")!.toString(),
-                      replicas: parseInt(
-                        formData.get("storageReplicas")!.toString(),
-                      ),
-                      port: parseInt(formData.get("storagePort")!.toString()),
-                      amount: parseInt(
-                        formData.get("storageAmount")!.toString(),
-                      ),
-                      mountPath: formData.get("storageMountPath")!.toString(),
-                      env: storageEnv.filter((it) => it.name.length > 0),
-                    }
-                  : undefined,
-            },
-          });
+          try {
+            const result = await createApp({
+              body: {
+                orgId: selectedOrg!.id,
+                name: selectedRepo!.name!,
+                port: parseInt(formData.get("port")!.toString()),
+                subdomain: formData.get("subdomain")!.toString(),
+                dockerfilePath: formData.get("dockerfilePath")?.toString(),
+                env: environmentVariables.filter((it) => it.name.length > 0),
+                repositoryId: selectedRepo!.id!,
+                secrets: [
+                  /* TODO */
+                ],
+                branch: formData.get("branch")!.toString(),
+                builder: formData.get("builder")!.toString() as
+                  | "dockerfile"
+                  | "railpack",
+                rootDir: formData.get("rootDir")!.toString(),
+                storage:
+                  formData.has("database") &&
+                  formData.get("database") !== "none"
+                    ? {
+                        image: formData.get("storageImage")!.toString(),
+                        replicas: parseInt(
+                          formData.get("storageReplicas")!.toString(),
+                        ),
+                        port: parseInt(formData.get("storagePort")!.toString()),
+                        amount: parseInt(
+                          formData.get("storageAmount")!.toString(),
+                        ),
+                        mountPath: formData.get("storageMountPath")!.toString(),
+                        env: storageEnv.filter((it) => it.name.length > 0),
+                      }
+                    : undefined,
+              },
+            });
+            toast.success("App created!");
 
-          toast.success("App created!");
-
-          navigate(`/app/${result.id}`);
+            navigate(`/app/${result.id}`);
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
         }}
       >
         <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
@@ -441,7 +445,7 @@ export const AppConfigFormFields = ({
                 setSubdomain(
                   e.currentTarget.value
                     .toLowerCase()
-                    .replace(/[^A-Za-z0-9-]/, "-"),
+                    .replace(/[^a-z0-9-]/, "-"),
                 );
               }}
             />
