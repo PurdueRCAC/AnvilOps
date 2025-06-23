@@ -211,8 +211,7 @@ const validateAppConfig = async (
   const MAX_NS_LENGTH = 63 - NAMESPACE_PREFIX.length;
   if (
     appData.subdomain.length > MAX_NS_LENGTH ||
-    appData.subdomain.match(/^[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?$/) ==
-      null
+    appData.subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
   ) {
     throw new Error("Invalid subdomain");
   }

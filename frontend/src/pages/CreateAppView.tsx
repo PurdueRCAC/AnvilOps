@@ -14,9 +14,11 @@ import {
 import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/utils";
 import clsx from "clsx";
 import {
   BookMarked,
+  Check,
   Code2,
   Container,
   FolderRoot,
@@ -28,6 +30,7 @@ import {
   Loader,
   Rocket,
   Server,
+  X,
 } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
 import { useNavigate } from "react-router-dom";
@@ -320,6 +323,25 @@ export const AppConfigFormFields = ({
     },
   );
 
+  const MAX_SUBDOMAIN_LENGTH = 54;
+  const [subdomain, setSubdomain] = useState("");
+  const subdomainIsValid =
+    subdomain.length < MAX_SUBDOMAIN_LENGTH &&
+    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) !== null;
+  const debouncedSub = useDebouncedValue(subdomain);
+  const { data: subStatus, isPending: subLoading } = api.useQuery(
+    "get",
+    "/app/subdomain",
+    {
+      params: {
+        query: {
+          subdomain: debouncedSub,
+        },
+      },
+    },
+    { enabled: subdomain == debouncedSub && subdomainIsValid },
+  );
+
   const [builder, setBuilder] = useState<"dockerfile" | "railpack" | undefined>(
     defaults?.config?.builder,
   );
@@ -414,16 +436,43 @@ export const AppConfigFormFields = ({
               className="w-full pl-14 pr-45"
               required
               pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+              value={subdomain}
               onChange={(e) => {
-                e.currentTarget.value = e.currentTarget.value
-                  .toLowerCase()
-                  .replace(/[^A-Za-z0-9-]/, "-");
+                setSubdomain(
+                  e.currentTarget.value
+                    .toLowerCase()
+                    .replace(/[^A-Za-z0-9-]/, "-"),
+                );
               }}
             />
             <span className="absolute right-2 text-sm opacity-50">
               .anvilops.rcac.purdue.edu
             </span>
           </div>
+          {subdomain && !subdomainIsValid ? (
+            <div className="text-sm flex gap-5">
+              <X className="text-red-500" />
+              <ul className="text-black-3 list-disc">
+                <li>A subdomain must have 54 or fewer characters.</li>
+                <li>
+                  A subdomain must only container lowercase alphanumeric
+                  characters or dashes(-).
+                </li>
+                <li>
+                  A subdomain must start and end with an alphanumeric character.
+                </li>
+              </ul>
+            </div>
+          ) : null}
+          {subdomain && subdomainIsValid ? (
+            subdomain !== debouncedSub || subLoading ? (
+              <span className="text-sm">
+                <Loader className="animate-spin inline" /> Checking subdomain...
+              </span>
+            ) : (
+              <SubdomainStatus available={subStatus!.available} />
+            )
+          ) : null}
         </div>
       )}
       <div className="space-y-2">
@@ -656,5 +705,17 @@ export const AppConfigFormFields = ({
         ) : null}
       </div>
     </>
+  );
+};
+
+const SubdomainStatus = ({ available }: { available: boolean }) => {
+  return available ? (
+    <span className="text-green-500 text-sm">
+      <Check className="inline" /> Subdomain is available.
+    </span>
+  ) : (
+    <span className="text-red-500 text-sm">
+      <X className="inline" /> Subdomain is in use.
+    </span>
   );
 };
