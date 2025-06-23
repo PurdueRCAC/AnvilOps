@@ -284,6 +284,10 @@ export async function buildAndDeploy({
     try {
       const { namespace, configs } = createAppConfigsFromDeployment(deployment);
       await createOrUpdateApp(deployment.app.name, namespace, configs);
+      await db.deployment.update({
+        where: { id: deployment.id },
+        data: { status: DeploymentStatus.COMPLETE },
+      });
     } catch (e) {
       if (e instanceof ApiException) {
         await db.deployment.update({
