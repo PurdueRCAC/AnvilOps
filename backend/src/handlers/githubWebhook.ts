@@ -1,17 +1,23 @@
+import { ApiException } from "@kubernetes/client-node";
 import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
+import {
+  DeploymentSource,
+  DeploymentStatus,
+} from "../generated/prisma/enums.ts";
 import type {
   DeploymentConfigCreateWithoutDeploymentInput,
-  StorageConfigCreateWithoutDeploymentInput,
+  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
-import { createBuildJob } from "../lib/builder.ts";
+import { createBuildJob, type ImageTag } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import {
+  createAppConfigsFromDeployment,
   createNamespaceConfig,
   createOrUpdateApp,
-  NAMESPACE_PREFIX,
+  getNamespace,
 } from "../lib/kubernetes.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -85,37 +91,15 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       // Look up the connected app and create a deployment job
       const apps = await db.app.findMany({
         where: {
-          repositoryId: repoId,
+          deploymentConfigTemplate: {
+            source: DeploymentSource.GIT,
+            repositoryId: repoId,
+          },
           org: { githubInstallationId: { not: null } },
         },
         include: {
           org: { select: { githubInstallationId: true } },
-          deployments: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            include: {
-              config: {
-                select: {
-                  builder: true,
-                  dockerfilePath: true,
-                  env: true,
-                  port: true,
-                  replicas: true,
-                  rootDir: true,
-                  secrets: true,
-                },
-              },
-              storageConfig: {
-                select: {
-                  amount: true,
-                  replicas: true,
-                  image: true,
-                  port: true,
-                  mountPath: true,
-                },
-              },
-            },
-          },
+          deploymentConfigTemplate: { include: { mounts: true } },
         },
       });
 
@@ -125,7 +109,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
       for (const app of apps) {
         // Require that the push was made to the right branch
-        if (payload.ref !== `refs/heads/${app.repositoryBranch}`) {
+        if (
+          payload.ref !== `refs/heads/${app.deploymentConfigTemplate.branch}`
+        ) {
           continue;
         }
 
@@ -141,8 +127,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             octokit,
             payload.repository.html_url,
           ),
-          config: app.deployments[0].config, // Reuse the config from the previous deployment
-          storageConfig: app.deployments[0].storageConfig,
+          config: {
+            // Reuse the config from the previous deployment
+            ...app.deploymentConfigTemplate,
+            mounts: {
+              createMany: { data: app.deploymentConfigTemplate.mounts },
+            },
+          },
           createCheckRun: true,
           octokit,
           owner: payload.repository.owner.login,
@@ -178,8 +169,9 @@ type BuildAndDeployOptions = {
   commitSha: string;
   commitMessage: string;
   cloneURL: string;
-  config: DeploymentConfigCreateWithoutDeploymentInput;
-  storageConfig?: StorageConfigCreateWithoutDeploymentInput;
+  config: DeploymentConfigCreateWithoutDeploymentInput & {
+    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
+  };
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
   | { createCheckRun: false }
@@ -193,94 +185,126 @@ export async function buildAndDeploy({
   commitMessage,
   cloneURL,
   config,
-  storageConfig,
   ...opts
 }: BuildAndDeployOptions) {
   const imageTag =
-    `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const;
+    config.source === DeploymentSource.IMAGE
+      ? (config.imageTag as ImageTag)
+      : (`registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const);
   const secret = randomBytes(32).toString("hex");
+
   const deployment = await db.deployment.create({
     data: {
       app: { connect: { id: appId } },
       commitHash: commitSha,
       commitMessage: commitMessage,
-      imageTag: imageTag,
       secret: secret,
       config: {
-        create: config,
+        create: { ...config, imageTag },
       },
-      storageConfig: storageConfig ? { create: storageConfig } : undefined,
     },
     select: {
       id: true,
-      app: { select: { repositoryId: true, name: true, subdomain: true } },
+      appId: true,
+      secret: true,
+      config: { include: { mounts: true } },
+      app: true,
     },
   });
 
-  let checkRun:
-    | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
-    | undefined;
+  if (config.source === "GIT") {
+    let checkRun:
+      | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
+      | undefined;
 
-  if (opts.createCheckRun) {
-    try {
-      // Create a check on their commit that says the build is "in progress"
-      checkRun = await opts.octokit.rest.checks.create({
-        head_sha: commitSha,
-        name: "AnvilOps",
-        status: "in_progress",
-        details_url: `https://anvilops.rcac.purdue.edu/app/${appId}/deployment/${deployment.id}`,
-        owner: opts.owner,
-        repo: opts.repo,
-      });
-    } catch (e) {
-      console.error("Failed to create check run: ", e);
-    }
-  }
-
-  let jobId: string;
-  try {
-    jobId = await createBuildJob({
-      tag: imageRepo,
-      ref: commitSha,
-      gitRepoURL: cloneURL,
-      imageTag,
-      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
-      deploymentSecret: secret,
-      deploymentId: deployment.id,
-      config,
-    });
-  } catch (e) {
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { status: "ERROR" },
-    });
-    if (opts.createCheckRun && checkRun?.data?.id) {
-      // If a check run was created, make sure it's marked as failed
+    if (opts.createCheckRun) {
       try {
-        await opts.octokit.rest.checks.update({
-          check_run_id: checkRun?.data?.id,
+        // Create a check on their commit that says the build is "in progress"
+        checkRun = await opts.octokit.rest.checks.create({
+          head_sha: commitSha,
+          name: "AnvilOps",
+          status: "in_progress",
+          details_url: `https://anvilops.rcac.purdue.edu/app/${appId}/deployment/${deployment.id}`,
           owner: opts.owner,
           repo: opts.repo,
-          status: "completed",
-          conclusion: "failure",
         });
-      } catch {}
+      } catch (e) {
+        console.error("Failed to create check run: ", e);
+      }
     }
-    throw new Error("Failed to create build job", { cause: e });
-  }
 
-  await db.deployment.update({
-    where: { id: deployment.id },
-    data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
-  });
+    let jobId: string;
+    try {
+      jobId = await createBuildJob({
+        tag: imageRepo,
+        ref: commitSha,
+        gitRepoURL: cloneURL,
+        imageTag,
+        imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+        deploymentSecret: secret,
+        deploymentId: deployment.id,
+        config,
+      });
+    } catch (e) {
+      await db.deployment.update({
+        where: { id: deployment.id },
+        data: { status: "ERROR" },
+      });
+      if (opts.createCheckRun && checkRun?.data?.id) {
+        // If a check run was created, make sure it's marked as failed
+        try {
+          await opts.octokit.rest.checks.update({
+            check_run_id: checkRun?.data?.id,
+            owner: opts.owner,
+            repo: opts.repo,
+            status: "completed",
+            conclusion: "failure",
+          });
+        } catch {}
+      }
+      throw new Error("Failed to create build job", { cause: e });
+    }
 
-  try {
-    // Eagerly create the app's K8s namespace
-    const namespace = createNamespaceConfig(
-      NAMESPACE_PREFIX + deployment.app.subdomain,
-    );
-    await createOrUpdateApp(deployment.app.name, namespace, []);
-  } catch {
-    // If there was an error creating the namespace now, it'll be retried later when the build finishes
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
+    });
+
+    try {
+      // Eagerly create the app's K8s namespace
+      const namespace = createNamespaceConfig(
+        getNamespace(deployment.app.subdomain),
+      );
+      await createOrUpdateApp(deployment.app.name, namespace, []);
+    } catch {
+      // If there was an error creating the namespace now, it'll be retried later when the build finishes
+    }
+  } else if (config.source === "IMAGE") {
+    // If we're creating a deployment directly from an existing image tag, just deploy it now
+    try {
+      const { namespace, configs } = createAppConfigsFromDeployment(deployment);
+      await createOrUpdateApp(deployment.app.name, namespace, configs);
+    } catch (e) {
+      if (e instanceof ApiException) {
+        await db.deployment.update({
+          where: { id: deployment.id },
+          data: {
+            status: DeploymentStatus.ERROR,
+            logs: {
+              create: {
+                timestamp: new Date(),
+                content: `Failed to apply Kubernetes resources: ${JSON.stringify(e.body)}`,
+                type: "BUILD",
+              },
+            },
+          },
+        });
+      } else {
+        await db.deployment.update({
+          where: { id: deployment.id },
+          data: { status: DeploymentStatus.ERROR },
+        });
+      }
+    }
   }
 }

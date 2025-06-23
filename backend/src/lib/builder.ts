@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { k8s } from "./kubernetes.ts";
 
-type ImageTag = `${string}/${string}/${string}:${string}`;
+export type ImageTag = `${string}/${string}/${string}:${string}`;
 
 export async function createBuildJob({
   tag,
