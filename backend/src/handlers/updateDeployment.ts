@@ -29,9 +29,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       config: { include: { mounts: true } },
       app: {
         select: {
+          deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
         },
-        include: { deploymentConfigTemplate: true },
       },
     },
   });
