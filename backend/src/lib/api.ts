@@ -5,6 +5,7 @@ import {
   type Response as ExpressResponse,
 } from "express";
 import path from "node:path";
+import type { Octokit } from "octokit";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
@@ -224,30 +225,34 @@ const handlers = {
         },
       });
 
-      let appRes: components["schemas"]["Org"]["apps"] = [];
-      if (apps.length > 0) {
-        const octokit = await getOctokit(result.githubInstallationId);
-        appRes = await Promise.all(
-          apps.map(async (app) => {
+      let octokit: Octokit;
+      const appRes: components["schemas"]["Org"]["apps"] = await Promise.all(
+        apps.map(async (app) => {
+          let repoURL: string;
+          if (app.deploymentConfigTemplate.source === "GIT") {
+            if (!octokit) {
+              octokit = await getOctokit(result.githubInstallationId);
+            }
             const repo = await getRepoById(
               octokit,
               app.deploymentConfigTemplate.repositoryId,
             );
-            return {
-              id: app.id,
-              displayName: app.displayName,
-              status: app.deployments[0]?.status,
-              repositoryURL: repo.html_url,
-              branch: app.deploymentConfigTemplate.branch,
-              commitHash: app.deployments[0]?.commitHash,
-              link:
-                app.deployments[0]?.status === "COMPLETE"
-                  ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
-                  : undefined,
-            } satisfies components["schemas"]["Org"]["apps"][0];
-          }),
-        );
-      }
+            repoURL = repo.html_url;
+          }
+          return {
+            id: app.id,
+            displayName: app.displayName,
+            status: app.deployments[0]?.status,
+            repositoryURL: repoURL,
+            branch: app.deploymentConfigTemplate.branch,
+            commitHash: app.deployments[0]?.commitHash,
+            link:
+              app.deployments[0]?.status === "COMPLETE"
+                ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                : undefined,
+          } satisfies components["schemas"]["Org"]["apps"][0];
+        }),
+      );
 
       return json(200, res, {
         id: result.id,
