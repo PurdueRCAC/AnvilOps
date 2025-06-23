@@ -632,10 +632,7 @@ paths:
                       type: string
                       format: date-time
                     status:
-                      type: string
-                      nullable: true
-                      oneOf:
-                        - $ref: "#/components/schemas/DeploymentStatus"
+                      $ref: "#/components/schemas/DeploymentStatus"
                   required:
                     - id
                     - appId
