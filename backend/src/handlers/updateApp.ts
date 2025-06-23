@@ -101,16 +101,16 @@ const updateApp: HandlerMap["updateApp"] = async (
           repositoryId:
             appConfig.repositoryId ?? app.deploymentConfigTemplate.repositoryId,
           branch: appConfig.branch ?? app.deploymentConfigTemplate.branch,
-          port: appData.config.port,
-          env: appData.config.env,
-          secrets: appData.config.secrets
-            ? JSON.stringify(appData.config.secrets)
+          port: appConfig.port,
+          env: appConfig.env,
+          secrets: appConfig.secrets
+            ? JSON.stringify(appConfig.secrets)
             : undefined,
-          builder: appData.config.builder,
-          dockerfilePath: appData.config.dockerfilePath,
-          rootDir: appData.config.rootDir,
-          mounts: { createMany: { data: appData.config.mounts } },
-          source: convertSource(appData.config.source),
+          builder: appConfig.builder,
+          dockerfilePath: appConfig.dockerfilePath,
+          rootDir: appConfig.rootDir,
+          mounts: { createMany: { data: appConfig.mounts } },
+          source: convertSource(appConfig.source),
           imageTag: appConfig.imageTag
             ? appConfig.imageTag
             : lastDeployment.imageTag,
@@ -134,18 +134,21 @@ const updateApp: HandlerMap["updateApp"] = async (
   const updatedDeploymentConfig: DeploymentConfigCreateInput & {
     mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
   } = {
-    branch: appData.config.branch,
-    repositoryId: appData.config.repositoryId,
-    source: convertSource(appData.config.source),
-    imageTag: appData.config.imageTag,
-    builder: appData.config.builder,
-    port: appData.config.port,
-    rootDir: appData.config.rootDir,
-    dockerfilePath: appData.config.dockerfilePath,
-    env: appData.config.env,
-    replicas: appData.config.replicas,
-    secrets: JSON.stringify(appData.config.secrets),
-    mounts: { createMany: { data: appData.config.mounts } },
+    branch: appConfig.branch,
+    repositoryId: appConfig.repositoryId,
+    source: convertSource(appConfig.source),
+    imageTag:
+      appConfig.source === "image"
+        ? appConfig.imageTag
+        : lastDeployment.imageTag,
+    builder: appConfig.builder,
+    port: appConfig.port,
+    rootDir: appConfig.rootDir,
+    dockerfilePath: appConfig.dockerfilePath,
+    env: appConfig.env,
+    replicas: appConfig.replicas,
+    secrets: JSON.stringify(appConfig.secrets),
+    mounts: { createMany: { data: appConfig.mounts } },
   };
 
   // Update the "template" used to create new deployments without user intervention
