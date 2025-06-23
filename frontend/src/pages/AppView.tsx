@@ -34,6 +34,7 @@ import {
   LogsIcon,
   Save,
   Scale3D,
+  Tag,
   TextCursorInput,
 } from "lucide-react";
 import { useEffect, useState, type Dispatch } from "react";
@@ -241,21 +242,36 @@ const OverviewTab = ({
     <>
       <h3 className="text-xl font-medium mb-4">General</h3>
       <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
-        <p className="flex items-center gap-2">
-          <GitHubIcon className="size-4" />
-          Git repository
-        </p>
-        <p>
-          <a
-            href={app.repositoryURL}
-            className="underline flex gap-1 items-center"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {URL.parse(app.repositoryURL)?.pathname?.substring(1)}
-            <ExternalLink size={14} />
-          </a>
-        </p>
+        {app.config.source === "git" ? (
+          <>
+            <p className="flex items-center gap-2">
+              <GitHubIcon className="size-4" />
+              Git repository
+            </p>
+            <p>
+              <a
+                href={app.repositoryURL}
+                className="underline flex gap-1 items-center"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {URL.parse(app.repositoryURL!)?.pathname?.substring(1)}
+                <ExternalLink size={14} />
+              </a>
+            </p>
+          </>
+        ) : app.config.source === "image" ? (
+          <>
+            <p className="flex items-center gap-2">
+              <GitHubIcon className="size-4" />
+              Image tag
+            </p>
+            <p className="underline flex gap-1 items-center">
+              {app.config.imageTag}
+              <Tag size={14} />
+            </p>
+          </>
+        ) : null}
         <p className="flex items-center gap-2">
           <Link2 size={16} />
           Subdomain

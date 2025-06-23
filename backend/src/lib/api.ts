@@ -391,12 +391,16 @@ const handlers = {
 
       if (!organization) return json(401, res, {});
 
-      const octokit = await getOctokit(organization.githubInstallationId);
-      const repo = await getRepoById(
-        octokit,
-        app.deploymentConfigTemplate.repositoryId,
-      );
-
+      let repoId: number | undefined, repoURL: string | undefined;
+      if (app.deploymentConfigTemplate.source === "GIT") {
+        const octokit = await getOctokit(organization.githubInstallationId);
+        const repo = await getRepoById(
+          octokit,
+          app.deploymentConfigTemplate.repositoryId,
+        );
+        repoId = repo.id;
+        repoURL = repo.html_url;
+      }
       let k8sDeployment: V1StatefulSet | undefined;
       try {
         k8sDeployment = await k8s.apps.readNamespacedStatefulSet({
@@ -416,8 +420,8 @@ const handlers = {
         displayName: app.displayName,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
-        repositoryId: repo.id,
-        repositoryURL: repo.html_url,
+        repositoryId: repoId,
+        repositoryURL: repoURL,
         subdomain: app.subdomain,
         config: {
           source:

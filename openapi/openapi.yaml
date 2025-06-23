@@ -955,8 +955,6 @@ components:
         - createdAt
         - updatedAt
         - displayName
-        - repositoryId
-        - repositoryURL
         - config
         - subdomain
         - activeDeployment
