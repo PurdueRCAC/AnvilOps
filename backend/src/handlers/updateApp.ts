@@ -111,7 +111,9 @@ const updateApp: HandlerMap["updateApp"] = async (
           rootDir: appData.config.rootDir,
           mounts: { createMany: { data: appData.config.mounts } },
           source: convertSource(appData.config.source),
-          imageTag: appData.config.imageTag,
+          imageTag: appConfig.imageTag
+            ? appConfig.imageTag
+            : lastDeployment.imageTag,
           replicas: app.deploymentConfigTemplate.replicas,
         },
         createCheckRun: false,
