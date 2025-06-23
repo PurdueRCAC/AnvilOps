@@ -198,16 +198,14 @@ export async function buildAndDeploy({
       app: { connect: { id: appId } },
       commitHash: commitSha,
       commitMessage: commitMessage,
-      imageTag: imageTag,
       secret: secret,
       config: {
-        create: config,
+        create: { ...config, imageTag },
       },
     },
     select: {
       id: true,
       appId: true,
-      imageTag: true,
       secret: true,
       config: { include: { mounts: true } },
       app: true,

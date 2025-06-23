@@ -89,7 +89,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         data: {
           // Make future redeploys use this image tag since it's the most recent successful build
           deploymentConfigTemplate: {
-            update: { imageTag: deployment.imageTag },
+            update: { imageTag: deployment.config.imageTag },
           },
         },
       });

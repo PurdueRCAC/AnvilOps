@@ -330,9 +330,12 @@ export const deleteNamespace = async (namespace: string) => {
 };
 
 export const createAppConfigsFromDeployment = (
-  deployment: Pick<Deployment, "appId" | "id" | "imageTag"> & {
+  deployment: Pick<Deployment, "appId" | "id"> & {
     app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
-    config: Pick<DeploymentConfig, "env" | "port" | "replicas" | "secrets"> & {
+    config: Pick<
+      DeploymentConfig,
+      "env" | "port" | "replicas" | "secrets" | "imageTag"
+    > & {
       mounts: Pick<MountConfig, "path" | "amountInMiB">[];
     };
   },
@@ -371,7 +374,7 @@ export const createAppConfigsFromDeployment = (
     appId: deployment.appId,
     name: app.name,
     namespace: namespaceName,
-    image: deployment.imageTag,
+    image: conf.imageTag,
     env: envVars,
     port: conf.port,
     replicas: conf.replicas,

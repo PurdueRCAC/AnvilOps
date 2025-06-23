@@ -111,9 +111,6 @@ const updateApp: HandlerMap["updateApp"] = async (
           rootDir: appConfig.rootDir,
           mounts: { createMany: { data: appConfig.mounts } },
           source: convertSource(appConfig.source),
-          imageTag: appConfig.imageTag
-            ? appConfig.imageTag
-            : lastDeployment.imageTag,
           replicas: app.deploymentConfigTemplate.replicas,
         },
         createCheckRun: false,
@@ -139,8 +136,8 @@ const updateApp: HandlerMap["updateApp"] = async (
     source: convertSource(appConfig.source),
     imageTag:
       appConfig.source === "image"
-        ? appConfig.imageTag
-        : lastDeployment.imageTag,
+        ? (appConfig.imageTag ?? app.deploymentConfigTemplate.imageTag)
+        : app.deploymentConfigTemplate.imageTag,
     builder: appConfig.builder,
     port: appConfig.port,
     rootDir: appConfig.rootDir,
@@ -165,7 +162,6 @@ const updateApp: HandlerMap["updateApp"] = async (
       },
       status: "DEPLOYING",
       app: { connect: { id: app.id } },
-      imageTag: app.deploymentConfigTemplate.imageTag,
       commitHash: lastDeployment?.commitHash ?? "Unknown",
       commitMessage: `Redeploy of ${lastDeployment ? `#${lastDeployment?.id}` : "previous deployment"}`,
       secret,
@@ -173,7 +169,6 @@ const updateApp: HandlerMap["updateApp"] = async (
     select: {
       id: true,
       appId: true,
-      imageTag: true,
       app: true,
       config: { include: { mounts: true } },
     },
