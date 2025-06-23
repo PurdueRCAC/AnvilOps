@@ -14,25 +14,10 @@ export function validateDeploymentConfig(appData: {
 }) {
   // TODO verify that the organization has access to the repository
 
-  if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
-    return { valid: false, message: "Invalid root directory" };
-  }
-
-  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
-    return {
-      valid: false,
-      message: "Some environment variable(s) are empty",
-    };
-  }
-
-  if (appData.port < 0 || appData.port > 65535) {
-    return {
-      valid: false,
-      message: "Invalid port number",
-    };
-  }
-
   if (appData.source === "git") {
+    if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
+      return { valid: false, message: "Invalid root directory" };
+    }
     if (appData.builder === "dockerfile") {
       if (!appData.dockerfilePath) {
         return {
@@ -59,6 +44,20 @@ export function validateDeploymentConfig(appData: {
     return {
       valid: false,
       message: "Invalid deployment source type: expected `git` or `image`.",
+    };
+  }
+
+  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
+    return {
+      valid: false,
+      message: "Some environment variable(s) are empty",
+    };
+  }
+
+  if (appData.port < 0 || appData.port > 65535) {
+    return {
+      valid: false,
+      message: "Invalid port number",
     };
   }
 
