@@ -11,6 +11,8 @@ import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
+import { NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
+import { components, operations } from "../generated/openapi.ts";
 
 export const validateEnv = (
   env: Env[] | undefined,
@@ -34,63 +36,13 @@ const createApp: HandlerMap["createApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
 
-  if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
-    return json(400, res, { code: 400, message: "Invalid root directory" });
-  }
-
-  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
-    return json(400, res, {
-      code: 400,
-      message: "Some environment variable(s) are empty",
-    });
-  }
-
-  if (appData.port < 0 || appData.port > 65535) {
-    return json(400, res, {
-      code: 400,
-      message: "Invalid port number",
-    });
-  }
-
-  if (appData.dockerfilePath) {
-    if (
-      appData.dockerfilePath.startsWith("/") ||
-      appData.dockerfilePath.includes(`"`)
-    ) {
-      return json(400, res, { code: 400, message: "Invalid Dockerfile path" });
-    }
-  }
-
-  if (appData.storage) {
-    if (!appData.storage.image.includes(":")) {
-      return json(400, res, {
-        code: 400,
-        message: "Invalid image (Must be in the foramt repository:tag)",
-      });
-    }
-
-    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
-      return json(400, res, {
-        code: 400,
-        message:
-          "Invalid storage capacity (Must be a positive value less than 10",
-      });
-    }
-    if (appData.storage.port < 0 || appData.storage.port > 65535) {
-      return json(400, res, {
-        code: 400,
-        message: "Invalid port number",
-      });
-    }
-  }
-
   try {
-    validateEnv(appData.env, appData.secrets);
-    if (appData.storage && appData.storage.env.length !== 0) {
-      validateEnv(appData.storage.env, []);
-    }
+    validateAppConfig(appData);
   } catch (err) {
-    return json(400, res, { code: 400, message: err.message });
+    return json(400, res, {
+      code: 400,
+      message: err.message,
+    });
   }
 
   const organization = await db.organization.findUnique({
@@ -217,4 +169,56 @@ const createApp: HandlerMap["createApp"] = async (
   return json(200, res, { id: app.id });
 };
 
+const validateAppConfig = (
+  appData: operations["createApp"]["requestBody"]["content"]["application/json"],
+) => {
+  if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
+    throw new Error("Invalid root directory");
+  }
+
+  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
+    throw new Error("Some environment variables are empty");
+  }
+
+  if (appData.port < 0 || appData.port > 65535) {
+    throw new Error("Invalid port number");
+  }
+
+  if (appData.dockerfilePath) {
+    if (
+      appData.dockerfilePath.startsWith("/") ||
+      appData.dockerfilePath.includes(`"`)
+    ) {
+      throw new Error("Invalid Dockerfile path");
+    }
+  }
+
+  if (appData.storage) {
+    if (!appData.storage.image.includes(":")) {
+      throw new Error("Invalid image (Must be in the format repository:tag)");
+    }
+
+    if (appData.storage.amount <= 0 || appData.storage.amount > 10) {
+      throw new Error(
+        "Invalid storage capacity (Must be a positive value less than 10",
+      );
+    }
+    if (appData.storage.port < 0 || appData.storage.port > 65535) {
+      throw new Error("Invalid port number");
+    }
+  }
+
+  const MAX_NS_LENGTH = 63 - NAMESPACE_PREFIX.length;
+  if (
+    appData.subdomain.length > MAX_NS_LENGTH ||
+    appData.subdomain.match(/^[a-zA-Z0-9-]+$/) == null
+  ) {
+    throw new Error("Invalid subdomain");
+  }
+
+  validateEnv(appData.env, appData.secrets);
+  if (appData.storage && appData.storage.env.length !== 0) {
+    validateEnv(appData.storage.env, []);
+  }
+};
 export default createApp;
