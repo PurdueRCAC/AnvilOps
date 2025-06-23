@@ -145,6 +145,11 @@ const createApp: HandlerMap["createApp"] = async (
         deploymentConfigTemplate: {
           create: deploymentConfig,
         },
+        appGroup: {
+          create: {
+            name: appData.name,
+          },
+        },
       },
     });
     app = await db.app.update({
