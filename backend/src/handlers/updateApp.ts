@@ -115,6 +115,8 @@ const updateApp: HandlerMap["updateApp"] = async (
         },
         createCheckRun: false,
       });
+
+      // When the new image is built and deployed successfully, it will become the imageTag of the app's template deployment config so that future redeploys use it.
     } catch (err) {
       console.error(err);
       return json(500, res, {
@@ -193,7 +195,14 @@ const updateApp: HandlerMap["updateApp"] = async (
   // Update the template config so that new deployments are based on this updated configuration.
   await db.deploymentConfig.update({
     where: { id: app.deploymentConfigTemplateId },
-    data: updatedDeploymentConfig,
+    data: {
+      ...updatedDeploymentConfig,
+      mounts: {
+        // Delete all existing mounts and replace them with new ones
+        deleteMany: { deploymentConfigId: app.deploymentConfigTemplateId },
+        ...updatedDeploymentConfig.mounts,
+      },
+    },
   });
 
   return json(200, res, {});

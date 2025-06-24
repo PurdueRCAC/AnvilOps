@@ -1,3 +1,4 @@
+import { DeploymentSource } from "../generated/prisma/enums.ts";
 import { db } from "../lib/db.ts";
 import {
   createAppConfigsFromDeployment,
@@ -85,11 +86,18 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     const { namespace, configs } = createAppConfigsFromDeployment(deployment);
     try {
       await db.app.update({
-        where: { id: app.id },
+        where: {
+          id: app.id,
+          deploymentConfigTemplate: {
+            source: DeploymentSource.GIT,
+          },
+        },
         data: {
           // Make future redeploys use this image tag since it's the most recent successful build
           deploymentConfigTemplate: {
-            update: { imageTag: deployment.config.imageTag },
+            update: {
+              imageTag: deployment.config.imageTag,
+            },
           },
         },
       });

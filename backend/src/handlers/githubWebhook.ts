@@ -99,7 +99,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         },
         include: {
           org: { select: { githubInstallationId: true } },
-          deploymentConfigTemplate: { include: { mounts: true } },
+          deploymentConfigTemplate: {
+            include: { mounts: { select: { amountInMiB: true, path: true } } },
+          },
         },
       });
 

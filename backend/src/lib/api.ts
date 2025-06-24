@@ -437,7 +437,10 @@ const handlers = {
           source:
             app.deploymentConfigTemplate.source === "GIT" ? "git" : "image",
           imageTag: app.deploymentConfigTemplate.imageTag,
-          mounts: app.deploymentConfigTemplate.mounts,
+          mounts: app.deploymentConfigTemplate.mounts.map((mount) => ({
+            amountInMiB: mount.amountInMiB,
+            path: mount.path,
+          })),
           env: app.deploymentConfigTemplate.env as Env[],
           replicas: app.deploymentConfigTemplate.replicas,
           branch: app.deploymentConfigTemplate.branch,
