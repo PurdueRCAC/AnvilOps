@@ -9,6 +9,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -19,8 +20,8 @@ import { useDebouncedValue } from "@/lib/utils";
 import clsx from "clsx";
 import {
   BookMarked,
-  Check,
   Cable,
+  Check,
   Code2,
   Container,
   Database,
@@ -32,8 +33,8 @@ import {
   Loader,
   Rocket,
   Server,
-  X,
   Tag,
+  X,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
 import { useNavigate } from "react-router-dom";
@@ -368,11 +369,23 @@ export const AppConfigFormFields = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {orgId !== undefined
-                    ? repos?.map((repo) => (
-                        <SelectItem key={repo.id} value={repo.id!.toString()}>
-                          {repo.owner}/{repo.name}
-                        </SelectItem>
+                  {orgId !== undefined && !!repos
+                    ? Object.entries(
+                        Object.groupBy(repos, (repo) => repo.owner!),
+                      ).map(([owner, repos]) => (
+                        <>
+                          <SelectGroup>
+                            <SelectLabel>{owner}</SelectLabel>
+                            {repos?.map((repo) => (
+                              <SelectItem
+                                key={repo.id}
+                                value={repo.id!.toString()}
+                              >
+                                {repo.owner}/{repo.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </>
                       ))
                     : null}
                 </SelectGroup>
@@ -594,7 +607,7 @@ export const AppConfigFormFields = ({
               <ul className="text-black-3 list-disc">
                 <li>A subdomain must have 54 or fewer characters.</li>
                 <li>
-                  A subdomain must only container lowercase alphanumeric
+                  A subdomain must only contain lowercase alphanumeric
                   characters or dashes(-).
                 </li>
                 <li>
