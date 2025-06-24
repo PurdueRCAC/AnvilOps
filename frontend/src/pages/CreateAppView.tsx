@@ -477,6 +477,7 @@ export const AppConfigFormFields = ({
               placeholder="./"
               className="w-full mb-1"
               pattern="^\.\/.*$"
+              autoComplete="off"
               required
             />
             <p className="opacity-50 text-xs">
@@ -539,6 +540,7 @@ export const AppConfigFormFields = ({
                 placeholder="Dockerfile"
                 defaultValue={defaults?.config?.dockerfilePath ?? "Dockerfile"}
                 className="w-full"
+                autoComplete="off"
                 required
               />
               <p className="opacity-50 text-xs mb-2 mt-1">
@@ -580,6 +582,7 @@ export const AppConfigFormFields = ({
                     .replace(/[^a-z0-9-]/, "-"),
                 );
               }}
+              autoComplete="off"
             />
             <span className="absolute right-2 text-sm opacity-50">
               .anvilops.rcac.purdue.edu

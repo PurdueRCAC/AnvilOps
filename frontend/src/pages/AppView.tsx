@@ -497,6 +497,7 @@ const ConfigTab = ({
         <Input
           name="replicas"
           placeholder="1"
+          type="number"
           required
           defaultValue={app.config.replicas}
         />
