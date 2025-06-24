@@ -78,6 +78,45 @@ const updateApp: HandlerMap["updateApp"] = async (
     });
   }
 
+  const secret = randomBytes(32).toString("hex");
+
+  const updatedDeploymentConfig: DeploymentConfigCreateInput & {
+    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
+  } = {
+    source: convertSource(appConfig.source),
+    ...(appConfig.source === "git"
+      ? {
+          branch: appConfig.branch,
+          repositoryId: appConfig.repositoryId,
+          builder: appConfig.builder,
+          rootDir: appConfig.rootDir,
+          dockerfilePath: appConfig.dockerfilePath,
+        }
+      : {
+          // If we're not using the Git image source, clear these fields from the config
+          branch: null,
+          repositoryId: null,
+          builder: null,
+          rootDir: null,
+          dockerfilePath: null,
+        }),
+
+    ...(appConfig.source === "image"
+      ? {
+          imageTag: appConfig.imageTag,
+        }
+      : {
+          // If we're not using the OCI image source, clear the imageTag field. It will be populated later when the image is built.
+          imageTag: null,
+        }),
+
+    port: appConfig.port,
+    env: appConfig.env,
+    replicas: appConfig.replicas,
+    secrets: JSON.stringify(appConfig.secrets),
+    mounts: { createMany: { data: appConfig.mounts } },
+  };
+
   if (
     appConfig.source === "git" &&
     (appConfig.branch !== app.deploymentConfigTemplate.branch ||
@@ -87,7 +126,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     const octokit = await getOctokit(app.org.githubInstallationId);
     const repo = await getRepoById(
       octokit,
-      appConfig.repositoryId ?? app.deploymentConfigTemplate.repositoryId,
+      updatedDeploymentConfig.repositoryId!,
     );
     try {
       await buildAndDeploy({
@@ -97,22 +136,7 @@ const updateApp: HandlerMap["updateApp"] = async (
         commitSha: lastDeployment?.commitHash ?? "Unknown",
         commitMessage: `Redeploy of ${lastDeployment?.commitHash?.slice(0, 8) ?? "previous deployment"}`,
         cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
-        config: {
-          repositoryId:
-            appConfig.repositoryId ?? app.deploymentConfigTemplate.repositoryId,
-          branch: appConfig.branch ?? app.deploymentConfigTemplate.branch,
-          port: appConfig.port,
-          env: appConfig.env,
-          secrets: appConfig.secrets
-            ? JSON.stringify(appConfig.secrets)
-            : undefined,
-          builder: appConfig.builder,
-          dockerfilePath: appConfig.dockerfilePath,
-          rootDir: appConfig.rootDir,
-          mounts: { createMany: { data: appConfig.mounts } },
-          source: convertSource(appConfig.source),
-          replicas: app.deploymentConfigTemplate.replicas,
-        },
+        config: updatedDeploymentConfig,
         createCheckRun: false,
       });
 
@@ -124,79 +148,62 @@ const updateApp: HandlerMap["updateApp"] = async (
         message: "Failed to create a deployment for your app.",
       });
     }
-
-    return json(200, res, {});
-  }
-
-  const secret = randomBytes(32).toString("hex");
-
-  const updatedDeploymentConfig: DeploymentConfigCreateInput & {
-    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-  } = {
-    branch: appConfig.branch,
-    repositoryId: appConfig.repositoryId,
-    source: convertSource(appConfig.source),
-    imageTag:
-      appConfig.source === "image"
-        ? (appConfig.imageTag ?? app.deploymentConfigTemplate.imageTag)
-        : app.deploymentConfigTemplate.imageTag,
-    builder: appConfig.builder,
-    port: appConfig.port,
-    rootDir: appConfig.rootDir,
-    dockerfilePath: appConfig.dockerfilePath,
-    env: appConfig.env,
-    replicas: appConfig.replicas,
-    secrets: JSON.stringify(appConfig.secrets),
-    mounts: { createMany: { data: appConfig.mounts } },
-  };
-
-  // Create a new deployment from the template
-  const deployment = await db.deployment.create({
-    data: {
-      config: {
-        create: updatedDeploymentConfig,
-      },
-      status: "DEPLOYING",
-      app: { connect: { id: app.id } },
-      commitHash: lastDeployment?.commitHash ?? "Unknown",
-      commitMessage: `Redeploy of ${lastDeployment ? `#${lastDeployment?.id}` : "previous deployment"}`,
-      secret,
-    },
-    select: {
-      id: true,
-      appId: true,
-      app: true,
-      config: { include: { mounts: true } },
-    },
-  });
-
-  try {
-    const { namespace, configs } = createAppConfigsFromDeployment(deployment);
-    await createOrUpdateApp(app.name, namespace, configs);
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { status: "COMPLETE" },
-    });
-  } catch (err) {
-    console.error(err);
-    await db.deployment.update({
-      where: {
-        id: deployment.id,
-      },
+  } else {
+    // Create a new deployment from the template
+    const deployment = await db.deployment.create({
       data: {
-        status: "ERROR",
+        config: {
+          create: updatedDeploymentConfig,
+        },
+        status: "DEPLOYING",
+        app: { connect: { id: app.id } },
+        commitHash: lastDeployment?.commitHash ?? "Unknown",
+        commitMessage: `Redeploy of ${lastDeployment ? `#${lastDeployment?.id}` : "previous deployment"}`,
+        secret,
+      },
+      select: {
+        id: true,
+        appId: true,
+        app: true,
+        config: { include: { mounts: true } },
       },
     });
 
-    return json(200, res, {});
+    try {
+      const { namespace, configs } = createAppConfigsFromDeployment(deployment);
+      await createOrUpdateApp(app.name, namespace, configs);
+      await db.deployment.update({
+        where: { id: deployment.id },
+        data: { status: "COMPLETE" },
+      });
+    } catch (err) {
+      console.error(err);
+      await db.deployment.update({
+        where: {
+          id: deployment.id,
+        },
+        data: {
+          status: "ERROR",
+        },
+      });
+
+      return json(200, res, {});
+    }
   }
 
   // Now that the deployment succeeded, we know that the deployment config applies correctly.
   // Update the template config so that new deployments are based on this updated configuration.
+
+  // Note: if the user is using the Git image source, the imageTag will be filled in later once the image is built.
+  //       For now, we'll use the previous image tag because the new one won't be pushed if the build fails,
+  //       which would make a new deployment fail if it were created from the template during this time.
   await db.deploymentConfig.update({
     where: { id: app.deploymentConfigTemplateId },
     data: {
       ...updatedDeploymentConfig,
+      imageTag:
+        updatedDeploymentConfig.imageTag ??
+        app.deploymentConfigTemplate.imageTag,
       mounts: {
         // Delete all existing mounts and replace them with new ones
         deleteMany: { deploymentConfigId: app.deploymentConfigTemplateId },

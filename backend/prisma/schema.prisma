@@ -128,8 +128,8 @@ model DeploymentConfig {
   // > Image deployment source
   imageTag       String?
 
-  // (ignore this)
-  mandatoryInverseRelationField1 App[]
+  // Reverse relation field for when this DeploymentConfig is an App's template config
+  app App[]
 }
 
 model MountConfig {

@@ -85,20 +85,14 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
 
     const { namespace, configs } = createAppConfigsFromDeployment(deployment);
     try {
-      await db.app.update({
+      await db.deploymentConfig.updateMany({
         where: {
-          id: app.id,
-          deploymentConfigTemplate: {
-            source: DeploymentSource.GIT,
-          },
+          app: { some: { id: app.id } },
+          source: DeploymentSource.GIT,
         },
         data: {
           // Make future redeploys use this image tag since it's the most recent successful build
-          deploymentConfigTemplate: {
-            update: {
-              imageTag: deployment.config.imageTag,
-            },
-          },
+          imageTag: deployment.config.imageTag,
         },
       });
 
