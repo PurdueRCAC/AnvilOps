@@ -68,8 +68,8 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     }
   }
 
-  await db.deploymentConfig.deleteMany({ where: { deployment: { appId } } });
   await db.deployment.deleteMany({ where: { appId } });
+  await db.deploymentConfig.deleteMany({ where: { deployment: { appId } } });
 
   try {
     await deleteRepo(imageRepo);
