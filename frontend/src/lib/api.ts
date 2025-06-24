@@ -12,9 +12,16 @@ export const api = createClient(fetchClient);
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error) =>
+    onError: (error) => {
+      if (
+        ("code" in error && error?.code === 401) ||
+        error?.message === "Unauthorized"
+      ) {
+        return;
+      }
       toast.error(
         `Something went wrong: ${error.message ?? error.toString() ?? error}`,
-      ),
+      );
+    },
   }),
 });
