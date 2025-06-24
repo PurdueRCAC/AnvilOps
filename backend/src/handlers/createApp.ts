@@ -17,6 +17,11 @@ import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
+import {
+  getNamespace,
+  MAX_SUBDOMAIN_LEN,
+  namespaceInUse,
+} from "../lib/kubernetes.ts";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -26,10 +31,17 @@ const createApp: HandlerMap["createApp"] = async (
   const appData = ctx.request.requestBody;
 
   {
-    console.log(appData);
     const validation = validateDeploymentConfig(appData);
     if (!validation.valid) {
       return json(400, res, { code: 400, message: validation.message });
+    }
+
+    const subdomainValidation = await validateSubdomain(appData.subdomain);
+    if (!subdomainValidation.valid) {
+      return json(400, res, {
+        code: 400,
+        message: subdomainValidation.message,
+      });
     }
   }
 
@@ -172,6 +184,21 @@ const createApp: HandlerMap["createApp"] = async (
   }
 
   return json(200, res, { id: app.id });
+};
+
+const validateSubdomain = async (subdomain: string) => {
+  if (
+    subdomain.length > MAX_SUBDOMAIN_LEN ||
+    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
+  ) {
+    return { valid: false, message: "Invalid subdomain" };
+  }
+
+  if (await namespaceInUse(getNamespace(subdomain))) {
+    return { valid: false, message: "Subdomain is unavailable" };
+  }
+
+  return { valid: true };
 };
 
 export function convertSource(input: string) {

@@ -32,6 +32,7 @@ export const k8s = {
 const NAMESPACE_PREFIX = "anvilops-";
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
+export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
 
 interface SvcParams {
   name: string;
@@ -62,12 +63,21 @@ interface K8sObject {
   };
 }
 
+export const namespaceInUse = async (namespace: string) => {
+  return resourceExists({
+    apiVersion: "v1",
+    kind: "Namespace",
+    metadata: { name: namespace },
+  });
+};
+
 const resourceExists = async (data: K8sObject) => {
   try {
     await k8s.full.read(data);
     return true;
   } catch (err) {
     if (err instanceof ApiException) {
+      // Assumes a namespace does not exist if request results in 403 Forbidden - potential false negative
       if ((data.kind === "Namespace" && err.code === 403) || err.code === 404) {
         return false;
       }

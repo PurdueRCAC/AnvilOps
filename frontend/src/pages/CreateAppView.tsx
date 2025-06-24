@@ -15,9 +15,11 @@ import {
 import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/utils";
 import clsx from "clsx";
 import {
   BookMarked,
+  Check,
   Cable,
   Code2,
   Container,
@@ -30,9 +32,10 @@ import {
   Loader,
   Rocket,
   Server,
+  X,
   Tag,
 } from "lucide-react";
-import { useContext, useState, type Dispatch } from "react";
+import { useContext, useMemo, useState, type Dispatch } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -54,6 +57,15 @@ export default function CreateAppView() {
 
   const navigate = useNavigate();
 
+  const shouldShowDeploy = useMemo(() => {
+    return (
+      formState.orgId === undefined ||
+      user?.orgs.some(
+        (org) => org.id === formState.orgId && org.githubConnected,
+      )
+    );
+  }, [user, formState.orgId]);
+
   return (
     <div className="flex max-w-prose mx-auto">
       <form
@@ -69,35 +81,36 @@ export default function CreateAppView() {
             const tag = formData.get("imageTag")!.toString().split("/");
             appName = tag[tag.length - 1].split(":")[0];
           }
+          try {
+            const result = await createApp({
+              body: {
+                source: formState.source!,
+                orgId: formState.orgId!,
+                name: appName,
+                port: parseInt(formData.get("port")!.toString()),
+                subdomain: formData.get("subdomain")!.toString(),
+                dockerfilePath:
+                  formData.get("dockerfilePath")?.toString() ?? null,
+                env: formState.env.filter((it) => it.name.length > 0),
+                repositoryId: formState.repoId ?? null,
+                secrets: [
+                  /* TODO */
+                ],
+                branch: formData.get("branch")?.toString() ?? null,
+                builder: (formData.get("builder")?.toString() ?? null) as
+                  | "dockerfile"
+                  | "railpack"
+                  | null,
+                rootDir: formData.get("rootDir")?.toString() ?? null,
+                mounts: formState.mounts.filter((it) => it.path.length > 0),
+                imageTag: formData.get("imageTag")?.toString() ?? null,
+              },
+            });
 
-          const result = await createApp({
-            body: {
-              source: formState.source!,
-              orgId: formState.orgId!,
-              name: appName,
-              port: parseInt(formData.get("port")!.toString()),
-              subdomain: formData.get("subdomain")!.toString(),
-              dockerfilePath:
-                formData.get("dockerfilePath")?.toString() ?? null,
-              env: formState.env.filter((it) => it.name.length > 0),
-              repositoryId: formState.repoId ?? null,
-              secrets: [
-                /* TODO */
-              ],
-              branch: formData.get("branch")?.toString() ?? null,
-              builder: (formData.get("builder")?.toString() ?? null) as
-                | "dockerfile"
-                | "railpack"
-                | null,
-              rootDir: formData.get("rootDir")?.toString() ?? null,
-              mounts: formState.mounts.filter((it) => it.path.length > 0),
-              imageTag: formData.get("imageTag")?.toString() ?? null,
-            },
-          });
-
-          toast.success("App created!");
-
-          navigate(`/app/${result.id}`);
+            navigate(`/app/${result.id}`);
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
         }}
       >
         <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
@@ -138,19 +151,20 @@ export default function CreateAppView() {
         </div>
 
         <AppConfigFormFields state={formState} setState={setFormState} />
-
-        <Button className="mt-8" size="lg" type="submit">
-          {createPending ? (
-            <>
-              <Loader className="animate-spin" /> Deploying...
-            </>
-          ) : (
-            <>
-              <Rocket />
-              Deploy
-            </>
-          )}
-        </Button>
+        {shouldShowDeploy ? (
+          <Button className="mt-8" size="lg" type="submit">
+            {createPending ? (
+              <>
+                <Loader className="animate-spin" /> Deploying...
+              </>
+            ) : (
+              <>
+                <Rocket />
+                Deploy
+              </>
+            )}
+          </Button>
+        ) : null}
       </form>
     </div>
   );
@@ -187,7 +201,9 @@ export const AppConfigFormFields = ({
   defaults,
 }: {
   state: AppInfoFormData;
-  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
+  setState: Dispatch<
+    React.SetStateAction<AppInfoFormData & { hidden?: boolean }>
+  >;
   hideSubdomainInput?: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
@@ -224,6 +240,25 @@ export const AppConfigFormFields = ({
     {
       enabled: orgId !== undefined && repoId !== undefined && source === "git",
     },
+  );
+
+  const MAX_SUBDOMAIN_LENGTH = 54;
+  const [subdomain, setSubdomain] = useState("");
+  const subdomainIsValid =
+    subdomain.length < MAX_SUBDOMAIN_LENGTH &&
+    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) !== null;
+  const debouncedSub = useDebouncedValue(subdomain);
+  const { data: subStatus, isPending: subLoading } = api.useQuery(
+    "get",
+    "/app/subdomain",
+    {
+      params: {
+        query: {
+          subdomain: debouncedSub,
+        },
+      },
+    },
+    { enabled: subdomain == debouncedSub && subdomainIsValid },
   );
 
   if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
@@ -537,16 +572,43 @@ export const AppConfigFormFields = ({
               className="w-full pl-14 pr-45"
               required
               pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+              value={subdomain}
               onChange={(e) => {
-                e.currentTarget.value = e.currentTarget.value
-                  .toLowerCase()
-                  .replace(/[^A-Za-z0-9-]/, "-");
+                setSubdomain(
+                  e.currentTarget.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/, "-"),
+                );
               }}
             />
             <span className="absolute right-2 text-sm opacity-50">
               .anvilops.rcac.purdue.edu
             </span>
           </div>
+          {subdomain && !subdomainIsValid ? (
+            <div className="text-sm flex gap-5">
+              <X className="text-red-500" />
+              <ul className="text-black-3 list-disc">
+                <li>A subdomain must have 54 or fewer characters.</li>
+                <li>
+                  A subdomain must only container lowercase alphanumeric
+                  characters or dashes(-).
+                </li>
+                <li>
+                  A subdomain must start and end with an alphanumeric character.
+                </li>
+              </ul>
+            </div>
+          ) : null}
+          {subdomain && subdomainIsValid ? (
+            subdomain !== debouncedSub || subLoading ? (
+              <span className="text-sm">
+                <Loader className="animate-spin inline" /> Checking subdomain...
+              </span>
+            ) : (
+              <SubdomainStatus available={subStatus!.available} />
+            )
+          ) : null}
         </div>
       )}
       <div className="space-y-2">
@@ -597,5 +659,17 @@ export const AppConfigFormFields = ({
         />
       </div>
     </>
+  );
+};
+
+const SubdomainStatus = ({ available }: { available: boolean }) => {
+  return available ? (
+    <span className="text-green-500 text-sm">
+      <Check className="inline" /> Subdomain is available.
+    </span>
+  ) : (
+    <span className="text-red-500 text-sm">
+      <X className="inline" /> Subdomain is in use.
+    </span>
   );
 };

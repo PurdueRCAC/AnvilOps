@@ -30,7 +30,12 @@ import {
   type OptionalPromise,
 } from "../types.ts";
 import { db } from "./db.ts";
-import { deleteNamespace, getNamespace, k8s } from "./kubernetes.ts";
+import {
+  deleteNamespace,
+  getNamespace,
+  namespaceInUse,
+  k8s,
+} from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
@@ -452,6 +457,40 @@ const handlers = {
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
+
+  isSubdomainAvailable: async function (
+    ctx: Context<never, never, { subdomain: string }>,
+    req: ExpressRequest,
+    res: ExpressResponse,
+  ): Promise<
+    HandlerResponse<{
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": { available: boolean } };
+      };
+      500: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["ApiError"] };
+      };
+    }>
+  > {
+    const subdomain = ctx.request.query.subdomain;
+    try {
+      const namespaceExists = namespaceInUse(getNamespace(subdomain));
+      const subdomainUsedByApp = db.app.count({
+        where: { subdomain },
+      });
+      // Check database in addition to resources in case the namespace is taken but not finished creating
+      const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
+        .map((value) => !!value)
+        .reduce((prev, cur) => prev && !cur, true);
+      return json(200, res, { available: canUse });
+    } catch (err) {
+      console.error(err);
+      return json(500, res, { code: 500, message: "Something went wrong." });
+    }
+  },
+
   createApp,
   updateApp,
   deleteApp,
