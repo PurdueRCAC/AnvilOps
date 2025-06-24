@@ -4,7 +4,7 @@ export async function deleteRepo(name: string) {
     authorization: `Basic ${process.env.DELETE_REPO_USER}`,
   };
 
-  fetch(`${API_BASE_URL}/projects/anvilops/repositories/${name}`, {
+  await fetch(`${API_BASE_URL}/projects/anvilops/repositories/${name}`, {
     method: "DELETE",
     headers,
   }).then((response) => {

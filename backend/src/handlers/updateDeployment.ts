@@ -6,6 +6,7 @@ import {
 } from "../lib/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { log } from "./githubWebhook.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -42,6 +43,12 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     return json(403, res, {});
   }
 
+  log(
+    deployment.id,
+    "BUILD",
+    "Deployment status has been updated to " + status,
+  );
+
   if (
     (status === "DEPLOYING" || status === "ERROR") &&
     deployment.checkRunId !== null
@@ -63,6 +70,14 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         owner: repo.owner.login,
         repo: repo.name,
       });
+      log(
+        deployment.id,
+        "BUILD",
+        "Updated GitHub check run to Completed with conclusion " + status ===
+          "DEPLOYING"
+          ? "Success"
+          : "Failure",
+      );
     } catch (e) {
       console.error("Failed to update check run: ", e);
     }
@@ -97,6 +112,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       });
 
       await createOrUpdateApp(app.name, namespace, configs);
+      log(deployment.id, "BUILD", "Deployment succeeded");
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "COMPLETE" },
@@ -115,6 +131,13 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         },
         data: {
           status: "ERROR",
+          logs: {
+            create: {
+              timestamp: new Date(),
+              content: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+              type: "BUILD",
+            },
+          },
         },
       });
     }

@@ -1,4 +1,3 @@
-import { ApiException } from "@kubernetes/client-node";
 import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
@@ -6,6 +5,7 @@ import type { components } from "../generated/openapi.ts";
 import {
   DeploymentSource,
   DeploymentStatus,
+  type LogType,
 } from "../generated/prisma/enums.ts";
 import type {
   DeploymentConfigCreateWithoutDeploymentInput,
@@ -230,6 +230,11 @@ export async function buildAndDeploy({
           owner: opts.owner,
           repo: opts.repo,
         });
+        log(
+          deployment.id,
+          "BUILD",
+          "Created GitHub check run at " + checkRun.data.html_url,
+        );
       } catch (e) {
         console.error("Failed to create check run: ", e);
       }
@@ -247,7 +252,13 @@ export async function buildAndDeploy({
         deploymentId: deployment.id,
         config,
       });
+      log(deployment.id, "BUILD", "Created build job with ID " + jobId);
     } catch (e) {
+      log(
+        deployment.id,
+        "BUILD",
+        "Error creating build job: " + JSON.stringify(e),
+      );
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "ERROR" },
@@ -262,6 +273,11 @@ export async function buildAndDeploy({
             status: "completed",
             conclusion: "failure",
           });
+          log(
+            deployment.id,
+            "BUILD",
+            "Updated GitHub check run to Completed with conclusion Failure",
+          );
         } catch {}
       }
       throw new Error("Failed to create build job", { cause: e });
@@ -282,35 +298,45 @@ export async function buildAndDeploy({
       // If there was an error creating the namespace now, it'll be retried later when the build finishes
     }
   } else if (config.source === "IMAGE") {
+    log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
       const { namespace, configs } = createAppConfigsFromDeployment(deployment);
       await createOrUpdateApp(deployment.app.name, namespace, configs);
+      log(deployment.id, "BUILD", "Deployment succeeded");
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: DeploymentStatus.COMPLETE },
       });
     } catch (e) {
-      if (e instanceof ApiException) {
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: {
-            status: DeploymentStatus.ERROR,
-            logs: {
-              create: {
-                timestamp: new Date(),
-                content: `Failed to apply Kubernetes resources: ${JSON.stringify(e.body)}`,
-                type: "BUILD",
-              },
+      console.error("Failed to create Kubernetes resources for app", e);
+      await db.deployment.update({
+        where: { id: deployment.id },
+        data: {
+          status: DeploymentStatus.ERROR,
+          logs: {
+            create: {
+              timestamp: new Date(),
+              content: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+              type: "BUILD",
             },
           },
-        });
-      } else {
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: { status: DeploymentStatus.ERROR },
-        });
-      }
+        },
+      });
     }
+  }
+}
+
+export async function log(
+  deploymentId: number,
+  type: LogType,
+  content: string,
+) {
+  try {
+    await db.log.create({
+      data: { deploymentId, type, content, timestamp: new Date() },
+    });
+  } catch {
+    // Don't let errors bubble up and disrupt the deployment process
   }
 }
