@@ -35,7 +35,7 @@ import {
   X,
   Tag,
 } from "lucide-react";
-import { useContext, useState, type Dispatch } from "react";
+import { useContext, useMemo, useState, type Dispatch } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -56,6 +56,15 @@ export default function CreateAppView() {
   });
 
   const navigate = useNavigate();
+
+  const shouldShowDeploy = useMemo(() => {
+    return (
+      formState.orgId === undefined ||
+      user?.orgs.some(
+        (org) => org.id === formState.orgId && org.githubConnected,
+      )
+    );
+  }, [user, formState.orgId]);
 
   return (
     <div className="flex max-w-prose mx-auto">
@@ -141,7 +150,21 @@ export default function CreateAppView() {
           </Select>
         </div>
 
-        <AppConfigFormFields state={formState} setState={setFormState} isDeploying={createPending} />
+        <AppConfigFormFields state={formState} setState={setFormState} />
+        {shouldShowDeploy ? (
+          <Button className="mt-8" size="lg" type="submit">
+            {createPending ? (
+              <>
+                <Loader className="animate-spin" /> Deploying...
+              </>
+            ) : (
+              <>
+                <Rocket />
+                Deploy
+              </>
+            )}
+          </Button>
+        ) : null}
       </form>
     </div>
   );
@@ -175,13 +198,13 @@ export const AppConfigFormFields = ({
   state,
   setState,
   hideSubdomainInput,
-  isDeploying,
   defaults,
 }: {
   state: AppInfoFormData;
-  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
+  setState: Dispatch<
+    React.SetStateAction<AppInfoFormData & { hidden?: boolean }>
+  >;
   hideSubdomainInput?: boolean;
-  isDeploying: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
   };
@@ -347,10 +370,10 @@ export const AppConfigFormFields = ({
                 <SelectGroup>
                   {orgId !== undefined
                     ? repos?.map((repo) => (
-                      <SelectItem key={repo.id} value={repo.id!.toString()}>
-                        {repo.owner}/{repo.name}
-                      </SelectItem>
-                    ))
+                        <SelectItem key={repo.id} value={repo.id!.toString()}>
+                          {repo.owner}/{repo.name}
+                        </SelectItem>
+                      ))
                     : null}
                 </SelectGroup>
               </SelectContent>
@@ -394,10 +417,10 @@ export const AppConfigFormFields = ({
                 <SelectGroup>
                   {repoId !== undefined
                     ? branches?.branches?.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))
+                        <SelectItem key={branch} value={branch}>
+                          {branch}
+                        </SelectItem>
+                      ))
                     : null}
                 </SelectGroup>
               </SelectContent>
@@ -635,18 +658,6 @@ export const AppConfigFormFields = ({
           setValue={(mounts) => setState((prev) => ({ ...prev, mounts }))}
         />
       </div>
-      <Button className="mt-8" size="lg" type="submit">
-        {isDeploying ? (
-          <>
-            <Loader className="animate-spin" /> Deploying...
-          </>
-        ) : (
-          <>
-            <Rocket />
-            Deploy
-          </>
-        )}
-      </Button>
     </>
   );
 };
