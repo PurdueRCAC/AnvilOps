@@ -153,7 +153,14 @@ const updateApp: HandlerMap["updateApp"] = async (
     const deployment = await db.deployment.create({
       data: {
         config: {
-          create: updatedDeploymentConfig,
+          create: {
+            ...updatedDeploymentConfig,
+            imageTag:
+              // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
+              // Use the one that the user specified or the most recent successful one.
+              updatedDeploymentConfig.imageTag ??
+              app.deploymentConfigTemplate.imageTag,
+          },
         },
         status: "DEPLOYING",
         app: { connect: { id: app.id } },
