@@ -1,10 +1,11 @@
-import type { V1Deployment } from "@kubernetes/client-node";
+import type { V1StatefulSet } from "@kubernetes/client-node";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
   type Response as ExpressResponse,
 } from "express";
 import path from "node:path";
+import type { Octokit } from "octokit";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
@@ -31,9 +32,9 @@ import {
 import { db } from "./db.ts";
 import {
   deleteNamespace,
+  getNamespace,
+  namespaceInUse,
   k8s,
-  NAMESPACE_PREFIX,
-  resourceExists,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
@@ -206,6 +207,7 @@ const handlers = {
             orderBy: { createdAt: "desc" },
             select: { status: true, commitHash: true },
           },
+          deploymentConfigTemplate: true,
         },
       });
       const users = await db.user.findMany({
@@ -228,27 +230,34 @@ const handlers = {
         },
       });
 
-      let appRes: components["schemas"]["Org"]["apps"] = [];
-      if (apps.length > 0) {
-        const octokit = await getOctokit(result.githubInstallationId);
-        appRes = await Promise.all(
-          apps.map(async (app) => {
-            const repo = await getRepoById(octokit, app.repositoryId);
-            return {
-              id: app.id,
-              displayName: app.displayName,
-              status: app.deployments[0].status,
-              repositoryURL: repo.html_url,
-              branch: app.repositoryBranch,
-              commitHash: app.deployments[0].commitHash,
-              link:
-                app.deployments[0].status === "COMPLETE"
-                  ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
-                  : undefined,
-            } satisfies components["schemas"]["Org"]["apps"][0];
-          }),
-        );
-      }
+      let octokit: Octokit;
+      const appRes: components["schemas"]["Org"]["apps"] = await Promise.all(
+        apps.map(async (app) => {
+          let repoURL: string;
+          if (app.deploymentConfigTemplate.source === "GIT") {
+            if (!octokit) {
+              octokit = await getOctokit(result.githubInstallationId);
+            }
+            const repo = await getRepoById(
+              octokit,
+              app.deploymentConfigTemplate.repositoryId,
+            );
+            repoURL = repo.html_url;
+          }
+          return {
+            id: app.id,
+            displayName: app.displayName,
+            status: app.deployments[0]?.status,
+            repositoryURL: repoURL,
+            branch: app.deploymentConfigTemplate.branch,
+            commitHash: app.deployments[0]?.commitHash,
+            link:
+              app.deployments[0]?.status === "COMPLETE"
+                ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                : undefined,
+          } satisfies components["schemas"]["Org"]["apps"][0];
+        }),
+      );
 
       return json(200, res, {
         id: result.id,
@@ -310,9 +319,9 @@ const handlers = {
       });
       for (let app of apps) {
         const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
-        if (hasResourcesStatus.includes(app.deployments[0].status)) {
+        if (hasResourcesStatus.includes(app.deployments[0]?.status)) {
           try {
-            await deleteNamespace(NAMESPACE_PREFIX + app.subdomain);
+            await deleteNamespace(getNamespace(app.subdomain));
           } catch (err) {
             console.error(err);
           }
@@ -322,9 +331,6 @@ const handlers = {
           });
         }
 
-        await db.storageConfig.deleteMany({
-          where: { deployment: { appId: app.id } },
-        });
         await db.deployment.deleteMany({ where: { appId: app.id } });
       }
       await db.organization.delete({ where: { id: orgId } });
@@ -375,8 +381,9 @@ const handlers = {
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            include: { config: true, storageConfig: true },
+            include: { config: true },
           },
+          deploymentConfigTemplate: { include: { mounts: true } },
         },
       });
       if (!app) return json(401, res, {});
@@ -394,15 +401,20 @@ const handlers = {
 
       if (!organization) return json(401, res, {});
 
-      const octokit = await getOctokit(organization.githubInstallationId);
-      const repo = await getRepoById(octokit, app.repositoryId);
-
-      const lastDeploy = app.deployments[0].config;
-
-      let k8sDeployment: V1Deployment | undefined;
+      let repoId: number | undefined, repoURL: string | undefined;
+      if (app.deploymentConfigTemplate.source === "GIT") {
+        const octokit = await getOctokit(organization.githubInstallationId);
+        const repo = await getRepoById(
+          octokit,
+          app.deploymentConfigTemplate.repositoryId,
+        );
+        repoId = repo.id;
+        repoURL = repo.html_url;
+      }
+      let k8sDeployment: V1StatefulSet | undefined;
       try {
-        k8sDeployment = await k8s.apps.readNamespacedDeployment({
-          namespace: NAMESPACE_PREFIX + app.subdomain,
+        k8sDeployment = await k8s.apps.readNamespacedStatefulSet({
+          namespace: getNamespace(app.subdomain),
           name: app.name,
         });
       } catch {}
@@ -412,36 +424,30 @@ const handlers = {
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
-      const storage = app.deployments[0].storageConfig;
-
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
         displayName: app.displayName,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
-        repositoryId: repo.id,
-        repositoryURL: repo.html_url,
+        repositoryId: repoId,
+        repositoryURL: repoURL,
         subdomain: app.subdomain,
         config: {
-          env: lastDeploy.env as Env[],
-          replicas: lastDeploy.replicas,
-          branch: app.repositoryBranch,
-          dockerfilePath: lastDeploy.dockerfilePath,
-          port: lastDeploy.port,
-          rootDir: lastDeploy.rootDir,
-          builder: lastDeploy.builder,
+          source:
+            app.deploymentConfigTemplate.source === "GIT" ? "git" : "image",
+          imageTag: app.deploymentConfigTemplate.imageTag,
+          mounts: app.deploymentConfigTemplate.mounts,
+          env: app.deploymentConfigTemplate.env as Env[],
+          replicas: app.deploymentConfigTemplate.replicas,
+          branch: app.deploymentConfigTemplate.branch,
+          dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+          port: app.deploymentConfigTemplate.port,
+          rootDir: app.deploymentConfigTemplate.rootDir,
+          builder: app.deploymentConfigTemplate.builder,
+          repositoryId: app.deploymentConfigTemplate.repositoryId,
+          secrets: JSON.parse(app.deploymentConfigTemplate.secrets),
         },
-        storage: storage
-          ? {
-              amount: storage.amount,
-              image: storage.image,
-              mountPath: storage.mountPath,
-              port: storage.port,
-              replicas: storage.replicas,
-              env: storage.env as Env[],
-            }
-          : undefined,
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)
           : undefined,
@@ -470,14 +476,11 @@ const handlers = {
   > {
     const subdomain = ctx.request.query.subdomain;
     try {
-      const namespaceExists = resourceExists({
-        apiVersion: "v1",
-        kind: "Namespace",
-        metadata: { name: NAMESPACE_PREFIX + subdomain },
-      });
+      const namespaceExists = namespaceInUse(getNamespace(subdomain));
       const subdomainUsedByApp = db.app.count({
         where: { subdomain },
       });
+      // Check database in addition to resources in case the namespace is taken but not finished creating
       const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
         .map((value) => !!value)
         .reduce((prev, cur) => prev && !cur, true);

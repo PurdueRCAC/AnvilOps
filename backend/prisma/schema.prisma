@@ -67,20 +67,26 @@ enum ImageBuilder {
   railpack
 }
 
+enum DeploymentSource {
+  GIT
+  IMAGE
+}
+
 model App {
-  id               Int          @id @default(autoincrement())
-  orgId            Int
-  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  name             String
-  displayName      String
-  repositoryId     Int
-  repositoryBranch String       @default("main")
-  subdomain        String       @unique
-  imageRepo        String       @default("")
-  deployments      Deployment[]
-  logIngestSecret  String       @unique
+  id                         Int              @id @default(autoincrement())
+  orgId                      Int
+  org                        Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  name                       String
+  displayName                String
+  subdomain                  String           @unique
+  imageRepo                  String           @default("")
+  deployments                Deployment[]
+  logIngestSecret            String           @unique
+  // The config to use when creating a new deployment
+  deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id])
+  deploymentConfigTemplateId Int
 }
 
 model Deployment {
@@ -93,39 +99,45 @@ model Deployment {
   commitMessage String?
   builderJobId  String?
   checkRunId    Int?
-  imageTag      String?
   status        DeploymentStatus @default(PENDING)
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
   secret        String?          @unique
   config        DeploymentConfig @relation(fields: [configId], references: [id])
   configId      Int              @unique
-  storageConfig StorageConfig?
   logs          Log[]
 }
 
 model DeploymentConfig {
-  id             Int          @id @default(autoincrement())
-  builder        ImageBuilder
-  rootDir        String
-  dockerfilePath String?
+  id             Int              @id @default(autoincrement())
+  // Deployment options
   port           Int
-  env            Json         @default("[]")
+  env            Json             @default("[]")
   secrets        String?
-  replicas       Int          @default(1)
+  replicas       Int              @default(1)
   deployment     Deployment?
+  mounts         MountConfig[]
+  // Build options
+  source         DeploymentSource
+  // > Git deployment source
+  repositoryId   Int?
+  branch         String?          @default("main")
+  builder        ImageBuilder?
+  rootDir        String?
+  dockerfilePath String?
+  // > Image deployment source
+  imageTag       String?
+
+  // (ignore this)
+  mandatoryInverseRelationField1 App[]
 }
 
-model StorageConfig {
-  id         Int        @id @default(autoincrement())
-  image      String
-  replicas   Int
-  amount     Int
-  port       Int
-  mountPath  String
-  env        Json       @default("[]")
-  deployment Deployment @relation(fields: [deployId], references: [id], onDelete: Cascade)
-  deployId   Int        @unique
+model MountConfig {
+  id                 Int              @id @default(autoincrement())
+  path               String
+  amountInMiB        Int
+  deploymentConfig   DeploymentConfig @relation(fields: [deploymentConfigId], references: [id], onDelete: Cascade)
+  deploymentConfigId Int
 }
 
 model Log {

@@ -80,6 +80,29 @@ export const db = client.$extends({
   },
 
   query: {
+    app: {
+      async create({ args, query }) {
+        if (!args.data.deploymentConfigTemplate) {
+          return query(args);
+        }
+
+        const createConfig = args.data.deploymentConfigTemplate.create;
+        if (createConfig && createConfig.secrets) {
+          createConfig.secrets = encryptSecret(createConfig.secrets);
+        }
+
+        const connectConfig =
+          args.data.deploymentConfigTemplate.connectOrCreate;
+        if (connectConfig && connectConfig.create.secrets) {
+          connectConfig.create.secrets = encryptSecret(
+            connectConfig.create.secrets,
+          );
+        }
+
+        return query(args);
+      },
+    },
+
     deployment: {
       async create({ args, query }) {
         if (!args.data.config) {

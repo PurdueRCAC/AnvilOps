@@ -1,7 +1,7 @@
 import { V1PodList } from "@kubernetes/client-node";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { k8s, NAMESPACE_PREFIX } from "../lib/kubernetes.ts";
+import { getNamespace, k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
@@ -16,9 +16,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       app: { org: { users: { some: { userId: req.user.id } } } },
     },
     include: {
-      config: true,
-      storageConfig: true,
-      app: { select: { repositoryBranch: true, subdomain: true, name: true } },
+      config: { include: { mounts: true } },
+      app: { select: { subdomain: true, name: true } },
     },
   });
 
@@ -29,7 +28,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   let pods: V1PodList;
   try {
     pods = await k8s.default.listNamespacedPod({
-      namespace: NAMESPACE_PREFIX + deployment.app.subdomain,
+      namespace: getNamespace(deployment.app.subdomain),
       labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
     });
   } catch (err) {
@@ -67,7 +66,14 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
         }
       : undefined,
     config: {
-      branch: deployment.app.repositoryBranch,
+      branch: deployment.config.branch,
+      imageTag: deployment.config.imageTag,
+      mounts: deployment.config.mounts.map((mount) => ({
+        path: mount.path,
+        amountInMiB: mount.amountInMiB,
+      })),
+      source: deployment.config.source === "GIT" ? "git" : "image",
+      repositoryId: deployment.config.repositoryId,
       builder: deployment.config.builder,
       dockerfilePath: deployment.config.dockerfilePath,
       env: deployment.config.env as { name: string; value: string }[],
@@ -75,13 +81,6 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       replicas: deployment.config.replicas,
       rootDir: deployment.config.rootDir,
       secrets: JSON.parse(deployment.config.secrets),
-    },
-    storageConfig: {
-      amount: deployment.storageConfig?.amount,
-      image: deployment.storageConfig?.image,
-      replicas: deployment.storageConfig?.replicas,
-      port: deployment.storageConfig?.port,
-      mountPath: deployment.storageConfig?.mountPath,
     },
   });
 };

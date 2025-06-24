@@ -777,8 +777,6 @@ paths:
                     $ref: "#/components/schemas/DeploymentStatus"
                   config:
                     $ref: "#/components/schemas/DeploymentConfig"
-                  storageConfig:
-                    $ref: "#/components/schemas/Storage"
                   podStatus:
                     type: object
                     properties:
@@ -802,7 +800,6 @@ paths:
                   - updatedAt
                   - status
                   - config
-                  - storageConfig
 
   /app/subdomain:
     description: Checks if a subdomain is available for use.
@@ -976,8 +973,6 @@ components:
           type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
-        storage:
-          $ref: "#/components/schemas/Storage"
         subdomain:
           type: string
         activeDeployment:
@@ -989,8 +984,6 @@ components:
         - createdAt
         - updatedAt
         - displayName
-        - repositoryId
-        - repositoryURL
         - config
         - subdomain
         - activeDeployment
@@ -1001,26 +994,48 @@ components:
           type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
-        storage:
-          $ref: "#/components/schemas/Storage"
       required:
         - name
         - config
     DeploymentConfig:
       type: object
       properties:
+        # Source options
+        source:
+          type: string
+          enum: ["image", "git"]
+        # Source options > Git repository
+        dockerfilePath:
+          type: string
+          nullable: true
+          description: Required when source == "git"
+        rootDir:
+          type: string
+          nullable: true
+          description: Required when source == "git"
+        repositoryId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Required when source == "git"
+        branch:
+          type: string
+          nullable: true
+          description: Required when source == "git"
+        builder:
+          type: string
+          nullable: true
+          description: Required when source == "git"
+          enum: [dockerfile, railpack, null]
+        # Source options > OCI image
+        imageTag:
+          type: string
+          nullable: true
+          description: Required when source == "image"
+        # Deployment options
         port:
           type: integer
           format: int64
-        dockerfilePath:
-          type: string
-        rootDir:
-          type: string
-        branch:
-          type: string
-        builder:
-          type: string
-          enum: [dockerfile, railpack]
         replicas:
           type: integer
           format: int64
@@ -1028,7 +1043,29 @@ components:
           $ref: "#/components/schemas/Envs"
         secrets:
           $ref: "#/components/schemas/Envs"
-      required: [port, dockerfilePath, rootDir, branch, builder, replicas]
+        mounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mount"
+      required:
+        - source
+        - imageTag
+        - port
+        - dockerfilePath
+        - rootDir
+        - branch
+        - builder
+        - replicas
+        - mounts
+        - env
+    Mount:
+      type: object
+      properties:
+        path:
+          type: string
+        amountInMiB:
+          type: integer
+      required: [path, amountInMiB]
     DeploymentStatus:
       type: string
       enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
@@ -1038,44 +1075,65 @@ components:
     NewApp:
       type: object
       properties:
+        name:
+          type: string
+        # Source options
         orgId:
           type: integer
           format: int64
-        name:
+        source:
           type: string
+          enum: [git, image]
+        # Source options > Git repository
         repositoryId:
           type: number
+          nullable: true
           format: int64
+        dockerfilePath:
+          type: string
+          nullable: true
+        rootDir:
+          type: string
+          nullable: true
+        branch:
+          type: string
+          nullable: true
+        builder:
+          type: string
+          nullable: true
+          enum: [dockerfile, railpack, null]
+        # Source options > OCI image
+        imageTag:
+          type: string
+          nullable: true
+        # Deployment options
         subdomain:
           type: string
           format: hostname
         port:
           type: integer
           format: int64
-        dockerfilePath:
-          type: string
-        rootDir:
-          type: string
-        branch:
-          type: string
-        builder:
-          type: string
-          enum: [dockerfile, railpack]
         env:
           $ref: "#/components/schemas/Envs"
         secrets:
           $ref: "#/components/schemas/Envs"
-        storage:
-          $ref: "#/components/schemas/Storage"
+        mounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mount"
       required:
         - orgId
+        - source
         - name
         - repositoryId
+        - dockerfilePath
         - subdomain
         - port
         - rootDir
         - branch
         - builder
+        - mounts
+        - imageTag
     Envs:
       type: array
       items:
@@ -1086,30 +1144,6 @@ components:
           value:
             type: string
         required: [name, value]
-    Storage:
-      type: object
-      properties:
-        image:
-          type: string
-        replicas:
-          type: integer
-          format: int64
-        amount:
-          type: integer
-          format: int64
-        port:
-          type: integer
-          format: int64
-        mountPath:
-          type: string
-        env:
-          $ref: "#/components/schemas/Envs"
-      required:
-        - image
-        - replicas
-        - amount
-        - port
-        - mountPath
     ApiError:
       type: object
       properties:

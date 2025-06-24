@@ -1,9 +1,9 @@
-import { type HandlerResponse, json, type HandlerMap } from "../types.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
 import { type components } from "../generated/openapi.ts";
+import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { deleteNamespace } from "../lib/kubernetes.ts";
+import { deleteNamespace, getNamespace } from "../lib/kubernetes.ts";
 import { deleteRepo } from "../lib/registry.ts";
+import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
 
 const deleteApp: HandlerMap["deleteApp"] = async (
   ctx,
@@ -58,7 +58,7 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
   if (hasResourcesStatus.includes(deployments[0].status)) {
     try {
-      await deleteNamespace(subdomain);
+      await deleteNamespace(getNamespace(subdomain));
       await db.deployment.update({
         where: { id: deployments[0].id },
         data: { status: "STOPPED" },
@@ -68,7 +68,7 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     }
   }
 
-  await db.storageConfig.deleteMany({ where: { deployment: { appId } } });
+  await db.deploymentConfig.deleteMany({ where: { deployment: { appId } } });
   await db.deployment.deleteMany({ where: { appId } });
 
   try {

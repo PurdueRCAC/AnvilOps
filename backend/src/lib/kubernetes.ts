@@ -6,10 +6,18 @@ import {
   KubeConfig,
   KubernetesObjectApi,
   PatchStrategy,
-  V1EnvVar,
-  V1Namespace,
+  type V1EnvVar,
+  type V1Namespace,
+  type V1StatefulSet,
 } from "@kubernetes/client-node";
-import { type Env, isObjectEmpty } from "../types.ts";
+import crypto from "node:crypto";
+import type {
+  App,
+  Deployment,
+  DeploymentConfig,
+  MountConfig,
+} from "../generated/prisma/client.ts";
+import { isObjectEmpty, type Env } from "../types.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -21,7 +29,10 @@ export const k8s = {
   full: KubernetesObjectApi.makeApiClient(kc),
 };
 
-export const NAMESPACE_PREFIX = "anvilops-";
+const NAMESPACE_PREFIX = "anvilops-";
+
+export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
+export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
 
 interface SvcParams {
   name: string;
@@ -40,20 +51,7 @@ interface DeploymentParams {
   env: V1EnvVar[];
   port: number;
   replicas: number;
-}
-
-interface AppParams {
-  deploymentId: number;
-  appId: number;
-  name: string;
-  namespace: string;
-  image: string;
-  env: Env[];
-  secrets: Env[];
-  loggingIngestSecret: string;
-  port: number;
-  replicas: number;
-  storage?: StorageParams;
+  mounts: { path: string; amountInMiB: number }[];
 }
 
 interface K8sObject {
@@ -65,16 +63,15 @@ interface K8sObject {
   };
 }
 
-type StorageParams = {
-  image: string;
-  replicas: number;
-  amount: number;
-  port: number;
-  mountPath: string;
-  env: Env[];
+export const namespaceInUse = async (namespace: string) => {
+  return resourceExists({
+    apiVersion: "v1",
+    kind: "Namespace",
+    metadata: { name: namespace },
+  });
 };
 
-export const resourceExists = async (data: K8sObject) => {
+const resourceExists = async (data: K8sObject) => {
   try {
     await k8s.full.read(data);
     return true;
@@ -89,98 +86,18 @@ export const resourceExists = async (data: K8sObject) => {
   }
 };
 
-const createStorageConfigs = (app: AppParams) => {
-  const storage = app.storage;
-  const resourceName = `${app.name}-storage`;
-
-  const env = getEnvVars([], storage.env, resourceName);
-  const secrets =
-    storage.env.length !== 0
-      ? createSecretConfig(
-          getSecretData(storage.env),
-          resourceName,
-          app.namespace,
-        )
-      : null;
-  let mountPath = storage.mountPath;
-  let port = storage.port;
-
-  const storageSvc = createServiceConfig({
-    name: resourceName,
-    namespace: app.namespace,
-    appName: resourceName,
-    port,
-    targetPort: port,
-  });
-
-  const statefulSet = {
-    apiVersion: "apps/v1",
-    kind: "StatefulSet",
-    metadata: {
-      name: resourceName,
-      namespace: app.namespace,
-    },
-    spec: {
-      selector: {
-        matchLabels: {
-          app: resourceName,
-        },
-      },
-      serviceName: resourceName,
-      replicas: app.storage.replicas,
-      template: {
-        metadata: {
-          labels: {
-            app: resourceName,
-          },
-        },
-        spec: {
-          containers: [
-            {
-              name: resourceName,
-              image: `${storage.image}`,
-              ports: [
-                {
-                  containerPort: port,
-                },
-              ],
-              volumeMounts: [
-                {
-                  name: `${resourceName}-data`,
-                  mountPath,
-                },
-              ],
-              env,
-            },
-          ],
-        },
-      },
-      volumeClaimTemplates: [
-        {
-          metadata: {
-            name: `${resourceName}-data`,
-          },
-          spec: {
-            accessModes: ["ReadWriteMany"],
-            storageClassName: "anvil-filesystem",
-            resources: {
-              requests: {
-                storage: `${app.storage.amount}Gi`,
-              },
-            },
-          },
-        },
-      ],
-    },
-  };
-
-  return { storageSvc, statefulSet, secrets };
+const generateVolumeName = (mountPath: string) => {
+  // Volume names must be valid DNS labels (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names)
+  return (
+    "anvilops-volums-" +
+    crypto.createHash("md5").update(mountPath).digest("hex")
+  );
 };
 
-const createDeploymentConfig = (deploy: DeploymentParams) => {
+const createStatefulSetConfig = (deploy: DeploymentParams) => {
   return {
     apiVersion: "apps/v1",
-    kind: "Deployment",
+    kind: "StatefulSet",
     metadata: {
       name: deploy.name,
       namespace: deploy.namespace,
@@ -191,6 +108,7 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
           app: deploy.name,
         },
       },
+      serviceName: deploy.namespace,
       replicas: deploy.replicas,
       template: {
         metadata: {
@@ -207,6 +125,7 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
             {
               name: deploy.name,
               image: deploy.image,
+              imagePullPolicy: "Always",
               ports: [
                 {
                   containerPort: deploy.port,
@@ -214,12 +133,24 @@ const createDeploymentConfig = (deploy: DeploymentParams) => {
                 },
               ],
               env: deploy.env,
+              volumeMounts: deploy.mounts.map((mount) => ({
+                mountPath: mount.path,
+                name: generateVolumeName(mount.path),
+              })),
             },
           ],
         },
       },
+      volumeClaimTemplates: deploy.mounts.map((mount) => ({
+        metadata: { name: generateVolumeName(mount.path) },
+        spec: {
+          accessModes: ["ReadWriteMany"],
+          storageClassName: "anvil-filesystem",
+          resources: { requests: { storage: `${mount.amountInMiB}Mi` } },
+        },
+      })),
     },
-  };
+  } satisfies V1StatefulSet;
 };
 
 const createServiceConfig = (svc: SvcParams) => {
@@ -409,97 +340,65 @@ export const deleteNamespace = async (namespace: string) => {
   console.log(`Namespace ${namespace} deleted`);
 };
 
-export const deleteStorage = async (appName: string, namespace: string) => {
-  const name = `${appName}-storage`;
-  if (
-    await resourceExists({
-      apiVersion: "apps/v1",
-      kind: "StatefulSet",
-      metadata: { name, namespace },
-    })
-  ) {
-    await k8s.apps.deleteNamespacedStatefulSet({
-      name: `${appName}-storage`,
-      namespace,
-    });
-  }
-  if (
-    await resourceExists({
-      apiVersion: "v1",
-      kind: "Service",
-      metadata: { name, namespace },
-    })
-  ) {
-    await k8s.default.deleteNamespacedService({
-      name: `${appName}-storage`,
-      namespace,
-    });
-  }
-  if (
-    await resourceExists({
-      apiVersion: "v1",
-      kind: "Secret",
-      metadata: { name, namespace },
-    })
-  ) {
-    await k8s.default.deleteNamespacedSecret({
-      name: `${appName}-storage`,
-      namespace,
-    });
-  }
-};
+export const createAppConfigsFromDeployment = (
+  deployment: Pick<Deployment, "appId" | "id"> & {
+    app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
+    config: Pick<
+      DeploymentConfig,
+      "env" | "port" | "replicas" | "secrets" | "imageTag"
+    > & {
+      mounts: Pick<MountConfig, "path" | "amountInMiB">[];
+    };
+  },
+) => {
+  const app = deployment.app;
+  const conf = deployment.config;
+  const namespaceName = getNamespace(app.subdomain);
 
-export const createAppConfigs = (
-  app: AppParams,
-): { namespace: K8sObject; configs: K8sObject[] } => {
-  const namespace = createNamespaceConfig(app.namespace);
+  const namespace = createNamespaceConfig(namespaceName);
   const configs: K8sObject[] = [];
 
-  const envVars = getEnvVars(app.env, app.secrets, `${app.name}-secrets`);
-  const secretData = getSecretData(app.secrets);
+  const secrets = JSON.parse(conf.secrets) as Env[];
+  const envVars = getEnvVars(conf.env as Env[], secrets, `${app.name}-secrets`);
+  const secretData = getSecretData(secrets);
   if (!isObjectEmpty(secretData)) {
     const secretConfig = createSecretConfig(
       secretData,
       `${app.name}-secrets`,
-      app.namespace,
+      namespaceName,
     );
 
     // Secrets should be created first
     configs.unshift(secretConfig);
   }
 
-  if (app.storage) {
-    const { storageSvc, statefulSet, secrets } = createStorageConfigs(app);
-    if (secrets) configs.unshift(secrets);
-    configs.push(statefulSet, storageSvc);
-  }
-
   const svc = createServiceConfig({
-    name: app.namespace,
-    namespace: app.namespace,
+    name: namespaceName,
+    namespace: namespaceName,
     appName: app.name,
     port: 80,
-    targetPort: app.port,
+    targetPort: conf.port,
   });
 
-  const deployment = createDeploymentConfig({
-    deploymentId: app.deploymentId,
-    appId: app.appId,
+  const statefulSet = createStatefulSetConfig({
+    deploymentId: deployment.id,
+    appId: deployment.appId,
     name: app.name,
-    namespace: app.namespace,
-    image: app.image,
+    namespace: namespaceName,
+    image: conf.imageTag,
     env: envVars,
-    port: app.port,
-    replicas: app.replicas,
+    port: conf.port,
+    replicas: conf.replicas,
+    mounts: conf.mounts,
   });
 
   const logs = createLogConfig(
-    app.namespace,
-    app.appId,
-    app.loggingIngestSecret,
+    namespaceName,
+    deployment.appId,
+    app.logIngestSecret,
   );
 
-  configs.push(...logs, deployment, svc);
+  configs.push(...logs, statefulSet, svc);
   return { namespace, configs };
 };
 
