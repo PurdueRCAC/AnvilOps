@@ -134,7 +134,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           logs: {
             create: {
               timestamp: new Date(),
-              content: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+              content: {
+                log: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+              },
               type: "BUILD",
             },
           },

@@ -44,17 +44,19 @@ export const DeploymentView = () => {
         <ArrowLeft size={16} />
         {app.displayName}
       </Link>
-      <h1 className="text-3xl font-bold mb-2">
-        {deployment.commitMessage ?? <i>Untitled deployment</i>}
-      </h1>
-      <div className="flex gap-4 mb-4">
-        <Status status={deployment.status} />
-        <a
-          className="flex gap-1"
-          href={`${app.repositoryURL}/commit/${deployment.commitHash}`}
-        >
-          <GitCommit /> {deployment.commitHash.substring(0, 7)}
-        </a>
+      <div className="sticky top-16 bg-white z-30 py-2">
+        <h1 className="text-3xl font-bold mb-2">
+          {deployment.commitMessage ?? <i>Untitled deployment</i>}
+        </h1>
+        <div className="flex gap-4">
+          <Status status={deployment.status} />
+          <a
+            className="flex gap-1"
+            href={`${app.repositoryURL}/commit/${deployment.commitHash}`}
+          >
+            <GitCommit /> {deployment.commitHash.substring(0, 7)}
+          </a>
+        </div>
       </div>
       <p className="opacity-50">
         Started at {format.format(new Date(deployment.createdAt))} &middot; Last

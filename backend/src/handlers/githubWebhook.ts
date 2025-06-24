@@ -317,7 +317,9 @@ export async function buildAndDeploy({
           logs: {
             create: {
               timestamp: new Date(),
-              content: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+              content: {
+                log: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+              },
               type: "BUILD",
             },
           },
@@ -334,7 +336,12 @@ export async function log(
 ) {
   try {
     await db.log.create({
-      data: { deploymentId, type, content, timestamp: new Date() },
+      data: {
+        deploymentId,
+        type,
+        content: { log: content },
+        timestamp: new Date(),
+      },
     });
   } catch {
     // Don't let errors bubble up and disrupt the deployment process
