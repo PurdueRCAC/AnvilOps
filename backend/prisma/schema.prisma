@@ -112,8 +112,8 @@ model DeploymentConfig {
   id             Int              @id @default(autoincrement())
   // Deployment options
   port           Int
-  env            Json             @default("[]")
-  secrets        String?
+  env            Json?
+  envKey         String
   replicas       Int              @default(1)
   deployment     Deployment?
   mounts         MountConfig[]
