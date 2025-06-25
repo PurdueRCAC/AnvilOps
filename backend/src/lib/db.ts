@@ -50,6 +50,21 @@ const genKey = (): Buffer => {
   return crypto.randomBytes(32);
 };
 
+const patchEnv = (data: {
+  env?: PrismaJson.EnvVar[] | NullableJsonNullValueInput;
+  envKey?: string | StringFieldUpdateOperationsInput;
+  [key: string]: unknown;
+}) => {
+  if (data.env instanceof Array) {
+    const key = genKey();
+    data.env = data.env.map((envVar) => ({
+      ...envVar,
+      value: encrypt(envVar.value, key),
+    }));
+    data.envKey = wrapKey(key);
+  }
+};
+
 const client = new PrismaClient({
   datasourceUrl: DATABASE_URL,
   omit: {
@@ -92,51 +107,76 @@ export const db = client
   .$extends({
     name: "Encrypt environment variables on write",
     query: {
+      app: {
+        create({ args, query }) {
+          if (!args.data.deploymentConfigTemplate) {
+            return query(args);
+          }
+
+          const createConfig = args.data.deploymentConfigTemplate.create;
+          if (createConfig && createConfig.env) {
+            patchEnv(createConfig);
+          }
+          const connectConfig =
+            args.data.deploymentConfigTemplate.connectOrCreate;
+          if (connectConfig && connectConfig.create.env) {
+            patchEnv(connectConfig.create);
+          }
+          return query(args);
+        },
+      },
+
+      deployment: {
+        create({ args, query }) {
+          if (!args.data.config) {
+            return query(args);
+          }
+          const createConfig = args.data.config.create;
+          if (createConfig && createConfig.env) {
+            patchEnv(createConfig);
+          }
+
+          const connectConfig = args.data.config.connectOrCreate;
+          if (connectConfig && connectConfig.create.env) {
+            patchEnv(connectConfig.create);
+          }
+
+          return query(args);
+        },
+      },
+
+      // TODO: Disable nested writes to deploymentConfig.env in other app and deployment operations
+
       deploymentConfig: {
         $allOperations({ operation, args, query }) {
-          const patch = (data: {
-            env?: PrismaJson.EnvVar[] | NullableJsonNullValueInput;
-            envKey?: string | StringFieldUpdateOperationsInput;
-            [key: string]: unknown;
-          }) => {
-            if (data.env instanceof Array) {
-              const key = genKey();
-              data.env = data.env.map((envVar) => ({
-                ...envVar,
-                value: encrypt(envVar.value, key),
-              }));
-              data.envKey = wrapKey(key);
-            }
-          };
-
           switch (operation) {
             case "update":
             case "updateMany":
             case "updateManyAndReturn":
             case "create":
               if (args.data.env) {
-                patch(args.data);
+                patchEnv(args.data);
               }
               break;
             case "createManyAndReturn":
             case "createMany":
               if (args.data instanceof Array) {
                 args.data.forEach((data) => {
-                  if (data.env) patch(data);
+                  if (data.env) patchEnv(data);
                 });
               } else {
                 if (args.data.env) {
-                  patch(args.data);
+                  patchEnv(args.data);
                 }
               }
               break;
             case "upsert":
               if (args.create.env) {
-                patch(args.create);
+                patchEnv(args.create);
               }
 
               if (args.update.env) {
-                patch(args.update);
+                patchEnv(args.update);
               }
               break;
           }
