@@ -1,3 +1,4 @@
+import { createOAuthUserAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 
 const privateKey = Buffer.from(
@@ -15,6 +16,23 @@ export async function getOctokit(installationId: number) {
   });
 
   return await app.getInstallationOctokit(installationId);
+}
+
+export async function getInstallationAccessToken(octokit: Octokit) {
+  const { token } = (await octokit.auth({ type: "installation" })) as any;
+  return token as string;
+}
+
+export function getUserOctokit(code: string) {
+  return new Octokit({
+    authStrategy: createOAuthUserAuth,
+    auth: {
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      code: code,
+    } satisfies Parameters<typeof createOAuthUserAuth>[0],
+    baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
+  });
 }
 
 export async function getRepoById(octokit: Octokit, repoId: number) {

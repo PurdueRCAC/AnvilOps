@@ -19,7 +19,7 @@ import {
   createOrUpdateApp,
   getNamespace,
 } from "../lib/kubernetes.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import { getInstallationAccessToken, getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -157,7 +157,7 @@ export async function generateCloneURLWithCredentials(
   octokit: Octokit,
   originalURL: string,
 ) {
-  const { token } = (await octokit.auth({ type: "installation" })) as any;
+  const token = await getInstallationAccessToken(octokit);
   const url = URL.parse(originalURL);
   url.username = "x-access-token";
   url.password = token;

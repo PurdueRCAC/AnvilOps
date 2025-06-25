@@ -10,9 +10,10 @@ import AppView from "./pages/AppView";
 import CreateAppView from "./pages/CreateAppView";
 import DashboardView from "./pages/DashboardView";
 import { DeploymentView } from "./pages/DeploymentView";
+import { ImportRepoView } from "./pages/ImportRepoView";
 import LandingView from "./pages/LandingView";
-import OrgView from "./pages/OrgView";
 import NotFoundView from "./pages/NotFoundView";
+import OrgView from "./pages/OrgView";
 
 function App() {
   return (
@@ -50,6 +51,14 @@ function App() {
             element={
               <RequireAuth redirectTo="/api/login">
                 <CreateAppView />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/import-repo"
+            element={
+              <RequireAuth redirectTo="/api/login">
+                <ImportRepoView />
               </RequireAuth>
             }
           />

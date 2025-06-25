@@ -1,4 +1,5 @@
 import { EnvVarGrid } from "@/components/EnvVarGrid";
+import { ImportRepoDialog } from "@/components/ImportRepoDialog";
 import { MountsGrid, type Mounts } from "@/components/MountsGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -262,6 +263,8 @@ export const AppConfigFormFields = ({
     { enabled: subdomain == debouncedSub && subdomainIsValid },
   );
 
+  const [importDialogShown, setImportDialogShown] = useState(false);
+
   if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
     return selectedOrg?.permissionLevel === "OWNER" ? (
       <>
@@ -294,6 +297,13 @@ export const AppConfigFormFields = ({
 
   return (
     <>
+      {selectedOrg?.id && (
+        <ImportRepoDialog
+          orgId={selectedOrg?.id}
+          open={importDialogShown}
+          setOpen={setImportDialogShown}
+        />
+      )}
       <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
@@ -353,9 +363,13 @@ export const AppConfigFormFields = ({
               required
               name="repo"
               disabled={orgId === undefined || reposLoading}
-              onValueChange={(repo) =>
-                setState((prev) => ({ ...prev, repoId: parseInt(repo) }))
-              }
+              onValueChange={(repo) => {
+                if (repo === "$import-repo") {
+                  setImportDialogShown(true);
+                } else {
+                  setState((prev) => ({ ...prev, repoId: parseInt(repo) }));
+                }
+              }}
               value={repoId?.toString()}
             >
               <SelectTrigger className="w-full peer" id="selectRepo">
@@ -388,6 +402,12 @@ export const AppConfigFormFields = ({
                         </>
                       ))
                     : null}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Import</SelectLabel>
+                  <SelectItem value="$import-repo">
+                    External Git repository...
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

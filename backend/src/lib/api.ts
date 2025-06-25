@@ -12,10 +12,15 @@ import createApp from "../handlers/createApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
 import { getAppLogs } from "../handlers/getAppLogs.ts";
 import { getDeployment } from "../handlers/getDeployment.ts";
+import { getInstallation } from "../handlers/getInstallation.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
 import { githubInstallCallback } from "../handlers/githubInstallCallback.ts";
 import { githubOAuthCallback } from "../handlers/githubOAuthCallback.ts";
 import { githubWebhook } from "../handlers/githubWebhook.ts";
+import {
+  importGitRepo,
+  importGitRepoCreateState,
+} from "../handlers/importGitRepo.ts";
 import { ingestLogs } from "../handlers/ingestLogs.ts";
 import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
@@ -33,8 +38,8 @@ import { db } from "./db.ts";
 import {
   deleteNamespace,
   getNamespace,
-  namespaceInUse,
   k8s,
+  namespaceInUse,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
@@ -508,6 +513,9 @@ const handlers = {
   getDeployment,
   getAppLogs,
   ingestLogs,
+  importGitRepoCreateState,
+  importGitRepo,
+  getInstallation,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

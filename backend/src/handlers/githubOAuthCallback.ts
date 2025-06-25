@@ -1,8 +1,7 @@
-import { createOAuthUserAuth } from "@octokit/auth-oauth-user";
-import { Octokit } from "octokit";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
+import { getUserOctokit } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { verifyState } from "./githubAppInstall.ts";
 
@@ -42,15 +41,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   }
 
   // 3) Verify that the user has access to the installation
-  const octokit = new Octokit({
-    authStrategy: createOAuthUserAuth,
-    auth: {
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      code: code,
-    },
-    baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
-  });
+  const octokit = getUserOctokit(code);
 
   const org = await db.organization.findFirst({
     select: { newInstallationId: true },
