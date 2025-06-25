@@ -70,11 +70,3 @@ export const redirect = <
   res.redirect(statusCode, url);
   return res;
 };
-
-export type Env = {
-  name: string;
-  value: string;
-};
-
-export const isObjectEmpty = (obj: {}) =>
-  obj && Object.keys(obj).length === 0 && obj.constructor === Object;

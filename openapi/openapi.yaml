@@ -1041,8 +1041,6 @@ components:
           format: int64
         env:
           $ref: "#/components/schemas/Envs"
-        secrets:
-          $ref: "#/components/schemas/Envs"
         mounts:
           type: array
           items:
@@ -1115,8 +1113,6 @@ components:
           format: int64
         env:
           $ref: "#/components/schemas/Envs"
-        secrets:
-          $ref: "#/components/schemas/Envs"
         mounts:
           type: array
           items:
@@ -1143,7 +1139,9 @@ components:
             type: string
           value:
             type: string
-        required: [name, value]
+          isSensitive:
+            type: boolean
+        required: [name, value, isSensitive]
     ApiError:
       type: object
       properties:

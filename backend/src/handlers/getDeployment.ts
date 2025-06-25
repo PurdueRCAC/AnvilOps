@@ -76,11 +76,10 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       repositoryId: deployment.config.repositoryId,
       builder: deployment.config.builder,
       dockerfilePath: deployment.config.dockerfilePath,
-      env: deployment.config.env as { name: string; value: string }[],
+      env: deployment.config.displayEnv,
       port: deployment.config.port,
       replicas: deployment.config.replicas,
       rootDir: deployment.config.rootDir,
-      secrets: JSON.parse(deployment.config.secrets),
     },
   });
 };

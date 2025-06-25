@@ -14,10 +14,12 @@ import crypto from "node:crypto";
 import type {
   App,
   Deployment,
-  DeploymentConfig,
   MountConfig,
 } from "../generated/prisma/client.ts";
-import { isObjectEmpty, type Env } from "../types.ts";
+import { db } from "./db.ts";
+type DeploymentConfig = Awaited<
+  ReturnType<typeof db.deploymentConfig.findUnique>
+>;
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -178,19 +180,11 @@ const createServiceConfig = (svc: SvcParams) => {
 };
 
 const getEnvVars = (
-  env: Env[],
-  secrets: Env[],
+  env: PrismaJson.EnvVar[],
   secretName: string,
 ): V1EnvVar[] => {
   const envVars = [];
   for (let envVar of env) {
-    envVars.push({
-      name: envVar.name,
-      value: envVar.value,
-    });
-  }
-
-  for (let envVar of secrets) {
     envVars.push({
       name: envVar.name,
       valueFrom: {
@@ -205,14 +199,15 @@ const getEnvVars = (
   return envVars;
 };
 
-const getSecretData = (secrets: Env[]) => {
-  return secrets.reduce((secretData, secret) => {
-    return Object.assign(secretData, { [secret.name]: secret.value });
+const getEnvRecord = (envVars: PrismaJson.EnvVar[]): Record<string, string> => {
+  if (envVars.length == 0) return null;
+  return envVars.reduce((data, env) => {
+    return Object.assign(data, { [env.name]: env.value });
   }, {});
 };
 
 const createSecretConfig = (
-  secrets: { [key: string]: string },
+  secrets: Record<string, string>,
   name: string,
   namespace: string,
 ) => {
@@ -345,7 +340,7 @@ export const createAppConfigsFromDeployment = (
     app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
     config: Pick<
       DeploymentConfig,
-      "env" | "port" | "replicas" | "secrets" | "imageTag"
+      "getPlaintextEnv" | "port" | "replicas" | "imageTag"
     > & {
       mounts: Pick<MountConfig, "path" | "amountInMiB">[];
     };
@@ -358,10 +353,9 @@ export const createAppConfigsFromDeployment = (
   const namespace = createNamespaceConfig(namespaceName);
   const configs: K8sObject[] = [];
 
-  const secrets = JSON.parse(conf.secrets) as Env[];
-  const envVars = getEnvVars(conf.env as Env[], secrets, `${app.name}-secrets`);
-  const secretData = getSecretData(secrets);
-  if (!isObjectEmpty(secretData)) {
+  const envVars = getEnvVars(conf.getPlaintextEnv(), `${app.name}-secrets`);
+  const secretData = getEnvRecord(conf.getPlaintextEnv());
+  if (secretData !== null) {
     const secretConfig = createSecretConfig(
       secretData,
       `${app.name}-secrets`,

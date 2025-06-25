@@ -113,7 +113,6 @@ const updateApp: HandlerMap["updateApp"] = async (
     port: appConfig.port,
     env: appConfig.env,
     replicas: appConfig.replicas,
-    secrets: JSON.stringify(appConfig.secrets),
     mounts: { createMany: { data: appConfig.mounts } },
   };
 
