@@ -119,6 +119,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
         const octokit = await getOctokit(app.org.githubInstallationId);
 
+        delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
         await buildAndDeploy({
           orgId: app.orgId,
           appId: app.id,
