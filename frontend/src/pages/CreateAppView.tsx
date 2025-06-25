@@ -218,7 +218,11 @@ export const AppConfigFormFields = ({
   const selectedOrg =
     orgId !== undefined ? user?.orgs?.find((it) => it.id === orgId) : undefined;
 
-  const { data: repos, isPending: reposLoading } = api.useQuery(
+  const {
+    data: repos,
+    isPending: reposLoading,
+    refetch: refreshRepos,
+  } = api.useQuery(
     "get",
     "/org/{orgId}/repos",
     { params: { path: { orgId: orgId! } } },
@@ -302,6 +306,13 @@ export const AppConfigFormFields = ({
           orgId={selectedOrg?.id}
           open={importDialogShown}
           setOpen={setImportDialogShown}
+          refresh={async () => {
+            await refreshRepos();
+          }}
+          setRepo={(repo) => {
+            console.log("prev state", state, "setting repoId to", repo);
+            setState({ ...state, repoId: repo });
+          }}
         />
       )}
       <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Source Options</h3>
@@ -366,8 +377,11 @@ export const AppConfigFormFields = ({
               onValueChange={(repo) => {
                 if (repo === "$import-repo") {
                   setImportDialogShown(true);
-                } else {
-                  setState((prev) => ({ ...prev, repoId: parseInt(repo) }));
+                } else if (repo) {
+                  setState((prev) => ({
+                    ...prev,
+                    repoId: typeof repo === "string" ? parseInt(repo) : repo,
+                  }));
                 }
               }}
               value={repoId?.toString()}

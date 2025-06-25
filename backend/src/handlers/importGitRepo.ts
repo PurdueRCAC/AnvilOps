@@ -1,6 +1,8 @@
+import type { Response } from "express";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { importRepo } from "../lib/import.ts";
+import { getLocalRepo, importRepo } from "../lib/import.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
@@ -38,12 +40,13 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
       },
     });
 
-    if (destIsOrg) {
-      // We can create the repo now
+    const octokit = await getOctokit(org.githubInstallationId);
+    const isLocalRepo = !!(await getLocalRepo(octokit, URL.parse(sourceURL)));
 
-      return json(200, res, {
-        url: `/import-repo?state=${state.id}`,
-      });
+    if (destIsOrg || isLocalRepo) {
+      // We can create the repo now
+      // Fall into the importGitRepo handler directly
+      return await importRepoHandler(state.id, undefined, req.user.id, res);
     } else {
       // We need a user access token
       const redirectURL = `${req.protocol}://${req.host}/import-repo`;
@@ -58,9 +61,24 @@ export const importGitRepo: HandlerMap["importGitRepo"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
+  return await importRepoHandler(
+    ctx.request.requestBody.state,
+    ctx.request.requestBody.code,
+    req.user.id,
+    res,
+  );
+};
+
+async function importRepoHandler(
+  stateId: string,
+  code: string | undefined,
+  userId: number,
+  res: Response,
+) {
   const state = await db.repoImportState.delete({
     where: {
-      id: ctx.request.requestBody.state,
+      id: stateId,
+      userId: userId,
       createdAt: {
         // Only consider states that were created in the last 5 minutes
         gte: new Date(new Date().getTime() - 5 * 60 * 1000),
@@ -73,8 +91,8 @@ export const importGitRepo: HandlerMap["importGitRepo"] = async (
     return json(404, res, {});
   }
 
-  const created = await importRepo(
-    req.user.id,
+  const repoId = await importRepo(
+    userId,
     state.org.githubInstallationId,
     URL.parse(state.srcRepoURL),
     state.destIsOrg,
@@ -82,14 +100,12 @@ export const importGitRepo: HandlerMap["importGitRepo"] = async (
     state.destRepoName,
     state.makePrivate,
     false, // Only include the default branch
-    ctx.request.requestBody.code,
+    code,
   );
 
-  if (created) {
-    // The repository was created successfully.
-    return json(201, res, {});
-  } else {
-    // We're not 100% sure that it was created, but no errors were thrown. It's probably just a big repository that will be created soon.
-    return json(200, res, {});
-  }
-};
+  // The repository was created successfully. If repoId is null, then
+  // we're not 100% sure that it was created, but no errors were thrown.
+  // It's probably just a big repository that will be created soon.
+
+  return json(201, res, { repoId });
+}

@@ -26,6 +26,10 @@ export const ImportRepoView = () => {
       }
       toast.success("Repository imported!");
       navigate("/create-app");
+      try {
+        // If this page was opened as a popup, we can close it
+        window.close();
+      } catch {}
     })();
   }, []);
 
@@ -34,7 +38,7 @@ export const ImportRepoView = () => {
       <Loader className="animate-spin mx-auto mb-4" />
       <h1 className="text-2xl font-medium">Importing repository...</h1>
       <p className="mt-4 max-w-sm text-center text-pretty">
-        This may take a minute. The page will refresh automatically when the
+        This may take a minute. The page will update automatically when the
         process is complete.
       </p>
     </main>

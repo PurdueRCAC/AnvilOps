@@ -433,6 +433,8 @@ paths:
                     type: string
                     format: uri
                 required: [url]
+        "308":
+          description: Redirect to Import Repo endpoint (copying the Git repository immediately without needing permission grant from user)
         "400":
           description: GitHub App not installed
         "404":
@@ -463,10 +465,16 @@ paths:
                 - state
 
       responses:
-        "200":
-          description: Success (repo is likely still creating)
         "201":
-          description: Success (repo created)
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoId:
+                    type: number
+                    format: int64
         "400":
           description: GitHub App not installed or other validation error
         "404":

@@ -11,10 +11,14 @@ export const ImportRepoDialog = ({
   orgId,
   open,
   setOpen,
+  refresh,
+  setRepo,
 }: {
   orgId: number;
   open: boolean;
   setOpen: Dispatch<boolean>;
+  refresh: () => Promise<void>;
+  setRepo: Dispatch<number>;
 }) => {
   const { data: installation } = api.useQuery(
     "get",
@@ -64,8 +68,16 @@ export const ImportRepoDialog = ({
               },
               params: { path: { orgId } },
             });
-            if (!window.open(result.url, "_blank")) {
-              window.location.href = result.url;
+            if (result.url) {
+              if (!window.open(result.url, "_blank")) {
+                window.location.href = result.url;
+              }
+            } else if ("repoId" in result) {
+              // We were able to create the repo immediately without creating a popup for GitHub authorization
+              const repoId = result.repoId as number;
+              await refresh();
+              // Set the repo after the <Select> rerenders with the updated list of repositories
+              setTimeout(() => setRepo(repoId));
             }
             setOpen(false);
           }}

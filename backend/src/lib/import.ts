@@ -6,6 +6,25 @@ import { k8s } from "./kubernetes.ts";
 
 import { getOctokit, getUserOctokit } from "./octokit.ts";
 
+export async function getLocalRepo(octokit: Octokit, url: URL) {
+  if (url.host === new URL(process.env.GITHUB_BASE_URL).host) {
+    // The source and target repositories are on the same GitHub instance. We could fork or create from a template.
+    const pathname = url.pathname.split("/"); // /owner/repo
+    if (pathname.length !== 3) {
+      throw new Error("Invalid repo URL");
+    }
+    const [, owner, repoName] = pathname;
+
+    const repo = await octokit.rest.repos.get({
+      owner: owner,
+      repo: repoName,
+    });
+
+    return { repo, owner, repoName };
+  }
+  return null;
+}
+
 export async function importRepo(
   userId: number,
   installationId: number,
@@ -16,23 +35,18 @@ export async function importRepo(
   makePrivate: boolean,
   includeAllBranches: boolean,
   code?: string,
-) {
+): Promise<number | null> {
   const octokit = await getOctokit(installationId);
   try {
-    if (inputURL.host === new URL(process.env.GITHUB_BASE_URL).host) {
-      // The source and target repositories are on the same GitHub instance. We could fork or create from a template.
-      const pathname = inputURL.pathname.split("/"); // /owner/repo
-      if (pathname.length !== 3) {
-        throw new Error("Invalid repo URL");
-      }
-      const [, sourceOwner, sourceRepoName] = pathname;
+    const result = await getLocalRepo(octokit, inputURL);
 
-      const sourceRepo = await octokit.rest.repos.get({
-        owner: sourceOwner,
-        repo: sourceRepoName,
-      });
-
+    if (result) {
       // Try some shortcuts to make the process a bit faster. If they don't work (e.g. we don't have permission), we'll create a Job to clone the repo and push it to its new location.
+      const {
+        repo: sourceRepo,
+        owner: sourceOwner,
+        repoName: sourceRepoName,
+      } = result;
 
       if (sourceRepo.data.is_template) {
         // This repo is a template! GitHub offers an API endpoint to create a new repository from this template.
@@ -77,6 +91,7 @@ export async function importRepo(
   // The source and target repositories are on different GitHub instances, so we'll have to clone and push.
 
   let targetURL: string;
+  let repoID: number;
   if (targetIsOrganization) {
     const repo = await octokit.rest.repos.createInOrg({
       org: newOwner,
@@ -84,6 +99,7 @@ export async function importRepo(
       private: makePrivate,
     });
     targetURL = repo.data.html_url;
+    repoID = repo.data.id;
   } else {
     const repo = await getUserOctokit(
       code,
@@ -92,6 +108,7 @@ export async function importRepo(
       private: makePrivate,
     });
     targetURL = repo.data.html_url;
+    repoID = repo.data.id;
   }
 
   // Generate GitHub URLs with access tokens in the password portion
@@ -150,23 +167,24 @@ git push --mirror $PUSH_URL`,
     },
   });
 
-  return await awaitJobCompletion(job.metadata.name);
+  await awaitJobCompletion(job.metadata.name);
+  return repoID;
 }
 
 export async function awaitRepoCreation(
   octokit: Octokit,
   owner: string,
   repo: string,
-) {
+): Promise<number | null> {
   // Check whether the repo has been created every 2 seconds for a minute. If so, return early, and if not, keep waiting.
   for (let i = 0; i < 30; i++) {
     try {
       const result = await octokit.rest.repos.get({ owner, repo });
-      if (result.data.id) return true;
+      if (result.data.id) return result.data.id;
     } catch {}
     await setTimeout(2000);
   }
-  return false;
+  return null;
 }
 
 async function awaitJobCompletion(jobName: string) {
