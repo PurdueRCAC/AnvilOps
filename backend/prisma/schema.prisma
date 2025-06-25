@@ -118,8 +118,8 @@ model DeploymentConfig {
   // Deployment options
   port           Int
   /// [EnvVar[]]
-  env            Json?
-  envKey         String
+  env            Json             @default("[]")
+  envKey         String           @default("")
   replicas       Int              @default(1)
   deployment     Deployment?
   mounts         MountConfig[]
