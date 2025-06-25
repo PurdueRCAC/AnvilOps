@@ -1,10 +1,7 @@
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
 import "../../prisma/types.ts;";
 import { Prisma, PrismaClient } from "../generated/prisma/client.ts";
-import {
-  NullableJsonNullValueInput,
-  StringFieldUpdateOperationsInput,
-} from "../generated/prisma/internal/prismaNamespace.ts";
+import { StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -51,7 +48,7 @@ const genKey = (): Buffer => {
 };
 
 const patchEnv = (data: {
-  env?: PrismaJson.EnvVar[] | NullableJsonNullValueInput;
+  env?: PrismaJson.EnvVar[];
   envKey?: string | StringFieldUpdateOperationsInput;
   [key: string]: unknown;
 }) => {
@@ -79,7 +76,7 @@ export const db = client
     name: "Decrypt environment variables",
     result: {
       deploymentConfig: {
-        env: {
+        displayEnv: {
           needs: { env: true, envKey: true },
           compute(deploymentConfig) {
             if (deploymentConfig.env == null) return [];
@@ -87,7 +84,7 @@ export const db = client
               throw new Error("Env must be an array");
             }
             const unwrappedKey = unwrapKey(deploymentConfig.envKey);
-            const encrypted = deploymentConfig.env; // TODO: add type guard
+            const encrypted = deploymentConfig.env;
             return encrypted.map((env) =>
               env.isSensitive
                 ? {
@@ -99,6 +96,19 @@ export const db = client
                     value: decrypt(env.value, unwrappedKey),
                   },
             );
+          },
+        },
+
+        getPlaintextEnv: {
+          needs: { env: true, envKey: true },
+          compute(deploymentConfig) {
+            return () => {
+              const unwrappedKey = unwrapKey(deploymentConfig.envKey);
+              return deploymentConfig.env.map((env) => ({
+                ...env,
+                value: decrypt(env.value, unwrappedKey),
+              }));
+            };
           },
         },
       },
