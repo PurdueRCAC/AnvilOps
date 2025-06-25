@@ -1,6 +1,6 @@
 import express from "express";
 import * as client from "openid-client";
-import { PermissionLevel } from "../generated/prisma/index.ts";
+import { PermissionLevel } from "../generated/prisma/enums.ts";
 import { db } from "./db.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";

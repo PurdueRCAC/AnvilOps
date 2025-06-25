@@ -1,7 +1,7 @@
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
-import "../../prisma/types.ts;";
+import "../../prisma/types.ts";
 import { Prisma, PrismaClient } from "../generated/prisma/client.ts";
-import { StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
+import { type StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
