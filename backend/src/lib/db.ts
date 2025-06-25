@@ -1,5 +1,10 @@
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
-import { PrismaClient } from "../generated/prisma/client.ts";
+import "../../prisma/types.ts;";
+import { Prisma, PrismaClient } from "../generated/prisma/client.ts";
+import {
+  NullableJsonNullValueInput,
+  StringFieldUpdateOperationsInput,
+} from "../generated/prisma/internal/prismaNamespace.ts";
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -54,12 +59,6 @@ const client = new PrismaClient({
   },
 });
 
-interface EnvVar {
-  name: string;
-  value: string;
-  isSensitive: boolean;
-}
-
 export const db = client
   .$extends({
     name: "Decrypt environment variables",
@@ -73,7 +72,7 @@ export const db = client
               throw new Error("Env must be an array");
             }
             const unwrappedKey = unwrapKey(deploymentConfig.envKey);
-            const encrypted = deploymentConfig.env as unknown as EnvVar[]; // TODO: add type guard
+            const encrypted = deploymentConfig.env; // TODO: add type guard
             return encrypted.map((env) =>
               env.isSensitive
                 ? {
@@ -95,13 +94,19 @@ export const db = client
     query: {
       deploymentConfig: {
         $allOperations({ operation, args, query }) {
-          const patch = (data: any) => {
-            const key = genKey();
-            data.env = data.env.map((envVar) => ({
-              ...envVar,
-              value: encrypt(envVar.value, key),
-            }));
-            data.envKey = wrapKey(key);
+          const patch = (data: {
+            env?: PrismaJson.EnvVar[] | NullableJsonNullValueInput;
+            envKey?: string | StringFieldUpdateOperationsInput;
+            [key: string]: unknown;
+          }) => {
+            if (data.env instanceof Array) {
+              const key = genKey();
+              data.env = data.env.map((envVar) => ({
+                ...envVar,
+                value: encrypt(envVar.value, key),
+              }));
+              data.envKey = wrapKey(key);
+            }
           };
 
           switch (operation) {
