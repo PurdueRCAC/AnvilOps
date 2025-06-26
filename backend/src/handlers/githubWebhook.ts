@@ -55,7 +55,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         case "deleted": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-deleted"];
-          // TODO
+          // Unlink the repository from all of its associated apps
+          // Every deployment from that repository will now be listed as directly from the produced container image
+          await db.deploymentConfig.updateMany({
+            where: { repositoryId: payload.repository.id },
+            data: { repositoryId: null, branch: null, source: "IMAGE" },
+          });
         }
         default: {
           return json(422, res, {});
@@ -72,7 +77,15 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         case "deleted": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-deleted"];
-          // TODO
+          // Unlink the GitHub App installation from the organization
+          await db.organization.updateMany({
+            where: { githubInstallationId: payload.installation.id },
+            data: { githubInstallationId: null },
+          });
+          await db.organization.updateMany({
+            where: { newInstallationId: payload.installation.id },
+            data: { newInstallationId: null },
+          });
         }
         default: {
           return json(422, res, {});
