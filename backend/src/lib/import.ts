@@ -26,57 +26,24 @@ export async function getLocalRepo(octokit: Octokit, url: URL) {
 }
 
 export async function importRepo(
-  userId: number,
   installationId: number,
   inputURL: URL,
   targetIsOrganization: boolean,
   newOwner: string,
   newRepoName: string,
   makePrivate: boolean,
-  includeAllBranches: boolean,
   code?: string,
 ): Promise<number | null | "code needed"> {
   const octokit = await getOctokit(installationId);
   try {
-    const result = await getLocalRepo(octokit, inputURL);
-
-    if (result) {
-      // Try some shortcuts to make the process a bit faster. If they don't work (e.g. we don't have permission), we'll create a Job to clone the repo and push it to its new location.
-      const {
-        repo: sourceRepo,
-        owner: sourceOwner,
-        repoName: sourceRepoName,
-      } = result;
-
-      if (sourceRepo.data.is_template) {
-        // This repo is a template! GitHub offers an API endpoint to create a new repository from this template.
-        await octokit.rest.repos.createUsingTemplate({
-          template_owner: sourceOwner,
-          template_repo: sourceRepoName,
-          owner: newOwner,
-          name: newRepoName,
-          private: makePrivate,
-          include_all_branches: includeAllBranches,
-        });
-      } else {
-        // This repo is not a template. We can create a fork of it on the user's account.
-        await octokit.rest.repos.createFork({
-          owner: sourceOwner,
-          repo: sourceRepoName,
-          name: newRepoName,
-          organization: targetIsOrganization ? newOwner : undefined,
-          default_branch_only: !includeAllBranches,
-        });
-      }
-
-      // Wait for the repository to be created
-      return await awaitRepoCreation(octokit, newOwner, newRepoName);
-    }
-  } catch (e) {
-    console.error(
-      "Failed to import repository by forking or copying template: ",
-      e,
+    await copyFromTemplate(
+      octokit,
+      inputURL,
+      newOwner,
+      newRepoName,
+      makePrivate,
     );
+  } catch (e) {
     try {
       const newRepo = await octokit.rest.repos.get({
         owner: newOwner,
@@ -121,18 +88,65 @@ export async function importRepo(
   const cloneURL = inputURL.toString(); // No credentials for this one; repos on different Git servers should only be importable if they're public
   const pushURL = await generateCloneURLWithCredentials(octokit, targetURL);
 
+  await copyRepoManually(octokit, cloneURL, pushURL);
+}
+
+async function copyFromTemplate(
+  octokit: Octokit,
+  sourceURL: URL,
+  newOwner: string,
+  newRepoName: string,
+  makePrivate: boolean,
+) {
+  const result = await getLocalRepo(octokit, sourceURL);
+
+  if (!result) {
+    throw new Error(
+      "Repository not found on local Git server. Copying from template is not possible.",
+    );
+  }
+
+  const {
+    repo: sourceRepo,
+    owner: sourceOwner,
+    repoName: sourceRepoName,
+  } = result;
+
+  if (sourceRepo.data.is_template) {
+    // This repo is a template! GitHub offers an API endpoint to create a new repository from this template.
+    const repo = await octokit.rest.repos.createUsingTemplate({
+      template_owner: sourceOwner,
+      template_repo: sourceRepoName,
+      owner: newOwner,
+      name: newRepoName,
+      private: makePrivate,
+      include_all_branches: false,
+    });
+
+    return repo.data.id;
+  } else {
+    throw new Error("Source repository is not a template.");
+  }
+}
+
+async function copyRepoManually(
+  octokit: Octokit,
+  cloneURL: string,
+  pushURL: string,
+) {
+  const botUser = await octokit.rest.users.getByUsername({
+    username: `${process.env.GITHUB_APP_NAME}[bot]`, // e.g. "anvilops[bot]"
+  });
+
   const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
         name: `import-repo-${crypto.randomBytes(16).toString("hex")}`,
-        labels: {
-          "anvilops.rcac.purdue.edu/user-id": userId.toString(),
-        },
       },
       spec: {
         ttlSecondsAfterFinished: 30, // Delete job 30 seconds after it completes
-        backoffLimit: 1, // Retry up to 1 time if they exit with a non-zero status code
+        backoffLimit: 1, // Retry up to 1 time if the job exits with a non-zero status code
         activeDeadlineSeconds: 2 * 60, // Kill after 2 minutes
         template: {
           spec: {
@@ -143,14 +157,23 @@ export async function importRepo(
                 env: [
                   { name: "CLONE_URL", value: cloneURL },
                   { name: "PUSH_URL", value: pushURL },
+                  { name: "USER_EMAIL", value: botUser.data.email },
+                  { name: "USER_NAME", value: botUser.data.login },
                 ],
                 imagePullPolicy: "Always",
                 command: ["/bin/sh", "-c"],
                 workingDir: "/work",
                 args: [
                   `
-git clone${includeAllBranches ? " --mirror" : ""} $CLONE_URL .
-git push --mirror $PUSH_URL`,
+git clone --depth=1 --shallow-submodules "$CLONE_URL" .
+rm -rf .git
+git init
+git config user.email "$USER_EMAIL"
+git config user.name "$USER_NAME"
+git commit -am "Initial commit"
+git remote set-url origin "$PUSH_URL"
+git branch -M main
+git push -u origin main`,
                 ],
                 volumeMounts: [
                   {
@@ -163,7 +186,9 @@ git push --mirror $PUSH_URL`,
             volumes: [
               {
                 name: "work-dir",
-                emptyDir: {},
+                emptyDir: {
+                  sizeLimit: "1Gi",
+                },
               },
             ],
             restartPolicy: "Never",
@@ -174,27 +199,10 @@ git push --mirror $PUSH_URL`,
   });
 
   await awaitJobCompletion(job.metadata.name);
-  return repoID;
-}
-
-export async function awaitRepoCreation(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-): Promise<number | null> {
-  // Check whether the repo has been created every 2 seconds for a minute. If so, return early, and if not, keep waiting.
-  for (let i = 0; i < 30; i++) {
-    try {
-      const result = await octokit.rest.repos.get({ owner, repo });
-      if (result.data.id) return result.data.id;
-    } catch {}
-    await setTimeout(2000);
-  }
-  return null;
 }
 
 async function awaitJobCompletion(jobName: string) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 120; i++) {
     const result = await k8s.batch.readNamespacedJobStatus({
       namespace: "anvilops-dev",
       name: jobName,
@@ -205,7 +213,7 @@ async function awaitJobCompletion(jobName: string) {
     if (result.status.failed > 0) {
       throw new Error("Job failed");
     }
-    await setTimeout(1000);
+    await setTimeout(500);
   }
   return false;
 }

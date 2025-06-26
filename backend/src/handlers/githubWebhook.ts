@@ -61,6 +61,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             where: { repositoryId: payload.repository.id },
             data: { repositoryId: null, branch: null, source: "IMAGE" },
           });
+          return json(200, res, {});
         }
         default: {
           return json(422, res, {});
@@ -86,6 +87,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             where: { newInstallationId: payload.installation.id },
             data: { newInstallationId: null },
           });
+          return json(200, res, {});
         }
         default: {
           return json(422, res, {});

@@ -59,7 +59,10 @@ const OrgApps = ({
     ) : (
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {org.apps.map((app) => (
-          <div className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative">
+          <div
+            key={app.id}
+            className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative"
+          >
             <div>
               <p className="text-xl font-medium mb-1">
                 <Link to={`/app/${app.id}`}>

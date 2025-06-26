@@ -100,19 +100,17 @@ async function importRepoHandler(
   }
 
   const repoId = await importRepo(
-    userId,
     state.org.githubInstallationId,
     URL.parse(state.srcRepoURL),
     state.destIsOrg,
     state.destRepoOwner,
     state.destRepoName,
     state.makePrivate,
-    false, // Only include the default branch
     code,
   );
 
   if (repoId === "code needed") {
-    // There was a problem creating the repo directly from a fork or template and we didn't provide an OAuth code to authorize the user.
+    // There was a problem creating the repo directly from a template and we didn't provide an OAuth code to authorize the user.
     // We need to start over.
     const redirectURL = `${req.protocol}://${req.host}/import-repo`;
     return json(200, res, {
