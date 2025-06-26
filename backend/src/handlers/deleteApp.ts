@@ -39,33 +39,20 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const { subdomain, imageRepo, deployments } = await db.app.findUnique({
+  const { subdomain, imageRepo } = await db.app.findUnique({
     where: {
       id: appId,
     },
     select: {
       subdomain: true,
       imageRepo: true,
-      deployments: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 1,
-      },
     },
   });
 
-  const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
-  if (hasResourcesStatus.includes(deployments[0].status)) {
-    try {
-      await deleteNamespace(getNamespace(subdomain));
-      await db.deployment.update({
-        where: { id: deployments[0].id },
-        data: { status: "STOPPED" },
-      });
-    } catch (err) {
-      console.error(err);
-    }
+  try {
+    await deleteNamespace(getNamespace(subdomain));
+  } catch (err) {
+    console.error("Failed to delete namespace:", err);
   }
 
   await db.deployment.deleteMany({ where: { appId } });
