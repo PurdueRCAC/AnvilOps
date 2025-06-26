@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { ExternalLink, GitBranch, Plus } from "lucide-react";
+import { Container, ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./AppView";
@@ -68,10 +68,9 @@ const OrgApps = ({
                   <span className="absolute inset-0" />
                 </Link>
               </p>
-              {app.commitHash ? (
+              {app.source === "GIT" ? (
                 <p className="text-sm text-black-4">
-                  Commit <code>{app.commitHash?.slice(0, 8)} </code>
-                  on{" "}
+                  Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
                   <a
                     href={`${app.repositoryURL}/tree/${app.branch}`}
                     target="_blank"
@@ -79,6 +78,10 @@ const OrgApps = ({
                     <GitBranch className="inline" size={16} />{" "}
                     <code>{app.branch}</code>
                   </a>
+                </p>
+              ) : app.source === "IMAGE" ? (
+                <p className="text-sm text-black-4">
+                  <Container className="inline" size={16} /> {app.imageTag}
                 </p>
               ) : null}
             </div>

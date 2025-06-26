@@ -1088,17 +1088,36 @@ components:
               status:
                 type: string
                 enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+              source:
+                type: string
+                enum: [GIT, IMAGE]
+              imageTag:
+                type: string
+                nullable: true
               repositoryURL:
                 type: string
                 format: uri
+                nullable: true
               branch:
                 type: string
+                nullable: true
               commitHash:
                 type: string
+                nullable: true
               link:
                 type: string
                 format: uri
-            required: [id, displayName, status, repositoryURL, branch]
+            required:
+              - id
+              - displayName
+              - status
+              - source
+              - imageTag
+              - repositoryURL
+              - branch
+              - commitHash
+              - link
+
         githubInstallationId:
           type: integer
           format: int64

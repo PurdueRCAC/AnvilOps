@@ -210,7 +210,11 @@ const handlers = {
           deployments: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            select: { status: true, commitHash: true },
+            select: {
+              status: true,
+              commitHash: true,
+              config: { select: { source: true, imageTag: true } },
+            },
           },
           deploymentConfigTemplate: true,
         },
@@ -253,6 +257,8 @@ const handlers = {
             id: app.id,
             displayName: app.displayName,
             status: app.deployments[0]?.status,
+            source: app.deployments[0]?.config?.source,
+            imageTag: app.deployments[0]?.config?.imageTag,
             repositoryURL: repoURL,
             branch: app.deploymentConfigTemplate.branch,
             commitHash: app.deployments[0]?.commitHash,
