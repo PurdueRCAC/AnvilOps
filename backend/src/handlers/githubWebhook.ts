@@ -173,8 +173,14 @@ export async function generateCloneURLWithCredentials(
   octokit: Octokit,
   originalURL: string,
 ) {
-  const token = await getInstallationAccessToken(octokit);
   const url = URL.parse(originalURL);
+
+  if (url.host !== URL.parse(process.env.GITHUB_BASE_URL).host) {
+    // If the target is on a different GitHub instance, don't add credentials!
+    return originalURL;
+  }
+
+  const token = await getInstallationAccessToken(octokit);
   url.username = "x-access-token";
   url.password = token;
   return url.toString();

@@ -8,7 +8,7 @@ import { getOctokit, getUserOctokit } from "./octokit.ts";
 
 export async function getLocalRepo(octokit: Octokit, url: URL) {
   if (url.host === new URL(process.env.GITHUB_BASE_URL).host) {
-    // The source and target repositories are on the same GitHub instance. We could fork or create from a template.
+    // The source and target repositories are on the same GitHub instance. We could create from a template.
     const pathname = url.pathname.split("/"); // /owner/repo
     if (pathname.length !== 3) {
       throw new Error("Invalid repo URL");
@@ -36,7 +36,7 @@ export async function importRepo(
 ): Promise<number | null | "code needed"> {
   const octokit = await getOctokit(installationId);
   try {
-    await copyFromTemplate(
+    return await copyFromTemplate(
       octokit,
       inputURL,
       newOwner,
@@ -61,7 +61,7 @@ export async function importRepo(
     // (don't return, we want to try another way to import this repository)
   }
 
-  // The source and target repositories are on different GitHub instances, so we'll have to clone and push.
+  // The source and target repositories are on different GitHub instances or the source isn't a template, so we'll have to clone and push.
 
   let targetURL: string;
   let repoID: number;
@@ -85,10 +85,14 @@ export async function importRepo(
   }
 
   // Generate GitHub URLs with access tokens in the password portion
-  const cloneURL = inputURL.toString(); // No credentials for this one; repos on different Git servers should only be importable if they're public
+  const cloneURL = await generateCloneURLWithCredentials(
+    octokit,
+    inputURL.toString(),
+  );
   const pushURL = await generateCloneURLWithCredentials(octokit, targetURL);
 
   await copyRepoManually(octokit, cloneURL, pushURL);
+  return repoID;
 }
 
 async function copyFromTemplate(
@@ -167,12 +171,17 @@ async function copyRepoManually(
                   `
 git clone --depth=1 --shallow-submodules "$CLONE_URL" .
 rm -rf .git
+
 git init
+git branch -M main
+
 git config user.email "$USER_EMAIL"
 git config user.name "$USER_NAME"
-git commit -am "Initial commit"
-git remote set-url origin "$PUSH_URL"
-git branch -M main
+
+git add .
+git commit -m "Initial commit"
+
+git remote add origin "$PUSH_URL"
 git push -u origin main`,
                 ],
                 volumeMounts: [

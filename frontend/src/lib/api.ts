@@ -1,4 +1,9 @@
-import { QueryCache, QueryClient } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  type DefaultError,
+} from "@tanstack/react-query";
 import createFetchClient from "openapi-fetch";
 import createClient from "openapi-react-query";
 import { toast } from "sonner";
@@ -10,18 +15,19 @@ const fetchClient = createFetchClient<paths>({
 
 export const api = createClient(fetchClient);
 
+const onError = (error: DefaultError) => {
+  if (
+    ("code" in error && error?.code === 401) ||
+    error?.message === "Unauthorized"
+  ) {
+    return;
+  }
+  toast.error(
+    `Something went wrong: ${error.message ?? error.toString() ?? error}`,
+  );
+};
+
 export const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: (error) => {
-      if (
-        ("code" in error && error?.code === 401) ||
-        error?.message === "Unauthorized"
-      ) {
-        return;
-      }
-      toast.error(
-        `Something went wrong: ${error.message ?? error.toString() ?? error}`,
-      );
-    },
-  }),
+  queryCache: new QueryCache({ onError }),
+  mutationCache: new MutationCache({ onError }),
 });

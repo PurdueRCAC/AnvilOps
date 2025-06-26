@@ -472,6 +472,10 @@ paths:
               schema:
                 type: object
                 properties:
+                  orgId:
+                    description: AnvilOps organization ID that has access to the imported repository. Present if the repo was created successfully
+                    type: number
+                    format: int64
                   repoId:
                     description: Present if the repo was created successfully
                     type: number

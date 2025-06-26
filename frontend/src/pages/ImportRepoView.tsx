@@ -1,7 +1,8 @@
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { Loader } from "lucide-react";
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, CircleX, Loader } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 export const ImportRepoView = () => {
@@ -9,6 +10,8 @@ export const ImportRepoView = () => {
   const navigate = useNavigate();
 
   const { mutateAsync: importRepo } = api.useMutation("post", "/import-repo");
+
+  const [isError, setError] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -24,29 +27,43 @@ export const ImportRepoView = () => {
           // If `url` is specified in the response, then we need to authorize with GitHub.
           // Redirect there and it'll redirect back to this page (with a `code` and `state`) when done.
           window.location.href = response.url;
+          return;
         }
+
+        toast.success("Repository imported!");
+        navigate(`/create-app?org=${response.orgId}&repo=${response.repoId}`);
       } catch (e) {
-        toast.error("Something went wrong while importing a repository.");
-        navigate("/create-app");
+        setError(true);
         return;
       }
-      toast.success("Repository imported!");
-      navigate("/create-app");
-      try {
-        // If this page was opened as a popup, we can close it
-        window.close();
-      } catch {}
     })();
   }, []);
 
   return (
     <main className="flex flex-col min-h-[80vh] items-center justify-center">
-      <Loader className="animate-spin mx-auto mb-4" />
-      <h1 className="text-2xl font-medium">Importing repository...</h1>
-      <p className="mt-4 max-w-sm text-center text-pretty">
-        This may take a minute. The page will update automatically when the
-        process is complete.
-      </p>
+      {isError ? (
+        <>
+          <CircleX className="mx-auto mb-4 text-red-500" />
+          <h1 className="text-2xl font-medium">Error Importing Repository</h1>
+          <p className="mt-4 max-w-sm text-center text-pretty">
+            Something went wrong while importing your repository.
+          </p>
+          <Link to={`/create-app`} className="block mt-4">
+            <Button>
+              <ArrowLeft /> Back to Create App
+            </Button>
+          </Link>
+        </>
+      ) : (
+        <>
+          <Loader className="animate-spin mx-auto mb-4" />
+          <h1 className="text-2xl font-medium">Importing repository...</h1>
+          <p className="mt-4 max-w-sm text-center text-pretty">
+            This may take a minute. The page will update automatically when the
+            process is complete.
+          </p>
+        </>
+      )}
     </main>
   );
 };

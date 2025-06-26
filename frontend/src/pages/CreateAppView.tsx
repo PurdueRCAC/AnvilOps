@@ -38,7 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function CreateAppView() {
@@ -49,10 +49,17 @@ export default function CreateAppView() {
     "/app",
   );
 
+  const [search] = useSearchParams();
+
   const [formState, setFormState] = useState<AppInfoFormData>({
     env: [],
     mounts: [],
-    orgId: undefined,
+    orgId: search.has("org")
+      ? parseInt(search.get("org")!.toString())
+      : undefined,
+    repoId: search.has("repo")
+      ? parseInt(search.get("repo")!.toString())
+      : undefined,
     source: "git",
     builder: "railpack",
   });
@@ -309,10 +316,7 @@ export const AppConfigFormFields = ({
           refresh={async () => {
             await refreshRepos();
           }}
-          setRepo={(repo) => {
-            console.log("prev state", state, "setting repoId to", repo);
-            setState({ ...state, repoId: repo });
-          }}
+          setRepo={(repo) => setState({ ...state, repoId: repo })}
         />
       )}
       <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Source Options</h3>

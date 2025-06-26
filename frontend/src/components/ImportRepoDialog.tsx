@@ -69,9 +69,7 @@ export const ImportRepoDialog = ({
               params: { path: { orgId } },
             });
             if (result.url) {
-              if (!window.open(result.url, "_blank")) {
-                window.location.href = result.url;
-              }
+              window.location.href = result.url;
             } else if ("repoId" in result) {
               // We were able to create the repo immediately without creating a popup for GitHub authorization
               const repoId = result.repoId as number;

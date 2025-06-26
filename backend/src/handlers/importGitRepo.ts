@@ -124,5 +124,5 @@ async function importRepoHandler(
   // we're not 100% sure that it was created, but no errors were thrown.
   // It's probably just a big repository that will be created soon.
 
-  return json(201, res, { repoId });
+  return json(201, res, { orgId: state.orgId, repoId });
 }
