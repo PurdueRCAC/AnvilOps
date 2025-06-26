@@ -749,6 +749,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /app/{appId}/pods:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [app]
+      description: List an app's running pods and their statuses
+      operationId: listAppPods
+      responses:
+        "404":
+          description: App not found
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    status:
+                      type: string
+
   /app/{appId}/deployments:
     parameters:
       - name: appId

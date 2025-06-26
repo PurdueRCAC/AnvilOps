@@ -22,6 +22,7 @@ import {
   importGitRepoCreateState,
 } from "../handlers/importGitRepo.ts";
 import { ingestLogs } from "../handlers/ingestLogs.ts";
+import { listAppPods } from "../handlers/listAppPods.ts";
 import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
@@ -520,6 +521,7 @@ const handlers = {
   importGitRepoCreateState,
   importGitRepo,
   getInstallation,
+  listAppPods,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(
