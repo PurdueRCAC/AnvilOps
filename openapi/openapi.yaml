@@ -473,8 +473,13 @@ paths:
                 type: object
                 properties:
                   repoId:
+                    description: Present if the repo was created successfully
                     type: number
                     format: int64
+                  url:
+                    description: Present if forking or creating from a template failed and the user needs to authorize
+                    type: string
+                    format: uri
         "400":
           description: GitHub App not installed or other validation error
         "404":

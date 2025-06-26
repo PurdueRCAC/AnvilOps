@@ -13,12 +13,18 @@ export const ImportRepoView = () => {
   useEffect(() => {
     (async () => {
       try {
-        await importRepo({
+        const response = await importRepo({
           body: {
             state: search.get("state")!.toString(),
             code: search.get("code")?.toString(),
           },
         });
+
+        if (response.url) {
+          // If `url` is specified in the response, then we need to authorize with GitHub.
+          // Redirect there and it'll redirect back to this page (with a `code` and `state`) when done.
+          window.location.href = response.url;
+        }
       } catch (e) {
         toast.error("Something went wrong while importing a repository.");
         navigate("/create-app");

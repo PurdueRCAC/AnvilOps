@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
@@ -46,7 +46,13 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
     if (destIsOrg || isLocalRepo) {
       // We can create the repo now
       // Fall into the importGitRepo handler directly
-      return await importRepoHandler(state.id, undefined, req.user.id, res);
+      return await importRepoHandler(
+        state.id,
+        undefined,
+        req.user.id,
+        req,
+        res,
+      );
     } else {
       // We need a user access token
       const redirectURL = `${req.protocol}://${req.host}/import-repo`;
@@ -65,6 +71,7 @@ export const importGitRepo: HandlerMap["importGitRepo"] = async (
     ctx.request.requestBody.state,
     ctx.request.requestBody.code,
     req.user.id,
+    req,
     res,
   );
 };
@@ -73,9 +80,10 @@ async function importRepoHandler(
   stateId: string,
   code: string | undefined,
   userId: number,
+  req: Request,
   res: Response,
 ) {
-  const state = await db.repoImportState.delete({
+  const state = await db.repoImportState.findUnique({
     where: {
       id: stateId,
       userId: userId,
@@ -102,6 +110,17 @@ async function importRepoHandler(
     false, // Only include the default branch
     code,
   );
+
+  if (repoId === "code needed") {
+    // There was a problem creating the repo directly from a fork or template and we didn't provide an OAuth code to authorize the user.
+    // We need to start over.
+    const redirectURL = `${req.protocol}://${req.host}/import-repo`;
+    return json(200, res, {
+      url: `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
+    });
+  }
+
+  await db.repoImportState.delete({ where: { id: state.id } });
 
   // The repository was created successfully. If repoId is null, then
   // we're not 100% sure that it was created, but no errors were thrown.

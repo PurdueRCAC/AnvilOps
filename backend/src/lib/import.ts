@@ -35,7 +35,7 @@ export async function importRepo(
   makePrivate: boolean,
   includeAllBranches: boolean,
   code?: string,
-): Promise<number | null> {
+): Promise<number | null | "code needed"> {
   const octokit = await getOctokit(installationId);
   try {
     const result = await getLocalRepo(octokit, inputURL);
@@ -64,7 +64,8 @@ export async function importRepo(
           owner: sourceOwner,
           repo: sourceRepoName,
           name: newRepoName,
-          organization: newOwner,
+          organization: targetIsOrganization ? newOwner : undefined,
+          default_branch_only: !includeAllBranches,
         });
       }
 
@@ -82,9 +83,14 @@ export async function importRepo(
         repo: newRepoName,
       });
       if (newRepo.data.id) {
-        return; // The repo *was* created even though an error was thrown
+        return newRepo.data.id; // The repo *was* created even though an error was thrown
       }
     } catch {}
+
+    if (!code) {
+      // We'll need an authorization code to continue
+      return "code needed";
+    }
     // (don't return, we want to try another way to import this repository)
   }
 
