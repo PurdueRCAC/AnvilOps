@@ -1,6 +1,6 @@
 import { Logs } from "@/components/Logs";
 import { api } from "@/lib/api";
-import { ArrowLeft, GitCommit } from "lucide-react";
+import { ArrowLeft, Container, GitCommit } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Status } from "./AppView";
 
@@ -50,12 +50,18 @@ export const DeploymentView = () => {
         </h1>
         <div className="flex gap-4">
           <Status status={deployment.status} />
-          <a
-            className="flex gap-1"
-            href={`${app.repositoryURL}/commit/${deployment.commitHash}`}
-          >
-            <GitCommit /> {deployment.commitHash.substring(0, 7)}
-          </a>
+          {deployment.config.source === "git" ? (
+            <a
+              className="flex gap-1"
+              href={`${app.repositoryURL}/commit/${deployment.commitHash}`}
+            >
+              <GitCommit /> {deployment.commitHash.substring(0, 7)}
+            </a>
+          ) : deployment.config.source === "image" ? (
+            <p className="flex items-center gap-1">
+              <Container size={20} /> {deployment.config.imageTag}
+            </p>
+          ) : null}
         </div>
       </div>
       <p className="opacity-50">

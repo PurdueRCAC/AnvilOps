@@ -781,6 +781,12 @@ paths:
                       format: date-time
                     status:
                       $ref: "#/components/schemas/DeploymentStatus"
+                    source:
+                      type: string
+                      enum: [GIT, IMAGE]
+                    imageTag:
+                      type: string
+                      nullable: true
                   required:
                     - id
                     - appId
@@ -789,6 +795,8 @@ paths:
                     - createdAt
                     - updatedAt
                     - status
+                    - source
+                    - imageTag
 
   /app/{appId}/deployments/{deploymentId}/logs:
     parameters:

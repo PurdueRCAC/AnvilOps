@@ -26,6 +26,7 @@ import {
   CloudCog,
   CloudLightning,
   CloudUpload,
+  Container,
   ExternalLink,
   GitBranch,
   GitCommit,
@@ -263,13 +264,10 @@ const OverviewTab = ({
         ) : app.config.source === "image" ? (
           <>
             <p className="flex items-center gap-2">
-              <GitHubIcon className="size-4" />
+              <Tag className="size-4" />
               Image tag
             </p>
-            <p className="underline flex gap-1 items-center">
-              {app.config.imageTag}
-              <Tag size={14} />
-            </p>
+            <p>{app.config.imageTag}</p>
           </>
         ) : null}
         <p className="flex items-center gap-2">
@@ -290,12 +288,16 @@ const OverviewTab = ({
       </div>
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
-        Automatically triggered from pushes to{" "}
-        <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
-          <GitBranch className="inline" size={16} />{" "}
-          <code>{app.config.branch}</code>
-        </a>
-        .
+        {app.config.source === "git" ? (
+          <>
+            Automatically triggered from pushes to{" "}
+            <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
+              <GitBranch className="inline" size={16} />{" "}
+              <code>{app.config.branch}</code>
+            </a>
+            .
+          </>
+        ) : null}
       </p>
       {isPending && deployments === undefined ? (
         <Loader className="animate-spin" />
@@ -303,7 +305,7 @@ const OverviewTab = ({
         <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
           <thead>
             <tr className="*:text-start *:pb-2 *:font-medium border-b">
-              <th>Last Updated</th>
+              <th>Created</th>
               <th>Source</th>
               <th>Status</th>
               <th>Logs</th>
@@ -314,7 +316,9 @@ const OverviewTab = ({
               <tr key={d.id}>
                 <td>
                   <div className="flex items-center gap-2">
-                    {format.format(new Date((d.updatedAt ?? d.createdAt)!))}
+                    <span className="text-nowrap">
+                      {format.format(new Date(d.createdAt))}
+                    </span>
                     {d.id === activeDeployment && (
                       <Tooltip>
                         <TooltipTrigger>
@@ -335,16 +339,30 @@ const OverviewTab = ({
                   </div>
                 </td>
                 <td>
-                  <a
-                    href={`${app.repositoryURL}/commit/${d.commitHash}`}
-                    className="flex items-center gap-2"
-                  >
-                    <span className="opacity-50 flex items-center gap-1">
-                      <GitCommit className="shrink-0" />
-                      {d.commitHash?.substring(0, 7)}
-                    </span>
-                    {d.commitMessage}
-                  </a>
+                  {d.source === "GIT" ? (
+                    <a
+                      href={`${app.repositoryURL}/commit/${d.commitHash}`}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="opacity-50 flex items-center gap-1">
+                        <GitCommit className="shrink-0" />
+                        {d.commitHash?.substring(0, 7)}
+                      </span>
+                      {d.commitMessage}
+                    </a>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <p className="flex items-center gap-2">
+                          <Container />{" "}
+                          <span className="truncate max-w-96">
+                            {d.imageTag}
+                          </span>
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>{d.imageTag}</TooltipContent>
+                    </Tooltip>
+                  )}
                 </td>
                 <td>
                   <Status status={d.status as DeploymentStatus} />
