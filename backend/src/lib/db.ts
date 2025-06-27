@@ -149,7 +149,7 @@ export const db = client
             patchEnvIfExists(template.connectOrCreate.create);
           }
 
-          if (template.upsert.update) {
+          if (template.upsert) {
             patchEnvIfExists(template.upsert.update);
           }
 
