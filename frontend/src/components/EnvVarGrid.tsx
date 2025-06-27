@@ -1,67 +1,127 @@
-import { Trash2 } from "lucide-react";
+import { HelpCircle, Trash2 } from "lucide-react";
 import { Fragment, useEffect, type Dispatch } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Checkbox } from "./ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-type EnvVars = { name: string; value: string }[];
+type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
+// TODO: show error message on duplicate env names
 export const EnvVarGrid = ({
   value: envVars,
   setValue: setEnvironmentVariables,
+  fixedSensitiveNames,
 }: {
   value: EnvVars;
   setValue: Dispatch<EnvVars>;
+  fixedSensitiveNames: Set<string>;
 }) => {
   useEffect(() => {
     for (let i in envVars) {
-      if (envVars[i].name === "" && +i < envVars.length - 1) {
+      if (
+        envVars[i].name === "" &&
+        envVars[i].value === "" &&
+        !envVars[i].isSensitive &&
+        +i < envVars.length - 1
+      ) {
         setEnvironmentVariables(envVars.toSpliced(+i, 1));
       }
     }
-    if (envVars[envVars.length - 1]?.name !== "") {
-      setEnvironmentVariables([...envVars, { name: "", value: "" }]);
+    if (
+      envVars[envVars.length - 1]?.name !== "" ||
+      envVars[envVars.length - 1]?.value !== "" ||
+      envVars[envVars.length - 1]?.isSensitive
+    ) {
+      setEnvironmentVariables([
+        ...envVars,
+        { name: "", value: "", isSensitive: false },
+      ]);
     }
   }, [envVars]);
 
   return (
-    <div className="grid grid-cols-[1fr_min-content_1fr_min-content] items-center gap-2">
+    <div className="grid grid-cols-[1fr_min-content_1fr_min-content_min-content] items-center gap-2">
       <span className="text-sm col-span-2">Name</span>
-      <span className="text-sm col-span-2">Value</span>
-      {envVars.map(({ name, value }, index) => (
-        <Fragment key={index}>
-          <Input
-            placeholder="NODE_ENV"
-            required={index !== envVars.length - 1}
-            className="w-full"
-            value={name}
-            onChange={(e) => {
-              const newList = structuredClone(envVars);
-              newList[index].name = e.currentTarget.value;
-              setEnvironmentVariables(newList);
-            }}
-          />
-          <span className="text-xl align-middle">=</span>
-          <Input
-            placeholder="production"
-            className="w-full"
-            value={value}
-            onChange={(e) => {
-              const newList = structuredClone(envVars);
-              newList[index].value = e.currentTarget.value;
-              setEnvironmentVariables(newList);
-            }}
-          />
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={() => {
-              setEnvironmentVariables(envVars.filter((_, i) => i !== index));
-            }}
-          >
-            <Trash2 />
-          </Button>
-        </Fragment>
-      ))}
+      <span className="text-sm col-span-1">Value</span>
+      <span className="text-sm col-span-1 flex items-center justify-start gap-1">
+        Sensitive
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="inline text-black-4 cursor-help" size={15} />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>
+              The values of sensitive environment variables cannot be viewed
+            </p>
+            <p>in the app settings, and their names cannot be changed later.</p>
+          </TooltipContent>
+        </Tooltip>
+      </span>
+      <span></span>
+      {envVars.map(({ name, value, isSensitive }, index) => {
+        const isFixedSensitive = fixedSensitiveNames.has(name);
+        return (
+          <Fragment key={index}>
+            <Input
+              placeholder="NODE_ENV"
+              required={index !== envVars.length - 1}
+              className="w-full"
+              disabled={isFixedSensitive}
+              disabledTooltip={
+                <p>
+                  The name of a sensitive environment variable cannot be
+                  changed.
+                </p>
+              }
+              value={name}
+              onChange={(e) => {
+                const newList = structuredClone(envVars);
+                newList[index].name = e.currentTarget.value;
+                setEnvironmentVariables(newList);
+              }}
+            />
+            <span className="text-xl align-middle w-fit">=</span>
+            <label>
+              <Input
+                placeholder={isFixedSensitive ? "Hidden value" : "production"}
+                className="w-full"
+                value={value ?? ""}
+                onChange={(e) => {
+                  const newList = structuredClone(envVars);
+                  newList[index].value = e.currentTarget.value;
+                  setEnvironmentVariables(newList);
+                }}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+              />
+            </label>
+            <div className="text-center">
+              <Checkbox
+                className="size-6"
+                disabled={isFixedSensitive}
+                checked={isSensitive}
+                onCheckedChange={(checked) => {
+                  const newList = structuredClone(envVars);
+                  newList[index].isSensitive =
+                    checked === "indeterminate" ? false : checked;
+                  setEnvironmentVariables(newList);
+                }}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => {
+                setEnvironmentVariables(envVars.filter((_, i) => i !== index));
+              }}
+            >
+              <Trash2 />
+            </Button>
+          </Fragment>
+        );
+      })}
     </div>
   );
 };

@@ -1210,7 +1210,7 @@ components:
           type: string
           nullable: true
           description: Required when source == "git"
-          enum: [dockerfile, railpack, null]
+          enum: [dockerfile, railpack]
         # Source options > OCI image
         imageTag:
           type: string
@@ -1224,8 +1224,6 @@ components:
           type: integer
           format: int64
         env:
-          $ref: "#/components/schemas/Envs"
-        secrets:
           $ref: "#/components/schemas/Envs"
         mounts:
           type: array
@@ -1285,7 +1283,7 @@ components:
         builder:
           type: string
           nullable: true
-          enum: [dockerfile, railpack, null]
+          enum: [dockerfile, railpack]
         # Source options > OCI image
         imageTag:
           type: string
@@ -1298,8 +1296,6 @@ components:
           type: integer
           format: int64
         env:
-          $ref: "#/components/schemas/Envs"
-        secrets:
           $ref: "#/components/schemas/Envs"
         mounts:
           type: array
@@ -1318,6 +1314,19 @@ components:
         - builder
         - mounts
         - imageTag
+        - env
+    NewEnvs:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          value:
+            type: string
+          isSensitive:
+            type: boolean
+        required: [name, value, isSensitive]
     Envs:
       type: array
       items:
@@ -1327,7 +1336,10 @@ components:
             type: string
           value:
             type: string
-        required: [name, value]
+            nullable: true
+          isSensitive:
+            type: boolean
+        required: [name, value, isSensitive]
     ApiError:
       type: object
       properties:

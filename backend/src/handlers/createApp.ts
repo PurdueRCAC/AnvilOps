@@ -123,7 +123,6 @@ const createApp: HandlerMap["createApp"] = async (
     branch: appData.branch,
     port: appData.port,
     env: appData.env,
-    secrets: JSON.stringify(appData.secrets ?? []),
     builder: appData.builder,
     dockerfilePath: appData.dockerfilePath,
     rootDir: appData.rootDir,

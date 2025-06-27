@@ -37,6 +37,7 @@
     "@types/morgan": "^1.9.10",
     "@types/passport": "^1.0.17",
     "prisma": "^6.8.2",
+    "prisma-json-types-generator": "^3.5.0",
     "typescript": "^5.8.3"
   }
 }

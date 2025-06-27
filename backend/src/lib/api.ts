@@ -29,7 +29,6 @@ import updateApp from "../handlers/updateApp.ts";
 import { updateDeployment } from "../handlers/updateDeployment.ts";
 import {
   json,
-  type Env,
   type HandlerMap,
   type HandlerResponse,
   type OptionalPromise,
@@ -452,7 +451,7 @@ const handlers = {
             amountInMiB: mount.amountInMiB,
             path: mount.path,
           })),
-          env: app.deploymentConfigTemplate.env as Env[],
+          env: app.deploymentConfigTemplate.displayEnv,
           replicas: app.deploymentConfigTemplate.replicas,
           branch: app.deploymentConfigTemplate.branch,
           dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
@@ -460,7 +459,6 @@ const handlers = {
           rootDir: app.deploymentConfigTemplate.rootDir,
           builder: app.deploymentConfigTemplate.builder,
           repositoryId: app.deploymentConfigTemplate.repositoryId,
-          secrets: JSON.parse(app.deploymentConfigTemplate.secrets),
         },
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)

@@ -7,6 +7,11 @@ generator client {
   importFileExtension    = "ts"
 }
 
+generator json {
+  provider  = "prisma-json-types-generator"
+  namespace = "PrismaJson"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -118,8 +123,9 @@ model DeploymentConfig {
   id             Int              @id @default(autoincrement())
   // Deployment options
   port           Int
+  /// [EnvVar[]]
   env            Json             @default("[]")
-  secrets        String?
+  envKey         String           @default("")
   replicas       Int              @default(1)
   deployment     Deployment?
   mounts         MountConfig[]

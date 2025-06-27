@@ -1,18 +1,30 @@
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
-import { PrismaClient } from "../generated/prisma/client.ts";
+import "../../prisma/types.ts";
+import { Prisma, PrismaClient } from "../generated/prisma/client.ts";
+import { type StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
   `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
 
 const masterKey = Buffer.from(process.env.FIELD_ENCRYPTION_KEY, "base64");
-const algorithm = "aes-256-gcm";
 const separator = "|";
-const contentSeparator = "$";
+
+const unwrapKey = (wrapped: string): Buffer => {
+  const iv = Buffer.alloc(8, 0xa6); // Recommended default initial value
+  const decipher = crypto.createDecipheriv("aes256-wrap", masterKey, iv);
+  return Buffer.concat([decipher.update(wrapped, "base64"), decipher.final()]);
+};
+
+const wrapKey = (key: Buffer): string => {
+  const iv = Buffer.alloc(8, 0xa6);
+  const cipher = crypto.createCipheriv("aes256-wrap", masterKey, iv);
+  return cipher.update(key, undefined, "base64") + cipher.final("base64");
+};
 
 const encrypt = (secret: string, key: Buffer): string => {
   const iv = crypto.randomBytes(12);
-  const cipher = createCipheriv(algorithm, key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
   const res = Buffer.concat([cipher.update(secret), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return [authTag, iv, res]
@@ -25,7 +37,7 @@ const decrypt = (ctxtFull: string, key: Buffer): string => {
   const iv = Buffer.from(ivEncoded, "base64");
   const ctxt = Buffer.from(ctxtEncoded, "base64");
   const authTag = Buffer.from(authTagEncoded, "base64");
-  const decipher = createDecipheriv(algorithm, key, iv);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(authTag);
 
   return decipher.update(ctxt, undefined, "utf8") + decipher.final("utf8");
@@ -35,18 +47,19 @@ const genKey = (): Buffer => {
   return crypto.randomBytes(32);
 };
 
-const encryptSecret = (secret: string): string => {
-  const key = genKey();
-  const enc = encrypt(secret, key);
-  const keyCtxt = encrypt(key.toString("base64"), masterKey);
-  return keyCtxt + contentSeparator + enc;
-};
-
-const decryptSecret = (secret: string): string => {
-  const [keyCtxt, enc] = secret.split(contentSeparator);
-  const keyEncoded = decrypt(keyCtxt, masterKey);
-  const key = Buffer.from(keyEncoded, "base64");
-  return decrypt(enc, key);
+const patchEnv = (data: {
+  env?: PrismaJson.EnvVar[];
+  envKey?: string | StringFieldUpdateOperationsInput;
+  [key: string]: unknown;
+}) => {
+  if (data.env instanceof Array) {
+    const key = genKey();
+    data.env = data.env.map((envVar) => ({
+      ...envVar,
+      value: encrypt(envVar.value, key),
+    }));
+    data.envKey = wrapKey(key);
+  }
 };
 
 const client = new PrismaClient({
@@ -58,116 +71,128 @@ const client = new PrismaClient({
   },
 });
 
-export const db = client.$extends({
-  name: "Secret encryption and decryption",
-  result: {
-    deploymentConfig: {
-      secrets: {
-        needs: { secrets: true },
-        compute(dc) {
-          try {
-            if (!dc.secrets) {
-              return "[]";
+export const db = client
+  .$extends({
+    name: "Decrypt environment variables",
+    result: {
+      deploymentConfig: {
+        displayEnv: {
+          needs: { env: true, envKey: true },
+          compute(deploymentConfig) {
+            if (deploymentConfig.env == null) return [];
+            if (!(deploymentConfig.env instanceof Array)) {
+              throw new Error("Env must be an array");
             }
-            return decryptSecret(dc.secrets);
-          } catch (err) {
-            console.error(err);
-            return "[]";
-          }
+            const unwrappedKey = unwrapKey(deploymentConfig.envKey);
+            const encrypted = deploymentConfig.env;
+            return encrypted.map((env) =>
+              env.isSensitive
+                ? {
+                    ...env,
+                    value: null,
+                  }
+                : {
+                    ...env,
+                    value: decrypt(env.value, unwrappedKey),
+                  },
+            );
+          },
+        },
+
+        getPlaintextEnv: {
+          needs: { env: true, envKey: true },
+          compute(deploymentConfig) {
+            return () => {
+              const unwrappedKey = unwrapKey(deploymentConfig.envKey);
+              return deploymentConfig.env.map((env) => ({
+                ...env,
+                value: decrypt(env.value, unwrappedKey),
+              }));
+            };
+          },
         },
       },
     },
-  },
+  })
+  .$extends({
+    name: "Encrypt environment variables on write",
+    query: {
+      app: {
+        create({ args, query }) {
+          if (!args.data.deploymentConfigTemplate) {
+            return query(args);
+          }
 
-  query: {
-    app: {
-      async create({ args, query }) {
-        if (!args.data.deploymentConfigTemplate) {
+          const createConfig = args.data.deploymentConfigTemplate.create;
+          if (createConfig && createConfig.env) {
+            patchEnv(createConfig);
+          }
+          const connectConfig =
+            args.data.deploymentConfigTemplate.connectOrCreate;
+          if (connectConfig && connectConfig.create.env) {
+            patchEnv(connectConfig.create);
+          }
           return query(args);
-        }
-
-        const createConfig = args.data.deploymentConfigTemplate.create;
-        if (createConfig && createConfig.secrets) {
-          createConfig.secrets = encryptSecret(createConfig.secrets);
-        }
-
-        const connectConfig =
-          args.data.deploymentConfigTemplate.connectOrCreate;
-        if (connectConfig && connectConfig.create.secrets) {
-          connectConfig.create.secrets = encryptSecret(
-            connectConfig.create.secrets,
-          );
-        }
-
-        return query(args);
+        },
       },
-    },
 
-    deployment: {
-      async create({ args, query }) {
-        if (!args.data.config) {
+      deployment: {
+        create({ args, query }) {
+          if (!args.data.config) {
+            return query(args);
+          }
+          const createConfig = args.data.config.create;
+          if (createConfig && createConfig.env) {
+            patchEnv(createConfig);
+          }
+
+          const connectConfig = args.data.config.connectOrCreate;
+          if (connectConfig && connectConfig.create.env) {
+            patchEnv(connectConfig.create);
+          }
+
           return query(args);
-        }
+        },
+      },
 
-        const createConfig = args.data.config.create;
-        if (createConfig && createConfig.secrets) {
-          createConfig.secrets = encryptSecret(createConfig.secrets);
-        }
+      // TODO: Disable nested writes to deploymentConfig.env in other app and deployment operations
 
-        const connectConfig = args.data.config.connectOrCreate;
-        if (connectConfig && connectConfig.create.secrets) {
-          connectConfig.create.secrets = encryptSecret(
-            connectConfig.create.secrets,
-          );
-        }
+      deploymentConfig: {
+        $allOperations({ operation, args, query }) {
+          switch (operation) {
+            case "update":
+            case "updateMany":
+            case "updateManyAndReturn":
+            case "create":
+              if (args.data.env) {
+                patchEnv(args.data);
+              }
+              break;
+            case "createManyAndReturn":
+            case "createMany":
+              if (args.data instanceof Array) {
+                args.data.forEach((data) => {
+                  if (data.env) patchEnv(data);
+                });
+              } else {
+                if (args.data.env) {
+                  patchEnv(args.data);
+                }
+              }
+              break;
+            case "upsert":
+              if (args.create.env) {
+                patchEnv(args.create);
+              }
 
-        return query(args);
+              if (args.update.env) {
+                patchEnv(args.update);
+              }
+              break;
+          }
+
+          return query(args);
+        },
       },
     },
-
-    deploymentConfig: {
-      async $allOperations({ operation, args, query }) {
-        switch (operation) {
-          case "update":
-          case "updateMany":
-          case "updateManyAndReturn":
-          case "create":
-            if (args.data.secrets) {
-              if (typeof args.data.secrets === "string") {
-                args.data.secrets = encryptSecret(args.data.secrets);
-              } else if (args.data.secrets.set === "string") {
-                args.data.secrets.set = encryptSecret(args.data.secrets.set);
-              }
-            }
-            break;
-          case "createManyAndReturn":
-          case "createMany":
-            if (args.data instanceof Array) {
-              args.data.forEach((data) => {
-                if (!data.secrets) return;
-                data.secrets = encryptSecret(data.secrets);
-              });
-            } else {
-              if (args.data.secrets) {
-                args.data.secrets = encryptSecret(args.data.secrets);
-              }
-            }
-            break;
-          case "upsert":
-            if (args.create.secrets) {
-              args.create.secrets = encryptSecret(args.create.secrets);
-            }
-
-            if (typeof args.update.secrets === "string") {
-              args.update.secrets = encryptSecret(args.update.secrets);
-            } else if (typeof args.update.secrets.set === "string") {
-              args.update.secrets.set = encryptSecret(args.update.secrets.set);
-            }
-            break;
-        }
-
-        return query(args);
-      },
-    },
-  },
-});
+  });

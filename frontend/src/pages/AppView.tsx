@@ -429,12 +429,12 @@ const ConfigTab = ({
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
   const [formState, setFormState] = useState<AppInfoFormData>({
-    env: app?.config?.env ?? [],
-    mounts: app?.config?.mounts ?? [],
-    builder: app?.config?.builder ?? "railpack",
+    env: app.config.env,
+    mounts: app.config.mounts,
+    builder: app.config.builder ?? "railpack",
     orgId: app.orgId,
-    repoId: app?.config?.repositoryId ?? undefined,
-    source: app?.config?.source ?? "git",
+    repoId: app.config.repositoryId ?? undefined,
+    source: app.config.source,
   });
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
@@ -460,9 +460,6 @@ const ConfigTab = ({
                   formData.get("dockerfilePath")?.toString() ?? null,
                 env: formState.env.filter((it) => it.name.length > 0),
                 repositoryId: formState.repoId ?? null,
-                secrets: [
-                  /* TODO */
-                ],
                 branch: formData.get("branch")?.toString() ?? null,
                 builder: (formData.get("builder")?.toString() ?? null) as
                   | "dockerfile"
