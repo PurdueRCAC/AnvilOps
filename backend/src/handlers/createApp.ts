@@ -146,15 +146,21 @@ const createApp: HandlerMap["createApp"] = async (
           create: deploymentConfig,
         },
         appGroup: {
+          // TODO: connect to existing appgroup or create
           create: {
             name: appData.name,
+            org: {
+              connect: {
+                id: appData.orgId,
+              },
+            },
           },
         },
       },
     });
     app = await db.app.update({
       where: { id: app.id },
-      data: { imageRepo: `app-${app.orgId}-${app.id}` },
+      data: { imageRepo: `app-${appData.orgId}-${app.id}` },
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
@@ -170,7 +176,7 @@ const createApp: HandlerMap["createApp"] = async (
 
   try {
     await buildAndDeploy({
-      orgId: app.orgId,
+      orgId: appData.orgId,
       appId: app.id,
       imageRepo: app.imageRepo,
       commitSha: commitSha,

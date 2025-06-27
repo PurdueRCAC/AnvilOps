@@ -22,9 +22,13 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   const appId = ctx.request.params.appId;
   const org = await db.organization.findFirst({
     where: {
-      apps: {
+      appGroups: {
         some: {
-          id: appId,
+          apps: {
+            some: {
+              id: appId,
+            },
+          },
         },
       },
       users: {
