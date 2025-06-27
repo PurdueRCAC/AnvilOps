@@ -147,7 +147,16 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           ),
           config: {
             // Reuse the config from the previous deployment
-            ...app.deploymentConfigTemplate,
+            port: app.deploymentConfigTemplate.port,
+            source: "GIT",
+            env: app.deploymentConfigTemplate.getPlaintextEnv(),
+            replicas: app.deploymentConfigTemplate.replicas,
+            repositoryId: app.deploymentConfigTemplate.repositoryId,
+            branch: app.deploymentConfigTemplate.branch,
+            builder: app.deploymentConfigTemplate.builder,
+            rootDir: app.deploymentConfigTemplate.rootDir,
+            dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+            imageTag: app.deploymentConfigTemplate.imageTag,
             mounts: {
               createMany: { data: app.deploymentConfigTemplate.mounts },
             },

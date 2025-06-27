@@ -117,6 +117,9 @@ const createStatefulSetConfig = (deploy: DeploymentParams) => {
         metadata: {
           labels: {
             app: deploy.name,
+            "anvilops.rcac.purdue.edu/app-id": deploy.appId.toString(),
+            "anvilops.rcac.purdue.edu/deployment-id":
+              deploy.deploymentId.toString(),
             "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
