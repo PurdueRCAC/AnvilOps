@@ -59,7 +59,8 @@ export const StatusTab = ({
         Pods{" "}
         {statefulSet && (
           <span className="opacity-50">
-            ({statefulSet?.readyReplicas}/{statefulSet?.replicas} ready)
+            ({statefulSet?.readyReplicas ?? 0}/{statefulSet?.replicas ?? 0}{" "}
+            ready)
           </span>
         )}
       </h2>

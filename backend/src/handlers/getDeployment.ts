@@ -36,7 +36,6 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     pods = { apiVersion: "v1", items: [] };
   }
 
-  const podStatus = pods?.items?.[0]?.status;
   let scheduled = 0,
     ready = 0,
     failed = 0;
@@ -70,14 +69,12 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     id: deployment.id,
     appId: deployment.appId,
     status: deployment.status,
-    podStatus: podStatus
-      ? {
-          scheduled,
-          ready,
-          total: pods.items.length,
-          failed,
-        }
-      : undefined,
+    podStatus: {
+      scheduled,
+      ready,
+      total: pods.items.length,
+      failed,
+    },
     config: {
       branch: deployment.config.branch,
       imageTag: deployment.config.imageTag,

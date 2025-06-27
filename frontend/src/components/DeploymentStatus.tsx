@@ -41,6 +41,23 @@ export const DeploymentStatus = ({
     );
   }
 
+  if (deployment.podStatus?.total === 0) {
+    return (
+      <Tooltip>
+        <TooltipTrigger>
+          <p className="text-blue-500 flex items-center gap-2">
+            <CloudLightning />
+            No pods
+          </p>
+        </TooltipTrigger>
+        <TooltipContent>
+          You have scaled your app to 0 pods. It will not be available until you
+          set Replicas to at least 1 in the Configuration tab.
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   // Any of the pods has failed (highest priority)
   if (deployment.podStatus?.failed && deployment.podStatus?.failed > 0) {
     return (
