@@ -3,8 +3,10 @@ import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import {
   Check,
+  ChevronsLeftRightEllipsis,
   CircleX,
   Clock,
+  Cloud,
   Container,
   Hourglass,
   Info,
@@ -90,65 +92,84 @@ type Pod =
 
 const PodInfo = ({ pod }: { pod: Pod }) => {
   return (
-    <div className="my-4 border-input rounded-md p-4 border" key={pod.id}>
-      <h3 className="text-xl font-medium">{pod.name}</h3>
-      <p className="text-sm opacity-50 mb-2">
-        Created at {pod.createdAt && format.format(new Date(pod.createdAt))}
+    <div
+      className="my-4 border-input rounded-md p-4 border flex justify-between"
+      key={pod.id}
+    >
+      <div>
+        <h3 className="text-xl font-medium">{pod.name}</h3>
+        <p className="text-sm opacity-50 mb-2">
+          Created at {pod.createdAt && format.format(new Date(pod.createdAt))}
+        </p>
+        <PodStatusText pod={pod} />
+      </div>
+      <div className="grid grid-cols-[max-content_1fr] gap-2 opacity-50 text-sm items-center h-max">
+        {pod.node && (
+          <>
+            <Cloud /> {pod.node}
+          </>
+        )}
+        {pod.ip && (
+          <>
+            <ChevronsLeftRightEllipsis /> {pod.ip}{" "}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PodStatusText = ({ pod }: { pod: Pod }) => {
+  return containerState(pod, "waiting")?.reason === "CrashLoopBackOff" ? (
+    <>
+      <p className="text-red-500 flex items-center gap-2 mb-2">
+        <CircleX /> Error
       </p>
-      {containerState(pod, "waiting")?.reason === "CrashLoopBackOff" ? (
+      <p>
+        This container is crashing repeatedly. It will be restarted{" "}
+        {getRestartTime(pod)}.
+      </p>
+      {lastState(pod, "terminated")?.finishedAt && (
+        <p className="mt-1">
+          It most recently exited at{" "}
+          {timeFormat.format(
+            new Date(lastState(pod, "terminated")!.finishedAt!),
+          )}{" "}
+          with status code {lastState(pod, "terminated")?.exitCode}.
+        </p>
+      )}
+    </>
+  ) : containerState(pod, "terminated") ? (
+    <>
+      {containerState(pod, "terminated")?.exitCode === 0 ? (
+        <>
+          <p className="text-blue-500 flex items-center gap-2 mb-2">
+            <Info /> Terminated
+          </p>
+          <p>This container has stopped gracefully. It will be removed soon.</p>
+        </>
+      ) : (
         <>
           <p className="text-red-500 flex items-center gap-2 mb-2">
             <CircleX /> Error
           </p>
-          <p>
-            This container is crashing repeatedly. It will be restarted{" "}
-            {getRestartTime(pod)}.
-          </p>
-          {lastState(pod, "terminated")?.finishedAt && (
-            <p className="mt-1">
-              It most recently exited at{" "}
-              {timeFormat.format(
-                new Date(lastState(pod, "terminated")!.finishedAt!),
-              )}{" "}
-              with status code {lastState(pod, "terminated")?.exitCode}.
-            </p>
-          )}
+          <p>This container has crashed. It will be restarted soon.</p>
         </>
-      ) : containerState(pod, "terminated") ? (
-        <>
-          {containerState(pod, "terminated")?.exitCode === 0 ? (
-            <>
-              <p className="text-blue-500 flex items-center gap-2 mb-2">
-                <Info /> Terminated
-              </p>
-              <p>
-                This container has stopped gracefully. It will be removed soon.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-red-500 flex items-center gap-2 mb-2">
-                <CircleX /> Error
-              </p>
-              <p>This container has crashed. It will be restarted soon.</p>
-            </>
-          )}
-        </>
-      ) : containerState(pod, "running") || pod.podReady ? (
-        <p className="text-green-500 flex items-center gap-2">
-          <Check /> Ready
-        </p>
-      ) : pod.podScheduled ? (
-        <p className="text-amber-600 flex items-center gap-2">
-          <Clock /> Scheduled
-        </p>
-      ) : (
-        <p className="text-yellow-500 flex items-center gap-2">
-          <Hourglass />
-          Pending
-        </p>
       )}
-    </div>
+    </>
+  ) : containerState(pod, "running") || pod.podReady ? (
+    <p className="text-green-500 flex items-center gap-2">
+      <Check /> Ready
+    </p>
+  ) : pod.podScheduled ? (
+    <p className="text-amber-600 flex items-center gap-2">
+      <Clock /> Scheduled
+    </p>
+  ) : (
+    <p className="text-yellow-500 flex items-center gap-2">
+      <Hourglass />
+      Pending
+    </p>
   );
 };
 

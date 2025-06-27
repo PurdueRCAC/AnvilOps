@@ -799,6 +799,8 @@ paths:
                       $ref: "#/components/schemas/ContainerState"
                     lastState:
                       $ref: "#/components/schemas/ContainerState"
+                    ip:
+                      type: string
 
   /app/{appId}/deployments:
     parameters:

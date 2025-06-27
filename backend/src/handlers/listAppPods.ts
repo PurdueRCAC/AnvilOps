@@ -59,6 +59,7 @@ export const listAppPods: HandlerMap["listAppPods"] = async (
       containerReady: pod.status?.containerStatuses?.[0]?.ready,
       containerState: pod.status?.containerStatuses?.[0]?.state,
       lastState: pod.status?.containerStatuses?.[0].lastState,
+      ip: pod.status.podIP,
     })),
   );
 };
