@@ -60,6 +60,10 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(400, res, {});
   }
 
+  if (!app.deploymentConfigTemplate.imageTag && appConfig.source === "git") {
+    return json(409, res, {});
+  }
+
   if (appData.name) {
     await db.app.update({
       where: { id: app.id },
