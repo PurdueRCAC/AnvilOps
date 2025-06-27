@@ -1,5 +1,4 @@
 import type { components } from "../generated/openapi.ts";
-import type { Env } from "../types.ts";
 
 export function validateDeploymentConfig(appData: {
   source?: "git" | "image";
@@ -62,7 +61,7 @@ export function validateDeploymentConfig(appData: {
   }
 
   try {
-    validateEnv(appData.env, appData.secrets);
+    validateEnv(appData.env);
   } catch (err) {
     return { valid: false, message: err.message };
   }
@@ -72,14 +71,9 @@ export function validateDeploymentConfig(appData: {
   return { valid: true };
 }
 
-export const validateEnv = (
-  env: Env[] | undefined,
-  secrets: Env[] | undefined,
-) => {
+export const validateEnv = (env: PrismaJson.EnvVar[]) => {
   const envNames = new Set();
-  env = env ?? [];
-  secrets = secrets ?? [];
-  for (let envVar of [...env, ...secrets]) {
+  for (let envVar of env) {
     if (envNames.has(envVar.name)) {
       throw new Error("Duplicate environment variable: " + envVar);
     }
