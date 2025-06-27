@@ -35,8 +35,8 @@ export default function AppView() {
     {
       enabled: app.activeDeployment !== undefined,
       refetchInterval({ state: { data } }) {
-        if (data?.podStatus?.ready === false) {
-          if (data?.podStatus?.scheduled) {
+        if (data?.podStatus?.ready !== data?.podStatus?.total) {
+          if (data?.podStatus?.scheduled !== data?.podStatus?.total) {
             return 1_000;
           }
           return 3_000;

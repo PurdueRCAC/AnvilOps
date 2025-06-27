@@ -1036,16 +1036,14 @@ paths:
                     type: object
                     properties:
                       scheduled:
-                        type: boolean
+                        type: number
                       ready:
-                        type: boolean
-                      phase:
-                        type: string
-                        enum: [Pending, Running, Succeeded, Failed, Unknown]
-                      state:
-                        type: string
-                      stateReason:
-                        type: string
+                        type: number
+                      total:
+                        type: number
+                      failed:
+                        type: number
+                    required: [scheduled, ready, total, failed]
                 required:
                   - id
                   - appId

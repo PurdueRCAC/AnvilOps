@@ -37,16 +37,30 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   }
 
   const podStatus = pods?.items?.[0]?.status;
-  const scheduled =
-    podStatus?.conditions?.find((it) => it.type === "PodScheduled")?.status ===
-    "True";
-  const ready =
-    podStatus?.conditions?.find((it) => it.type === "Ready")?.status === "True";
+  let scheduled = 0,
+    ready = 0,
+    failed = 0;
 
-  const state = Object.keys(
-    podStatus?.containerStatuses?.[0]?.state ?? {},
-  )?.[0];
-  const stateReason = podStatus?.containerStatuses?.[0]?.state?.[state]?.reason;
+  for (const pod of pods?.items ?? []) {
+    if (
+      pod?.status?.conditions?.find((it) => it.type === "PodScheduled")
+        ?.status === "True"
+    ) {
+      scheduled++;
+    }
+    if (
+      pod?.status?.conditions?.find((it) => it.type === "Ready")?.status ===
+      "True"
+    ) {
+      ready++;
+    }
+    if (
+      pod?.status?.phase === "Failed" ||
+      pod?.status?.containerStatuses?.[0]?.state?.terminated
+    ) {
+      failed++;
+    }
+  }
 
   return json(200, res, {
     commitHash: deployment.commitHash,
@@ -60,9 +74,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       ? {
           scheduled,
           ready,
-          phase: podStatus?.phase as any,
-          state,
-          stateReason,
+          total: pods.items.length,
+          failed,
         }
       : undefined,
     config: {
