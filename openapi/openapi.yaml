@@ -776,8 +776,62 @@ paths:
                   properties:
                     name:
                       type: string
-                    status:
+                    createdAt:
                       type: string
+                    startedAt:
+                      type: string
+                    deploymentId:
+                      type: number
+                      format: int64
+                    node:
+                      type: string
+                    podScheduled:
+                      type: boolean
+                    podReady:
+                      type: boolean
+                    image:
+                      type: string
+                    containerReady:
+                      type: boolean
+                    containerState:
+                      oneOf:
+                        - type: object
+                          properties:
+                            running:
+                              type: object
+                              properties:
+                                startedAt:
+                                  type: string
+                                  format: date-time
+                        - type: object
+                          properties:
+                            terminated:
+                              type: object
+                              properties:
+                                containerID:
+                                  type: string
+                                exitCode:
+                                  type: number
+                                finishedAt:
+                                  type: string
+                                  format: date-time
+                                message:
+                                  type: string
+                                reason:
+                                  type: string
+                                signal:
+                                  type: number
+                                startedAt:
+                                  type: string
+                        - type: object
+                          properties:
+                            waiting:
+                              type: object
+                              properties:
+                                message:
+                                  type: string
+                                waiting:
+                                  type: string
 
   /app/{appId}/deployments:
     parameters:

@@ -51,10 +51,6 @@ export const OverviewTab = ({
     },
   );
 
-  const { data: status } = api.useQuery("get", "/app/{appId}/pods", {
-    params: { path: { appId: app.id } },
-  });
-
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
     if (deployments?.[0]?.status === "COMPLETE") {
@@ -207,10 +203,6 @@ export const OverviewTab = ({
           </tbody>
         </table>
       )}
-      <h3 className="text-xl font-medium mb-4">Status</h3>
-      <pre>
-        <code>{JSON.stringify(status, null, 2)}</code>
-      </pre>
     </>
   );
 };

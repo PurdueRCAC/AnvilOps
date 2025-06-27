@@ -1,3 +1,8 @@
+import type {
+  ApiException,
+  V1PodCondition,
+  V1PodList,
+} from "@kubernetes/client-node";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getNamespace, k8s } from "../lib/kubernetes.ts";
@@ -19,23 +24,43 @@ export const listAppPods: HandlerMap["listAppPods"] = async (
     return json(404, res, {});
   }
 
-  const pods = await k8s.default.listNamespacedPod({
-    namespace: getNamespace(app.subdomain),
-  });
+  let pods: V1PodList;
+  try {
+    pods = await k8s.default.listNamespacedPod({
+      namespace: getNamespace(app.subdomain),
+    });
+  } catch (e) {
+    const err = e as ApiException<any>;
+    if (err.code === 403) {
+      // Namespace likely hasn't been created yet
+      return json(404, res, {});
+    }
+    throw e;
+  }
 
   return json(
     200,
     res,
     pods.items.map((pod) => ({
-      name: pod.metadata.name,
-      createdAt: pod.metadata.creationTimestamp.toISOString(),
-      startedAt: pod.status.startTime.toISOString(),
+      name: pod.metadata?.name,
+      createdAt: pod.metadata?.creationTimestamp?.toISOString(),
+      startedAt: pod.status?.startTime?.toISOString(),
       deploymentId: parseInt(
         pod.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
       ),
-      node: pod.spec.nodeName,
-      conditions: pod.status.conditions,
-      status: pod.status.containerStatuses[0],
+      node: pod.spec?.nodeName,
+      podScheduled:
+        getCondition(pod?.status?.conditions, "PodScheduled")?.status ===
+        "True",
+      podReady:
+        getCondition(pod?.status?.conditions, "Ready")?.status === "True",
+      image: pod.status?.containerStatuses?.[0]?.image,
+      containerReady: pod.status?.containerStatuses?.[0]?.ready,
+      containerState: pod.status?.containerStatuses?.[0]?.state,
     })),
   );
 };
+
+function getCondition(conditions: V1PodCondition[], condition: string) {
+  return conditions.find((it) => it.type === condition);
+}

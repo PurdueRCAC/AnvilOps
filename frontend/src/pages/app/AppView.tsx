@@ -9,6 +9,7 @@ import { ConfigTab } from "./ConfigTab";
 import { DangerZoneTab } from "./DangerZoneTab";
 import { LogsTab } from "./LogsTab";
 import { OverviewTab } from "./OverviewTab";
+import { StatusTab } from "./StatusTab";
 
 export type App = components["schemas"]["App"];
 
@@ -53,17 +54,20 @@ export default function AppView() {
       <DeploymentStatus app={app} deployment={currentDeployment} />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="my-4">
-          <TabsTrigger value="overview" className="tab">
-            <span className="tab-content">Overview</span>
+          <TabsTrigger value="overview">
+            <span>Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="status">
+            <span>Status</span>
           </TabsTrigger>
           <TabsTrigger value="configuration">
-            <span className="tab-content">Configuration</span>
+            <span>Configuration</span>
           </TabsTrigger>
           <TabsTrigger value="logs">
-            <span className="tab-content">Logs</span>
+            <span>Logs</span>
           </TabsTrigger>
           <TabsTrigger value="danger">
-            <span className="tab-content">Danger</span>
+            <span>Danger</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
@@ -72,6 +76,9 @@ export default function AppView() {
             activeDeployment={currentDeployment?.id}
             refetch={refetch}
           />
+        </TabsContent>
+        <TabsContent value="status">
+          <StatusTab app={app} />
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigTab app={app} setTab={setTab} refetch={refetch} />
