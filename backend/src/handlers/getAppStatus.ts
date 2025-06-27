@@ -64,6 +64,10 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
       // Namespace likely hasn't been created yet
       return json(404, res, {});
     }
+    if (err.code === 404) {
+      // Resources inside the namespace haven't been created yet
+      return json(404, res, {});
+    }
     throw e;
   }
 
