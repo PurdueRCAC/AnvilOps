@@ -92,11 +92,10 @@ export default function CreateAppView() {
                 subdomain: formData.get("subdomain")!.toString(),
                 dockerfilePath:
                   formData.get("dockerfilePath")?.toString() ?? null,
-                env: formState.env.filter((it) => it.name.length > 0),
+                env: formState.env.filter(
+                  (it) => it.name.length > 0,
+                ) as NonNullableEnv,
                 repositoryId: formState.repoId ?? null,
-                secrets: [
-                  /* TODO */
-                ],
                 branch: formData.get("branch")?.toString() ?? null,
                 builder: (formData.get("builder")?.toString() ?? null) as
                   | "dockerfile"
@@ -184,7 +183,8 @@ export const GitHubIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-type Env = { name: string; value: string }[];
+type Env = { name: string; value: string | null; isSensitive: boolean }[];
+type NonNullableEnv = { name: string; value: string; isSensitive: boolean }[];
 
 export type AppInfoFormData = {
   env: Env;
@@ -659,6 +659,15 @@ export const AppConfigFormFields = ({
           setValue={(env) => {
             setState((prev) => ({ ...prev, env }));
           }}
+          fixedSensitiveNames={
+            defaults?.config
+              ? new Set(
+                  defaults.config.env
+                    .filter((env) => env.isSensitive)
+                    .map((env) => env.name),
+                )
+              : new Set()
+          }
         />
       </div>
       <div className="space-y-2">

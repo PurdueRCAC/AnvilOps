@@ -340,7 +340,7 @@ export const createAppConfigsFromDeployment = (
     app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
     config: Pick<
       DeploymentConfig,
-      "getPlaintextEnv" | "port" | "replicas" | "imageTag"
+      "id" | "getPlaintextEnv" | "port" | "replicas" | "imageTag"
     > & {
       mounts: Pick<MountConfig, "path" | "amountInMiB">[];
     };
@@ -353,12 +353,13 @@ export const createAppConfigsFromDeployment = (
   const namespace = createNamespaceConfig(namespaceName);
   const configs: K8sObject[] = [];
 
-  const envVars = getEnvVars(conf.getPlaintextEnv(), `${app.name}-secrets`);
+  const secretName = `${app.name}-secrets-${deployment.config.id}`;
+  const envVars = getEnvVars(conf.getPlaintextEnv(), secretName);
   const secretData = getEnvRecord(conf.getPlaintextEnv());
   if (secretData !== null) {
     const secretConfig = createSecretConfig(
       secretData,
-      `${app.name}-secrets`,
+      secretName,
       namespaceName,
     );
 

@@ -111,7 +111,11 @@ const updateApp: HandlerMap["updateApp"] = async (
         }),
 
     port: appConfig.port,
-    env: appConfig.env,
+    // Null values for unchanged sensitive vars need to be replaced with their true values
+    env: withSensitiveEnv(
+      lastDeployment.config.getPlaintextEnv(),
+      appConfig.env,
+    ),
     replicas: appConfig.replicas,
     mounts: { createMany: { data: appConfig.mounts } },
   };
@@ -176,6 +180,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     });
 
     try {
+      console.log(deployment);
       const { namespace, configs } = createAppConfigsFromDeployment(deployment);
       await createOrUpdateApp(app.name, namespace, configs);
       await db.deployment.update({
@@ -219,6 +224,28 @@ const updateApp: HandlerMap["updateApp"] = async (
   });
 
   return json(200, res, {});
+};
+
+const withSensitiveEnv = (
+  lastPlaintextEnv: PrismaJson.EnvVar[],
+  envVars: {
+    name: string;
+    value: string | null;
+    isSensitive: boolean;
+  }[],
+) => {
+  const lastEnvMap = lastPlaintextEnv.reduce((map, env) => {
+    return Object.assign(map, { [env.name]: env.value });
+  }, {});
+  return envVars.map((env) =>
+    env.value === null
+      ? {
+          name: env.name,
+          value: lastEnvMap[env.name],
+          isSensitive: env.isSensitive,
+        }
+      : env,
+  );
 };
 
 export default updateApp;
