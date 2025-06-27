@@ -43,21 +43,23 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const { subdomain, imageRepo, appGroup } = await db.app.findUnique({
-    where: {
-      id: appId,
-    },
-    select: {
-      subdomain: true,
-      imageRepo: true,
-      appGroup: {
-        select: {
-          id: true,
-          _count: true,
-        },
+  const { subdomain, imageRepo, appGroup, deploymentConfigTemplateId } =
+    await db.app.findUnique({
+      where: {
+        id: appId,
       },
-    },
-  });
+      select: {
+        subdomain: true,
+        imageRepo: true,
+        appGroup: {
+          select: {
+            id: true,
+            _count: true,
+          },
+        },
+        deploymentConfigTemplateId: true,
+      },
+    });
 
   try {
     await deleteNamespace(getNamespace(subdomain));
@@ -65,15 +67,17 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     console.error("Failed to delete namespace:", err);
   }
 
-  await db.deployment.deleteMany({ where: { appId } });
-  await db.deploymentConfig.deleteMany({ where: { deployment: { appId } } });
+  // cascade deletes Deployments
+  await db.deploymentConfig.deleteMany({
+    where: { deployment: { appId } },
+  });
 
   try {
     await deleteRepo(imageRepo);
-    await db.app.delete({
-      where: {
-        id: appId,
-      },
+
+    // cascade deletes App
+    await db.deploymentConfig.delete({
+      where: { id: deploymentConfigTemplateId },
     });
     if (appGroup._count.apps === 1) {
       await db.appGroup.delete({ where: { id: appGroup.id } });

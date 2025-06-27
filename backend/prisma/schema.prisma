@@ -100,8 +100,8 @@ model App {
   deployments                Deployment[]
   logIngestSecret            String           @unique
   // The config to use when creating a new deployment
-  deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id])
-  deploymentConfigTemplateId Int
+  deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id], onDelete: Cascade)
+  deploymentConfigTemplateId Int              @unique
 }
 
 model AppGroup {
@@ -129,7 +129,7 @@ model Deployment {
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
   secret        String?          @unique
-  config        DeploymentConfig @relation(fields: [configId], references: [id])
+  config        DeploymentConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
   configId      Int              @unique
   logs          Log[]
 }
@@ -156,7 +156,7 @@ model DeploymentConfig {
   imageTag       String?
 
   // Reverse relation field for when this DeploymentConfig is an App's template config
-  app App[]
+  app App?
 }
 
 model MountConfig {
