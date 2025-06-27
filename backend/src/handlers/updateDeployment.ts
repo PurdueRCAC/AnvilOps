@@ -96,7 +96,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       },
     });
 
-    const { namespace, configs } = createAppConfigsFromDeployment(deployment);
+    const { namespace, configs, postCreate } =
+      createAppConfigsFromDeployment(deployment);
     try {
       await db.deploymentConfig.updateMany({
         where: {
@@ -109,7 +110,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         },
       });
 
-      await createOrUpdateApp(app.name, namespace, configs);
+      await createOrUpdateApp(app.name, namespace, configs, postCreate);
       log(deployment.id, "BUILD", "Deployment succeeded");
       await db.deployment.update({
         where: { id: deployment.id },

@@ -323,8 +323,14 @@ export async function buildAndDeploy({
     log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
-      const { namespace, configs } = createAppConfigsFromDeployment(deployment);
-      await createOrUpdateApp(deployment.app.name, namespace, configs);
+      const { namespace, configs, postCreate } =
+        createAppConfigsFromDeployment(deployment);
+      await createOrUpdateApp(
+        deployment.app.name,
+        namespace,
+        configs,
+        postCreate,
+      );
       log(deployment.id, "BUILD", "Deployment succeeded");
       await db.deployment.update({
         where: { id: deployment.id },

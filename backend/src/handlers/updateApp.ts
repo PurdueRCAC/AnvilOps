@@ -181,8 +181,9 @@ const updateApp: HandlerMap["updateApp"] = async (
 
     try {
       console.log(deployment);
-      const { namespace, configs } = createAppConfigsFromDeployment(deployment);
-      await createOrUpdateApp(app.name, namespace, configs);
+      const { namespace, configs, postCreate } =
+        createAppConfigsFromDeployment(deployment);
+      await createOrUpdateApp(app.name, namespace, configs, postCreate);
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "COMPLETE" },

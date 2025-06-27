@@ -335,6 +335,18 @@ export const deleteNamespace = async (namespace: string) => {
   console.log(`Namespace ${namespace} deleted`);
 };
 
+const applyLabel = (
+  config: { metadata: { labels?: {}; [key: string]: unknown } },
+  name: string,
+  value: string,
+) => {
+  if (config.metadata.labels) {
+    config.metadata.labels[name] = value;
+  } else {
+    config.metadata.labels = { [name]: value };
+  }
+};
+
 export const createAppConfigsFromDeployment = (
   deployment: Pick<Deployment, "appId" | "id"> & {
     app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
@@ -353,7 +365,7 @@ export const createAppConfigsFromDeployment = (
   const namespace = createNamespaceConfig(namespaceName);
   const configs: K8sObject[] = [];
 
-  const secretName = `${app.name}-secrets-${deployment.config.id}`;
+  const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = getEnvVars(conf.getPlaintextEnv(), secretName);
   const secretData = getEnvRecord(conf.getPlaintextEnv());
   if (secretData !== null) {
@@ -394,13 +406,28 @@ export const createAppConfigsFromDeployment = (
   );
 
   configs.push(...logs, statefulSet, svc);
-  return { namespace, configs };
+  for (let config of configs) {
+    applyLabel(
+      config,
+      "anvilops.rcac.purdue.edu/deployment-id",
+      deployment.id.toString(),
+    );
+  }
+
+  const postCreate = () => {
+    k8s.default.deleteCollectionNamespacedSecret({
+      namespace: namespaceName,
+      labelSelector: `anvilops.rcac.purdue.edu/deployment-id!=${deployment.id}`,
+    });
+  };
+  return { namespace, configs, postCreate };
 };
 
 export const createOrUpdateApp = async (
   name: string,
   namespace: V1Namespace & K8sObject,
   configs: K8sObject[],
+  postCreate?: () => void,
 ) => {
   if (!(await resourceExists(namespace))) {
     await ensureNamespace(namespace);
@@ -419,6 +446,10 @@ export const createOrUpdateApp = async (
     } else {
       await k8s.full.create(config);
     }
+  }
+
+  if (postCreate) {
+    postCreate();
   }
   console.log(`App ${name} updated`);
 };
