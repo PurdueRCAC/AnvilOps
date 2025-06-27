@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { ExternalLink, GitBranch, Plus } from "lucide-react";
+import { Container, ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./AppView";
@@ -59,7 +59,10 @@ const OrgApps = ({
     ) : (
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {org.apps.map((app) => (
-          <div className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative">
+          <div
+            key={app.id}
+            className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative"
+          >
             <div>
               <p className="text-xl font-medium mb-1">
                 <Link to={`/app/${app.id}`}>
@@ -68,10 +71,9 @@ const OrgApps = ({
                   <span className="absolute inset-0" />
                 </Link>
               </p>
-              {app.commitHash ? (
+              {app.source === "GIT" ? (
                 <p className="text-sm text-black-4">
-                  Commit <code>{app.commitHash?.slice(0, 8)} </code>
-                  on{" "}
+                  Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
                   <a
                     href={`${app.repositoryURL}/tree/${app.branch}`}
                     target="_blank"
@@ -79,6 +81,10 @@ const OrgApps = ({
                     <GitBranch className="inline" size={16} />{" "}
                     <code>{app.branch}</code>
                   </a>
+                </p>
+              ) : app.source === "IMAGE" ? (
+                <p className="text-sm text-black-4">
+                  <Container className="inline" size={16} /> {app.imageTag}
                 </p>
               ) : null}
             </div>

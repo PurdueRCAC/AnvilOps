@@ -19,7 +19,7 @@ import {
   createOrUpdateApp,
   getNamespace,
 } from "../lib/kubernetes.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import { getInstallationAccessToken, getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -55,7 +55,13 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         case "deleted": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-deleted"];
-          // TODO
+          // Unlink the repository from all of its associated apps
+          // Every deployment from that repository will now be listed as directly from the produced container image
+          await db.deploymentConfig.updateMany({
+            where: { repositoryId: payload.repository.id },
+            data: { repositoryId: null, branch: null, source: "IMAGE" },
+          });
+          return json(200, res, {});
         }
         default: {
           return json(422, res, {});
@@ -72,7 +78,16 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         case "deleted": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-deleted"];
-          // TODO
+          // Unlink the GitHub App installation from the organization
+          await db.organization.updateMany({
+            where: { githubInstallationId: payload.installation.id },
+            data: { githubInstallationId: null },
+          });
+          await db.organization.updateMany({
+            where: { newInstallationId: payload.installation.id },
+            data: { newInstallationId: null },
+          });
+          return json(200, res, {});
         }
         default: {
           return json(422, res, {});
@@ -119,6 +134,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
         const octokit = await getOctokit(app.org.githubInstallationId);
 
+        delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
         await buildAndDeploy({
           orgId: app.orgId,
           appId: app.id,
@@ -157,8 +173,14 @@ export async function generateCloneURLWithCredentials(
   octokit: Octokit,
   originalURL: string,
 ) {
-  const { token } = (await octokit.auth({ type: "installation" })) as any;
   const url = URL.parse(originalURL);
+
+  if (url.host !== URL.parse(process.env.GITHUB_BASE_URL).host) {
+    // If the target is on a different GitHub instance, don't add credentials!
+    return originalURL;
+  }
+
+  const token = await getInstallationAccessToken(octokit);
   url.username = "x-access-token";
   url.password = token;
   return url.toString();

@@ -91,7 +91,7 @@ const resourceExists = async (data: K8sObject) => {
 const generateVolumeName = (mountPath: string) => {
   // Volume names must be valid DNS labels (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names)
   return (
-    "anvilops-volums-" +
+    "anvilops-volume-" +
     crypto.createHash("md5").update(mountPath).digest("hex")
   );
 };

@@ -73,10 +73,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       log(
         deployment.id,
         "BUILD",
-        "Updated GitHub check run to Completed with conclusion " + status ===
-          "DEPLOYING"
-          ? "Success"
-          : "Failure",
+        "Updated GitHub check run to Completed with conclusion " +
+          (status === "DEPLOYING" ? "Success" : "Failure"),
       );
     } catch (e) {
       console.error("Failed to update check run: ", e);

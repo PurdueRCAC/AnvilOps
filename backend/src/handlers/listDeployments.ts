@@ -14,6 +14,7 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
         org: { users: { some: { userId: req.user.id } } },
       },
     },
+    include: { config: true },
     orderBy: { createdAt: "desc" },
     take: 25,
   });
@@ -29,6 +30,8 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
       status: d.status,
       createdAt: d.createdAt.toISOString(),
       updatedAt: d.updatedAt.toISOString(),
+      source: d.config.source,
+      imageTag: d.config.imageTag,
     })),
   );
 };

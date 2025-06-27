@@ -68,7 +68,7 @@ export const Logs = ({
           <p className="opacity-50 ml-8">
             {["PENDING", "BUILDING"].includes(deployment.status)
               ? "Waiting for the build to start."
-              : "Build logs expire after a few hours."}
+              : null}
           </p>
         </>
       ) : (

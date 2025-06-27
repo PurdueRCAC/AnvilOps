@@ -33,6 +33,9 @@ model User {
    * this doesn't mean the URL wasn't tampered with; we have to verify other parameters separately.
    */
   githubOAuthState String?
+
+  // (ignore this - reverse relation is never used)
+  repoImportState RepoImportState[]
 }
 
 model OrganizationMembership {
@@ -65,6 +68,9 @@ model Organization {
    * Temporary storage for an Installation ID that hasn't been verified to be accessible by the user who set it. See src/handlers/githubAppInstall.ts for more info on the installation/authorization process.
    */
   newInstallationId Int?
+
+  // (ignore this - reverse relation is never used)
+  repoImportState RepoImportState[]
 }
 
 enum ImageBuilder {
@@ -155,6 +161,22 @@ model Log {
   timestamp    DateTime
   index        Int        @default(0) // Used to order logs with the same timestamp
   content      Json
+}
+
+// A temporary object used to keep track of state while going through the GitHub OAuth flow
+// We need to do this because creating a repository on a user account requires a user access token, so we have to get one, which requires a redirect to GitHub and then back to us.
+model RepoImportState {
+  id            String       @id @default(uuid())
+  createdAt     DateTime     @default(now())
+  srcRepoURL    String
+  destIsOrg     Boolean
+  destRepoOwner String
+  destRepoName  String
+  makePrivate   Boolean
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         Int
 }
 
 enum LogType {

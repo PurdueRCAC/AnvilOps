@@ -384,6 +384,163 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /org/{orgId}/import-repo/create-state:
+    post:
+      description: Creates a state ID that can be used with /org/{orgId}/import-repo. It's done this way because, to create a repo on a user account, we need to authorize with GitHub. To import a repo, call this endpoint to get a state ID. Then, redirect to the URL present in the response.
+      operationId: importGitRepoCreateState
+      parameters:
+        - name: orgId
+          description: The ID of the organization to connect the app installation to.
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceURL:
+                  type: string
+                  format: uri
+                destOwner:
+                  type: string
+                destIsOrg:
+                  type: boolean
+                destRepo:
+                  type: string
+                makePrivate:
+                  type: boolean
+              required:
+                - sourceURL
+                - destOwner
+                - destIsOrg
+                - destRepo
+                - makePrivate
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                required: [url]
+        "308":
+          description: Redirect to Import Repo endpoint (copying the Git repository immediately without needing permission grant from user)
+        "400":
+          description: GitHub App not installed
+        "404":
+          description: Organization not found
+        "500":
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /import-repo:
+    post:
+      description: Copies a Git repository from another account or server to the user's (or their organization's) GitHub account
+      operationId: importGitRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state:
+                  type: string
+                code:
+                  type: string
+              required:
+                - state
+
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orgId:
+                    description: AnvilOps organization ID that has access to the imported repository. Present if the repo was created successfully
+                    type: number
+                    format: int64
+                  repoId:
+                    description: Present if the repo was created successfully
+                    type: number
+                    format: int64
+                  url:
+                    description: Present if creating from a template failed and the user needs to authorize
+                    type: string
+                    format: uri
+        "400":
+          description: GitHub App not installed or other validation error
+        "404":
+          description: Organization not found
+        "500":
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /org/{orgId}/installation:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags:
+        - org
+      description: Get GitHub App installation information for an organization
+      operationId: getInstallation
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  targetId:
+                    type: number
+                    description: ID of the user or organization that the app is installed on
+                  targetType:
+                    type: string
+                    enum: [User, Organization]
+                  targetName:
+                    type: string
+                    description: The name of the user or organization that the app is installed on
+                  hasAllRepoAccess:
+                    type: boolean
+                    description: Whether the app has access to all repositories on the target user or organization
+                required: [targetId, targetType, targetName, hasAllRepoAccess]
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found (GitHub App not installed or organization not found)
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /org/{orgId}/code:
     parameters:
       - name: orgId
@@ -633,6 +790,12 @@ paths:
                       format: date-time
                     status:
                       $ref: "#/components/schemas/DeploymentStatus"
+                    source:
+                      type: string
+                      enum: [GIT, IMAGE]
+                    imageTag:
+                      type: string
+                      nullable: true
                   required:
                     - id
                     - appId
@@ -641,6 +804,8 @@ paths:
                     - createdAt
                     - updatedAt
                     - status
+                    - source
+                    - imageTag
 
   /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
@@ -932,17 +1097,36 @@ components:
               status:
                 type: string
                 enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+              source:
+                type: string
+                enum: [GIT, IMAGE]
+              imageTag:
+                type: string
+                nullable: true
               repositoryURL:
                 type: string
                 format: uri
+                nullable: true
               branch:
                 type: string
+                nullable: true
               commitHash:
                 type: string
+                nullable: true
               link:
                 type: string
                 format: uri
-            required: [id, displayName, status, repositoryURL, branch]
+            required:
+              - id
+              - displayName
+              - status
+              - source
+              - imageTag
+              - repositoryURL
+              - branch
+              - commitHash
+              - link
+
         githubInstallationId:
           type: integer
           format: int64

@@ -8,16 +8,16 @@ When AnvilOps is built as a Docker image, this Node.js app serves the static fil
 
 Create a GitHub App with the following settings:
 
-| Setting                                                | Value (local development)                              | Value (production)                                                |
-| ------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------------- |
-| Homepage URL                                           | http://localhost:5173                                  | https://anvilops.rcac.purdue.edu                                  |
-| Callback URL                                           | http://localhost:5173/api/github/oauth2-callback       | https://anvilops.rcac.purdue.edu/api/github/oauth2-callback       |
-| Expire user authentication tokens                      | Yes                                                    | Yes                                                               |
-| Request user authorization (OAuth) during installation | No                                                     | No                                                                |
-| Setup URL                                              | http://localhost:5173/api/github/installation-callback | https://anvilops.rcac.purdue.edu/api/github/installation-callback |
-| Webhook: Active                                        | Yes                                                    | Yes                                                               |
-| Webhook URL                                            | See note below                                         | https://anvilops.rcac.purude.edu/api/github-webhook               |
-| Redirect on Update                                     | No                                                     | No                                                                |
+| Setting                                                | Value (local development)                                                             | Value (production)                                                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Homepage URL                                           | http://localhost:5173                                                                 | https://anvilops.rcac.purdue.edu                                                                            |
+| Callback URL                                           | http://localhost:5173/api/github/oauth2-callback<br>http://localhost:5173/import-repo | https://anvilops.rcac.purdue.edu/api/github/oauth2-callback<br>https://anvilops.rcac.purdue.edu/import-repo |
+| Expire user authentication tokens                      | Yes                                                                                   | Yes                                                                                                         |
+| Request user authorization (OAuth) during installation | No                                                                                    | No                                                                                                          |
+| Setup URL                                              | http://localhost:5173/api/github/installation-callback                                | https://anvilops.rcac.purdue.edu/api/github/installation-callback                                           |
+| Webhook: Active                                        | Yes                                                                                   | Yes                                                                                                         |
+| Webhook URL                                            | See note below                                                                        | https://anvilops.rcac.purude.edu/api/github-webhook                                                         |
+| Redirect on Update                                     | No                                                                                    | No                                                                                                          |
 
 Note on webhook URLs in development: To receive webhook payloads, you will need to create a publicly-accessible URL that forwards to your machine. The GitHub docs recommend using [`smee`](https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events#get-a-webhook-proxy-url) for this, or you could also use [`ngrok`](https://ngrok.com/) (account required).
 
@@ -26,7 +26,8 @@ Generate a random string for the webhook secret (e.g. `openssl rand -hex 32`). I
 Repository Permissions:
 
 - Checks: read and write
-- Contents: read-only
+- Contents: read and write
+- Administration: read and write (to import repos)
 - Deployments: read and write
 - Metadata: read-only
 
