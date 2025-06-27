@@ -13,6 +13,7 @@ import {
 import crypto from "node:crypto";
 import type {
   App,
+  AppGroup,
   Deployment,
   MountConfig,
 } from "../generated/prisma/client.ts";
@@ -116,9 +117,6 @@ const createStatefulSetConfig = (deploy: DeploymentParams) => {
         metadata: {
           labels: {
             app: deploy.name,
-            "anvilops.rcac.purdue.edu/app-id": deploy.appId.toString(),
-            "anvilops.rcac.purdue.edu/deployment-id":
-              deploy.deploymentId.toString(),
             "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
@@ -335,21 +333,23 @@ export const deleteNamespace = async (namespace: string) => {
   console.log(`Namespace ${namespace} deleted`);
 };
 
-const applyLabel = (
+const applyLabels = (
   config: { metadata: { labels?: {}; [key: string]: unknown } },
-  name: string,
-  value: string,
+  labels: { [key: string]: string },
 ) => {
   if (config.metadata.labels) {
-    config.metadata.labels[name] = value;
+    Object.assign(config.metadata.labels, labels);
   } else {
-    config.metadata.labels = { [name]: value };
+    config.metadata.labels = { ...labels };
   }
 };
 
 export const createAppConfigsFromDeployment = (
   deployment: Pick<Deployment, "appId" | "id"> & {
-    app: Pick<App, "name" | "logIngestSecret" | "subdomain">;
+    app: Pick<
+      App & { appGroup: AppGroup },
+      "name" | "logIngestSecret" | "subdomain" | "appGroup"
+    >;
     config: Pick<
       DeploymentConfig,
       "id" | "getPlaintextEnv" | "port" | "replicas" | "imageTag"
@@ -406,14 +406,19 @@ export const createAppConfigsFromDeployment = (
   );
 
   configs.push(...logs, statefulSet, svc);
+  const labels = {
+    "anvilops.rcac.purdue.edu/app-group-id":
+      deployment.app.appGroup.id.toString(),
+    "anvilops.rcac.purdue.edu/app-id": deployment.appId.toString(),
+    "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
+    "app.kubernetes.io/name": deployment.app.name,
+    "app.kubernetes.io/part-of": `${deployment.app.appGroup.name}-${deployment.app.appGroup.orgId}`,
+    "app.kubernetes.io/managed-by": "anvilops",
+  };
+  applyLabels(namespace, labels);
   for (let config of configs) {
-    applyLabel(
-      config,
-      "anvilops.rcac.purdue.edu/deployment-id",
-      deployment.id.toString(),
-    );
+    applyLabels(config, labels);
   }
-
   const postCreate = () => {
     k8s.default.deleteCollectionNamespacedSecret({
       namespace: namespaceName,

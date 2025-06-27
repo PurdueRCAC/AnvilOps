@@ -4,6 +4,12 @@ metadata:
   name: anvilops-postgres
   labels:
     app: anvilops-postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   ports:
     - port: 5432
@@ -15,6 +21,14 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: anvilops-postgres
+  namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   selector:
     matchLabels:

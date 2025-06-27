@@ -232,7 +232,7 @@ export async function buildAndDeploy({
       appId: true,
       secret: true,
       config: { include: { mounts: true } },
-      app: true,
+      app: { include: { appGroup: true } },
     },
   });
 

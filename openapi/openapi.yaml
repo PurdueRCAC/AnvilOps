@@ -726,6 +726,8 @@ paths:
           description: Unauthorized
         "400":
           description: Malformed app
+        "409":
+          description: No image available to redeploy because app has never built successfully
         "500":
           description: Unexpected Error
           content:

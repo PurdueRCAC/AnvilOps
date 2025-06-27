@@ -47,7 +47,7 @@ const genKey = (): Buffer => {
   return crypto.randomBytes(32);
 };
 
-const patchEnv = (data: {
+const patchEnvIfExists = (data: {
   env?: PrismaJson.EnvVar[];
   envKey?: string | StringFieldUpdateOperationsInput;
   [key: string]: unknown;
@@ -124,15 +124,38 @@ export const db = client
           }
 
           const createConfig = args.data.deploymentConfigTemplate.create;
-          if (createConfig && createConfig.env) {
-            patchEnv(createConfig);
+          if (createConfig) {
+            patchEnvIfExists(createConfig);
           }
           const connectConfig =
             args.data.deploymentConfigTemplate.connectOrCreate;
-          if (connectConfig && connectConfig.create.env) {
-            patchEnv(connectConfig.create);
+          if (connectConfig) {
+            patchEnvIfExists(connectConfig.create);
           }
           return query(args);
+        },
+
+        update({ args, query }) {
+          if (!args.data.deploymentConfigTemplate) {
+            return query(args);
+          }
+
+          const template = args.data.deploymentConfigTemplate;
+          if (template.create) {
+            patchEnvIfExists(template.create);
+          }
+
+          if (template.connectOrCreate) {
+            patchEnvIfExists(template.connectOrCreate.create);
+          }
+
+          if (template.upsert.update) {
+            patchEnvIfExists(template.upsert.update);
+          }
+
+          if (template.update) {
+            patchEnvIfExists(template.update);
+          }
         },
       },
 
@@ -143,12 +166,12 @@ export const db = client
           }
           const createConfig = args.data.config.create;
           if (createConfig && createConfig.env) {
-            patchEnv(createConfig);
+            patchEnvIfExists(createConfig);
           }
 
           const connectConfig = args.data.config.connectOrCreate;
           if (connectConfig && connectConfig.create.env) {
-            patchEnv(connectConfig.create);
+            patchEnvIfExists(connectConfig.create);
           }
 
           return query(args);
@@ -165,28 +188,28 @@ export const db = client
             case "updateManyAndReturn":
             case "create":
               if (args.data.env) {
-                patchEnv(args.data);
+                patchEnvIfExists(args.data);
               }
               break;
             case "createManyAndReturn":
             case "createMany":
               if (args.data instanceof Array) {
                 args.data.forEach((data) => {
-                  if (data.env) patchEnv(data);
+                  if (data.env) patchEnvIfExists(data);
                 });
               } else {
                 if (args.data.env) {
-                  patchEnv(args.data);
+                  patchEnvIfExists(args.data);
                 }
               }
               break;
             case "upsert":
               if (args.create.env) {
-                patchEnv(args.create);
+                patchEnvIfExists(args.create);
               }
 
               if (args.update.env) {
-                patchEnv(args.update);
+                patchEnvIfExists(args.update);
               }
               break;
           }

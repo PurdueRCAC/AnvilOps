@@ -71,6 +71,8 @@ model Organization {
 
   // (ignore this - reverse relation is never used)
   repoImportState RepoImportState[]
+
+  appGroups AppGroup[]
 }
 
 enum ImageBuilder {
@@ -87,6 +89,8 @@ model App {
   id                         Int              @id @default(autoincrement())
   orgId                      Int
   org                        Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  appGroupId                 Int
+  appGroup                   AppGroup         @relation(fields: [appGroupId], references: [id], onDelete: Cascade)
   createdAt                  DateTime         @default(now())
   updatedAt                  DateTime         @updatedAt
   name                       String
@@ -98,6 +102,17 @@ model App {
   // The config to use when creating a new deployment
   deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id])
   deploymentConfigTemplateId Int
+}
+
+model AppGroup {
+  id    Int          @id @default(autoincrement())
+  orgId Int
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name  String
+  apps  App[]
+
+  // Organization cannot have app groups of the same name
+  @@unique([orgId, name])
 }
 
 model Deployment {

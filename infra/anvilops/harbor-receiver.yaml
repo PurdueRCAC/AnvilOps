@@ -4,6 +4,13 @@ kind: Receiver
 metadata:
   name: harbor-receiver
   namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: webhook-receiver
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: image-update
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   type: harbor
   secretRef:

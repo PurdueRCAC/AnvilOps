@@ -60,6 +60,10 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(400, res, {});
   }
 
+  if (!app.deploymentConfigTemplate.imageTag && appConfig.source === "git") {
+    return json(409, res, {});
+  }
+
   if (appData.name) {
     await db.app.update({
       where: { id: app.id },
@@ -174,13 +178,12 @@ const updateApp: HandlerMap["updateApp"] = async (
       select: {
         id: true,
         appId: true,
-        app: true,
+        app: { include: { appGroup: true } },
         config: { include: { mounts: true } },
       },
     });
 
     try {
-      console.log(deployment);
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
       await createOrUpdateApp(app.name, namespace, configs, postCreate);

@@ -145,18 +145,33 @@ const createApp: HandlerMap["createApp"] = async (
         deploymentConfigTemplate: {
           create: deploymentConfig,
         },
+        appGroup: {
+          // TODO: connect to existing appgroup or create
+          create: {
+            name: appData.name,
+            org: {
+              connect: {
+                id: appData.orgId,
+              },
+            },
+          },
+        },
       },
     });
     app = await db.app.update({
       where: { id: app.id },
-      data: { imageRepo: `app-${app.orgId}-${app.id}` },
+      data: { imageRepo: `app-${appData.orgId}-${app.id}` },
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
       // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
+      const message =
+        err.meta?.target === "subdomain"
+          ? "Subdomain must be unique."
+          : "App group already exists in organization.";
       return json(409, res, {
         code: 409,
-        message: "Subdomain must be unique.",
+        message,
       });
     }
     console.error(err);
@@ -165,7 +180,7 @@ const createApp: HandlerMap["createApp"] = async (
 
   try {
     await buildAndDeploy({
-      orgId: app.orgId,
+      orgId: appData.orgId,
       appId: app.id,
       imageRepo: app.imageRepo,
       commitSha: commitSha,
