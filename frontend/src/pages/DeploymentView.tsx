@@ -2,7 +2,7 @@ import { Logs } from "@/components/Logs";
 import { api } from "@/lib/api";
 import { ArrowLeft, Container, GitCommit } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { Status } from "./AppView";
+import { Status } from "./app/AppView";
 
 export const DeploymentView = () => {
   const params = useParams();

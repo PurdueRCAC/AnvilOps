@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import { Container, ExternalLink, GitBranch, Plus } from "lucide-react";
 import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { Status } from "./AppView";
+import { Status } from "./app/AppView";
 import { GitHubIcon } from "./CreateAppView";
 
 export default function DashboardView() {
