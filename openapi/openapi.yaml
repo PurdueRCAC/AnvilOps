@@ -774,6 +774,8 @@ paths:
                 items:
                   type: object
                   properties:
+                    id:
+                      type: string
                     name:
                       type: string
                     createdAt:
@@ -794,44 +796,9 @@ paths:
                     containerReady:
                       type: boolean
                     containerState:
-                      oneOf:
-                        - type: object
-                          properties:
-                            running:
-                              type: object
-                              properties:
-                                startedAt:
-                                  type: string
-                                  format: date-time
-                        - type: object
-                          properties:
-                            terminated:
-                              type: object
-                              properties:
-                                containerID:
-                                  type: string
-                                exitCode:
-                                  type: number
-                                finishedAt:
-                                  type: string
-                                  format: date-time
-                                message:
-                                  type: string
-                                reason:
-                                  type: string
-                                signal:
-                                  type: number
-                                startedAt:
-                                  type: string
-                        - type: object
-                          properties:
-                            waiting:
-                              type: object
-                              properties:
-                                message:
-                                  type: string
-                                waiting:
-                                  type: string
+                      $ref: "#/components/schemas/ContainerState"
+                    lastState:
+                      $ref: "#/components/schemas/ContainerState"
 
   /app/{appId}/deployments:
     parameters:
@@ -1294,7 +1261,7 @@ components:
           type: string
           nullable: true
           description: Required when source == "git"
-          enum: [dockerfile, railpack]
+          enum: [dockerfile, railpack, null]
         # Source options > OCI image
         imageTag:
           type: string
@@ -1367,7 +1334,7 @@ components:
         builder:
           type: string
           nullable: true
-          enum: [dockerfile, railpack]
+          enum: [dockerfile, railpack, null]
         # Source options > OCI image
         imageTag:
           type: string
@@ -1434,3 +1401,42 @@ components:
       required:
         - code
         - message
+    ContainerState:
+      oneOf:
+        - type: object
+          properties:
+            running:
+              type: object
+              properties:
+                startedAt:
+                  type: string
+                  format: date-time
+        - type: object
+          properties:
+            terminated:
+              type: object
+              properties:
+                containerID:
+                  type: string
+                exitCode:
+                  type: number
+                finishedAt:
+                  type: string
+                  format: date-time
+                message:
+                  type: string
+                reason:
+                  type: string
+                signal:
+                  type: number
+                startedAt:
+                  type: string
+        - type: object
+          properties:
+            waiting:
+              type: object
+              properties:
+                message:
+                  type: string
+                reason:
+                  type: string

@@ -78,7 +78,7 @@ export default function AppView() {
           />
         </TabsContent>
         <TabsContent value="status">
-          <StatusTab app={app} />
+          <StatusTab app={app} activeDeployment={currentDeployment} />
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigTab app={app} setTab={setTab} refetch={refetch} />

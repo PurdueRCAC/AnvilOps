@@ -14,7 +14,7 @@ import {
   Loader,
 } from "lucide-react";
 
-type DeploymentInfo =
+export type DeploymentInfo =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
 
 export const DeploymentStatus = ({

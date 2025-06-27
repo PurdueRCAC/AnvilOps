@@ -42,6 +42,7 @@ export const listAppPods: HandlerMap["listAppPods"] = async (
     200,
     res,
     pods.items.map((pod) => ({
+      id: pod.metadata?.uid,
       name: pod.metadata?.name,
       createdAt: pod.metadata?.creationTimestamp?.toISOString(),
       startedAt: pod.status?.startTime?.toISOString(),
@@ -57,6 +58,7 @@ export const listAppPods: HandlerMap["listAppPods"] = async (
       image: pod.status?.containerStatuses?.[0]?.image,
       containerReady: pod.status?.containerStatuses?.[0]?.ready,
       containerState: pod.status?.containerStatuses?.[0]?.state,
+      lastState: pod.status?.containerStatuses?.[0].lastState,
     })),
   );
 };

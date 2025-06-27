@@ -21,6 +21,11 @@ import { Link } from "react-router-dom";
 import { GitHubIcon } from "../CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 
+export const format = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "short",
+  timeStyle: "medium",
+});
+
 export const OverviewTab = ({
   app,
   activeDeployment,
@@ -57,11 +62,6 @@ export const OverviewTab = ({
       refetchApp();
     }
   }, [deployments?.[0]?.status]);
-
-  const format = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "short",
-    timeStyle: "medium",
-  });
 
   return (
     <>
