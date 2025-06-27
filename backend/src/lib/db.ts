@@ -156,6 +156,8 @@ export const db = client
           if (template.update) {
             patchEnvIfExists(template.update);
           }
+
+          return query(args);
         },
       },
 
