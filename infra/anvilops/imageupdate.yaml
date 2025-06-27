@@ -4,6 +4,13 @@ kind: ImageRepository
 metadata:
   name: anvilops
   namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: imagerepo
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: image-update
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   image: registry.anvil.rcac.purdue.edu/anvilops/anvilops
   interval: 1h
@@ -14,6 +21,13 @@ kind: ImagePolicy
 metadata:
   name: anvilops-imagepolicy
   namespace: default
+  labels:
+    app.kubernetes.io/name: imagepolicy
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: image-update
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   filterTags:
     pattern: "^main-(?P<ts>[0-9]+)-[a-f0-9]+"
@@ -29,6 +43,13 @@ kind: ImageUpdateAutomation
 metadata:
   name: anvilops-update
   namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: image-update
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: image-update
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   interval: 30m
   sourceRef:

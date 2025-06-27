@@ -3,6 +3,13 @@ kind: Service
 metadata:
   name: app-proxy-svc
   namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: proxy-sandbox
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   selector:
     app: app-proxy

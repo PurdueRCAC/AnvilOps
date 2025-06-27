@@ -4,6 +4,13 @@ kind: GitRepository
 metadata:
   name: anvilops
   namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: gitrepository
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: cd-config
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   interval: 1m0s
   secretRef:

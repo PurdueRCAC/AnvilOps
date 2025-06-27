@@ -5,6 +5,14 @@ apiVersion: logging.banzaicloud.io/v1beta1
 kind: Flow
 metadata:
   name: log-generator
+  namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: flow
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: build-logs
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   match:
     - select:
@@ -17,6 +25,14 @@ apiVersion: logging.banzaicloud.io/v1beta1
 kind: Output
 metadata:
   name: http
+  namespace: anvilops-dev
+  labels:
+    app.kubernetes.io/name: output
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/version: 0.0.1
+    app.kubernetes.io/component: build-logs
+    app.kubernetes.io/part-of: anvilops
+    app.kubernetes.io/managed-by: fluxcd
 spec:
   http:
     endpoint: https://anvilops.rcac.purdue.edu/api/logs/ingest?type=build
