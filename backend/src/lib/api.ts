@@ -11,6 +11,7 @@ import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
 import { getAppLogs } from "../handlers/getAppLogs.ts";
+import { getAppStatus } from "../handlers/getAppStatus.ts";
 import { getDeployment } from "../handlers/getDeployment.ts";
 import { getInstallation } from "../handlers/getInstallation.ts";
 import { githubAppInstall } from "../handlers/githubAppInstall.ts";
@@ -22,7 +23,6 @@ import {
   importGitRepoCreateState,
 } from "../handlers/importGitRepo.ts";
 import { ingestLogs } from "../handlers/ingestLogs.ts";
-import { listAppPods } from "../handlers/listAppPods.ts";
 import { listDeployments } from "../handlers/listDeployments.ts";
 import { listOrgRepos } from "../handlers/listOrgRepos.ts";
 import { listRepoBranches } from "../handlers/listRepoBranches.ts";
@@ -521,7 +521,7 @@ const handlers = {
   importGitRepoCreateState,
   importGitRepo,
   getInstallation,
-  listAppPods,
+  getAppStatus,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

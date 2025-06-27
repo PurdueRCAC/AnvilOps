@@ -8,8 +8,11 @@ import {
   Clock,
   Cloud,
   Container,
+  Flag,
+  Hammer,
   Hourglass,
   Info,
+  Loader,
 } from "lucide-react";
 import type { App } from "./AppView";
 import { format } from "./OverviewTab";
@@ -26,14 +29,18 @@ export const StatusTab = ({
   app: App;
   activeDeployment: DeploymentInfo | undefined;
 }) => {
-  const { data: pods } = api.useQuery(
+  const { data: status } = api.useQuery(
     "get",
-    "/app/{appId}/pods",
+    "/app/{appId}/status",
     {
       params: { path: { appId: app.id } },
     },
     { refetchInterval: 4_000 },
   );
+
+  const pods = status?.pods;
+  const statefulSet = status?.statefulSet;
+  const events = status?.events;
 
   const activePods = pods?.filter(
     (it) => it.deploymentId === activeDeployment?.id,
@@ -42,15 +49,39 @@ export const StatusTab = ({
     (it) => it.deploymentId !== activeDeployment?.id,
   );
 
+  const updating =
+    statefulSet?.currentRevision !== statefulSet?.updateRevision ||
+    statefulSet?.generation !== statefulSet?.observedGeneration;
+
   return (
     <>
-      <h2 className="text-xl font-medium mb-4">Pods</h2>
+      <h2 className="text-xl font-medium mb-4">
+        Pods{" "}
+        {statefulSet && (
+          <span className="opacity-50">
+            ({statefulSet?.readyReplicas}/{statefulSet?.replicas} ready)
+          </span>
+        )}
+      </h2>
       <p className="opacity-50">
         Each instance of your app runs in a Pod. When you initiate a new
         deployment, the new pods are created with the updated configuration, the
         load balancer switches to target the new pods, and then the old pods are
         shut down.
       </p>
+      {updating && (
+        <p className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
+          <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+            <Loader className="animate-spin" /> Update In Progress (
+            {statefulSet?.updatedReplicas
+              ? statefulSet.replicas! - statefulSet.updatedReplicas
+              : (statefulSet?.readyReplicas ?? 0)}
+            /{statefulSet?.replicas})
+          </h3>
+          <p>New pods are being created to replace old ones.</p>
+        </p>
+      )}
+      {events?.map((event) => <EventInfo event={event} />)}
       {!pods || pods.length === 0 ? (
         <div className="bg-gray-50 rounded-md p-4 my-4">
           <p className="flex items-center gap-2">
@@ -87,8 +118,29 @@ export const StatusTab = ({
   );
 };
 
-type Pod =
-  paths["/app/{appId}/pods"]["get"]["responses"]["200"]["content"]["application/json"][0];
+type Event = NonNullable<
+  paths["/app/{appId}/status"]["get"]["responses"]["200"]["content"]["application/json"]["events"]
+>[0];
+
+const EventInfo = ({ event }: { event: Event }) => {
+  return (
+    <p className="bg-orange-100 rounded-md p-4 border border-orange-50 my-4">
+      <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+        <Flag className="animate-spin" /> Warning
+      </h3>
+      <p className="opacity-50 text-sm">
+        Occurred {event.count} times since{" "}
+        {format.format(new Date(event.firstTimestamp!))}, most recently at{" "}
+        {format.format(new Date(event.lastTimestamp!))}.
+      </p>
+      <p>There may be an issue deploying your app. {event.message}</p>
+    </p>
+  );
+};
+
+type Pod = NonNullable<
+  paths["/app/{appId}/status"]["get"]["responses"]["200"]["content"]["application/json"]["pods"]
+>[0];
 
 const PodInfo = ({ pod }: { pod: Pod }) => {
   return (
@@ -120,53 +172,135 @@ const PodInfo = ({ pod }: { pod: Pod }) => {
 };
 
 const PodStatusText = ({ pod }: { pod: Pod }) => {
-  return containerState(pod, "waiting")?.reason === "CrashLoopBackOff" ? (
-    <>
-      <p className="text-red-500 flex items-center gap-2 mb-2">
-        <CircleX /> Error
-      </p>
-      <p>
-        This container is crashing repeatedly. It will be restarted{" "}
-        {getRestartTime(pod)}.
-      </p>
-      {lastState(pod, "terminated")?.finishedAt && (
-        <p className="mt-1">
-          It most recently exited at{" "}
-          {timeFormat.format(
-            new Date(lastState(pod, "terminated")!.finishedAt!),
-          )}{" "}
-          with status code {lastState(pod, "terminated")?.exitCode}.
-        </p>
-      )}
-    </>
-  ) : containerState(pod, "terminated") ? (
-    <>
-      {containerState(pod, "terminated")?.exitCode === 0 ? (
+  const waiting = containerState(pod, "waiting");
+  const running = containerState(pod, "running");
+  const terminated = containerState(pod, "terminated");
+
+  if (waiting) {
+    switch (waiting.reason) {
+      case "CrashLoopBackOff":
+        return (
+          <>
+            <p className="text-red-500 flex items-center gap-2 mb-2">
+              <CircleX /> Error
+            </p>
+            <p>
+              This container is crashing repeatedly. It will be restarted{" "}
+              {getRestartTime(pod)}.
+            </p>
+            {lastState(pod, "terminated")?.finishedAt && (
+              <p className="mt-1">
+                It most recently exited at{" "}
+                {timeFormat.format(
+                  new Date(lastState(pod, "terminated")!.finishedAt!),
+                )}{" "}
+                with status code {lastState(pod, "terminated")?.exitCode}.
+              </p>
+            )}
+          </>
+        );
+      case "ErrImagePull":
+      case "ImagePullBackOff":
+        return (
+          <>
+            <p className="text-red-500 flex items-center gap-2 mb-2">
+              <CircleX /> Error
+            </p>
+            <p>
+              Can't pull the container image. Make sure the image name is
+              spelled correctly and the registry is publicly accessible.
+            </p>
+          </>
+        );
+      case "InvalidImageName":
+        return (
+          <>
+            <p className="text-red-500 flex items-center gap-2 mb-2">
+              <CircleX /> Error
+            </p>
+            <p>Invalid image name. Make sure it is spelled correctly.</p>
+          </>
+        );
+      case "CreateContainerConfigError":
+        return (
+          <>
+            <p className="text-red-500 flex items-center gap-2 mb-2">
+              <CircleX /> Error
+            </p>
+            <p>
+              There is something wrong with the container's configuration:{" "}
+              {waiting.message}.
+            </p>
+          </>
+        );
+      case "ContainerCreating":
+        return (
+          <p className="text-blue-500 flex items-center gap-2 mb-2">
+            <Hammer /> Container Creating
+          </p>
+        );
+      default:
+        return (
+          <>
+            <p className="text-amber-600 flex items-center gap-2 mb-2">
+              <CircleX /> Waiting to start
+            </p>
+            <p>Additional information:</p>
+            <ul className="list-disc ml-4">
+              <li>
+                Reason:{" "}
+                {waiting.reason ? <code>{waiting.reason}</code> : <i>None</i>}
+              </li>
+              <li>
+                Message:{" "}
+                {waiting.message ? <code>{waiting.message}</code> : <i>None</i>}
+              </li>
+            </ul>
+          </>
+        );
+    }
+  }
+
+  if (terminated) {
+    if (terminated.reason === "Success" || terminated.exitCode === 0) {
+      return (
         <>
           <p className="text-blue-500 flex items-center gap-2 mb-2">
             <Info /> Terminated
           </p>
           <p>This container has stopped gracefully. It will be removed soon.</p>
         </>
-      ) : (
+      );
+    } else {
+      return (
         <>
           <p className="text-red-500 flex items-center gap-2 mb-2">
             <CircleX /> Error
           </p>
           <p>This container has crashed. It will be restarted soon.</p>
         </>
-      )}
-    </>
-  ) : containerState(pod, "running") || pod.podReady ? (
-    <p className="text-green-500 flex items-center gap-2">
-      <Check /> Ready
-    </p>
-  ) : pod.podScheduled ? (
-    <p className="text-amber-600 flex items-center gap-2">
-      <Clock /> Scheduled
-    </p>
-  ) : (
-    <p className="text-yellow-500 flex items-center gap-2">
+      );
+    }
+  }
+
+  if (running) {
+    return (
+      <p className="text-green-500 flex items-center gap-2">
+        <Check /> Ready
+      </p>
+    );
+  }
+
+  if (pod.podScheduled) {
+    return (
+      <p className="text-amber-600 flex items-center gap-2">
+        <Clock /> Scheduled
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-orange-500 flex items-center gap-2">
       <Hourglass />
       Pending
     </p>

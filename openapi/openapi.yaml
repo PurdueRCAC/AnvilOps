@@ -749,7 +749,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
-  /app/{appId}/pods:
+  /app/{appId}/status:
     parameters:
       - name: appId
         in: path
@@ -761,7 +761,7 @@ paths:
     get:
       tags: [app]
       description: List an app's running pods and their statuses
-      operationId: listAppPods
+      operationId: getAppStatus
       responses:
         "404":
           description: App not found
@@ -770,37 +770,74 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-                    createdAt:
-                      type: string
-                    startedAt:
-                      type: string
-                    deploymentId:
-                      type: number
-                      format: int64
-                    node:
-                      type: string
-                    podScheduled:
-                      type: boolean
-                    podReady:
-                      type: boolean
-                    image:
-                      type: string
-                    containerReady:
-                      type: boolean
-                    containerState:
-                      $ref: "#/components/schemas/ContainerState"
-                    lastState:
-                      $ref: "#/components/schemas/ContainerState"
-                    ip:
-                      type: string
+                type: object
+                properties:
+                  pods:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        createdAt:
+                          type: string
+                        startedAt:
+                          type: string
+                        deploymentId:
+                          type: number
+                          format: int64
+                        node:
+                          type: string
+                        podScheduled:
+                          type: boolean
+                        podReady:
+                          type: boolean
+                        image:
+                          type: string
+                        containerReady:
+                          type: boolean
+                        containerState:
+                          $ref: "#/components/schemas/ContainerState"
+                        lastState:
+                          $ref: "#/components/schemas/ContainerState"
+                        ip:
+                          type: string
+                  statefulSet:
+                    type: object
+                    properties:
+                      readyReplicas:
+                        type: number
+                      updatedReplicas:
+                        type: number
+                      replicas:
+                        type: number
+                      generation:
+                        type: number
+                      observedGeneration:
+                        type: number
+                      currentRevision:
+                        type: string
+                      updateRevision:
+                        type: string
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+                        reason:
+                          type: string
+                        count:
+                          type: number
+                        firstTimestamp:
+                          type: string
+                          format: date-time
+                        lastTimestamp:
+                          type: string
+                          format: date-time
 
   /app/{appId}/deployments:
     parameters:
