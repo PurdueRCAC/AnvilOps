@@ -174,13 +174,12 @@ const updateApp: HandlerMap["updateApp"] = async (
       select: {
         id: true,
         appId: true,
-        app: true,
+        app: { include: { appGroup: true } },
         config: { include: { mounts: true } },
       },
     });
 
     try {
-      console.log(deployment);
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
       await createOrUpdateApp(app.name, namespace, configs, postCreate);

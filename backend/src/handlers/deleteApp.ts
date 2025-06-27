@@ -43,13 +43,19 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const { subdomain, imageRepo } = await db.app.findUnique({
+  const { subdomain, imageRepo, appGroup } = await db.app.findUnique({
     where: {
       id: appId,
     },
     select: {
       subdomain: true,
       imageRepo: true,
+      appGroup: {
+        select: {
+          id: true,
+          _count: true,
+        },
+      },
     },
   });
 
@@ -69,6 +75,9 @@ const deleteApp: HandlerMap["deleteApp"] = async (
         id: appId,
       },
     });
+    if (appGroup._count.apps === 1) {
+      await db.appGroup.delete({ where: { id: appGroup.id } });
+    }
   } catch (err) {
     console.error(err);
     return json(500, res, { code: 500, message: "Failed to delete app" });

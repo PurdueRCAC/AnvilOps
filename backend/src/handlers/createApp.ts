@@ -165,9 +165,13 @@ const createApp: HandlerMap["createApp"] = async (
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
       // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
+      const message =
+        err.meta?.target === "subdomain"
+          ? "Subdomain must be unique."
+          : "App group already exists in organization.";
       return json(409, res, {
         code: 409,
-        message: "Subdomain must be unique.",
+        message,
       });
     }
     console.error(err);

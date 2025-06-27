@@ -34,6 +34,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain: true,
           deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
+          appGroup: true,
         },
       },
     },
