@@ -67,7 +67,6 @@ export const ConfigTab = ({
           setTab("overview");
           refetch({});
         } catch (e) {
-          console.error(e);
           toast.error("There was a problem reconfiguring your app.");
         }
       }}

@@ -1,5 +1,5 @@
 import { HelpCircle, Trash2 } from "lucide-react";
-import { Fragment, useEffect, type Dispatch } from "react";
+import { Fragment, useEffect, useState, type Dispatch } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
@@ -17,6 +17,7 @@ export const EnvVarGrid = ({
   setValue: Dispatch<EnvVars>;
   fixedSensitiveNames: Set<string>;
 }) => {
+  const [error, setError] = useState("");
   useEffect(() => {
     for (let i in envVars) {
       if (
@@ -78,6 +79,12 @@ export const EnvVarGrid = ({
               onChange={(e) => {
                 const newList = structuredClone(envVars);
                 newList[index].name = e.currentTarget.value;
+                const duplicates = getDuplicates(newList);
+                if (duplicates.length != 0) {
+                  setError(
+                    `Duplicate environment variable(s): ${duplicates.join(", ")}`,
+                  );
+                }
                 setEnvironmentVariables(newList);
               }}
             />
@@ -122,6 +129,19 @@ export const EnvVarGrid = ({
           </Fragment>
         );
       })}
+      <p className="text-sm text-red-500 col-span-4">{error}</p>
     </div>
   );
+};
+
+const getDuplicates = (values: EnvVars): string[] => {
+  const names = new Set();
+  const result = [];
+  for (let env of values) {
+    if (names.has(env.name)) {
+      result.push(env.name);
+    }
+    names.add(env.name);
+  }
+  return result;
 };

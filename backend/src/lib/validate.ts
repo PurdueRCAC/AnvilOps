@@ -75,7 +75,7 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
   const envNames = new Set();
   for (let envVar of env) {
     if (envNames.has(envVar.name)) {
-      throw new Error("Duplicate environment variable: " + envVar);
+      throw new Error("Duplicate environment variable " + envVar.name);
     }
     envNames.add(envVar.name);
   }
