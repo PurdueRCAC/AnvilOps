@@ -113,7 +113,7 @@ export async function subscribe(
 }
 
 export async function publish(channel: string, payload: string) {
-  return await pool.query("SELECT pg_notify(?, ?);", [channel, payload]);
+  return await pool.query("SELECT pg_notify($1, $2);", [channel, payload]);
 }
 
 export const db = client
