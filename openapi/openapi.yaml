@@ -1273,7 +1273,7 @@ components:
         id:
           type: number
           format: int64
-      required: [time, log, type, pod]
+      required: [id, time, log, type, pod]
     LogType:
       type: string
       enum: [SYSTEM, BUILD, RUNTIME]

@@ -89,7 +89,11 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   const fetchNewLogs = async () => {
     // Fetch them in reverse order so that we can take only the 500 most recent lines
     const newLogs = await db.log.findMany({
-      where: { id: { gt: lastLogId }, type: ctx.request.query.type },
+      where: {
+        id: { gt: lastLogId },
+        deploymentId: ctx.request.params.deploymentId,
+        type: ctx.request.query.type,
+      },
       orderBy: [{ createdAt: "desc" }, { index: "desc" }],
       take: 500,
     });
@@ -99,6 +103,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     for (let i = newLogs.length - 1; i >= 0; i--) {
       const log = newLogs[i];
       sendLog({
+        id: log.id,
         type: log.type,
         log: (log.content as any).log as string,
         pod: log.podName,

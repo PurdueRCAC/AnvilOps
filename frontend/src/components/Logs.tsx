@@ -34,7 +34,7 @@ export const Logs = ({
       client.setQueryData(queryKey, (lines: QueryData) => {
         const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
         for (const existingLine of lines) {
-          if (existingLine.id === parsed.id) return lines;
+          if (parsed.id && existingLine.id === parsed.id) return lines;
         }
         if (lines.length >= 1000) {
           // Keep the array at a maximum of 1000 items
