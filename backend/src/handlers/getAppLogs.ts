@@ -1,4 +1,5 @@
 import { V1PodList } from "@kubernetes/client-node";
+import { once } from "node:events";
 import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
@@ -29,8 +30,11 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   });
   res.flushHeaders();
 
-  const sendLog = (log: components["schemas"]["LogLine"]) => {
-    res.write(`data: ${JSON.stringify(log)}\n\n`);
+  const sendLog = async (log: components["schemas"]["LogLine"]) => {
+    const readyForMoreContent = res.write(`data: ${JSON.stringify(log)}\n\n`);
+    if (!readyForMoreContent) {
+      await once(res, "drain");
+    }
   };
 
   if (ctx.request.query.type === "RUNTIME") {
@@ -59,12 +63,12 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         { follow: true, tailLines: 500, timestamps: true },
       );
       let i = 0;
-      logStream.on("data", (chunk: Buffer) => {
+      logStream.on("data", async (chunk: Buffer) => {
         const lines = chunk.toString().split("\n");
         for (const line of lines) {
           if (line.trim().length === 0) continue;
           const [date, ...text] = line.toString().split(" ");
-          sendLog({
+          await sendLog({
             type: "RUNTIME",
             log: text.join(" "),
             pod: podName,
@@ -103,7 +107,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     }
     for (let i = newLogs.length - 1; i >= 0; i--) {
       const log = newLogs[i];
-      sendLog({
+      await sendLog({
         id: log.id,
         type: log.type,
         log: (log.content as any).log as string,
@@ -118,7 +122,10 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     `deployment_${ctx.request.params.deploymentId}_logs`,
     fetchNewLogs,
   );
-  req.on("close", unsubscribe);
+
+  req.on("close", async () => {
+    await unsubscribe();
+  });
 
   // Send all previous logs now
   await fetchNewLogs();
