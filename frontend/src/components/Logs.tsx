@@ -1,7 +1,7 @@
 import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, FileClock, SatelliteDish } from "lucide-react";
+import { useState } from "react";
 
 type Deployment =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -15,15 +15,7 @@ export const Logs = ({
   deployment: Pick<Deployment, "status" | "id" | "appId" | "updatedAt">;
   type: LogType;
 }) => {
-  const queryKey = ["deployments", deployment.id, "logs"];
-
-  type QueryData = components["schemas"]["LogLine"][];
-  const { data: logs } = useQuery<QueryData>({
-    queryFn: () => [],
-    queryKey: queryKey,
-  });
-
-  const client = useQueryClient();
+  const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
 
   const { connected } = useEventSource(
     new URL(
@@ -31,7 +23,7 @@ export const Logs = ({
     ),
     (event) => {
       const newLine = event.data as string;
-      client.setQueryData(queryKey, (lines: QueryData) => {
+      setLogs((lines) => {
         const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
         for (const existingLine of lines) {
           if (parsed.id && existingLine.id === parsed.id) return lines;
