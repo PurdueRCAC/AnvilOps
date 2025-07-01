@@ -59,7 +59,10 @@ app.use(
 // For log ingestion, the request body is a series of JSON objects separated by newlines
 app.use(
   /^\/api((\/github\/webhook)|(\/logs\/ingest))/,
-  bodyParser.text({ type: ["application/json", "application/jsonl"] }),
+  bodyParser.text({
+    type: ["application/json", "application/jsonl"],
+    limit: "1000kb",
+  }),
 );
 
 // For everything else, the request body should be valid JSON
