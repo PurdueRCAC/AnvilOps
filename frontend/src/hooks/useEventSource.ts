@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const useEventSource = (
   url: URL,
   onMessage: (message: MessageEvent) => void,
 ) => {
   const [connected, setConnected] = useState(false);
+  const shouldOpen = useRef(true);
 
   const setupEventSource = (
     reconnectCallback: (newEventSource: EventSource) => void,
@@ -17,6 +18,7 @@ export const useEventSource = (
       setConnected(false);
       eventSource.close();
       setTimeout(() => {
+        if (!shouldOpen.current) return; // The component has unmounted; we shouldn't try to reconnect anymore
         reconnectCallback(setupEventSource(reconnectCallback));
       }, 3000);
     };
@@ -27,12 +29,14 @@ export const useEventSource = (
   };
 
   useEffect(() => {
+    shouldOpen.current = true;
     let eventSource: EventSource;
     eventSource = setupEventSource((newEventSource) => {
       eventSource = newEventSource;
     });
 
     return () => {
+      shouldOpen.current = false;
       eventSource.close();
     };
   }, [url.toString()]);
