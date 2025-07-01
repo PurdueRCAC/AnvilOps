@@ -1,4 +1,5 @@
 import type { LogType } from "../generated/prisma/enums.ts";
+import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
 import { db, publish } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 
@@ -99,7 +100,8 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
         type: logType,
         timestamp: new Date(line.content["time"]),
         index: i,
-      };
+        podName: line.content["kubernetes"]["pod_name"],
+      } satisfies LogUncheckedCreateInput;
     })
     .filter((it) => it !== null);
 
@@ -109,7 +111,9 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
 
   try {
     await Promise.all(
-      deploymentIds.map((deploymentId) => notifyLogStream(deploymentId)),
+      deploymentIds.map(
+        async (deploymentId) => await notifyLogStream(deploymentId),
+      ),
     );
   } catch (error) {
     console.error("Failed to notify log listeners:", error);
