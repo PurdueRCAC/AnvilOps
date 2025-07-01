@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { UserContext } from "./UserProvider";
-import logo from "../assets/anvilops.png";
+import logo from "/anvilops.png";
 export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 

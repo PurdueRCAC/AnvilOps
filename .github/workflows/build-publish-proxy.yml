@@ -1,0 +1,29 @@
+name: Build and Publish Proxy Docker Image
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/proxy"
+  workflow_dispatch:
+jobs:
+  push_to_registry:
+    name: Push custom proxy image to registry
+    runs-on: self-hosted
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            infra/sandbox/proxy
+
+      - name: Log in to container registry
+        run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
+
+      - name: Build and push AnvilOps Docker image
+        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest --cache-to=type=inline .
+
+      - name: Log out of container registry
+        if: always()
+        run: docker logout registry.anvil.rcac.purdue.edu
