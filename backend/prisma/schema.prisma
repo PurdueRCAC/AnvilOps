@@ -132,6 +132,7 @@ model Deployment {
   config        DeploymentConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
   configId      Int              @unique
   logs          Log[]
+  queuedJobs    QueuedJob[]
 }
 
 model DeploymentConfig {
@@ -192,6 +193,18 @@ model RepoImportState {
   userId        Int
   org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId         Int
+}
+
+model QueuedJob {
+  id               Int        @id @default(autoincrement())
+  tag              String
+  ref              String
+  gitRepoURL       String
+  imageTag         String
+  imageCacheTag    String
+  deploymentSecret String
+  deploymentId     Int
+  deployment       Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
 
 enum LogType {

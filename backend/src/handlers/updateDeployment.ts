@@ -1,4 +1,4 @@
-import { DeploymentSource } from "../generated/prisma/enums.ts";
+import { dequeueBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import {
   createAppConfigsFromDeployment,
@@ -126,6 +126,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           data: { status: "STOPPED" },
         });
       }
+
+      dequeueBuildJob();
     } catch (err) {
       console.error(err);
       await db.deployment.update({

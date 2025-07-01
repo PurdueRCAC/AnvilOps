@@ -271,14 +271,14 @@ export async function buildAndDeploy({
       }
     }
 
-    let jobId: string;
+    let jobId: string | undefined;
     try {
       jobId = await createBuildJob({
         tag: imageRepo,
         ref: commitSha,
         gitRepoURL: cloneURL,
         imageTag,
-        imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
+        imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:build-cache`,
         deploymentSecret: secret,
         appId: deployment.appId,
         deploymentId: deployment.id,

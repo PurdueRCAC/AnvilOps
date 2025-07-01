@@ -5,7 +5,9 @@ import { db } from "./db.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
-export async function createBuildJob({
+const MAX_JOBS = 6;
+
+async function createJob({
   tag,
   gitRepoURL,
   imageTag,
@@ -26,18 +28,8 @@ export async function createBuildJob({
   deploymentId: number;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 }) {
-  if (!["dockerfile", "railpack"].includes(config.builder)) {
-    throw new Error(
-      "Invalid builder: " +
-        config.builder +
-        ". Expected dockerfile or railpack.",
-    );
-  }
-
   const label = randomBytes(4).toString("hex");
-
-  await cancelBuildJobsForApp(appId);
-  const job = await k8s.batch.createNamespacedJob({
+  return k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
@@ -131,6 +123,36 @@ export async function createBuildJob({
       },
     },
   });
+}
+
+export async function createBuildJob(data: {
+  tag: string;
+  gitRepoURL: string;
+  imageTag: ImageTag;
+  imageCacheTag: ImageTag;
+  deploymentSecret: string;
+  ref: string;
+  appId: number;
+  deploymentId: number;
+  config: DeploymentConfigCreateWithoutDeploymentInput;
+}) {
+  if (!["dockerfile", "railpack"].includes(data.config.builder)) {
+    throw new Error(
+      "Invalid builder: " +
+        data.config.builder +
+        ". Expected dockerfile or railpack.",
+    );
+  }
+
+  await cancelBuildJobsForApp(data.appId);
+
+  // Store it in db - we'll pop it out when another job finishes.
+  if ((await countActiveBuildJobs()) >= MAX_JOBS) {
+    await queueBuildJob(data);
+    return undefined;
+  }
+
+  const job = await createJob(data);
 
   return job.metadata.uid;
 }
@@ -158,4 +180,96 @@ async function cancelBuildJobsForApp(appId: number) {
     namespace: "anvilops-dev",
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
   });
+}
+
+async function countActiveBuildJobs() {
+  const jobs = await k8s.batch.listNamespacedJob({
+    namespace: "anvilops-dev",
+  });
+
+  return jobs.items.filter((job) => job.status?.active).length;
+}
+
+async function queueBuildJob({
+  tag,
+  ref,
+  gitRepoURL,
+  imageTag,
+  imageCacheTag,
+  deploymentSecret,
+  deploymentId,
+}: {
+  tag: string;
+  ref: string;
+  gitRepoURL: string;
+  imageTag: string;
+  imageCacheTag: string;
+  deploymentSecret: string;
+  deploymentId: number;
+}) {
+  await db.queuedJob.create({
+    data: {
+      tag,
+      ref,
+      gitRepoURL,
+      imageTag,
+      imageCacheTag,
+      deploymentSecret,
+      deployment: {
+        connect: {
+          id: deploymentId,
+        },
+      },
+    },
+  });
+}
+
+export async function dequeueBuildJob() {
+  if ((await countActiveBuildJobs()) >= MAX_JOBS) {
+    return;
+  }
+
+  // Remove the job at the front of the queue, locking the row
+  // so it cannot be dequeued twice
+  const [result] = await db.$queryRaw<
+    {
+      tag: string;
+      ref: string;
+      gitRepoURL: string;
+      imageTag: `${string}/${string}/${string}:${string}`;
+      imageCacheTag: `${string}/${string}/${string}:${string}`;
+      deploymentSecret: string;
+      deploymentId: number;
+      id: number;
+    }[]
+  >`
+    WITH next as (
+    SELECT id FROM "QueuedJob"
+    ORDER BY id
+    FOR UPDATE SKIP LOCKED
+    LIMIT 1
+    )
+    DELETE FROM "QueuedJob" as job
+    USING next
+    WHERE job.id = next.id
+    RETURNING job.*
+  `;
+
+  if (result) {
+    const deployment = await db.deployment.findUnique({
+      where: { id: result.deploymentId },
+      include: {
+        config: true,
+      },
+    });
+    const job = await createJob({
+      ...result,
+      appId: deployment.appId,
+      config: deployment.config,
+    });
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { builderJobId: job.metadata.uid },
+    });
+  }
 }
