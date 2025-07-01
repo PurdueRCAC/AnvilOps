@@ -859,6 +859,8 @@ paths:
       responses:
         "404":
           description: App not found
+        "400":
+          description: Bad request
         "200":
           description: Success
           content:

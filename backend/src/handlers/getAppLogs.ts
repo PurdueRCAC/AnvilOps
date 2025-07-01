@@ -82,8 +82,9 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   // Pull logs from Postgres and send them to the client as they come in
   if (typeof ctx.request.params.deploymentId !== "number") {
     // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation
-    return;
+    return json(400, res, {});
   }
+
   let lastLogId = -1;
 
   const fetchNewLogs = async () => {
