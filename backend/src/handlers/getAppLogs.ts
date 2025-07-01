@@ -22,16 +22,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     return json(404, res, {});
   }
 
-  const logs = await db.log.findMany({
-    where: {
-      deploymentId: ctx.request.params.deploymentId,
-      deployment: { appId: app.id },
-      type: ctx.request.query.type,
-    },
-    orderBy: [{ timestamp: "desc" }, { index: "desc" }],
-    take: 500,
-  });
-
   res.set({
     "Cache-Control": "no-cache",
     "Content-Type": "text/event-stream",
@@ -43,7 +33,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     res.write(`data: ${JSON.stringify(log)}\n\n`);
   };
 
-  if (logs.length === 0 && ctx.request.query.type === "RUNTIME") {
+  if (ctx.request.query.type === "RUNTIME") {
     // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
     let pods: V1PodList;
     try {
@@ -68,7 +58,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         logStream,
         { follow: true, tailLines: 500, timestamps: true },
       );
-
       let i = 0;
       logStream.on("data", (chunk: Buffer) => {
         const lines = chunk.toString().split("\n");

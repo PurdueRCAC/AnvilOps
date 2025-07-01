@@ -1,7 +1,7 @@
 import type { components, paths } from "@/generated/openapi";
+import { useEventSource } from "@/hooks/useEventSource";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, FileClock, SatelliteDish } from "lucide-react";
-import { useEffect, useState } from "react";
 
 type Deployment =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -17,7 +17,6 @@ export const Logs = ({
 }) => {
   const queryKey = ["deployments", deployment.id, "logs"];
 
-  const [connected, setConnected] = useState(false);
   type QueryData = components["schemas"]["LogLine"][];
   const { data: logs } = useQuery<QueryData>({
     queryFn: () => [],
@@ -26,25 +25,11 @@ export const Logs = ({
 
   const client = useQueryClient();
 
-  const setupEventSource = (
-    reconnectCallback: (newEventSource: EventSource) => void,
-  ) => {
-    const eventSource = new EventSource(
-      new URL(
-        `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
-      ),
-    );
-
-    eventSource.onopen = () => setConnected(true);
-    eventSource.onerror = () => {
-      setConnected(false);
-      eventSource.close();
-      setTimeout(() => {
-        reconnectCallback(setupEventSource(reconnectCallback));
-      }, 3000);
-    };
-
-    eventSource.onmessage = (event) => {
+  const { connected } = useEventSource(
+    new URL(
+      `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
+    ),
+    (event) => {
       const newLine = event.data as string;
       client.setQueryData(queryKey, (lines: QueryData) => {
         const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
@@ -57,21 +42,8 @@ export const Logs = ({
         }
         return lines.concat(parsed);
       });
-    };
-
-    return eventSource;
-  };
-
-  useEffect(() => {
-    let eventSource: EventSource;
-    eventSource = setupEventSource((newEventSource) => {
-      eventSource = newEventSource;
-    });
-
-    return () => {
-      eventSource.close();
-    };
-  }, [deployment.id]);
+    },
+  );
 
   return (
     <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-scroll">

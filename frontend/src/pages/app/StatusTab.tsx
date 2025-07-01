@@ -1,7 +1,8 @@
 import type { DeploymentInfo } from "@/components/DeploymentStatus";
-import type { components, paths } from "@/generated/openapi";
-import { api } from "@/lib/api";
+import type { components } from "@/generated/openapi";
+import { useEventSource } from "@/hooks/useEventSource";
 import {
+  AlertTriangle,
   Check,
   ChevronsLeftRightEllipsis,
   CircleX,
@@ -14,6 +15,7 @@ import {
   Info,
   Loader,
 } from "lucide-react";
+import { useState } from "react";
 import type { App } from "./AppView";
 import { format } from "./OverviewTab";
 
@@ -29,13 +31,18 @@ export const StatusTab = ({
   app: App;
   activeDeployment: DeploymentInfo | undefined;
 }) => {
-  const { data: status } = api.useQuery(
-    "get",
-    "/app/{appId}/status",
-    {
-      params: { path: { appId: app.id } },
+  const [status, setStatus] = useState<
+    components["schemas"]["AppStatus"] | null
+  >(null);
+
+  const { connected } = useEventSource(
+    new URL(
+      `${window.location.protocol}//${window.location.host}/api/app/${app.id}/status`,
+    ),
+    (event) => {
+      const data = event.data as string;
+      setStatus(JSON.parse(data));
     },
-    { refetchInterval: 4_000 },
   );
 
   const pods = status?.pods;
@@ -55,7 +62,7 @@ export const StatusTab = ({
 
   return (
     <>
-      <h2 className="text-xl font-medium mb-4">
+      <h2 className="text-xl font-medium mb-2">
         Pods{" "}
         {statefulSet && (
           <span className="opacity-50">
@@ -64,6 +71,20 @@ export const StatusTab = ({
           </span>
         )}
       </h2>
+      {!connected ? (
+        <p className="text-amber-600 flex items-center gap-2 text-sm mb-4">
+          <AlertTriangle /> Disconnected. Status changes will not appear until
+          the connection is re-established.
+        </p>
+      ) : (
+        <p className="text-blue-500 flex items-center gap-2 text-sm mb-4">
+          <div className="relative w-4 h-5">
+            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
+            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
+          </div>
+          Updating in realtime
+        </p>
+      )}
       <p className="opacity-50">
         Each instance of your app runs in a Pod. When you initiate a new
         deployment, the new pods are created with the updated configuration, the
@@ -119,9 +140,7 @@ export const StatusTab = ({
   );
 };
 
-type Event = NonNullable<
-  paths["/app/{appId}/status"]["get"]["responses"]["200"]["content"]["application/json"]["events"]
->[0];
+type Event = NonNullable<components["schemas"]["AppStatus"]["events"]>[0];
 
 const EventInfo = ({ event }: { event: Event }) => {
   return (
@@ -139,9 +158,7 @@ const EventInfo = ({ event }: { event: Event }) => {
   );
 };
 
-type Pod = NonNullable<
-  paths["/app/{appId}/status"]["get"]["responses"]["200"]["content"]["application/json"]["pods"]
->[0];
+type Pod = NonNullable<components["schemas"]["AppStatus"]["pods"]>[0];
 
 const PodInfo = ({ pod }: { pod: Pod }) => {
   return (
