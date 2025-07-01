@@ -198,6 +198,7 @@ async function queueBuildJob({
   imageCacheTag,
   deploymentSecret,
   deploymentId,
+  appId,
 }: {
   tag: string;
   ref: string;
@@ -206,7 +207,19 @@ async function queueBuildJob({
   imageCacheTag: string;
   deploymentSecret: string;
   deploymentId: number;
+  appId: number;
 }) {
+  // Ensure one deployment queued for each app
+
+  await db.queuedJob.deleteMany({
+    where: { deployment: { appId } },
+  });
+
+  await db.deployment.updateMany({
+    where: { appId },
+    data: { status: "STOPPED" },
+  });
+
   await db.queuedJob.create({
     data: {
       tag,

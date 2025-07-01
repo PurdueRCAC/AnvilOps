@@ -132,7 +132,7 @@ model Deployment {
   config        DeploymentConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
   configId      Int              @unique
   logs          Log[]
-  queuedJobs    QueuedJob[]
+  queuedJob     QueuedJob?
 }
 
 model DeploymentConfig {
@@ -203,7 +203,7 @@ model QueuedJob {
   imageTag         String
   imageCacheTag    String
   deploymentSecret String
-  deploymentId     Int
+  deploymentId     Int        @unique
   deployment       Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
 
