@@ -16,13 +16,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            infra/sandbox/proxy
+            infra/sandbox/proxy/
 
       - name: Log in to container registry
         run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
 
       - name: Build and push AnvilOps Docker image
-        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest --cache-to=type=inline .
+        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest --cache-to=type=inline ./infra/sandbox/proxy
 
       - name: Log out of container registry
         if: always()
