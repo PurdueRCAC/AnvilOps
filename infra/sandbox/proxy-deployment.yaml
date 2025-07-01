@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: app-proxy
-          image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-7-8f66831a0084135a35a2a24ade4bc1172a3262a8
+          image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
           ports:
             - containerPort: 80
           volumeMounts:
