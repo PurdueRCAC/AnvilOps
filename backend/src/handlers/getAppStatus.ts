@@ -97,14 +97,14 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
 
   const ns = getNamespace(app.subdomain);
 
-  try {
-    const close = (err: any) => {
-      if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {
-        console.error("Kubernetes watch failed: ", err);
-      }
-      res.end();
-    };
+  const close = (err: any) => {
+    if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {
+      console.error("Kubernetes watch failed: ", err);
+    }
+    res.end();
+  };
 
+  try {
     const podWatcher = await watchList(
       `/api/v1/namespaces/${ns}/pods`,
       async () =>
@@ -164,7 +164,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
       statefulSetWatcher.abort();
     });
   } catch (e) {
-    // TODO
+    close(e);
   }
 
   update();
