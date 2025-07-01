@@ -103,14 +103,17 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     })
     .filter((it) => it !== null);
 
-  await db.$transaction(async (tx) => {
-    await tx.log.createMany({
-      data: logLines,
-    });
+  await db.log.createMany({
+    data: logLines,
+  });
+
+  try {
     await Promise.all(
       deploymentIds.map((deploymentId) => notifyLogStream(deploymentId)),
     );
-  });
+  } catch (error) {
+    console.error("Failed to notify log listeners:", error);
+  }
 
   return json(200, res, {});
 };
