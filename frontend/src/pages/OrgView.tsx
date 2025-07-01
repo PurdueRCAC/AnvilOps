@@ -284,7 +284,6 @@ const InputConfirmDialog = ({
           className="space-y-3"
           onSubmit={async (e) => {
             e.preventDefault();
-            console.log("awaiting");
             await submit(text);
             setOpen(false);
           }}

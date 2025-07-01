@@ -21,6 +21,7 @@ import {
 } from "../lib/kubernetes.ts";
 import { getInstallationAccessToken, getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { notifyLogStream } from "./ingestLogs.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -362,6 +363,7 @@ export async function buildAndDeploy({
           },
         },
       });
+      await notifyLogStream(deployment.id);
     }
   }
 }
@@ -380,6 +382,7 @@ export async function log(
         timestamp: new Date(),
       },
     });
+    await notifyLogStream(deploymentId);
   } catch {
     // Don't let errors bubble up and disrupt the deployment process
   }

@@ -107,10 +107,17 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     await tx.log.createMany({
       data: logLines,
     });
-    for (const deploymentId of deploymentIds) {
-      await publish(`deployment_${deploymentId}_logs`, "");
-    }
+    await Promise.all(
+      deploymentIds.map((deploymentId) => notifyLogStream(deploymentId)),
+    );
   });
 
   return json(200, res, {});
 };
+
+export async function notifyLogStream(deploymentId: number) {
+  if (typeof deploymentId !== "number") {
+    throw new Error("Expected deploymentId to be a number");
+  }
+  await publish(`deployment_${deploymentId}_logs`, "");
+}
