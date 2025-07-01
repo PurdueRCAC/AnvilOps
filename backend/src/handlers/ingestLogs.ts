@@ -1,5 +1,5 @@
 import type { LogType } from "../generated/prisma/enums.ts";
-import { db } from "../lib/db.ts";
+import { db, publish } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const buildLogSecret = process.env.BUILD_LOGGING_INGEST_SECRET;
@@ -89,20 +89,27 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     }
   }
 
-  await db.log.createMany({
-    data: lines
-      .map((line, i) => {
-        if (!line.deploymentId || isNaN(line.deploymentId)) return null;
+  const logLines = lines
+    .map((line, i) => {
+      if (!line.deploymentId || isNaN(line.deploymentId)) return null;
 
-        return {
-          content: line.content,
-          deploymentId: line.deploymentId,
-          type: logType,
-          timestamp: new Date(line.content["time"]),
-          index: i,
-        };
-      })
-      .filter((it) => it !== null),
+      return {
+        content: line.content,
+        deploymentId: line.deploymentId,
+        type: logType,
+        timestamp: new Date(line.content["time"]),
+        index: i,
+      };
+    })
+    .filter((it) => it !== null);
+
+  await db.$transaction(async (tx) => {
+    await tx.log.createMany({
+      data: logLines,
+    });
+    for (const deploymentId of deploymentIds) {
+      await publish(`deployment_${deploymentId}_logs`, "");
+    }
   });
 
   return json(200, res, {});

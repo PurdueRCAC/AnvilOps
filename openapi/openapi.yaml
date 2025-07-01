@@ -928,27 +928,10 @@ paths:
         "200":
           description: Success
           content:
-            application/json:
+            text/event-stream:
               schema:
-                type: object
-                properties:
-                  logs:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        time:
-                          type: string
-                          format: date-time
-                        log:
-                          type: string
-                        type:
-                          $ref: "#/components/schemas/LogType"
-                        id:
-                          type: number
-                          format: int64
-                required: [logs]
-
+                description: A server-sent events (SSE) response. Each event will follow the format in '#/components/schemas/LogLine'.
+                type: string
   /logs/ingest:
     post:
       operationId: ingestLogs
@@ -1341,6 +1324,22 @@ components:
     DeploymentStatus:
       type: string
       enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+    LogLine:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        log:
+          type: string
+        type:
+          $ref: "#/components/schemas/LogType"
+        pod:
+          type: string
+        id:
+          type: number
+          format: int64
+      required: [time, log, type, pod]
     LogType:
       type: string
       enum: [SYSTEM, BUILD, RUNTIME]

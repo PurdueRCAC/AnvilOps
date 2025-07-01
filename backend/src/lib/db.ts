@@ -1,6 +1,8 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
+import { Pool, type Notification } from "pg";
 import "../../prisma/types.ts";
-import { Prisma, PrismaClient } from "../generated/prisma/client.ts";
+import { PrismaClient } from "../generated/prisma/client.ts";
 import { type StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
 
 export const DATABASE_URL =
@@ -62,14 +64,57 @@ const patchEnvIfExists = (data: {
   }
 };
 
+const pool = new Pool({ connectionString: DATABASE_URL });
+
+const prismaPostgresAdapter = new PrismaPg({ connectionString: DATABASE_URL });
+
 const client = new PrismaClient({
-  datasourceUrl: DATABASE_URL,
+  adapter: prismaPostgresAdapter,
   omit: {
     deployment: {
       secret: true,
     },
   },
 });
+
+/**
+ * Subscribes to the given channel and runs the callback when a message is received on that channel.
+ *
+ * @returns A function to remove the listener
+ */
+export async function subscribe(
+  channel: string,
+  callback: (msg: Notification) => void,
+) {
+  const conn = await pool.connect();
+  if (!channel.match(/^[a-zA-Z0-9_]+$/g)) {
+    // Sanitize against potential SQL injection. Postgres unfortunately doesn't provide a way to parameterize the
+    // channel name for LISTEN and UNLISTEN, so we validate that the channel name is a valid SQL identifier here.
+    throw new Error(
+      "Invalid channel name: '" +
+        channel +
+        "'. Expected only letters, numbers, and underscores.",
+    );
+  }
+
+  const listener = (msg: Notification) => {
+    if (msg.channel === channel) {
+      callback(msg);
+    }
+  };
+  conn.on("notification", listener);
+
+  await conn.query(`LISTEN "${channel}"`);
+
+  return async () => {
+    await conn.query(`UNLISTEN "${channel}"`);
+    conn.off("notification", listener);
+  };
+}
+
+export async function publish(channel: string, payload: string) {
+  return await pool.query("PERFORM pg_notify(?, ?);", [channel, payload]);
+}
 
 export const db = client
   .$extends({

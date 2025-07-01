@@ -60,8 +60,8 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(400, res, {});
   }
 
-  if (!app.deploymentConfigTemplate.imageTag && appConfig.source === "git") {
-    return json(409, res, {});
+  if (!app.deploymentConfigTemplate.imageTag && appConfig.source !== "git") {
+    return json(400, res, {});
   }
 
   if (appData.name) {
@@ -117,7 +117,7 @@ const updateApp: HandlerMap["updateApp"] = async (
     port: appConfig.port,
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(
-      lastDeployment.config.getPlaintextEnv(),
+      lastDeployment?.config?.getPlaintextEnv(),
       appConfig.env,
     ),
     replicas: appConfig.replicas,
@@ -238,9 +238,10 @@ const withSensitiveEnv = (
     isSensitive: boolean;
   }[],
 ) => {
-  const lastEnvMap = lastPlaintextEnv.reduce((map, env) => {
-    return Object.assign(map, { [env.name]: env.value });
-  }, {});
+  const lastEnvMap =
+    lastPlaintextEnv?.reduce((map, env) => {
+      return Object.assign(map, { [env.name]: env.value });
+    }, {}) ?? {};
   return envVars.map((env) =>
     env.value === null
       ? {

@@ -1,14 +1,12 @@
-import type { paths } from "@/generated/openapi";
-import { api } from "@/lib/api";
-import { FileClock, SatelliteDish } from "lucide-react";
+import type { components, paths } from "@/generated/openapi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, FileClock, SatelliteDish } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type Deployment =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
 
-type LogType = Exclude<
-  paths["/app/{appId}/deployments/{deploymentId}/logs"]["get"]["parameters"]["query"],
-  undefined
->["type"];
+type LogType = components["schemas"]["LogLine"]["type"];
 
 export const Logs = ({
   deployment,
@@ -17,44 +15,83 @@ export const Logs = ({
   deployment: Pick<Deployment, "status" | "id" | "appId" | "updatedAt">;
   type: LogType;
 }) => {
-  const { data: logs } = api.useSuspenseQuery(
-    "get",
-    "/app/{appId}/deployments/{deploymentId}/logs",
-    {
-      params: {
-        path: { appId: deployment.appId, deploymentId: deployment.id },
-        query: { type },
-      },
-    },
-    {
-      refetchInterval() {
-        if (type === "RUNTIME" && deployment?.status === "COMPLETE") {
-          return 4000;
+  const queryKey = ["deployments", deployment.id, "logs"];
+
+  const [connected, setConnected] = useState(false);
+  type QueryData = components["schemas"]["LogLine"][];
+  const { data: logs } = useQuery<QueryData>({
+    queryFn: () => [],
+    queryKey: queryKey,
+  });
+
+  const client = useQueryClient();
+
+  const setupEventSource = (
+    reconnectCallback: (newEventSource: EventSource) => void,
+  ) => {
+    const eventSource = new EventSource(
+      new URL(
+        `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
+      ),
+    );
+
+    eventSource.onopen = () => setConnected(true);
+    eventSource.onerror = () => {
+      setConnected(false);
+      eventSource.close();
+      setTimeout(() => {
+        reconnectCallback(setupEventSource(reconnectCallback));
+      }, 3000);
+    };
+
+    eventSource.onmessage = (event) => {
+      const newLine = event.data as string;
+      client.setQueryData(queryKey, (lines: QueryData) => {
+        const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
+        for (const existingLine of lines) {
+          if (existingLine.id === parsed.id) return lines;
         }
-        if (
-          deployment?.status === "BUILDING" &&
-          new Date(deployment.updatedAt).getTime() >
-            new Date().getTime() - 5 * 60_000
-        ) {
-          // If the image is building and has only been building for up to 5 minutes, fetch every 1 second
-          return 1000;
+        if (lines.length >= 1000) {
+          // Keep the array at a maximum of 1000 items
+          return lines.toSpliced(0, lines.length - 999).concat(parsed);
         }
-        if (
-          deployment?.status &&
-          ["PENDING", "BUILDING", "DEPLOYING"].includes(deployment?.status)
-        ) {
-          return 3000;
-        }
-        return false;
-      },
-    },
-  );
+        return lines.concat(parsed);
+      });
+    };
+
+    return eventSource;
+  };
+
+  useEffect(() => {
+    let eventSource: EventSource;
+    eventSource = setupEventSource((newEventSource) => {
+      eventSource = newEventSource;
+    });
+
+    return () => {
+      eventSource.close();
+    };
+  }, [deployment.id]);
 
   return (
     <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-scroll">
-      {logs?.logs && logs.logs.length > 0 ? (
+      {!connected ? (
+        <p className="text-amber-600 flex items-center gap-2 text-sm mb-2">
+          <AlertTriangle /> Disconnected. New logs will not appear until the
+          connection is re-established.
+        </p>
+      ) : (
+        <p className="text-blue-500 flex items-center gap-2 text-sm mb-2">
+          <div className="relative w-4 h-5">
+            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
+            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
+          </div>
+          Receiving logs in realtime
+        </p>
+      )}
+      {logs && logs.length > 0 ? (
         <pre>
-          {logs?.logs?.map((log) => (
+          {logs?.map((log) => (
             <p key={log.id}>
               <span className="opacity-50">{log.time}</span> {log.log}
             </p>
