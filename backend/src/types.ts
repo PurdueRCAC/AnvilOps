@@ -40,7 +40,8 @@ type ResponseMap = {
   [statusCode in ResponseType]?: {
     headers: any;
     content?: {
-      "application/json": any;
+      "application/json"?: any;
+      "text/event-stream"?: any;
     };
   };
 };
