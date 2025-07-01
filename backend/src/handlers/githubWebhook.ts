@@ -280,6 +280,7 @@ export async function buildAndDeploy({
         imageTag,
         imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/app-${orgId}-${appId}:build-cache`,
         deploymentSecret: secret,
+        appId: deployment.appId,
         deploymentId: deployment.id,
         config,
       });

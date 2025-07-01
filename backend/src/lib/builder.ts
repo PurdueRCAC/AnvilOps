@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { k8s } from "./kubernetes.ts";
+import { db } from "./db.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
@@ -11,6 +12,7 @@ export async function createBuildJob({
   imageCacheTag,
   deploymentSecret,
   ref,
+  appId,
   deploymentId,
   config,
 }: {
@@ -20,6 +22,7 @@ export async function createBuildJob({
   imageCacheTag: ImageTag;
   deploymentSecret: string;
   ref: string;
+  appId: number;
   deploymentId: number;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 }) {
@@ -33,12 +36,14 @@ export async function createBuildJob({
 
   const label = randomBytes(4).toString("hex");
 
+  await cancelBuildJobsForApp(appId);
   const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
         name: `build-image-${tag}-${label}`,
         labels: {
+          "anvilops.rcac.purdue.edu/app-id": appId.toString(),
           "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
         },
       },
@@ -49,6 +54,7 @@ export async function createBuildJob({
         template: {
           metadata: {
             labels: {
+              "anvilops.rcac.purdue.edu/app-id": appId.toString(),
               "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
               "anvilops.rcac.purdue.edu/collect-logs": "true",
             },
@@ -127,4 +133,29 @@ export async function createBuildJob({
   });
 
   return job.metadata.uid;
+}
+
+async function cancelBuildJobsForApp(appId: number) {
+  const jobs = await k8s.batch.listNamespacedJob({
+    namespace: "anvilops-dev",
+    labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
+  });
+
+  await db.deployment.updateMany({
+    where: {
+      id: {
+        in: jobs.items.map((job) =>
+          parseInt(job.metadata.labels["anvilops.rcac.purdue.edu/app-id"]),
+        ),
+      },
+    },
+    data: {
+      status: "STOPPED",
+    },
+  });
+
+  await k8s.batch.deleteCollectionNamespacedJob({
+    namespace: "anvilops-dev",
+    labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
+  });
 }
