@@ -39,6 +39,11 @@ data:
           return 200;
         }
 
+        location = /unavailable.html {
+          internal;
+          alias /usr/share/nginx/html/unavailable.html;
+        }
+
         location / {
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "Upgrade";
@@ -47,7 +52,6 @@ data:
           proxy_http_version 1.1;
           proxy_intercept_errors on;
           error_page 502 =200 /unavailable.html;
-
         }
       }
     }

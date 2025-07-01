@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: app-proxy
-          image: registry.anvil.rcac.purdue.edu/docker-hub-cache/library/nginx
+          image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-7-8f66831a0084135a35a2a24ade4bc1172a3262a8
           ports:
             - containerPort: 80
           volumeMounts:
