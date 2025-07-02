@@ -1,6 +1,8 @@
 import type { DeploymentInfo } from "@/components/DeploymentStatus";
+import { Button } from "@/components/ui/button";
 import type { components } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
+import { api } from "@/lib/api";
 import {
   AlertTriangle,
   Check,
@@ -14,8 +16,9 @@ import {
   Hourglass,
   Info,
   Loader,
+  Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { App } from "./AppView";
 import { format } from "./OverviewTab";
 
@@ -60,6 +63,12 @@ export const StatusTab = ({
     statefulSet?.currentRevision !== statefulSet?.updateRevision ||
     statefulSet?.generation !== statefulSet?.observedGeneration;
 
+  const {
+    mutateAsync: deletePod,
+    variables: podInDeletionProcess,
+    isPending: podDeleting,
+  } = api.useMutation("delete", "/app/{appId}/pods/{podName}");
+
   return (
     <>
       <h2 className="text-xl font-medium mb-2">
@@ -78,10 +87,10 @@ export const StatusTab = ({
         </p>
       ) : (
         <p className="text-blue-500 flex items-center gap-2 text-sm mb-4">
-          <div className="relative w-4 h-5">
-            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
-            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
-          </div>
+          <span className="relative block w-4 h-5">
+            <span className="absolute block top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="absolute block top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
+          </span>
           Updating in realtime
         </p>
       )}
@@ -92,7 +101,7 @@ export const StatusTab = ({
         shut down.
       </p>
       {updating && (
-        <p className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
+        <div className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
           <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
             <Loader className="animate-spin" /> Update In Progress (
             {statefulSet?.updatedReplicas
@@ -101,7 +110,7 @@ export const StatusTab = ({
             /{statefulSet?.replicas})
           </h3>
           <p>New pods are being created to replace old ones.</p>
-        </p>
+        </div>
       )}
       {events?.map((event) => <EventInfo event={event} />)}
       {!pods || pods.length === 0 ? (
@@ -131,7 +140,47 @@ export const StatusTab = ({
           {oldPods && oldPods.length > 0 ? (
             <>
               <h3 className="mt-8">Previous Deployments</h3>
-              {oldPods?.map((pod) => <PodInfo pod={pod} key={pod.id} />)}
+              {oldPods?.map((pod) => (
+                <PodInfo pod={pod} key={pod.id}>
+                  {(updating && containerState(pod, "terminated")) ||
+                  containerState(pod, "waiting") ? (
+                    <>
+                      <hr className="my-4" />
+                      <p className="mb-2">
+                        If this pod is taking too long to update, consider
+                        deleting it. Pods will only be removed when they are
+                        running successfully, so if you made a configuration
+                        change that fixes a crash loop, you will need to delete
+                        this pod.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        disabled={
+                          podDeleting &&
+                          podInDeletionProcess?.params?.path?.podName ===
+                            pod.name
+                        }
+                        onClick={async () => {
+                          await deletePod({
+                            params: {
+                              path: { appId: app.id, podName: pod.name! },
+                            },
+                          });
+                        }}
+                      >
+                        {podDeleting &&
+                        podInDeletionProcess?.params?.path?.podName ===
+                          pod.name ? (
+                          <Loader className="animate-spin" />
+                        ) : (
+                          <Trash2 />
+                        )}
+                        Delete Pod
+                      </Button>
+                    </>
+                  ) : null}
+                </PodInfo>
+              ))}
             </>
           ) : null}
         </>
@@ -160,31 +209,31 @@ const EventInfo = ({ event }: { event: Event }) => {
 
 type Pod = NonNullable<components["schemas"]["AppStatus"]["pods"]>[0];
 
-const PodInfo = ({ pod }: { pod: Pod }) => {
+const PodInfo = ({ pod, children }: { pod: Pod; children?: ReactNode }) => {
   return (
-    <div
-      className="my-4 border-input rounded-md p-4 border flex justify-between"
-      key={pod.id}
-    >
-      <div>
-        <h3 className="text-xl font-medium">{pod.name}</h3>
-        <p className="text-sm opacity-50 mb-2">
-          Created at {pod.createdAt && format.format(new Date(pod.createdAt))}
-        </p>
-        <PodStatusText pod={pod} />
+    <div className="my-4 border-input rounded-md p-4 border">
+      <div className="flex justify-between">
+        <div>
+          <h3 className="text-xl font-medium">{pod.name}</h3>
+          <p className="text-sm opacity-50 mb-2">
+            Created at {pod.createdAt && format.format(new Date(pod.createdAt))}
+          </p>
+          <PodStatusText pod={pod} />
+        </div>
+        <div className="grid grid-cols-[max-content_1fr] gap-2 opacity-50 text-sm items-center h-max">
+          {pod.node && (
+            <>
+              <Cloud /> {pod.node}
+            </>
+          )}
+          {pod.ip && (
+            <>
+              <ChevronsLeftRightEllipsis /> {pod.ip}{" "}
+            </>
+          )}
+        </div>
       </div>
-      <div className="grid grid-cols-[max-content_1fr] gap-2 opacity-50 text-sm items-center h-max">
-        {pod.node && (
-          <>
-            <Cloud /> {pod.node}
-          </>
-        )}
-        {pod.ip && (
-          <>
-            <ChevronsLeftRightEllipsis /> {pod.ip}{" "}
-          </>
-        )}
-      </div>
+      {children ? <div className="">{children}</div> : null}
     </div>
   );
 };
