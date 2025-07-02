@@ -115,11 +115,11 @@ const AppGroup = ({
         key={appGroup.id}
         className={
           !appGroup.isMono
-            ? "rounded-md bg-stone-50 col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pb-6 border border-stone-300"
+            ? "rounded-md col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pb-6 border border-stone-300 shadow-stone-300 shadow-sm"
             : ""
         }
       >
-        <h3 className="col-span-4 text-lg text-black">
+        <h3 className="col-span-4 text-lg">
           {appGroup.isMono ? "" : appGroup.name}
         </h3>
         {appGroup.apps.map((app) => (
@@ -141,10 +141,10 @@ const AppCard = ({
     <div
       key={app.id}
       className={cn(
-        "flex flex-col justify-between border border-input rounded-lg hover:bg-gray-100 transition-colors p-4 w-full h-32 relative",
+        "flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative",
         !appGroup.isMono
-          ? "bg-gray-50 shadow-sm shadow-stone-400"
-          : "shadow-sm shadow-stone-300",
+          ? "shadow-sm shadow-stone-500"
+          : "shadow-sm shadow-stone-400",
       )}
     >
       <div>

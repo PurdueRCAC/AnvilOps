@@ -36,14 +36,18 @@ export function getUserOctokit(code: string) {
 }
 
 export async function getRepoById(octokit: Octokit, repoId: number) {
-  const repoResponse = await octokit.request({
-    // This API is undocumented but will likely stick around(?) - https://github.com/piotrmurach/github/issues/283#issuecomment-249092851
-    method: "GET",
-    url: `/repositories/${repoId}`,
-  });
-  const repo = repoResponse.data as Awaited<
-    ReturnType<typeof octokit.rest.repos.get>
-  >["data"];
+  try {
+    const repoResponse = await octokit.request({
+      // This API is undocumented but will likely stick around(?) - https://github.com/piotrmurach/github/issues/283#issuecomment-249092851
+      method: "GET",
+      url: `/repositories/${repoId}`,
+    });
+    const repo = repoResponse.data as Awaited<
+      ReturnType<typeof octokit.rest.repos.get>
+    >["data"];
 
-  return repo;
+    return repo;
+  } catch (e) {
+    console.error(e);
+  }
 }

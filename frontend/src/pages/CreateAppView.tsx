@@ -355,7 +355,7 @@ export const AppConfigFormFields = ({
       )}
       {!hideGroupSelect && (
         <>
-          <h3 className="mt-4 font-bold pb-1 border-b">Group Options</h3>
+          <h3 className="mt-4 font-bold pb-1 border-b">Grouping Options</h3>
           <div className="space-y-2">
             <div>
               <div className="flex items-baseline gap-2">
@@ -372,7 +372,7 @@ export const AppConfigFormFields = ({
               </div>
               <p className="text-sm text-black-2">
                 Applications can be created as standalone apps, or as part of a
-                group of microservices.
+                group of related microservices.
               </p>
             </div>
             <Select

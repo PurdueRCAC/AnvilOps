@@ -198,27 +198,28 @@ const handlers = {
             },
           },
         },
-      });
-
-      if (!result) {
-        return json(401, res, {});
-      }
-
-      const appGroups = await db.appGroup.findMany({
-        where: { orgId },
         include: {
-          apps: {
+          appGroups: {
             include: {
-              deploymentConfigTemplate: true,
-              deployments: {
+              apps: {
                 include: {
-                  config: true,
+                  deploymentConfigTemplate: true,
+                  deployments: {
+                    include: {
+                      config: true,
+                    },
+                  },
                 },
               },
             },
           },
         },
       });
+
+      if (!result) {
+        return json(401, res, {});
+      }
+
       const users = await db.user.findMany({
         where: {
           orgs: {
@@ -243,7 +244,7 @@ const handlers = {
 
       const appGroupRes: components["schemas"]["Org"]["appGroups"] =
         await Promise.all(
-          appGroups.map(async (group) => {
+          result.appGroups.map(async (group) => {
             const apps = await Promise.all(
               group.apps.map(async (app) => {
                 let repoURL: string;
