@@ -1,3 +1,4 @@
+import { dequeueBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import {
   createAppConfigsFromDeployment,
@@ -121,11 +122,14 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         data: { status: "COMPLETE" },
       });
       if (app.deployments.length === 2) {
+        // Update the status of the deployment before this one
         await db.deployment.update({
           where: { id: app.deployments[1].id },
           data: { status: "STOPPED" },
         });
       }
+
+      dequeueBuildJob();
     } catch (err) {
       console.error(err);
       await db.deployment.update({
