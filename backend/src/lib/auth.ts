@@ -56,7 +56,7 @@ router.get("/oauth_callback", async (req, res) => {
     const { sub, email, name, idp } = tokens.claims();
 
     if (idp !== allowedIdp) {
-      return res.status(401).redirect("/sign-in");
+      return res.status(401).redirect("/");
     }
     const existingUser = await db.user.findUnique({
       where: {
@@ -99,7 +99,7 @@ router.get("/oauth_callback", async (req, res) => {
     return res.redirect("/dashboard");
   } catch (err) {
     console.error(err);
-    return res.status(401).redirect("/sign-in");
+    return res.status(401).redirect("/");
   }
 });
 

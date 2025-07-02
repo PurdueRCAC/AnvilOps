@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import HelpTooltip from "./HelpTooltip";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -47,17 +48,10 @@ export const EnvVarGrid = ({
       <span className="text-sm col-span-1">Value</span>
       <span className="text-sm col-span-1 flex items-center justify-start gap-1">
         Sensitive
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HelpCircle className="inline text-black-4 cursor-help" size={15} />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>
-              The values of sensitive environment variables cannot be viewed
-            </p>
-            <p>in the app settings, and their names cannot be changed later.</p>
-          </TooltipContent>
-        </Tooltip>
+        <HelpTooltip size={15}>
+          <p>The values of sensitive environment variables cannot be viewed</p>
+          <p>in the app settings, and their names cannot be changed later.</p>
+        </HelpTooltip>
       </span>
       <span></span>
       {envVars.map(({ name, value, isSensitive }, index) => {

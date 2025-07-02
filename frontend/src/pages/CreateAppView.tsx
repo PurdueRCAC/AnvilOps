@@ -24,6 +24,7 @@ import {
   Cable,
   Check,
   Code2,
+  Component,
   Container,
   Database,
   FolderRoot,
@@ -52,6 +53,7 @@ export default function CreateAppView() {
   const [search] = useSearchParams();
 
   const [formState, setFormState] = useState<AppInfoFormData>({
+    groupOption: "standalone",
     env: [],
     mounts: [],
     orgId: search.has("org")
@@ -112,6 +114,11 @@ export default function CreateAppView() {
                 rootDir: formData.get("rootDir")?.toString() ?? null,
                 mounts: formState.mounts.filter((it) => it.path.length > 0),
                 imageTag: formData.get("imageTag")?.toString() ?? null,
+                appGroup:
+                  formState.groupOption === "standalone" ||
+                  formState.groupOption === "create-new"
+                    ? { type: formState.groupOption }
+                    : { type: "add-to", id: parseInt(formState.groupOption) },
               },
             });
 
@@ -121,7 +128,7 @@ export default function CreateAppView() {
           }
         }}
       >
-        <h2 className="font-bold text-3xl mb-4">Create a Project</h2>
+        <h2 className="font-bold text-3xl mb-4">Create an App</h2>
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label htmlFor="selectOrg" className="pb-1">
@@ -195,6 +202,7 @@ type Env = { name: string; value: string | null; isSensitive: boolean }[];
 type NonNullableEnv = { name: string; value: string; isSensitive: boolean }[];
 
 export type AppInfoFormData = {
+  groupOption: string;
   env: Env;
   mounts: Mounts;
   orgId?: number;
@@ -207,6 +215,7 @@ export const AppConfigFormFields = ({
   state,
   setState,
   hideSubdomainInput,
+  hideGroupSelect,
   defaults,
 }: {
   state: AppInfoFormData;
@@ -214,11 +223,12 @@ export const AppConfigFormFields = ({
     React.SetStateAction<AppInfoFormData & { hidden?: boolean }>
   >;
   hideSubdomainInput?: boolean;
+  hideGroupSelect?: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
   };
 }) => {
-  const { source, builder, env, mounts, orgId, repoId } = state;
+  const { groupOption, source, builder, env, mounts, orgId, repoId } = state;
 
   const { user } = useContext(UserContext);
 
@@ -236,6 +246,19 @@ export const AppConfigFormFields = ({
     {
       enabled:
         orgId !== undefined && selectedOrg?.githubConnected && source === "git",
+    },
+  );
+
+  const {
+    data: groups,
+    isPending,
+    refetch,
+  } = api.useQuery(
+    "get",
+    "/org/{orgId}/groups",
+    { params: { path: { orgId: orgId! } } },
+    {
+      enabled: orgId !== undefined,
     },
   );
 
@@ -319,7 +342,82 @@ export const AppConfigFormFields = ({
           setRepo={(repo) => setState({ ...state, repoId: repo })}
         />
       )}
-      <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Source Options</h3>
+      {!hideGroupSelect && (
+        <>
+          <h3 className="mt-4 font-bold pb-1 border-b">Group Options</h3>
+          <div className="space-y-2">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <Label htmlFor="selectGroup" className="pb-1">
+                  <Component className="inline" size={16} />
+                  Group
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
+              <p className="text-sm text-black-2">
+                Applications can be created as standalone apps, or as part of a
+                group of microservices.
+              </p>
+            </div>
+            <Select
+              required
+              onValueChange={(groupOption) =>
+                setState({ ...state, groupOption: groupOption })
+              }
+              value={groupOption}
+              name="group"
+              defaultValue={
+                defaults && !defaults?.config?.appGroup.standalone
+                  ? defaults?.config?.appGroup.id?.toString()
+                  : "standalone"
+              }
+            >
+              <SelectTrigger className="w-full" id="selectGroup">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="standalone">Standalone app</SelectItem>
+                  <SelectItem value="create-new">Create new group</SelectItem>
+                  {groups?.length && (
+                    <>
+                      <SelectLabel>Add to existing group</SelectLabel>
+                      {groups?.map((group) => (
+                        <SelectItem value={group.id.toString()}>
+                          {group.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            {groupOption === "create-new" && (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <Label htmlFor="groupName" className="pb-1">
+                    Group Name
+                  </Label>
+                  <span
+                    className="text-red-500 cursor-default"
+                    title="This field is required."
+                  >
+                    *
+                  </span>
+                </div>
+                <Input required placeholder="Group name" />
+              </>
+            )}
+          </div>
+        </>
+      )}
+      <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
           <Label htmlFor="deploymentSource" className="pb-1">
@@ -508,7 +606,7 @@ export const AppConfigFormFields = ({
 
       {source === "git" && (
         <>
-          <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Build Options</h3>
+          <h3 className="mt-4 font-bold pb-1 border-b">Build Options</h3>
 
           <div>
             <div className="flex items-baseline gap-2">
@@ -602,7 +700,7 @@ export const AppConfigFormFields = ({
         </>
       )}
 
-      <h3 className="mt-4 font-bold mb-2 pb-1 border-b">Deployment Options</h3>
+      <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
 
       {!hideSubdomainInput && (
         <div className="space-y-2">
