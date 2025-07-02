@@ -67,6 +67,10 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     console.error("Failed to delete namespace:", err);
   }
 
+  await db.log.deleteMany({
+    where: { deployment: { appId } },
+  });
+
   // cascade deletes Deployments
   await db.deploymentConfig.deleteMany({
     where: { deployment: { appId } },
@@ -79,7 +83,7 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     await db.deploymentConfig.delete({
       where: { id: deploymentConfigTemplateId },
     });
-    if (appGroup._count.apps === 1) {
+    if (appGroup._count.apps === 0) {
       await db.appGroup.delete({ where: { id: appGroup.id } });
     }
   } catch (err) {
