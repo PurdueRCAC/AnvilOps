@@ -1104,8 +1104,7 @@ components:
               displayName:
                 type: string
               status:
-                type: string
-                enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+                $ref: "#/components/schemas/DeploymentStatus"
               source:
                 type: string
                 enum: [GIT, IMAGE]
@@ -1259,7 +1258,7 @@ components:
       required: [path, amountInMiB]
     DeploymentStatus:
       type: string
-      enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+      enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
     LogLine:
       type: object
       properties:

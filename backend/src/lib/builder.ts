@@ -152,6 +152,9 @@ export async function createBuildJob(data: {
     return undefined;
   }
 
+  console.log(
+    `Starting build job for deployment ${data.deploymentId} of app ${data.appId}`,
+  );
   const job = await createJob(data);
 
   return job.metadata.uid;
@@ -218,6 +221,11 @@ async function queueBuildJob({
   await db.deployment.updateMany({
     where: { appId },
     data: { status: "STOPPED" },
+  });
+
+  await db.deployment.update({
+    where: { id: deploymentId },
+    data: { status: "QUEUED" },
   });
 
   await db.queuedJob.create({

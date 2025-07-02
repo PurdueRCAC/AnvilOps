@@ -221,6 +221,8 @@ enum LogType {
 enum DeploymentStatus {
   // Creating and starting the build job
   PENDING
+  // Build job is waiting in the queue
+  QUEUED
   // Building the image and pushing it to the registry
   BUILDING
   // Applying the update to the cluster
