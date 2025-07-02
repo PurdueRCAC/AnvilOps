@@ -72,11 +72,18 @@ const OrgApps = ({
                 </Link>
               </p>
               {app.source === "GIT" ? (
-                <p className="text-sm text-black-4 z-10">
-                  Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
+                <p className="text-sm text-black-4">
+                  Commit{" "}
+                  <a href={`${app.repositoryURL}/commit/${app.commitHash}`}>
+                    <code className="relative z-10">
+                      {app.commitHash?.slice(0, 8)}
+                    </code>
+                  </a>{" "}
+                  on{" "}
                   <a
                     href={`${app.repositoryURL}/tree/${app.branch}`}
                     target="_blank"
+                    className="relative z-10"
                   >
                     <GitBranch className="inline" size={16} />{" "}
                     <code>{app.branch}</code>
