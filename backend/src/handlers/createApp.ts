@@ -4,6 +4,10 @@ import type { Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { DeploymentSource } from "../generated/prisma/enums.ts";
 import type {
+  AppGroupCreateInput,
+  AppGroupCreateNestedOneWithoutAppsInput,
+  AppGroupCreateOrConnectWithoutAppsInput,
+  AppGroupCreateWithoutAppsInput,
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
@@ -130,6 +134,33 @@ const createApp: HandlerMap["createApp"] = async (
     imageTag: appData.imageTag,
   };
 
+  let appGroup: AppGroupCreateNestedOneWithoutAppsInput;
+  switch (appData.appGroup.type) {
+    case "standalone":
+      appGroup = {
+        create: {
+          name: `${appData.name}-${randomBytes(4).toString("hex")}`,
+          org: { connect: { id: appData.orgId } },
+          isMono: true,
+        },
+      };
+      break;
+    case "create-new":
+      appGroup = {
+        create: {
+          name: appData.appGroup.name,
+          org: { connect: { id: appData.orgId } },
+        },
+      };
+      break;
+    default:
+      appGroup = {
+        connect: {
+          id: appData.appGroup.id,
+        },
+      };
+      break;
+  }
   try {
     app = await db.app.create({
       data: {
@@ -145,17 +176,7 @@ const createApp: HandlerMap["createApp"] = async (
         deploymentConfigTemplate: {
           create: deploymentConfig,
         },
-        appGroup: {
-          // TODO: connect to existing appgroup or create
-          create: {
-            name: `${appData.name}-${randomBytes(4).toString("hex")}`,
-            org: {
-              connect: {
-                id: appData.orgId,
-              },
-            },
-          },
-        },
+        appGroup,
       },
     });
     app = await db.app.update({

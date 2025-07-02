@@ -204,19 +204,19 @@ const handlers = {
         return json(401, res, {});
       }
 
-      const apps = await db.app.findMany({
+      const appGroups = await db.appGroup.findMany({
         where: { orgId },
         include: {
-          deployments: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            select: {
-              status: true,
-              commitHash: true,
-              config: { select: { source: true, imageTag: true } },
+          apps: {
+            include: {
+              deploymentConfigTemplate: true,
+              deployments: {
+                include: {
+                  config: true,
+                },
+              },
             },
           },
-          deploymentConfigTemplate: true,
         },
       });
       const users = await db.user.findMany({
@@ -240,35 +240,42 @@ const handlers = {
       });
 
       let octokit: Octokit;
-      const appRes: components["schemas"]["Org"]["apps"] = await Promise.all(
-        apps.map(async (app) => {
-          let repoURL: string;
-          if (app.deploymentConfigTemplate.source === "GIT") {
-            if (!octokit) {
-              octokit = await getOctokit(result.githubInstallationId);
-            }
-            const repo = await getRepoById(
-              octokit,
-              app.deploymentConfigTemplate.repositoryId,
+
+      const appGroupRes: components["schemas"]["Org"]["appGroups"] =
+        await Promise.all(
+          appGroups.map(async (group) => {
+            const apps = await Promise.all(
+              group.apps.map(async (app) => {
+                let repoURL: string;
+                if (app.deploymentConfigTemplate.source === "GIT") {
+                  if (!octokit) {
+                    octokit = await getOctokit(result.githubInstallationId);
+                  }
+                  const repo = await getRepoById(
+                    octokit,
+                    app.deploymentConfigTemplate.repositoryId,
+                  );
+                  repoURL = repo.html_url;
+                }
+                return {
+                  id: app.id,
+                  displayName: app.displayName,
+                  status: app.deployments[0]?.status,
+                  source: app.deployments[0]?.config?.source,
+                  imageTag: app.deployments[0]?.config?.imageTag,
+                  repositoryURL: repoURL,
+                  branch: app.deploymentConfigTemplate.branch,
+                  commitHash: app.deployments[0]?.commitHash,
+                  link:
+                    app.deployments[0]?.status === "COMPLETE"
+                      ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                      : undefined,
+                };
+              }),
             );
-            repoURL = repo.html_url;
-          }
-          return {
-            id: app.id,
-            displayName: app.displayName,
-            status: app.deployments[0]?.status,
-            source: app.deployments[0]?.config?.source,
-            imageTag: app.deployments[0]?.config?.imageTag,
-            repositoryURL: repoURL,
-            branch: app.deploymentConfigTemplate.branch,
-            commitHash: app.deployments[0]?.commitHash,
-            link:
-              app.deployments[0]?.status === "COMPLETE"
-                ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
-                : undefined,
-          } satisfies components["schemas"]["Org"]["apps"][0];
-        }),
-      );
+            return { ...group, apps };
+          }),
+        );
 
       return json(200, res, {
         id: result.id,
@@ -280,7 +287,7 @@ const handlers = {
           permissionLevel: user.orgs[0].permissionLevel,
         })),
         githubInstallationId: result.githubInstallationId,
-        apps: appRes,
+        appGroups: appGroupRes,
       });
     } catch (e) {
       console.log((e as Error).message);
@@ -394,6 +401,7 @@ const handlers = {
             orderBy: { createdAt: "desc" },
             include: { config: true },
           },
+          appGroup: { select: { isMono: true } },
           deploymentConfigTemplate: { include: { mounts: true } },
         },
       });
@@ -460,6 +468,10 @@ const handlers = {
           rootDir: app.deploymentConfigTemplate.rootDir,
           builder: app.deploymentConfigTemplate.builder,
           repositoryId: app.deploymentConfigTemplate.repositoryId,
+          appGroup: {
+            standalone: app.appGroup.isMono,
+            id: app.appGroupId,
+          },
         },
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)
@@ -503,7 +515,34 @@ const handlers = {
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
-
+  listOrgGroups: async function (
+    ctx: Context<never, { orgId: number }>,
+    req: ExpressRequest,
+    res: ExpressResponse,
+  ): Promise<
+    HandlerResponse<{
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": { id: number; name: string }[] };
+      };
+    }>
+  > {
+    const orgId = ctx.request.params.orgId;
+    const { appGroups } = await db.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        appGroups: {
+          select: { id: true, name: true },
+          where: { isMono: false },
+        },
+      },
+    });
+    return json(
+      200,
+      res,
+      appGroups.map((group) => ({ id: group.id, name: group.name })),
+    );
+  },
   createApp,
   updateApp,
   deleteApp,

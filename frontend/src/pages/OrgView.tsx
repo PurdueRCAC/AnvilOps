@@ -172,7 +172,7 @@ const OrgSection = ({
                     </Suspense>
                 </Card>
             ) : null} */}
-        <Card title="Apps">
+        {/* <Card title="Apps">
           <Suspense fallback={<p>Loading...</p>}>
             <div className="overflow-y-auto h-90">
               {data.apps.map((app) => (
@@ -189,7 +189,7 @@ const OrgSection = ({
               ))}
             </div>
           </Suspense>
-        </Card>
+        </Card> */}
         <Card title="Danger">
           <div className="flex items-center justify-center p-4 size-full">
             <div className="flex flex-col items-center justify-center gap-4 bg-stone-200/50 rounded-sm shadow-inner size-full">

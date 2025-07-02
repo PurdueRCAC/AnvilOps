@@ -93,6 +93,21 @@ export default function CreateAppView() {
             appName = tag[tag.length - 1].split(":")[0];
           }
           try {
+            let appGroup: components["schemas"]["NewApp"]["appGroup"];
+            switch (formState.groupOption) {
+              case "standalone":
+                appGroup = { type: "standalone" };
+                break;
+              case "create-new":
+                appGroup = {
+                  type: "create-new",
+                  name: formData.get("groupName")!.toString(),
+                };
+                break;
+              default:
+                appGroup = { type: "add-to", id: formState.groupId! };
+                break;
+            }
             const result = await createApp({
               body: {
                 source: formState.source!,
@@ -114,11 +129,7 @@ export default function CreateAppView() {
                 rootDir: formData.get("rootDir")?.toString() ?? null,
                 mounts: formState.mounts.filter((it) => it.path.length > 0),
                 imageTag: formData.get("imageTag")?.toString() ?? null,
-                appGroup:
-                  formState.groupOption === "standalone" ||
-                  formState.groupOption === "create-new"
-                    ? { type: formState.groupOption }
-                    : { type: "add-to", id: parseInt(formState.groupOption) },
+                appGroup,
               },
             });
 
@@ -203,6 +214,7 @@ type NonNullableEnv = { name: string; value: string; isSensitive: boolean }[];
 
 export type AppInfoFormData = {
   groupOption: string;
+  groupId?: number;
   env: Env;
   mounts: Mounts;
   orgId?: number;
@@ -228,8 +240,10 @@ export const AppConfigFormFields = ({
     config?: components["schemas"]["DeploymentConfig"];
   };
 }) => {
-  const { groupOption, source, builder, env, mounts, orgId, repoId } = state;
+  const { groupOption, groupId, source, builder, env, mounts, orgId, repoId } =
+    state;
 
+  console.log(groupOption);
   const { user } = useContext(UserContext);
 
   const selectedOrg =
@@ -249,11 +263,7 @@ export const AppConfigFormFields = ({
     },
   );
 
-  const {
-    data: groups,
-    isPending,
-    refetch,
-  } = api.useQuery(
+  const { data: groups, isPending: groupsLoading } = api.useQuery(
     "get",
     "/org/{orgId}/groups",
     { params: { path: { orgId: orgId! } } },
@@ -261,6 +271,7 @@ export const AppConfigFormFields = ({
       enabled: orgId !== undefined,
     },
   );
+  console.log(groups);
 
   const { data: branches, isPending: branchesLoading } = api.useQuery(
     "get",
@@ -366,16 +377,23 @@ export const AppConfigFormFields = ({
             </div>
             <Select
               required
-              onValueChange={(groupOption) =>
-                setState({ ...state, groupOption: groupOption })
+              disabled={orgId === undefined || groupsLoading}
+              onValueChange={(groupOption) => {
+                const groupId = parseInt(groupOption);
+                if (isNaN(groupId)) {
+                  setState({
+                    ...state,
+                    groupOption: groupOption,
+                    groupId: undefined,
+                  });
+                } else {
+                  setState({ ...state, groupOption: "add-to", groupId });
+                }
+              }}
+              value={
+                groupOption === "add-to" ? groupId?.toString() : groupOption
               }
-              value={groupOption}
               name="group"
-              defaultValue={
-                defaults && !defaults?.config?.appGroup.standalone
-                  ? defaults?.config?.appGroup.id?.toString()
-                  : "standalone"
-              }
             >
               <SelectTrigger className="w-full" id="selectGroup">
                 <SelectValue />
@@ -384,11 +402,13 @@ export const AppConfigFormFields = ({
                 <SelectGroup>
                   <SelectItem value="standalone">Standalone app</SelectItem>
                   <SelectItem value="create-new">Create new group</SelectItem>
-                  {groups?.length && (
+                  {groups && groups.length > 0 && (
                     <>
-                      <SelectLabel>Add to existing group</SelectLabel>
+                      <SelectLabel key="add-label">
+                        Add to existing group
+                      </SelectLabel>
                       {groups?.map((group) => (
-                        <SelectItem value={group.id.toString()}>
+                        <SelectItem key={group.id} value={group.id.toString()}>
                           {group.name}
                         </SelectItem>
                       ))}
@@ -411,7 +431,7 @@ export const AppConfigFormFields = ({
                     *
                   </span>
                 </div>
-                <Input required placeholder="Group name" />
+                <Input required placeholder="Group name" name="groupName" />
               </>
             )}
           </div>
@@ -504,8 +524,8 @@ export const AppConfigFormFields = ({
                         Object.groupBy(repos, (repo) => repo.owner!),
                       ).map(([owner, repos]) => (
                         <>
-                          <SelectGroup>
-                            <SelectLabel>{owner}</SelectLabel>
+                          <SelectGroup key={`group-${owner}`}>
+                            <SelectLabel key={owner}>{owner}</SelectLabel>
                             {repos?.map((repo) => (
                               <SelectItem
                                 key={repo.id}

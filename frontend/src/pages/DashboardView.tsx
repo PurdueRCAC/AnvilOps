@@ -6,6 +6,8 @@ import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./app/AppView";
 import { GitHubIcon } from "./CreateAppView";
+import type { components } from "@/generated/openapi";
+import { cn } from "@/lib/utils";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);
@@ -53,64 +55,24 @@ const OrgApps = ({
     },
   });
 
-  const apps =
-    org.apps.length == 0 ? (
+  const appGroups =
+    org.appGroups.length == 0 ? (
       <p className="opacity-50">No apps found in this organization.</p>
     ) : (
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {org.apps.map((app) => (
-          <div
-            key={app.id}
-            className="flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative"
-          >
-            <div>
-              <p className="text-xl font-medium mb-1">
-                <Link to={`/app/${app.id}`}>
-                  {app.displayName}
-                  {/* Make this link's tap target take up the entire card */}
-                  <span className="absolute inset-0" />
-                </Link>
-              </p>
-              {app.source === "GIT" ? (
-                <p className="text-sm text-black-4">
-                  Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
-                  <a
-                    href={`${app.repositoryURL}/tree/${app.branch}`}
-                    target="_blank"
-                  >
-                    <GitBranch className="inline" size={16} />{" "}
-                    <code>{app.branch}</code>
-                  </a>
-                </p>
-              ) : app.source === "IMAGE" ? (
-                <p className="text-sm text-black-4">
-                  <Container className="inline" size={16} /> {app.imageTag}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex justify-between items-center">
-              <Status status={app.status} className="text-base text-black-4" />
-              {app.link ? (
-                <a
-                  href={app.link}
-                  target="_blank"
-                  className="text-base text-black-4 space-x-1 hover:underline z-10"
-                >
-                  <span>View Deployment</span>
-                  <ExternalLink className="size-4 inline" />
-                </a>
-              ) : null}
-            </div>
-          </div>
+        {org.appGroups.map((group) => (
+          <AppGroup appGroup={group} />
         ))}
       </div>
     );
 
   return (
     <div>
-      <h3 className="text-xl font-medium mb-2">{org?.name}</h3>
+      <h3 className="text-xl font-medium mb-4 border-b-gold border-b-2">
+        {org?.name}
+      </h3>
       {org.githubInstallationId ? (
-        apps
+        appGroups
       ) : permissionLevel === "OWNER" ? (
         <div className="w-fit">
           <p className="mt-4">
@@ -138,6 +100,88 @@ const OrgApps = ({
           </p>
         </>
       )}
+    </div>
+  );
+};
+
+const AppGroup = ({
+  appGroup,
+}: {
+  appGroup: components["schemas"]["Org"]["appGroups"][0];
+}) => {
+  return (
+    <>
+      <div
+        key={appGroup.id}
+        className={
+          !appGroup.isMono
+            ? "rounded-md bg-stone-50 col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pb-6 border border-stone-300"
+            : ""
+        }
+      >
+        <h3 className="col-span-4 text-lg text-black">
+          {appGroup.isMono ? "" : appGroup.name}
+        </h3>
+        {appGroup.apps.map((app) => (
+          <AppCard app={app} appGroup={appGroup} />
+        ))}
+      </div>
+    </>
+  );
+};
+
+const AppCard = ({
+  app,
+  appGroup,
+}: {
+  app: components["schemas"]["AppSummary"];
+  appGroup: components["schemas"]["Org"]["appGroups"][0];
+}) => {
+  return (
+    <div
+      key={app.id}
+      className={cn(
+        "flex flex-col justify-between border border-input rounded-lg hover:bg-gray-100 transition-colors p-4 w-full h-32 relative",
+        !appGroup.isMono
+          ? "bg-gray-50 shadow-sm shadow-stone-400"
+          : "shadow-sm shadow-stone-300",
+      )}
+    >
+      <div>
+        <p className="text-xl font-medium mb-1">
+          <Link to={`/app/${app.id}`}>
+            {app.displayName}
+            {/* Make this link's tap target take up the entire card */}
+            <span className="absolute inset-0" />
+          </Link>
+        </p>
+        {app.source === "GIT" ? (
+          <p className="text-sm text-black-4">
+            Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
+            <a href={`${app.repositoryURL}/tree/${app.branch}`} target="_blank">
+              <GitBranch className="inline" size={16} />{" "}
+              <code>{app.branch}</code>
+            </a>
+          </p>
+        ) : app.source === "IMAGE" ? (
+          <p className="text-sm text-black-4">
+            <Container className="inline" size={16} /> {app.imageTag}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex justify-between items-center">
+        <Status status={app.status} className="text-base text-black-4" />
+        {app.link ? (
+          <a
+            href={app.link}
+            target="_blank"
+            className="text-base text-black-4 space-x-1 hover:underline z-10"
+          >
+            <span>View Deployment</span>
+            <ExternalLink className="size-4 inline" />
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 };
