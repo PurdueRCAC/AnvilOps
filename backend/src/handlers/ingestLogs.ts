@@ -1,5 +1,6 @@
 import type { LogType } from "../generated/prisma/enums.ts";
-import { db } from "../lib/db.ts";
+import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
+import { db, publish } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 const buildLogSecret = process.env.BUILD_LOGGING_INGEST_SECRET;
@@ -89,21 +90,41 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     }
   }
 
-  await db.log.createMany({
-    data: lines
-      .map((line, i) => {
-        if (!line.deploymentId || isNaN(line.deploymentId)) return null;
+  const logLines = lines
+    .map((line, i) => {
+      if (!line.deploymentId || isNaN(line.deploymentId)) return null;
 
-        return {
-          content: line.content,
-          deploymentId: line.deploymentId,
-          type: logType,
-          timestamp: new Date(line.content["time"]),
-          index: i,
-        };
-      })
-      .filter((it) => it !== null),
+      return {
+        content: line.content,
+        deploymentId: line.deploymentId,
+        type: logType,
+        timestamp: new Date(line.content["time"]),
+        index: i,
+        podName: line.content["kubernetes"]["pod_name"],
+      } satisfies LogUncheckedCreateInput;
+    })
+    .filter((it) => it !== null);
+
+  await db.log.createMany({
+    data: logLines,
   });
+
+  try {
+    await Promise.all(
+      deploymentIds.map(
+        async (deploymentId) => await notifyLogStream(deploymentId),
+      ),
+    );
+  } catch (error) {
+    console.error("Failed to notify log listeners:", error);
+  }
 
   return json(200, res, {});
 };
+
+export async function notifyLogStream(deploymentId: number) {
+  if (typeof deploymentId !== "number") {
+    throw new Error("Expected deploymentId to be a number");
+  }
+  await publish(`deployment_${deploymentId}_logs`, "");
+}

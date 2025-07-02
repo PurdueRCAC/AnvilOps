@@ -5,6 +5,7 @@ generator client {
   moduleFormat           = "esm"
   generatedFileExtension = "ts"
   importFileExtension    = "ts"
+  previewFeatures        = ["driverAdapters", "queryCompiler"]
 }
 
 generator json {
@@ -177,6 +178,7 @@ model Log {
   timestamp    DateTime
   index        Int        @default(0) // Used to order logs with the same timestamp
   content      Json
+  podName      String?
 }
 
 // A temporary object used to keep track of state while going through the GitHub OAuth flow

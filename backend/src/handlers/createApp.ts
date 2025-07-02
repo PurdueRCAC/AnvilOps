@@ -148,7 +148,7 @@ const createApp: HandlerMap["createApp"] = async (
         appGroup: {
           // TODO: connect to existing appgroup or create
           create: {
-            name: appData.name,
+            name: `${appData.name}-${randomBytes(4).toString("hex")}`,
             org: {
               connect: {
                 id: appData.orgId,

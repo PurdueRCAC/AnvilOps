@@ -35,13 +35,19 @@ COPY backend/patches/ ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 # BACKEND: generate Prisma client
-FROM base AS backend_build
+FROM base AS backend_codegen
 
 WORKDIR /app
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
+
+# BACKEND: run type checker
+FROM backend_codegen AS backend_build
+COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
+COPY backend .
+RUN npx tsc --noEmit
 
 # SWAGGER UI: install packages and build
 FROM base AS swagger_build
@@ -58,10 +64,6 @@ COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY openapi/*.yaml /openapi/
-COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
-COPY --from=backend_build /app/src/generated/prisma ./src/generated/prisma
-COPY backend .
-
-RUN npx tsc --noEmit
+COPY --from=backend_build /app .
 
 CMD ["npm", "run", "start:prod"]

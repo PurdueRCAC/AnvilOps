@@ -770,76 +770,10 @@ paths:
         "200":
           description: Success
           content:
-            application/json:
+            text/event-stream:
               schema:
-                type: object
-                properties:
-                  pods:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                        name:
-                          type: string
-                        createdAt:
-                          type: string
-                        startedAt:
-                          type: string
-                        deploymentId:
-                          type: number
-                          format: int64
-                        node:
-                          type: string
-                        podScheduled:
-                          type: boolean
-                        podReady:
-                          type: boolean
-                        image:
-                          type: string
-                        containerReady:
-                          type: boolean
-                        containerState:
-                          $ref: "#/components/schemas/ContainerState"
-                        lastState:
-                          $ref: "#/components/schemas/ContainerState"
-                        ip:
-                          type: string
-                  statefulSet:
-                    type: object
-                    properties:
-                      readyReplicas:
-                        type: number
-                      updatedReplicas:
-                        type: number
-                      replicas:
-                        type: number
-                      generation:
-                        type: number
-                      observedGeneration:
-                        type: number
-                      currentRevision:
-                        type: string
-                      updateRevision:
-                        type: string
-                  events:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        message:
-                          type: string
-                        reason:
-                          type: string
-                        count:
-                          type: number
-                        firstTimestamp:
-                          type: string
-                          format: date-time
-                        lastTimestamp:
-                          type: string
-                          format: date-time
+                type: string
+                description: A server-sent events (SSE) response. When the state changes, a new object will be pushed onto the stream with the new state. Each event will follow the schema of '#/components/schemas/AppStatus'.
 
   /app/{appId}/deployments:
     parameters:
@@ -925,30 +859,15 @@ paths:
       responses:
         "404":
           description: App not found
+        "400":
+          description: Bad request
         "200":
           description: Success
           content:
-            application/json:
+            text/event-stream:
               schema:
-                type: object
-                properties:
-                  logs:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        time:
-                          type: string
-                          format: date-time
-                        log:
-                          type: string
-                        type:
-                          $ref: "#/components/schemas/LogType"
-                        id:
-                          type: number
-                          format: int64
-                required: [logs]
-
+                description: A server-sent events (SSE) response. Each event will follow the format in '#/components/schemas/LogLine'.
+                type: string
   /logs/ingest:
     post:
       operationId: ingestLogs
@@ -1341,6 +1260,22 @@ components:
     DeploymentStatus:
       type: string
       enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+    LogLine:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        log:
+          type: string
+        type:
+          $ref: "#/components/schemas/LogType"
+        pod:
+          type: string
+        id:
+          type: number
+          format: int64
+      required: [id, time, log, type, pod]
     LogType:
       type: string
       enum: [SYSTEM, BUILD, RUNTIME]
@@ -1479,3 +1414,72 @@ components:
                   type: string
                 reason:
                   type: string
+    AppStatus:
+      type: object
+      properties:
+        pods:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              createdAt:
+                type: string
+              startedAt:
+                type: string
+              deploymentId:
+                type: number
+                format: int64
+              node:
+                type: string
+              podScheduled:
+                type: boolean
+              podReady:
+                type: boolean
+              image:
+                type: string
+              containerReady:
+                type: boolean
+              containerState:
+                $ref: "#/components/schemas/ContainerState"
+              lastState:
+                $ref: "#/components/schemas/ContainerState"
+              ip:
+                type: string
+        statefulSet:
+          type: object
+          properties:
+            readyReplicas:
+              type: number
+            updatedReplicas:
+              type: number
+            replicas:
+              type: number
+            generation:
+              type: number
+            observedGeneration:
+              type: number
+            currentRevision:
+              type: string
+            updateRevision:
+              type: string
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+              reason:
+                type: string
+              count:
+                type: number
+              firstTimestamp:
+                type: string
+                format: date-time
+              lastTimestamp:
+                type: string
+                format: date-time

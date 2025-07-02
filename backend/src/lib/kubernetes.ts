@@ -5,7 +5,9 @@ import {
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
+  Log,
   PatchStrategy,
+  Watch,
   type V1EnvVar,
   type V1Namespace,
   type V1StatefulSet,
@@ -30,6 +32,8 @@ export const k8s = {
   apps: kc.makeApiClient(AppsV1Api),
   batch: kc.makeApiClient(BatchV1Api),
   full: KubernetesObjectApi.makeApiClient(kc),
+  log: new Log(kc),
+  watch: new Watch(kc),
 };
 
 const NAMESPACE_PREFIX = "anvilops-";

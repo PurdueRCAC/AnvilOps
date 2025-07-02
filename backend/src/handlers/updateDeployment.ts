@@ -7,6 +7,7 @@ import {
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { log } from "./githubWebhook.ts";
+import { notifyLogStream } from "./ingestLogs.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -148,6 +149,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           },
         },
       });
+      await notifyLogStream(deployment.id);
     }
   }
 
