@@ -56,7 +56,7 @@ export default function CreateAppView() {
     mounts: [],
     orgId: search.has("org")
       ? parseInt(search.get("org")!.toString())
-      : undefined,
+      : user?.orgs?.[0]?.id,
     repoId: search.has("repo")
       ? parseInt(search.get("repo")!.toString())
       : undefined,
@@ -405,19 +405,17 @@ export const AppConfigFormFields = ({
                     ? Object.entries(
                         Object.groupBy(repos, (repo) => repo.owner!),
                       ).map(([owner, repos]) => (
-                        <>
-                          <SelectGroup>
-                            <SelectLabel>{owner}</SelectLabel>
-                            {repos?.map((repo) => (
-                              <SelectItem
-                                key={repo.id}
-                                value={repo.id!.toString()}
-                              >
-                                {repo.owner}/{repo.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </>
+                        <SelectGroup key={owner}>
+                          <SelectLabel>{owner}</SelectLabel>
+                          {repos?.map((repo) => (
+                            <SelectItem
+                              key={repo.id}
+                              value={repo.id!.toString()}
+                            >
+                              {repo.owner}/{repo.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))
                     : null}
                 </SelectGroup>
@@ -458,8 +456,9 @@ export const AppConfigFormFields = ({
             <Select
               required
               name="branch"
+              key={branchesLoading.toString()} // Force this <Select> to rerender when the branches finish loading, which will make it use the new default value
               disabled={repoId === undefined || branchesLoading}
-              defaultValue={defaults?.config?.branch ?? undefined}
+              defaultValue={defaults?.config?.branch ?? branches?.default}
             >
               <SelectTrigger className="w-full" id="selectBranch">
                 <SelectValue placeholder="Select a branch" />
