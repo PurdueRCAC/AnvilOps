@@ -275,6 +275,9 @@ export async function dequeueBuildJob() {
         config: true,
       },
     });
+    console.log(
+      `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
+    );
     const job = await createJob({
       ...result,
       appId: deployment.appId,
@@ -284,5 +287,7 @@ export async function dequeueBuildJob() {
       where: { id: deployment.id },
       data: { builderJobId: job.metadata.uid },
     });
+  } else {
+    console.log("Build job queue is empty.");
   }
 }
