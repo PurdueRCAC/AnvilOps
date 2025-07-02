@@ -1,4 +1,3 @@
-import type { V1StatefulSet } from "@kubernetes/client-node";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -189,7 +188,7 @@ const handlers = {
   > {
     try {
       const orgId: number = ctx.request.params.orgId;
-      const result = await db.organization.findFirst({
+      const org = await db.organization.findFirst({
         where: {
           id: orgId,
           users: {
@@ -198,54 +197,41 @@ const handlers = {
             },
           },
         },
-      });
-
-      if (!result) {
-        return json(401, res, {});
-      }
-
-      const apps = await db.app.findMany({
-        where: { orgId },
         include: {
-          deployments: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            select: {
-              status: true,
-              commitHash: true,
-              config: { select: { source: true, imageTag: true } },
+          apps: {
+            include: {
+              deployments: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                select: {
+                  status: true,
+                  commitHash: true,
+                  config: { select: { source: true, imageTag: true } },
+                },
+              },
+              deploymentConfigTemplate: true,
             },
           },
-          deploymentConfigTemplate: true,
-        },
-      });
-      const users = await db.user.findMany({
-        where: {
-          orgs: {
-            some: {
-              organizationId: orgId,
-            },
-          },
-        },
-        include: {
-          orgs: {
-            where: {
-              organizationId: orgId,
-            },
+          users: {
             select: {
+              user: { select: { id: true, name: true, email: true } },
               permissionLevel: true,
             },
           },
         },
       });
 
+      if (!org) {
+        return json(401, res, {});
+      }
+
       let octokit: Octokit;
       const appRes: components["schemas"]["Org"]["apps"] = await Promise.all(
-        apps.map(async (app) => {
+        org.apps.map(async (app) => {
           let repoURL: string;
           if (app.deploymentConfigTemplate.source === "GIT") {
             if (!octokit) {
-              octokit = await getOctokit(result.githubInstallationId);
+              octokit = await getOctokit(org.githubInstallationId);
             }
             const repo = await getRepoById(
               octokit,
@@ -271,15 +257,15 @@ const handlers = {
       );
 
       return json(200, res, {
-        id: result.id,
-        name: result.name,
-        members: users.map((user) => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          permissionLevel: user.orgs[0].permissionLevel,
+        id: org.id,
+        name: org.name,
+        members: org.users.map((membership) => ({
+          id: membership.user.id,
+          name: membership.user.name,
+          email: membership.user.email,
+          permissionLevel: membership.permissionLevel,
         })),
-        githubInstallationId: result.githubInstallationId,
+        githubInstallationId: org.githubInstallationId,
         apps: appRes,
       });
     } catch (e) {
@@ -377,7 +363,7 @@ const handlers = {
         headers: { [name: string]: unknown };
         content: { "application/json": components["schemas"]["App"] };
       };
-      401: { headers: { [name: string]: unknown }; content?: never };
+      404: { headers: { [name: string]: unknown }; content?: never };
       500: {
         headers: { [name: string]: unknown };
         content: { "application/json": components["schemas"]["ApiError"] };
@@ -387,7 +373,7 @@ const handlers = {
     try {
       const appId = ctx.request.params.appId;
       const app = await db.app.findUnique({
-        where: { id: appId },
+        where: { id: appId, org: { users: { some: { userId: req.user.id } } } },
         include: {
           deployments: {
             take: 1,
@@ -395,40 +381,35 @@ const handlers = {
             include: { config: true },
           },
           deploymentConfigTemplate: { include: { mounts: true } },
+          org: true,
         },
       });
-      if (!app) return json(401, res, {});
+      if (!app) return json(404, res, {});
 
-      const organization = await db.organization.findFirst({
-        where: {
-          id: app.orgId,
-          users: {
-            some: {
-              userId: req.user.id,
-            },
-          },
-        },
-      });
-
-      if (!organization) return json(401, res, {});
-
-      let repoId: number | undefined, repoURL: string | undefined;
-      if (app.deploymentConfigTemplate.source === "GIT") {
-        const octokit = await getOctokit(organization.githubInstallationId);
-        const repo = await getRepoById(
-          octokit,
-          app.deploymentConfigTemplate.repositoryId,
-        );
-        repoId = repo.id;
-        repoURL = repo.html_url;
-      }
-      let k8sDeployment: V1StatefulSet | undefined;
-      try {
-        k8sDeployment = await k8s.apps.readNamespacedStatefulSet({
-          namespace: getNamespace(app.subdomain),
-          name: app.name,
-        });
-      } catch {}
+      const [{ repoId, repoURL }, k8sDeployment] = await Promise.all([
+        // Fetch repository info if this app is deployed from a Git repository
+        (async () => {
+          if (app.deploymentConfigTemplate.source === "GIT") {
+            const octokit = await getOctokit(app.org.githubInstallationId);
+            const repo = await getRepoById(
+              octokit,
+              app.deploymentConfigTemplate.repositoryId,
+            );
+            return { repoId: repo.id, repoURL: repo.html_url };
+          } else {
+            return { repoId: undefined, repoURL: undefined };
+          }
+        })(),
+        // Fetch the current StatefulSet to read its labels
+        (async () => {
+          try {
+            return await k8s.apps.readNamespacedStatefulSet({
+              namespace: getNamespace(app.subdomain),
+              name: app.name,
+            });
+          } catch {}
+        })(),
+      ]);
 
       const activeDeployment =
         k8sDeployment?.spec?.template?.metadata?.labels?.[

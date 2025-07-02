@@ -209,6 +209,14 @@ model QueuedJob {
   deployment       Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
 
+// Used to cache things like GitHub API responses so that we don't have to fetch them every time.
+// This reduces load on the upstream and makes the site faster.
+model Cache {
+  key       String   @id
+  value     String
+  expiresAt DateTime
+}
+
 enum LogType {
   // System logs created by the AnvilOps backend
   SYSTEM
