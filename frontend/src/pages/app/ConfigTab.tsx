@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { AppConfigFormFields, type AppInfoFormData } from "../CreateAppView";
 import type { App } from "./AppView";
-import type { components } from "@/generated/openapi";
 
 export const ConfigTab = ({
   app,
@@ -22,8 +22,12 @@ export const ConfigTab = ({
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
   const [formState, setFormState] = useState<AppInfoFormData>({
-    env: [...app.config.env, { name: "", value: "", isSensitive: false }],
-    mounts: [...app.config.mounts, { path: "", amountInMiB: 1024 }],
+    env: app.config.env,
+    mounts: app.config.mounts.map((mount) => ({
+      // (remove volumeClaimName because it's not stored in the app's deployment config)
+      amountInMiB: mount.amountInMiB,
+      path: mount.path,
+    })),
     builder: app.config.builder ?? "railpack",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
