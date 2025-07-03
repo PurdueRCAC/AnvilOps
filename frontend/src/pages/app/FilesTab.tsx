@@ -120,8 +120,10 @@ export const FilesTab = ({ app }: { app: App }) => {
       ) : files?.type === "file" ? (
         <div className="flex flex-col items-center justify-center min-h-96">
           <FilePreview
-            file={files!}
-            downloadURL={`/api/app/${app.id}/file/download?path=${path}&volumeClaimName=${params.params.query.volumeClaimName}`}
+            file={files}
+            app={app}
+            path={path}
+            volumeClaimName={params.params.query.volumeClaimName}
           />
         </div>
       ) : files?.type === "directory" && (files?.files?.length ?? 0) > 0 ? (
@@ -161,11 +163,38 @@ export const FilesTab = ({ app }: { app: App }) => {
 
 const FilePreview = ({
   file,
-  downloadURL,
+  path,
+  volumeClaimName,
+  app,
 }: {
   file: { name?: string; fileType?: string; size?: number };
-  downloadURL: string;
+  path: string;
+  volumeClaimName: string;
+  app: App;
 }) => {
+  const [raw, setRaw] = useState(false);
+
+  const downloadURL = `/api/app/${app.id}/file/download?path=${encodeURIComponent(path)}&volumeClaimName=${encodeURIComponent(volumeClaimName)}`;
+
+  const [content, setContent] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const [shouldDownload, setShouldDownload] = useState(false);
+
+  useEffect(() => {
+    if (shouldDownload && content === undefined && !loading && !error) {
+      fetch(downloadURL)
+        .then((response) => response.text())
+        .then((text) => setContent(text))
+        .catch(() => setError(true));
+    }
+  }, [shouldDownload]);
+
+  const requestDownload = () => {
+    if (!shouldDownload) setShouldDownload(true);
+  };
+
   if (file.size! > 1_000_000) {
     // Large files can't be previewed
     return (
@@ -173,7 +202,7 @@ const FilePreview = ({
         <File size={48} />
         <p className="mt-2 text-xl">{file.name}</p>
         <p className="mt-1 opacity-50">{file.fileType}</p>
-        <div className="bg-gray-100 mt-8 rounded-xl p-4">
+        <div className="bg-gray-100 mt-8 rounded-xl p-4 flex items-center justify-between gap-6">
           <p>This file is too large to be previewed.</p>
           <a href={downloadURL}>
             <Button>Download</Button>
@@ -183,5 +212,63 @@ const FilePreview = ({
     );
   }
 
-  return <></>;
+  if (file.fileType?.startsWith("text/")) {
+    requestDownload();
+    return (
+      <div className="w-full">
+        <div className="flex justify-between">
+          <div>
+            <p className="text-xl">{file.name}</p>
+            <p className="opacity-50">
+              {file.fileType} &middot; {formatFileSize(file.size!)}
+            </p>
+          </div>
+          <div>
+            <a href={downloadURL}>
+              <Button>Download</Button>
+            </a>
+          </div>
+        </div>
+        <hr className="mt-2 mb-4" />
+        <div>{content}</div>
+      </div>
+    );
+  }
+
+  switch (file.fileType) {
+    default: {
+      return (
+        <>
+          <File size={48} />
+          <p className="mt-2 text-xl">{file.name}</p>
+          <p className="mt-1 opacity-50">{file.fileType}</p>
+          <div className="bg-gray-100 mt-8 rounded-xl p-4">
+            <p>We can't preview this file type.</p>
+            <Button
+              variant="outline"
+              className="mt-4 mr-4"
+              onClick={() => setRaw(true)}
+            >
+              View Raw
+            </Button>
+            <a href={downloadURL}>
+              <Button>Download</Button>
+            </a>
+          </div>
+        </>
+      );
+    }
+  }
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1000) {
+    return `${bytes} bytes`;
+  } else if (bytes < 1_000_000) {
+    return `${Math.round(bytes / 1000)} kB`;
+  } else if (bytes < 1_000_000_000) {
+    return `${Math.round(bytes / 1_000_000)} MB`;
+  } else {
+    return `${Math.round(bytes / 1_000_000_000)} GB`;
+  }
 };
