@@ -114,8 +114,9 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
       async () =>
         await k8s.default.listNamespacedPod({
           namespace: ns,
+          labelSelector: "anvilops.rcac.purdue.edu/deployment-id",
         }),
-      {},
+      { labelSelector: "anvilops.rcac.purdue.edu/deployment-id" },
       async (newValue) => {
         pods = newValue;
         await update();
