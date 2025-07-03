@@ -312,7 +312,6 @@ export const createLogConfig = (
             timekey: "1s",
             timekey_wait: "0s",
             flush_mode: "immediate",
-            flush_interval: "1s",
           },
         },
       },
