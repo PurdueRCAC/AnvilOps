@@ -65,8 +65,17 @@ app.use(
   }),
 );
 
+// Uploading files should have a higher body size limit
+app.use(
+  /^\/api\/app\/(.*)\/file/,
+  bodyParser.raw({ type: "*", limit: "100mb" }),
+);
+
 // For everything else, the request body should be valid JSON
-app.use(/^\/api(?!((\/github\/webhook)|(\/logs\/ingest)))/, bodyParser.json());
+app.use(
+  /^\/api(?!((\/github\/webhook)|(\/logs\/ingest)|(\/app\/(.*)\/file)))/,
+  bodyParser.json(),
+);
 
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);

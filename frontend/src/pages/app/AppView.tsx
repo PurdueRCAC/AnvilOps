@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ConfigTab } from "./ConfigTab";
 import { DangerZoneTab } from "./DangerZoneTab";
+import { FilesTab } from "./FilesTab";
 import { LogsTab } from "./LogsTab";
 import { OverviewTab } from "./OverviewTab";
 import { StatusTab } from "./StatusTab";
@@ -79,6 +80,9 @@ export default function AppView() {
           <TabsTrigger value="logs">
             <span>Logs</span>
           </TabsTrigger>
+          <TabsTrigger value="files">
+            <span>Files</span>
+          </TabsTrigger>
           <TabsTrigger value="danger">
             <span>Danger</span>
           </TabsTrigger>
@@ -94,10 +98,13 @@ export default function AppView() {
           <StatusTab app={app} activeDeployment={currentDeployment} />
         </TabsContent>
         <TabsContent value="configuration">
-          <ConfigTab app={app} setTab={setTab} refetch={refetch} />
+          <ConfigTab app={app} tab={tab} setTab={setTab} refetch={refetch} />
         </TabsContent>
         <TabsContent value="logs">
           <LogsTab app={app} />
+        </TabsContent>
+        <TabsContent value="files">
+          <FilesTab app={app} />
         </TabsContent>
         <TabsContent value="danger">
           <DangerZoneTab app={app} />

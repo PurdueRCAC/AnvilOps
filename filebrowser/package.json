@@ -1,0 +1,14 @@
+{
+  "name": "filebrowser",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types index.ts"
+  },
+  "devDependencies": {
+    "@types/mime-types": "^3.0.1",
+    "@types/node": "^24.0.10"
+  },
+  "dependencies": {
+    "mime-types": "^3.0.1"
+  }
+}

@@ -10,6 +10,11 @@ import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
 import { deleteAppPod } from "../handlers/deleteAppPod.ts";
+import {
+  downloadAppFile,
+  getAppFile,
+  writeAppFile,
+} from "../handlers/files.ts";
 import { getAppLogs } from "../handlers/getAppLogs.ts";
 import { getAppStatus } from "../handlers/getAppStatus.ts";
 import { getDeployment } from "../handlers/getDeployment.ts";
@@ -37,6 +42,7 @@ import {
 import { db } from "./db.ts";
 import {
   deleteNamespace,
+  generateVolumeName,
   getNamespace,
   k8s,
   namespaceInUse,
@@ -434,6 +440,7 @@ const handlers = {
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
+        name: app.name,
         displayName: app.displayName,
         createdAt: app.createdAt.toISOString(),
         updatedAt: app.updatedAt.toISOString(),
@@ -447,6 +454,7 @@ const handlers = {
           mounts: app.deploymentConfigTemplate.mounts.map((mount) => ({
             amountInMiB: mount.amountInMiB,
             path: mount.path,
+            volumeClaimName: generateVolumeName(mount.path),
           })),
           env: app.deploymentConfigTemplate.displayEnv,
           replicas: app.deploymentConfigTemplate.replicas,
@@ -553,6 +561,9 @@ const handlers = {
   getInstallation,
   getAppStatus,
   deleteAppPod,
+  getAppFile,
+  downloadAppFile,
+  writeAppFile,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

@@ -914,7 +914,8 @@ export const AppConfigFormFields = ({
         </Label>
         <p className="opacity-50 text-sm">
           Preserve files contained at these paths across app restarts. All other
-          files will be discarded.
+          files will be discarded. Every replica will get its own separate
+          volume.
         </p>
         <MountsGrid
           value={mounts}

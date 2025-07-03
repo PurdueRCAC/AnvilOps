@@ -33,6 +33,7 @@ export async function get(key: string): Promise<string | undefined> {
     // Remove expired keys up to once every minute
     try {
       db.cache.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+      lastCleanup = Date.now();
     } catch (error) {
       console.error("Failed to remove expired cache keys:", error);
     }

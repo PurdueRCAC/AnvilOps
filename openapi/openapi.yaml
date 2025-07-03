@@ -905,6 +905,136 @@ paths:
         "204":
           description: Deleted successfully
 
+  /app/{appId}/file:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: volumeClaimName
+        in: query
+        description: The name of the PersistentVolumeClaim to lookup. The corresponding PersistentVolume will be mounted.
+        required: true
+        schema:
+          type: string
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [app]
+      description: Get a file in an app's persistent volume
+      operationId: getAppFile
+      responses:
+        "404":
+          description: App or file not found
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: A list of directory entries
+                    properties:
+                      type:
+                        type: string
+                        enum: [directory]
+                      files:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              description: The file's base name, including its extension
+                              type: string
+                            type:
+                              description: The file's MIME type, or null if unknown or the file is a directory
+                              type: string
+                              nullable: true
+                            isDirectory:
+                              type: boolean
+                          required: [name, type, isDirectory]
+                  - type: object
+                    description: Information about a file
+                    properties:
+                      type:
+                        type: string
+                        enum: [file]
+                      fileType:
+                        type: string
+                        description: The file's MIME type
+                      name:
+                        type: string
+                        description: The file's name, including its extension
+                      modifiedAt:
+                        type: string
+                        format: date-time
+                      createdAt:
+                        type: string
+                        format: date-time
+                      size:
+                        type: number
+                        description: The size of the file in bytes
+    post:
+      tags: [app]
+      description: Create a new file (or update an existing file) in an app's persistent volume
+      operationId: writeAppFile
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [file, directory]
+      requestBody:
+        content:
+          "*":
+            schema:
+              description: The full raw content of the file
+              type: string
+      responses:
+        "404":
+          description: App or parent directory not found
+        "201":
+          description: Success
+
+  /app/{appId}/file/download:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: volumeClaimName
+        in: query
+        description: The name of the PersistentVolumeClaim to lookup. The corresponding PersistentVolume will be mounted.
+        required: true
+        schema:
+          type: string
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [app]
+      description: Download a file in an app's persistent volume
+      operationId: downloadAppFile
+      responses:
+        "404":
+          description: App or file not found
+        "200":
+          description: Success
+          content:
+            "*":
+              schema:
+                type: string
+                description: The full raw content of the file
+
   /app/{appId}/deployments:
     parameters:
       - name: appId
@@ -1313,6 +1443,8 @@ components:
           type: string
         updatedAt:
           type: string
+        name:
+          type: string
         displayName:
           type: string
         repositoryId:
@@ -1333,6 +1465,7 @@ components:
         - appGroup
         - createdAt
         - updatedAt
+        - name
         - displayName
         - config
         - subdomain
@@ -1439,6 +1572,8 @@ components:
           type: string
         amountInMiB:
           type: integer
+        volumeClaimName:
+          type: string
       required: [path, amountInMiB]
     DeploymentStatus:
       type: string

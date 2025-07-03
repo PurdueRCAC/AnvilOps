@@ -12,10 +12,12 @@ import type { components } from "@/generated/openapi";
 
 export const ConfigTab = ({
   app,
+  tab,
   setTab,
   refetch,
 }: {
   app: App;
+  tab: string;
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
@@ -89,7 +91,9 @@ export const ConfigTab = ({
           });
 
           toast.success("App updated successfully!");
-          setTab("overview");
+          if (tab === "configuration") {
+            setTab("status");
+          }
           refetch({});
         } catch (e) {
           toast.error("There was a problem reconfiguring your app.");
