@@ -110,7 +110,7 @@ export const Status = ({
 }) => {
   const colors: Record<DeploymentStatus, string> = {
     PENDING: "bg-amber-500",
-    QUEUED: "bg-teal-500",
+    QUEUED: "bg-teal-300",
     BUILDING: "bg-blue-500",
     DEPLOYING: "bg-purple-500",
     COMPLETE: "bg-green-500",
