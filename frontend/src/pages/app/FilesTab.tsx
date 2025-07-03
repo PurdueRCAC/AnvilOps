@@ -30,11 +30,8 @@ export const FilesTab = ({ app }: { app: App }) => {
   const [path, setPath] = useState(pathInput);
 
   useEffect(() => {
-    console.log("path changed to", path);
     setPathInput(path);
   }, [path]);
-
-  console.log({ path, pathInput });
 
   const params = {
     params: {
@@ -54,7 +51,6 @@ export const FilesTab = ({ app }: { app: App }) => {
   );
 
   const goUp = () => {
-    console.log(path);
     if (path === "/") {
       return;
     }
@@ -123,7 +119,10 @@ export const FilesTab = ({ app }: { app: App }) => {
         </div>
       ) : files?.type === "file" ? (
         <div className="flex flex-col items-center justify-center min-h-96">
-          <FilePreview file={files!} />
+          <FilePreview
+            file={files!}
+            downloadURL={`/api/app/${app.id}/file/download?path=${path}&volumeClaimName=${params.params.query.volumeClaimName}`}
+          />
         </div>
       ) : files?.type === "directory" && (files?.files?.length ?? 0) > 0 ? (
         <div className="flex flex-col gap-1 mt-4">
@@ -162,14 +161,27 @@ export const FilesTab = ({ app }: { app: App }) => {
 
 const FilePreview = ({
   file,
+  downloadURL,
 }: {
-  file: { name?: string; fileType?: string };
+  file: { name?: string; fileType?: string; size?: number };
+  downloadURL: string;
 }) => {
-  return (
-    <>
-      <File size={48} />
-      <p>{file.name}</p>
-      <p>{file.fileType}</p>
-    </>
-  );
+  if (file.size! > 1_000_000) {
+    // Large files can't be previewed
+    return (
+      <>
+        <File size={48} />
+        <p className="mt-2 text-xl">{file.name}</p>
+        <p className="mt-1 opacity-50">{file.fileType}</p>
+        <div className="bg-gray-100 mt-8 rounded-xl p-4">
+          <p>This file is too large to be previewed.</p>
+          <a href={downloadURL}>
+            <Button>Download</Button>
+          </a>
+        </div>
+      </>
+    );
+  }
+
+  return <></>;
 };

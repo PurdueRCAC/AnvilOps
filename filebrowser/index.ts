@@ -74,7 +74,7 @@ async function handle(
                     "Content-Disposition": `attachment; filename="${
                       // Remove all characters that might cause the header to not be parsed correctly (https://httpwg.org/specs/rfc6266.html#header.field.definition)
                       basename(filePath).replaceAll(
-                        /[^a-zA-Z0-9-_ ().\[\]#&]/,
+                        /[^a-zA-Z0-9-_ ().\[\]#&]/g,
                         "-",
                       )
                     }"`,

@@ -74,9 +74,17 @@ async function forward(
       break;
     }
     if (!res.headersSent) {
-      res.writeHead(200, {
-        "Content-Type": response.headers.get("Content-Type"),
-      });
+      const headers = {};
+      for (const header of [
+        "Content-Type",
+        "Content-Length",
+        "Content-Disposition",
+      ]) {
+        if (response.headers.has(header)) {
+          headers[header] = response.headers.get(header);
+        }
+      }
+      res.writeHead(200, headers);
     }
     res.write(value);
   }
