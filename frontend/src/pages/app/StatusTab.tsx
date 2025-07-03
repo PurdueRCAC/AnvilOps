@@ -195,7 +195,7 @@ const EventInfo = ({ event }: { event: Event }) => {
   return (
     <p className="bg-orange-100 rounded-md p-4 border border-orange-50 my-4">
       <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-        <Flag className="animate-spin" /> Warning
+        <Flag /> Warning
       </h3>
       <p className="opacity-50 text-sm">
         Occurred {event.count} times since{" "}
