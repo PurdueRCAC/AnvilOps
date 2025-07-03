@@ -67,7 +67,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         const lines = chunk.toString().split("\n");
         for (const line of lines) {
           if (line.trim().length === 0) continue;
-          const [date, ...text] = line.toString().split(" ");
+          const [date, ...text] = line.split(" ");
           await sendLog({
             type: "RUNTIME",
             log: text.join(" "),

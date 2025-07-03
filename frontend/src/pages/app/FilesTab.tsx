@@ -118,7 +118,7 @@ export const FilesTab = ({ app }: { app: App }) => {
           <Loader className="animate-spin" />
         </div>
       ) : files?.type === "file" ? (
-        <div className="flex flex-col items-center justify-center min-h-96">
+        <div className="flex flex-col items-center justify-center mt-4">
           <FilePreview
             file={files}
             app={app}
@@ -184,10 +184,17 @@ const FilePreview = ({
 
   useEffect(() => {
     if (shouldDownload && content === undefined && !loading && !error) {
+      setLoading(true);
       fetch(downloadURL)
         .then((response) => response.text())
-        .then((text) => setContent(text))
-        .catch(() => setError(true));
+        .then((text) => {
+          setContent(text);
+          setLoading(false);
+        })
+        .catch(() => {
+          setError(true);
+          setLoading(false);
+        });
     }
   }, [shouldDownload]);
 
@@ -198,7 +205,7 @@ const FilePreview = ({
   if (file.size! > 1_000_000) {
     // Large files can't be previewed
     return (
-      <>
+      <div className="mt-24 flex flex-col items-center justify-center">
         <File size={48} />
         <p className="mt-2 text-xl">{file.name}</p>
         <p className="mt-1 opacity-50">{file.fileType}</p>
@@ -208,29 +215,48 @@ const FilePreview = ({
             <Button>Download</Button>
           </a>
         </div>
-      </>
+      </div>
     );
   }
 
-  if (file.fileType?.startsWith("text/")) {
+  const Header = () => (
+    <>
+      <div className="flex justify-between">
+        <div>
+          <p className="text-xl">{file.name}</p>
+          <p className="opacity-50">
+            {file.fileType} &middot; {formatFileSize(file.size!)}
+          </p>
+        </div>
+        <div>
+          <a href={downloadURL}>
+            <Button>Download</Button>
+          </a>
+        </div>
+      </div>
+      <hr className="mt-2 mb-4" />
+    </>
+  );
+
+  if (raw || isTextFile(file.fileType!, file.name!)) {
     requestDownload();
     return (
       <div className="w-full">
-        <div className="flex justify-between">
-          <div>
-            <p className="text-xl">{file.name}</p>
-            <p className="opacity-50">
-              {file.fileType} &middot; {formatFileSize(file.size!)}
-            </p>
-          </div>
-          <div>
-            <a href={downloadURL}>
-              <Button>Download</Button>
-            </a>
-          </div>
-        </div>
-        <hr className="mt-2 mb-4" />
-        <div>{content}</div>
+        <Header />
+        {loading ? (
+          <Loader className="animate-spin" />
+        ) : (
+          <pre className="whitespace-pre-wrap">{content}</pre>
+        )}
+      </div>
+    );
+  }
+
+  if (file.fileType?.startsWith("image/")) {
+    return (
+      <div className="w-full">
+        <Header />
+        <img src={downloadURL} />
       </div>
     );
   }
@@ -238,7 +264,7 @@ const FilePreview = ({
   switch (file.fileType) {
     default: {
       return (
-        <>
+        <div className="flex flex-col items-center justify-center mt-24">
           <File size={48} />
           <p className="mt-2 text-xl">{file.name}</p>
           <p className="mt-1 opacity-50">{file.fileType}</p>
@@ -255,7 +281,7 @@ const FilePreview = ({
               <Button>Download</Button>
             </a>
           </div>
-        </>
+        </div>
       );
     }
   }
@@ -272,3 +298,8 @@ const formatFileSize = (bytes: number) => {
     return `${Math.round(bytes / 1_000_000_000)} GB`;
   }
 };
+
+const isTextFile = (fileType: string, fileName: string) =>
+  fileType.startsWith("text/") ||
+  ["application/json"].includes(fileType) ||
+  [".env", ".properties"].some((extension) => fileName.endsWith(extension));
