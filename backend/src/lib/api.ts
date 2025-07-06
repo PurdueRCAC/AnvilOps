@@ -474,7 +474,7 @@ const handlers = {
         },
         appGroup: {
           standalone: app.appGroup.isMono,
-          name: app.appGroup.isMono ? app.appGroup.name : undefined,
+          name: !app.appGroup.isMono ? app.appGroup.name : undefined,
           id: app.appGroupId,
         },
         activeDeployment: activeDeployment

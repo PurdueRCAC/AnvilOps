@@ -50,7 +50,16 @@ export default function AppView() {
 
   return (
     <main className="px-8 py-10 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">{app.displayName}</h1>
+      <div className="mb-2 space-x-3">
+        <h1 className="text-3xl font-bold inline align-middle">
+          {app.displayName}
+        </h1>
+        {!app.appGroup.standalone && (
+          <h2 className="text-xl text-black-3 inline align-middle">
+            {app.appGroup.name}
+          </h2>
+        )}
+      </div>
       <DeploymentStatus app={app} deployment={currentDeployment} />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="my-4">

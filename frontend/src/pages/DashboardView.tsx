@@ -197,21 +197,19 @@ const AppGroup = ({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Confirm delete group</AlertDialogTitle>
                       <AlertDialogDescription>
-                        <p>
-                          This action cannot be undone.
-                          <ul className="*:list-disc *:ml-4 mt-2 mb-4">
-                            <li>
-                              All AnvilOps apps in this group, as well as
-                              associated deployments and infrastructure, will be
-                              deleted.
-                            </li>
-                            <li>
-                              All subdomains used by apps in this group will
-                              become available for other projects to use.
-                            </li>
-                            <li>Your Git repositories will be unaffected.</li>
-                          </ul>
-                        </p>
+                        This action cannot be undone.
+                        <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                          <li>
+                            All AnvilOps apps in this group, as well as
+                            associated deployments and infrastructure, will be
+                            deleted.
+                          </li>
+                          <li>
+                            All subdomains used by apps in this group will
+                            become available for other projects to use.
+                          </li>
+                          <li>Your Git repositories will be unaffected.</li>
+                        </ul>
                         <p className="mb-2">
                           Type the group name <b>{appGroup.name}</b> to
                           continue.
@@ -274,7 +272,7 @@ const AppCard = ({
           </Link>
         </p>
         {app.source === "GIT" ? (
-          <p className="text-sm text-black-4">
+          <p className="text-sm text-black-4 z-10">
             Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
             <a href={`${app.repositoryURL}/tree/${app.branch}`} target="_blank">
               <GitBranch className="inline" size={16} />{" "}
