@@ -177,64 +177,67 @@ export default function CreateAppGroupView() {
         </div>
         <Tabs value={tab} onValueChange={setTab}>
           <div className="my-4 relative">
-            <TabsList
+            <div
               ref={scrollRef}
-              className="w-fit max-w-full overflow-x-scroll overflow-y-clip"
+              className="overflow-x-scroll overflow-y-clip pb-4"
             >
-              {appStates.map((_, idx) => (
-                <>
-                  <TabsTrigger
-                    key={idx}
-                    value={idx.toString()}
-                    disabled={orgId === undefined}
-                  >
-                    <span>{getAppName(appStates[idx])}</span>
-                  </TabsTrigger>
-                  <button type="button">
-                    <X
-                      className="size-3 stroke-3 inline"
-                      onClick={() => {
-                        if (appStates.length > 1) {
-                          setAppStates((appStates) =>
-                            appStates.filter((_, i) => i !== idx),
-                          );
-                          if (tab === idx.toString()) {
-                            const side = idx - 1 > 0 ? idx - 1 : 0;
-                            setTab(side.toString());
+              <TabsList className="w-fit">
+                {appStates.map((_, idx) => (
+                  <>
+                    <TabsTrigger
+                      key={idx}
+                      value={idx.toString()}
+                      disabled={orgId === undefined}
+                    >
+                      <span>{getAppName(appStates[idx])}</span>
+                    </TabsTrigger>
+                    <button type="button">
+                      <X
+                        className="size-3 stroke-3 inline"
+                        onClick={() => {
+                          if (appStates.length > 1) {
+                            setAppStates((appStates) =>
+                              appStates.filter((_, i) => i !== idx),
+                            );
+                            if (tab === idx.toString()) {
+                              const side = idx - 1 > 0 ? idx - 1 : 0;
+                              setTab(side.toString());
+                            }
                           }
-                        }
-                      }}
-                    />
-                  </button>
-                </>
-              ))}
-              <Button
-                key="addApp"
-                variant="ghost"
-                type="button"
-                onClick={() => {
-                  setAppStates((appStates) => [
-                    ...appStates,
-                    {
-                      env: [],
-                      mounts: [],
-                      source: "git",
-                      builder: "railpack",
-                      orgId,
-                      subdomain: "",
-                      rootDir: "./",
-                      dockerfilePath: "Dockerfile",
-                    },
-                  ]);
-                }}
-                disabled={orgId === undefined}
-              >
-                <Plus className="size-4 stroke-3" />
-              </Button>
-            </TabsList>
+                        }}
+                      />
+                    </button>
+                  </>
+                ))}
+                <Button
+                  key="addApp"
+                  variant="ghost"
+                  type="button"
+                  onClick={() => {
+                    setAppStates((appStates) => [
+                      ...appStates,
+                      {
+                        env: [],
+                        mounts: [],
+                        source: "git",
+                        builder: "railpack",
+                        orgId,
+                        subdomain: "",
+                        rootDir: "./",
+                        dockerfilePath: "Dockerfile",
+                      },
+                    ]);
+                  }}
+                  disabled={orgId === undefined}
+                >
+                  <Plus className="size-4 stroke-3" />
+                </Button>
+              </TabsList>
+            </div>
+            {/* left shadow */}
             <span
               className={cn(
-                "pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-black/10 to-transparent transition-opacity",
+                "pointer-events-none absolute inset-y-0 left-0 bottom-3 w-8 bg-gradient-to-r from-black-1 to-transparent transition-opacity",
                 atStart ? "opacity-0" : "opacity-100",
               )}
             />
@@ -242,7 +245,7 @@ export default function CreateAppGroupView() {
             {/* right shadow */}
             <span
               className={cn(
-                "pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-black/10 to-transparent transition-opacity",
+                "pointer-events-none absolute inset-y-0 right-0 bottom-3 w-8 bg-gradient-to-l from-black-1 to-transparent transition-opacity",
                 atEnd ? "opacity-0" : "opacity-100",
               )}
             />
