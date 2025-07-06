@@ -64,7 +64,6 @@ export default function CreateAppGroupView() {
     if (!el) return;
 
     const update = () => {
-      // 1-pixel fudge so float rounding never leaves us “almost” at the edge
       setAtStart(el.scrollLeft <= 0);
       setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
     };
@@ -77,6 +76,11 @@ export default function CreateAppGroupView() {
     return () => el.removeEventListener("scroll", update);
   }, []);
 
+  useEffect(() => {
+    setAppStates((appStates) =>
+      appStates.map((state) => ({ ...state, orgId })),
+    );
+  }, [orgId]);
   return (
     <div className="flex max-w-prose mx-auto">
       <form
@@ -86,18 +90,10 @@ export default function CreateAppGroupView() {
           const formData = new FormData(e.currentTarget);
           try {
             const apps = appStates.map((appState) => {
-              let appName = "untitled";
-              if (appState.source === "git") {
-                appName = appState.repoName!;
-              } else if (appState.source === "image") {
-                const tag = appState.imageTag!.toString().split("/");
-                appName = tag[tag.length - 1].split(":")[0];
-              }
-
               return {
                 source: appState.source!,
                 orgId: orgId!,
-                name: appName,
+                name: getAppName(appState),
                 port: parseInt(appState.port!),
                 subdomain: appState.subdomain,
                 dockerfilePath: appState.dockerfilePath ?? null,
@@ -232,7 +228,7 @@ export default function CreateAppGroupView() {
                     },
                   ]);
                 }}
-                // disabled={orgId === undefined}
+                disabled={orgId === undefined}
               >
                 <Plus className="size-4 stroke-3" />
               </Button>

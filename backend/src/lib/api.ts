@@ -403,7 +403,7 @@ const handlers = {
             orderBy: { createdAt: "desc" },
             include: { config: true },
           },
-          appGroup: { select: { isMono: true } },
+          appGroup: true,
           deploymentConfigTemplate: { include: { mounts: true } },
         },
       });
@@ -470,10 +470,11 @@ const handlers = {
           rootDir: app.deploymentConfigTemplate.rootDir,
           builder: app.deploymentConfigTemplate.builder,
           repositoryId: app.deploymentConfigTemplate.repositoryId,
-          appGroup: {
-            standalone: app.appGroup.isMono,
-            id: app.appGroupId,
-          },
+        },
+        appGroup: {
+          standalone: app.appGroup.isMono,
+          name: app.appGroup.isMono ? app.appGroup.name : undefined,
+          id: app.appGroupId,
         },
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)

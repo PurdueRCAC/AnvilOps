@@ -413,13 +413,15 @@ export const createAppConfigsFromDeployment = (
   );
 
   configs.push(...logs, statefulSet, svc);
+
+  const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
   const labels = {
     "anvilops.rcac.purdue.edu/app-group-id":
       deployment.app.appGroup.id.toString(),
     "anvilops.rcac.purdue.edu/app-id": deployment.appId.toString(),
     "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
     "app.kubernetes.io/name": deployment.app.name,
-    "app.kubernetes.io/part-of": `${deployment.app.appGroup.name}-${deployment.app.appGroup.orgId}`,
+    "app.kubernetes.io/part-of": appGroupLabel,
     "app.kubernetes.io/managed-by": "anvilops",
   };
   applyLabels(namespace, labels);

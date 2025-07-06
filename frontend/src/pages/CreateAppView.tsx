@@ -95,7 +95,6 @@ export default function CreateAppView() {
             const tag = formState.imageTag!.split("/");
             appName = tag[tag.length - 1].split(":")[0];
           }
-          console.log(appName);
           try {
             let appGroup: components["schemas"]["NewApp"]["appGroup"];
             switch (formState.groupOption) {

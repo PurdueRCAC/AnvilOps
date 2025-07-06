@@ -121,7 +121,7 @@ const AppGroup = ({
         key={appGroup.id}
         className={
           !appGroup.isMono
-            ? "rounded-md col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pb-6 border border-stone-300 shadow-stone-300 shadow-sm"
+            ? "rounded-md col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pr-4 pb-6 border border-stone-300 shadow-stone-300 shadow-sm"
             : ""
         }
       >

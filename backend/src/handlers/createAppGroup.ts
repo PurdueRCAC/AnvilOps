@@ -13,9 +13,13 @@ import type {
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
-import { type App } from "../generated/prisma/client.ts";
+import type { DeploymentConfig, App } from "../generated/prisma/client.ts";
 import { convertSource } from "./createApp.ts";
-import { buildAndDeploy } from "./githubWebhook.ts";
+import {
+  buildAndDeploy,
+  generateCloneURLWithCredentials,
+} from "./githubWebhook.ts";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
 const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
@@ -107,55 +111,134 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
       octokit = await getOctokit(organization.githubInstallationId);
     }
   }
-  try {
-    const { id: appGroupId } = await db.appGroup.create({
-      data: {
-        name: data.name,
-        orgId: data.orgId,
-      },
-    });
-    const appConfigs = data.apps.map((app) => {
-      const deploymentConfig: DeploymentConfigCreateInput & {
-        mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-      } = {
-        source: convertSource(app.source),
-        repositoryId: app.repositoryId,
-        branch: app.branch,
-        port: app.port,
-        env: app.env,
-        builder: app.builder,
-        dockerfilePath: app.dockerfilePath,
-        rootDir: app.rootDir,
-        mounts: { createMany: { data: app.mounts } },
-        imageTag: app.imageTag,
-      };
-      return {
-        name: app.name,
-        displayName: app.name,
-        subdomain: app.subdomain,
-        org: {
-          connect: {
-            id: app.orgId,
-          },
-        },
-        appGroup: {
-          connect: {
-            id: appGroupId,
-          },
-        },
-        logIngestSecret: randomBytes(48).toString("hex"),
-        deploymentConfigTemplate: {
-          create: deploymentConfig,
-        },
-      };
-    });
 
-    await db.$transaction(
-      appConfigs.map((app) => db.app.create({ data: app })),
+  const { id: appGroupId } = await db.appGroup.create({
+    data: {
+      name: data.name,
+      orgId: data.orgId,
+    },
+  });
+  const appConfigs = data.apps.map((app) => {
+    const deploymentConfig: DeploymentConfigCreateInput & {
+      mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
+    } = {
+      source: convertSource(app.source),
+      repositoryId: app.repositoryId,
+      branch: app.branch,
+      port: app.port,
+      env: app.env,
+      builder: app.builder,
+      dockerfilePath: app.dockerfilePath,
+      rootDir: app.rootDir,
+      mounts: { createMany: { data: app.mounts } },
+      imageTag: app.imageTag,
+    };
+    return {
+      name: app.name,
+      displayName: app.name,
+      subdomain: app.subdomain,
+      org: {
+        connect: {
+          id: app.orgId,
+        },
+      },
+      appGroup: {
+        connect: {
+          id: appGroupId,
+        },
+      },
+      logIngestSecret: randomBytes(48).toString("hex"),
+      deploymentConfigTemplate: {
+        create: deploymentConfig,
+      },
+    };
+  });
+
+  let apps: (App & { deploymentConfigTemplate: DeploymentConfig })[];
+  try {
+    let apps = await db.$transaction(
+      appConfigs.map((app) =>
+        db.app.create({
+          data: app,
+          include: { deploymentConfigTemplate: { include: { mounts: true } } },
+        }),
+      ),
+    );
+
+    apps = await db.$transaction(
+      apps.map((app) =>
+        db.app.update({
+          where: { id: app.id },
+          data: { imageRepo: `app-${app.orgId}-${app.id}` },
+          include: { deploymentConfigTemplate: { include: { mounts: true } } },
+        }),
+      ),
+    );
+  } catch (err) {
+    if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+      // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
+      const message =
+        err.meta?.target === "subdomain"
+          ? "Subdomain must be unique."
+          : "App group already exists in organization.";
+      return json(409, res, {
+        code: 409,
+        message,
+      });
+    }
+    console.error(err);
+    return json(500, res, { code: 500, message: "Unable to create app." });
+  }
+  try {
+    await Promise.all(
+      apps.map((app, idx) =>
+        (async () => {
+          let commitSha = "unknown",
+            commitMessage = "Initial deployment",
+            cloneURL: string | undefined = undefined;
+
+          if (app.deploymentConfigTemplate.source === "GIT") {
+            const repo = await getRepoById(
+              octokit,
+              app.deploymentConfigTemplate.repositoryId,
+            );
+            const latestCommit = (
+              await octokit.rest.repos.listCommits({
+                per_page: 1,
+                owner: repo.owner.login,
+                repo: repo.name,
+              })
+            ).data[0];
+
+            commitSha = latestCommit.sha;
+            commitMessage = latestCommit.commit.message;
+            cloneURL = await generateCloneURLWithCredentials(
+              octokit,
+              repo.html_url,
+            );
+          }
+          await buildAndDeploy({
+            orgId: app.orgId,
+            appId: app.id,
+            imageRepo: app.imageRepo,
+            commitSha: commitSha,
+            commitMessage: commitMessage,
+            cloneURL:
+              app.deploymentConfigTemplate.source === "GIT"
+                ? cloneURL
+                : undefined,
+            config: appConfigs[idx].deploymentConfigTemplate.create,
+            createCheckRun: false,
+          });
+        })(),
+      ),
     );
   } catch (err) {
     console.error(err);
-    return json(500, res, { code: 500, message: "Something went wrong." });
+    return json(500, res, {
+      code: 500,
+      message: "Failed to create deployments for your apps.",
+    });
   }
 
   return json(200, res, {});

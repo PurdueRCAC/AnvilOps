@@ -18,6 +18,7 @@ import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -62,6 +63,62 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   if (!app.deploymentConfigTemplate.imageTag && appConfig.source !== "git") {
     return json(400, res, {});
+  }
+
+  if (appData.appGroup.type === "add-to") {
+    if (appData.appGroup.id !== app.appGroupId) {
+      const originalGroupId = app.appGroupId;
+      try {
+        await db.app.update({
+          where: { id: app.id },
+          data: {
+            appGroup: {
+              connect: { id: appData.appGroup.id },
+            },
+          },
+        });
+
+        const remainingApps = await db.app.count({
+          where: { appGroupId: originalGroupId },
+        });
+        if (remainingApps === 0)
+          await db.appGroup.delete({ where: { id: originalGroupId } });
+      } catch (err) {
+        if (
+          err instanceof PrismaClientKnownRequestError &&
+          err.code === "P2025"
+        ) {
+          // https://www.prisma.io/docs/orm/reference/error-reference#p2025
+          // "An operation failed because it depends on one or more records that were required but not found. {cause}"
+          return json(500, res, { code: 500, message: "App group not found" });
+        }
+      }
+    }
+  } else {
+    const originalGroupId = app.appGroupId;
+    const name =
+      appData.appGroup.type === "standalone"
+        ? `${appData.name}-${randomBytes(4).toString("hex")}`
+        : appData.appGroup.name;
+    await db.app.update({
+      where: { id: app.id },
+      data: {
+        appGroup: {
+          create: {
+            name: name,
+            org: { connect: { id: app.orgId } },
+            isMono: appData.appGroup.type === "standalone",
+          },
+        },
+      },
+    });
+
+    const remainingApps = await db.app.count({
+      where: { appGroupId: originalGroupId },
+    });
+    if (remainingApps === 0) {
+      await db.appGroup.delete({ where: { id: originalGroupId } });
+    }
   }
 
   if (appData.name) {
@@ -201,7 +258,6 @@ const updateApp: HandlerMap["updateApp"] = async (
           status: "ERROR",
         },
       });
-
       return json(200, res, {});
     }
   }
