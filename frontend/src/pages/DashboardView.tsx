@@ -1,17 +1,57 @@
 import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { Container, ExternalLink, GitBranch, Plus } from "lucide-react";
-import { useContext } from "react";
+import {
+  Container,
+  EllipsisVertical,
+  ExternalLink,
+  GitBranch,
+  Plus,
+} from "lucide-react";
+import { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./app/AppView";
 import { GitHubIcon } from "./CreateAppView";
 import type { components } from "@/generated/openapi";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);
+  const { mutateAsync: deleteAppGroupAction } = api.useMutation(
+    "delete",
+    "/app/group/{appGroupId}",
+  );
 
+  const deleteAppGroup = async (appGroupId: number) => {
+    try {
+      await deleteAppGroupAction({
+        params: { path: { appGroupId } },
+      });
+    } catch (e) {
+      toast.error("There was a problem deleting your project.");
+      return;
+    }
+    toast.success("Your project has been deleted.");
+  };
   return (
     <main className="py-10 px-8">
       <div className="flex items-start">
@@ -39,6 +79,7 @@ export default function DashboardView() {
             orgId={org.id}
             key={org.id}
             permissionLevel={org.permissionLevel}
+            deleteAppGroup={deleteAppGroup}
           />
         ))}
       </div>
@@ -49,11 +90,13 @@ export default function DashboardView() {
 const OrgApps = ({
   orgId,
   permissionLevel,
+  deleteAppGroup,
 }: {
   orgId: number;
   permissionLevel: "OWNER" | "USER";
+  deleteAppGroup: (appGroupId: number) => Promise<void>;
 }) => {
-  const { data: org } = api.useSuspenseQuery("get", "/org/{orgId}", {
+  const { data: org, refetch } = api.useSuspenseQuery("get", "/org/{orgId}", {
     params: {
       path: {
         orgId: orgId,
@@ -67,7 +110,13 @@ const OrgApps = ({
     ) : (
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {org.appGroups.map((group) => (
-          <AppGroup appGroup={group} />
+          <AppGroup
+            appGroup={group}
+            deleteAppGroup={async () => {
+              await deleteAppGroup(group.id);
+              refetch();
+            }}
+          />
         ))}
       </div>
     );
@@ -112,9 +161,12 @@ const OrgApps = ({
 
 const AppGroup = ({
   appGroup,
+  deleteAppGroup,
 }: {
   appGroup: components["schemas"]["Org"]["appGroups"][0];
+  deleteAppGroup: (appGroupId: number) => Promise<void>;
 }) => {
+  const [nameText, setNameText] = useState("");
   return (
     <>
       <div
@@ -125,9 +177,69 @@ const AppGroup = ({
             : ""
         }
       >
-        <h3 className="col-span-4 text-lg">
-          {appGroup.isMono ? "" : appGroup.name}
-        </h3>
+        {!appGroup.isMono && (
+          <div className="col-span-4 text-lg flex items-center space-x-1">
+            <h3>{appGroup.name}</h3>
+            <DropdownMenu onOpenChange={() => setNameText("")}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="rounded-full">
+                  <EllipsisVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent sideOffset={0} className="relative left-1/2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      Delete App Group
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm delete group</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        <p>
+                          This action cannot be undone.
+                          <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                            <li>
+                              All AnvilOps apps in this group, as well as
+                              associated deployments and infrastructure, will be
+                              deleted.
+                            </li>
+                            <li>
+                              All subdomains used by apps in this group will
+                              become available for other projects to use.
+                            </li>
+                            <li>Your Git repositories will be unaffected.</li>
+                          </ul>
+                        </p>
+                        <p className="mb-2">
+                          Type the group name <b>{appGroup.name}</b> to
+                          continue.
+                        </p>
+                        <Input
+                          placeholder={appGroup.name}
+                          value={nameText}
+                          onChange={(e) => setNameText(e.currentTarget.value)}
+                        />
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        disabled={nameText !== appGroup.name}
+                        onClick={async () => deleteAppGroup(appGroup.id)}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         {appGroup.apps.map((app) => (
           <AppCard app={app} appGroup={appGroup} />
         ))}

@@ -156,7 +156,7 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
 
   let apps: (App & { deploymentConfigTemplate: DeploymentConfig })[];
   try {
-    let apps = await db.$transaction(
+    apps = await db.$transaction(
       appConfigs.map((app) =>
         db.app.create({
           data: app,

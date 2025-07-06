@@ -55,9 +55,9 @@ export default function CreateAppGroupView() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // track whether we’re flush with either edge
-  const [atStart, setAtStart] = useState(true); // left edge
-  const [atEnd, setAtEnd] = useState(false); // right edge
+  // Tracking whether tab list is scrolled to start or end
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -67,9 +67,6 @@ export default function CreateAppGroupView() {
       setAtStart(el.scrollLeft <= 0);
       setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
     };
-
-    // run once for initial render
-    update();
 
     // passive avoids blocking the main thread while scrolling
     el.addEventListener("scroll", update, { passive: true });
@@ -225,6 +222,8 @@ export default function CreateAppGroupView() {
                       builder: "railpack",
                       orgId,
                       subdomain: "",
+                      rootDir: "./",
+                      dockerfilePath: "Dockerfile",
                     },
                   ]);
                 }}

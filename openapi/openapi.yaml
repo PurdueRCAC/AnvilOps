@@ -756,6 +756,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /app/group/{appGroupId}:
+    parameters:
+      - name: appGroupId
+        in: path
+        description: Id of app group.
+        required: true
+        schema:
+          type: integer
+          format: int64
+    delete:
+      tags: [app]
+      description: Delete an app group by id.
+      operationId: deleteAppGroup
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/App"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /app/{appId}:
     parameters:
       - name: appId
@@ -1186,7 +1216,7 @@ components:
                 type: array
                 items:
                   $ref: "#/components/schemas/AppSummary"
-            required: [name, apps]
+            required: [id, name, apps]
         githubInstallationId:
           type: integer
           format: int64

@@ -43,6 +43,7 @@ import {
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 import createAppGroup from "../handlers/createAppGroup.ts";
+import deleteAppGroup from "../handlers/deleteAppGroup.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -550,6 +551,7 @@ const handlers = {
   createAppGroup,
   updateApp,
   deleteApp,
+  deleteAppGroup,
   githubWebhook,
   githubAppInstall,
   githubOAuthCallback,
