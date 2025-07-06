@@ -42,6 +42,7 @@ import {
   namespaceInUse,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
+import createAppGroup from "../handlers/createAppGroup.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -545,6 +546,7 @@ const handlers = {
     );
   },
   createApp,
+  createAppGroup,
   updateApp,
   deleteApp,
   githubWebhook,

@@ -708,6 +708,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /app/group:
+    post:
+      tags: [app]
+      description: Create a group of apps.
+      operationId: createAppGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                orgId:
+                  type: integer
+                  format: int64
+                apps:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/NewApp"
+              required:
+                - name
+                - orgId
+                - apps
+      responses:
+        "200":
+          description: Success
+        "302":
+          description: Redirecting to finish GitHub App installation
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Contact owner to complete GitHub App installation
+        "409":
+          description: Subdomain is taken
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /app/{appId}:
     parameters:
       - name: appId

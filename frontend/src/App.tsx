@@ -15,6 +15,7 @@ import LandingView from "./pages/LandingView";
 import NotFoundView from "./pages/NotFoundView";
 import OrgView from "./pages/OrgView";
 import UnavailableView from "./pages/UnavailableView";
+import CreateAppGroupView from "./pages/CreateAppGroupView";
 
 function App() {
   return (
@@ -52,6 +53,14 @@ function App() {
             element={
               <RequireAuth redirectTo="/api/login">
                 <CreateAppView />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/create-group"
+            element={
+              <RequireAuth redirectTo="/api/login">
+                <CreateAppGroupView />
               </RequireAuth>
             }
           />

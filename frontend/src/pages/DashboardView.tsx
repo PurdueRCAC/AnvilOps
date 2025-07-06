@@ -18,7 +18,13 @@ export default function DashboardView() {
         <h2 className="font-bold text-3xl mb-4 w-48 h-14 inline-block">
           Your Apps
         </h2>
-        <div className="w-fit h-14">
+        <div className="w-fit h-14 flex space-x-2">
+          <Link to="/create-group">
+            <Button className="w-fit h-10 flex items-center hover:bg-black hover:text-gold-1 shadow-black-3 hover:shadow-sm">
+              <p className="text-base">Create an App Group</p>
+              <Plus className="size-5" strokeWidth="1" />
+            </Button>
+          </Link>
           <Link to="/create-app">
             <Button className="w-fit h-10 flex items-center hover:bg-black hover:text-gold-1 shadow-black-3 hover:shadow-sm">
               <p className="text-base">Create an App</p>

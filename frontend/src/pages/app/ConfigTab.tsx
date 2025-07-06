@@ -107,10 +107,12 @@ export const ConfigTab = ({
         />
       </div>
       <AppConfigFormFields
+        formPrefix=""
         state={formState}
         setState={setFormState}
         defaults={{ config: app.config }}
         hideSubdomainInput
+        hideGroupSelect
       />
       <Button className="mt-8 max-w-max" disabled={updatePending}>
         {updatePending ? (

@@ -59,11 +59,14 @@ export default function CreateAppView() {
     orgId: search.has("org")
       ? parseInt(search.get("org")!.toString())
       : undefined,
-    repoId: search.has("repo")
+    repositoryId: search.has("repo")
       ? parseInt(search.get("repo")!.toString())
       : undefined,
     source: "git",
     builder: "railpack",
+    dockerfilePath: "Dockerfile",
+    rootDir: "./",
+    subdomain: "",
   });
 
   const navigate = useNavigate();
@@ -87,11 +90,12 @@ export default function CreateAppView() {
 
           let appName = "untitled";
           if (formState.source === "git") {
-            appName = formData.get("repoName")!.toString();
+            appName = formState.repoName!;
           } else if (formState.source === "image") {
-            const tag = formData.get("imageTag")!.toString().split("/");
+            const tag = formState.imageTag!.split("/");
             appName = tag[tag.length - 1].split(":")[0];
           }
+          console.log(appName);
           try {
             let appGroup: components["schemas"]["NewApp"]["appGroup"];
             switch (formState.groupOption) {
@@ -110,26 +114,20 @@ export default function CreateAppView() {
             }
             const result = await createApp({
               body: {
-                source: formState.source!,
+                source: formState.source,
                 orgId: formState.orgId!,
                 name: appName,
-                port: parseInt(formData.get("port")!.toString()),
-                subdomain: formData.get("subdomain")!.toString(),
-                dockerfilePath:
-                  formData.get("dockerfilePath")?.toString() ?? null,
-                env: formState.env.filter(
-                  (it) => it.name.length > 0,
-                ) as NonNullableEnv,
-                repositoryId: formState.repoId ?? null,
-                branch: formData.get("branch")?.toString() ?? null,
-                builder: (formData.get("builder")?.toString() ?? null) as
-                  | "dockerfile"
-                  | "railpack"
-                  | null,
-                rootDir: formData.get("rootDir")?.toString() ?? null,
-                mounts: formState.mounts.filter((it) => it.path.length > 0),
-                imageTag: formData.get("imageTag")?.toString() ?? null,
                 appGroup,
+                repositoryId: formState.repositoryId ?? null,
+                dockerfilePath: formState.dockerfilePath ?? null,
+                rootDir: formState.rootDir ?? null,
+                branch: formState.branch ?? null,
+                builder: formState.builder,
+                imageTag: formState.imageTag ?? null,
+                subdomain: formState.subdomain!,
+                port: parseInt(formState.port!),
+                env: formState.env.filter((ev) => ev.name.length > 0),
+                mounts: formState.mounts.filter((m) => m.path.length > 0),
               },
             });
 
@@ -210,17 +208,29 @@ export const GitHubIcon = ({ className }: { className?: string }) => (
 );
 
 type Env = { name: string; value: string | null; isSensitive: boolean }[];
-type NonNullableEnv = { name: string; value: string; isSensitive: boolean }[];
+export type NonNullableEnv = {
+  name: string;
+  value: string;
+  isSensitive: boolean;
+}[];
 
 export type AppInfoFormData = {
-  groupOption: string;
+  name?: string;
+  port?: string;
+  subdomain: string;
+  dockerfilePath?: string;
+  groupOption?: string;
   groupId?: number;
   env: Env;
   mounts: Mounts;
   orgId?: number;
-  repoId?: number;
-  source?: "git" | "image";
-  builder?: "dockerfile" | "railpack";
+  repositoryId?: number;
+  repoName?: string;
+  imageTag?: string;
+  branch?: string;
+  rootDir?: string;
+  source: "git" | "image";
+  builder: "dockerfile" | "railpack";
 };
 
 export const AppConfigFormFields = ({
@@ -231,19 +241,25 @@ export const AppConfigFormFields = ({
   defaults,
 }: {
   state: AppInfoFormData;
-  setState: Dispatch<
-    React.SetStateAction<AppInfoFormData & { hidden?: boolean }>
-  >;
+  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
   hideSubdomainInput?: boolean;
   hideGroupSelect?: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
   };
 }) => {
-  const { groupOption, groupId, source, builder, env, mounts, orgId, repoId } =
-    state;
+  const {
+    groupOption,
+    groupId,
+    source,
+    builder,
+    env,
+    mounts,
+    orgId,
+    repositoryId,
+    subdomain,
+  } = state;
 
-  console.log(groupOption);
   const { user } = useContext(UserContext);
 
   const selectedOrg =
@@ -263,15 +279,16 @@ export const AppConfigFormFields = ({
     },
   );
 
-  const { data: groups, isPending: groupsLoading } = api.useQuery(
-    "get",
-    "/org/{orgId}/groups",
-    { params: { path: { orgId: orgId! } } },
-    {
-      enabled: orgId !== undefined,
-    },
-  );
-  console.log(groups);
+  const { data: groups, isPending: groupsLoading } = !hideGroupSelect
+    ? api.useQuery(
+        "get",
+        "/org/{orgId}/groups",
+        { params: { path: { orgId: orgId! } } },
+        {
+          enabled: orgId !== undefined,
+        },
+      )
+    : { data: null, isPending: false };
 
   const { data: branches, isPending: branchesLoading } = api.useQuery(
     "get",
@@ -280,17 +297,17 @@ export const AppConfigFormFields = ({
       params: {
         path: {
           orgId: orgId!,
-          repoId: repoId!,
+          repoId: repositoryId!,
         },
       },
     },
     {
-      enabled: orgId !== undefined && repoId !== undefined && source === "git",
+      enabled:
+        orgId !== undefined && repositoryId !== undefined && source === "git",
     },
   );
 
   const MAX_SUBDOMAIN_LENGTH = 54;
-  const [subdomain, setSubdomain] = useState("");
   const subdomainIsValid =
     subdomain.length < MAX_SUBDOMAIN_LENGTH &&
     subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) !== null;
@@ -350,7 +367,13 @@ export const AppConfigFormFields = ({
           refresh={async () => {
             await refreshRepos();
           }}
-          setRepo={(repo) => setState({ ...state, repoId: repo })}
+          setRepo={(repo) =>
+            setState({
+              ...state,
+              repositoryId: repo,
+              repoName: repos?.find((r) => r.id === repo)?.name,
+            })
+          }
         />
       )}
       {!hideGroupSelect && (
@@ -502,11 +525,14 @@ export const AppConfigFormFields = ({
                 } else if (repo) {
                   setState((prev) => ({
                     ...prev,
-                    repoId: typeof repo === "string" ? parseInt(repo) : repo,
+                    repositoryId:
+                      typeof repo === "string" ? parseInt(repo) : repo,
+                    repoName: repos?.find((r) => r?.id === parseInt(repo))
+                      ?.name,
                   }));
                 }
               }}
-              value={repoId?.toString()}
+              value={repositoryId?.toString()}
             >
               <SelectTrigger className="w-full peer" id="selectRepo">
                 <SelectValue
@@ -548,19 +574,14 @@ export const AppConfigFormFields = ({
               </SelectContent>
             </Select>
           </div>
-          <input
-            // This is used to generate the app's name when the form is submitted
-            type="hidden"
-            name="repoName"
-            value={repos?.find((it) => it.id === repoId)?.name}
-          />
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
               <Label
                 htmlFor="selectBranch"
                 className={clsx(
                   "pb-1",
-                  (repoId === undefined || branchesLoading) && "opacity-50",
+                  (repositoryId === undefined || branchesLoading) &&
+                    "opacity-50",
                 )}
               >
                 <GitBranch className="inline" size={16} />
@@ -576,15 +597,18 @@ export const AppConfigFormFields = ({
             <Select
               required
               name="branch"
-              disabled={repoId === undefined || branchesLoading}
-              defaultValue={defaults?.config?.branch ?? undefined}
+              disabled={repositoryId === undefined || branchesLoading}
+              value={state.branch}
+              onValueChange={(branch) => {
+                setState({ ...state, branch });
+              }}
             >
               <SelectTrigger className="w-full" id="selectBranch">
                 <SelectValue placeholder="Select a branch" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {repoId !== undefined
+                  {repositoryId !== undefined
                     ? branches?.branches?.map((branch) => (
                         <SelectItem key={branch} value={branch}>
                           {branch}
@@ -600,7 +624,7 @@ export const AppConfigFormFields = ({
         <>
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
-              <Label className="pb-1 mb-2">
+              <Label htmlFor="imageTag" className="pb-1 mb-2">
                 <Tag className="inline" size={16} /> Image tag
               </Label>
               <span
@@ -611,8 +635,13 @@ export const AppConfigFormFields = ({
               </span>
             </div>
             <Input
-              defaultValue={defaults?.config?.imageTag ?? undefined}
+              value={state.imageTag}
+              onChange={(e) => {
+                const imageTag = e.currentTarget.value;
+                setState((state) => ({ ...state, imageTag }));
+              }}
               name="imageTag"
+              id="imageTag"
               placeholder="nginx:latest"
               className="w-full"
               // Docker image name format: https://pkg.go.dev/github.com/distribution/reference#pkg-overview
@@ -627,10 +656,9 @@ export const AppConfigFormFields = ({
       {source === "git" && (
         <>
           <h3 className="mt-4 font-bold pb-1 border-b">Build Options</h3>
-
           <div>
             <div className="flex items-baseline gap-2">
-              <Label className="pb-1 mb-2">
+              <Label htmlFor="rootDir" className="pb-1 mb-2">
                 <FolderRoot className="inline" size={16} /> Root directory
               </Label>
               <span
@@ -641,8 +669,13 @@ export const AppConfigFormFields = ({
               </span>
             </div>
             <Input
-              defaultValue={defaults?.config?.rootDir ?? "./"}
+              value={state.rootDir}
+              onChange={(e) => {
+                const rootDir = e.currentTarget.value;
+                setState((state) => ({ ...state, rootDir }));
+              }}
               name="rootDir"
+              id="rootDir"
               placeholder="./"
               className="w-full mb-1"
               pattern="^\.\/.*$"
@@ -655,7 +688,7 @@ export const AppConfigFormFields = ({
           </div>
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
-              <Label className="pb-1">
+              <Label className="pb-1" htmlFor="builder">
                 <Hammer className="inline" size={16} /> Builder
               </Label>
               <span
@@ -667,6 +700,7 @@ export const AppConfigFormFields = ({
             </div>
             <RadioGroup
               name="builder"
+              id="builder"
               value={builder}
               onValueChange={(newValue) =>
                 setState((prev) => ({
@@ -701,13 +735,18 @@ export const AppConfigFormFields = ({
           </div>
           {builder === "dockerfile" ? (
             <div>
-              <Label className="pb-1 mb-2">
+              <Label className="pb-1 mb-2" htmlFor="dockerfilePath">
                 <Container className="inline" size={16} /> Dockerfile Path
               </Label>
               <Input
                 name="dockerfilePath"
+                id="dockerfilePath"
                 placeholder="Dockerfile"
-                defaultValue={defaults?.config?.dockerfilePath ?? "Dockerfile"}
+                value={state.dockerfilePath}
+                onChange={(e) => {
+                  const dockerfilePath = e.currentTarget.value;
+                  setState((state) => ({ ...state, dockerfilePath }));
+                }}
                 className="w-full"
                 autoComplete="off"
                 required
@@ -725,7 +764,7 @@ export const AppConfigFormFields = ({
       {!hideSubdomainInput && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
-            <Label className="pb-1">
+            <Label className="pb-1" htmlFor="subdomain">
               <Link className="inline" size={16} /> Public URL
             </Label>
             <span
@@ -739,17 +778,20 @@ export const AppConfigFormFields = ({
             <span className="absolute left-2 text-sm opacity-50">https://</span>
             <Input
               name="subdomain"
+              id="subdomain"
               placeholder="my-app"
               className="w-full pl-14 pr-45"
               required
               pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
               value={subdomain}
               onChange={(e) => {
-                setSubdomain(
-                  e.currentTarget.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9-]/, "-"),
-                );
+                const subdomain = e.currentTarget.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9-]/, "-");
+                setState((state) => ({
+                  ...state,
+                  subdomain,
+                }));
               }}
               autoComplete="off"
             />
@@ -785,7 +827,7 @@ export const AppConfigFormFields = ({
       )}
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
-          <Label className="pb-1">
+          <Label className="pb-1" htmlFor="portNumber">
             <Server className="inline" size={16} /> Port Number
           </Label>
           <span
@@ -796,14 +838,19 @@ export const AppConfigFormFields = ({
           </span>
         </div>
         <Input
-          name="port"
+          name="portNumber"
+          id="portNumber"
           placeholder="3000"
           className="w-full"
           type="number"
           required
           min="1"
           max="65536"
-          defaultValue={defaults?.config?.port}
+          value={state.port}
+          onChange={(e) => {
+            const port = e.currentTarget.value;
+            setState((state) => ({ ...state, port }));
+          }}
         />
       </div>
       <div className="space-y-2">
@@ -843,7 +890,7 @@ export const AppConfigFormFields = ({
   );
 };
 
-const SubdomainStatus = ({ available }: { available: boolean }) => {
+export const SubdomainStatus = ({ available }: { available: boolean }) => {
   return available ? (
     <span className="text-green-500 text-sm">
       <Check className="inline" /> Subdomain is available.

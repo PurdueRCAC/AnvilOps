@@ -1,0 +1,163 @@
+import { type Octokit } from "octokit";
+import { randomBytes } from "node:crypto";
+import { type AuthenticatedRequest } from "../lib/api.ts";
+import { db } from "../lib/db.ts";
+import {
+  validateDeploymentConfig,
+  validateSubdomain,
+} from "../lib/validate.ts";
+import { json, redirect, type HandlerMap } from "../types.ts";
+import { createState } from "./githubAppInstall.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import type {
+  DeploymentConfigCreateInput,
+  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
+} from "../generated/prisma/models.ts";
+import { type App } from "../generated/prisma/client.ts";
+import { convertSource } from "./createApp.ts";
+import { buildAndDeploy } from "./githubWebhook.ts";
+
+const createAppGroup: HandlerMap["createAppGroup"] = async (
+  ctx,
+  req: AuthenticatedRequest,
+  res,
+) => {
+  const data = ctx.request.requestBody;
+  {
+    const appValidationErrors = data.apps
+      .map((app) => validateDeploymentConfig(app))
+      .filter((validation) => !validation.valid)
+      .map((validation) => validation.message);
+    if (appValidationErrors.length > 0) {
+      return json(400, res, {
+        code: 400,
+        message: JSON.stringify(appValidationErrors),
+      });
+    }
+
+    const subdomainErrors = (
+      await Promise.all(
+        data.apps.map((app) => validateSubdomain(app.subdomain)),
+      )
+    )
+      .filter((validation) => !validation.valid)
+      .map((validation) => validation.message);
+    if (subdomainErrors.length > 0) {
+      return json(400, res, {
+        code: 400,
+        message: JSON.stringify(subdomainErrors),
+      });
+    }
+  }
+
+  const organization = await db.organization.findUnique({
+    where: {
+      id: data.orgId,
+      users: {
+        some: {
+          userId: req.user.id,
+        },
+      },
+    },
+    include: {
+      appGroups: {
+        where: {
+          name: data.name,
+        },
+      },
+    },
+  });
+
+  if (!organization) {
+    return json(401, res, {});
+  }
+
+  if (organization.appGroups.length != 0) {
+    return json(400, res, {
+      code: 400,
+      message: `App group ${data.name} already exists`,
+    });
+  }
+
+  let octokit: Octokit;
+  if (data.apps.some((app) => app.source === "git")) {
+    if (!organization.githubInstallationId) {
+      const isOwner = !!(await db.organizationMembership.findFirst({
+        where: {
+          userId: req.user.id,
+          organizationId: data.orgId,
+          permissionLevel: "OWNER",
+        },
+      }));
+      if (isOwner) {
+        const state = await createState(req.user.id, data.orgId);
+        return redirect(
+          302,
+          res,
+          `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
+        );
+      } else {
+        return json(403, res, {
+          code: 403,
+          message:
+            "Owner needs to install GitHub App in organization in order to deploy from Git repositories",
+        });
+      }
+    } else {
+      octokit = await getOctokit(organization.githubInstallationId);
+    }
+  }
+  try {
+    const { id: appGroupId } = await db.appGroup.create({
+      data: {
+        name: data.name,
+        orgId: data.orgId,
+      },
+    });
+    const appConfigs = data.apps.map((app) => {
+      const deploymentConfig: DeploymentConfigCreateInput & {
+        mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
+      } = {
+        source: convertSource(app.source),
+        repositoryId: app.repositoryId,
+        branch: app.branch,
+        port: app.port,
+        env: app.env,
+        builder: app.builder,
+        dockerfilePath: app.dockerfilePath,
+        rootDir: app.rootDir,
+        mounts: { createMany: { data: app.mounts } },
+        imageTag: app.imageTag,
+      };
+      return {
+        name: app.name,
+        displayName: app.name,
+        subdomain: app.subdomain,
+        org: {
+          connect: {
+            id: app.orgId,
+          },
+        },
+        appGroup: {
+          connect: {
+            id: appGroupId,
+          },
+        },
+        logIngestSecret: randomBytes(48).toString("hex"),
+        deploymentConfigTemplate: {
+          create: deploymentConfig,
+        },
+      };
+    });
+
+    await db.$transaction(
+      appConfigs.map((app) => db.app.create({ data: app })),
+    );
+  } catch (err) {
+    console.error(err);
+    return json(500, res, { code: 500, message: "Something went wrong." });
+  }
+
+  return json(200, res, {});
+};
+export default createAppGroup;

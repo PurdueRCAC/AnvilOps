@@ -1,4 +1,9 @@
 import type { components } from "../generated/openapi.ts";
+import {
+  getNamespace,
+  MAX_SUBDOMAIN_LEN,
+  namespaceInUse,
+} from "./kubernetes.ts";
 
 export function validateDeploymentConfig(appData: {
   source?: "git" | "image";
@@ -79,4 +84,19 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
     }
     envNames.add(envVar.name);
   }
+};
+
+export const validateSubdomain = async (subdomain: string) => {
+  if (
+    subdomain.length > MAX_SUBDOMAIN_LEN ||
+    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
+  ) {
+    return { valid: false, message: `Invalid subdomain ${subdomain}` };
+  }
+
+  if (await namespaceInUse(getNamespace(subdomain))) {
+    return { valid: false, message: `Subdomain ${subdomain} is unavailable` };
+  }
+
+  return { valid: true };
 };
