@@ -2,7 +2,14 @@ import { formidable } from "formidable";
 import mime from "mime-types";
 import { once } from "node:events";
 import { createReadStream } from "node:fs";
-import { copyFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  rmdir,
+  stat,
+  unlink,
+} from "node:fs/promises";
 import {
   createServer,
   type IncomingMessage,
@@ -151,10 +158,16 @@ async function handle(
         res.end();
       } else if (req.method === "DELETE") {
         const file = join(rootDir, join("/", search.get("path")!.toString()));
-        await unlink(file);
+        const info = await stat(file);
+
+        if (info.isDirectory()) {
+          await rmdir(file);
+        } else {
+          await unlink(file);
+        }
 
         res.writeHead(200, { "Content-Type": "text/plain" });
-        res.write("Success");
+        res.write(JSON.stringify({ success: true }));
         res.end();
       } else {
         res.writeHead(405, { "Content-Type": "text/plain" });

@@ -23,8 +23,10 @@ import {
   Download,
   File,
   Folder,
+  FolderPlus,
   HardDrive,
   Loader,
+  Plus,
   RefreshCw,
   Trash,
   UploadCloud,
@@ -79,6 +81,35 @@ export const FilesTab = ({ app }: { app: App }) => {
     // Remove the base name
     setPath(path.substring(0, path.lastIndexOf("/") + 1));
   };
+
+  const CreateOptions = () => (
+    <>
+      <FileUpload
+        app={app}
+        parentDir={path}
+        volumeClaimName={params.params.query.volumeClaimName}
+        refresh={refreshFiles}
+      >
+        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+          <Button>
+            <UploadCloud /> Upload Files...
+          </Button>
+        </div>
+      </FileUpload>
+      <CreateDirectory
+        app={app}
+        parentDir={path}
+        volumeClaimName={params.params.query.volumeClaimName}
+        onComplete={refreshFiles}
+      >
+        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+          <Button>
+            <FolderPlus /> Create New Folder...
+          </Button>
+        </div>
+      </CreateDirectory>
+    </>
+  );
 
   return (
     <>
@@ -151,62 +182,69 @@ export const FilesTab = ({ app }: { app: App }) => {
             goUp={goUp}
           />
         </div>
-      ) : files?.type === "directory" && (files?.files?.length ?? 0) > 0 ? (
+      ) : files?.type === "directory" ? (
         <div className="flex flex-col gap-1 mt-4">
-          {files?.files?.map((file) => (
-            <div
-              key={path + file.name}
-              className="flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer"
-              onClick={() => {
-                setPath(
-                  path.endsWith("/")
-                    ? path + file.name
-                    : path + "/" + file.name,
-                );
-              }}
-            >
-              {file.isDirectory ? (
-                <Folder className="opacity-50" />
-              ) : (
-                <File className="opacity-50" />
-              )}
-              {file.name}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xl">{path}</p>
+              <p className="opacity-50">
+                Folder &middot; {files?.files?.length ?? 0} files
+              </p>
             </div>
-          ))}
-          <FileUpload
-            app={app}
-            parentDir={path}
-            volumeClaimName={params.params.query.volumeClaimName}
-            refresh={refreshFiles}
-          >
-            <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
-              <Button>
-                <UploadCloud /> Upload Files...
-              </Button>
-            </div>
-          </FileUpload>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center min-h-96">
-          <div className="p-16 rounded-xl bg-gray-100 flex flex-col items-center gap-2">
-            <Folder size={48} />
-            <h3 className="text-xl mt-4">No files found</h3>
             <div className="flex gap-2">
-              <Button onClick={goUp} variant="outline">
-                Go back
-              </Button>
-              <FileUpload
+              <DeleteFile
                 app={app}
-                parentDir={path}
+                path={path}
+                onComplete={() => {
+                  refreshFiles();
+                  goUp();
+                }}
                 volumeClaimName={params.params.query.volumeClaimName}
-                refresh={refreshFiles}
               >
-                <Button>Upload Files</Button>
-              </FileUpload>
+                <Button variant="outline">
+                  <Trash />
+                </Button>
+              </DeleteFile>
             </div>
           </div>
+          <hr className="mt-2 mb-4" />
+          {(files?.files?.length ?? 0) === 0 ? (
+            <>
+              <div className="p-8 my-4 rounded-xl bg-gray-100 flex flex-col items-center gap-2">
+                <Folder size={48} />
+                <h3 className="text-xl mt-4">No files found</h3>
+                <div className="flex gap-2">
+                  <Button onClick={goUp} variant="outline">
+                    Go back
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            files?.files?.map((file) => (
+              <div
+                key={path + file.name}
+                className="flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer"
+                onClick={() => {
+                  setPath(
+                    path.endsWith("/")
+                      ? path + file.name
+                      : path + "/" + file.name,
+                  );
+                }}
+              >
+                {file.isDirectory ? (
+                  <Folder className="opacity-50" />
+                ) : (
+                  <File className="opacity-50" />
+                )}
+                {file.name}
+              </div>
+            ))
+          )}
+          <CreateOptions />
         </div>
-      )}
+      ) : null}
     </>
   );
 };
@@ -408,6 +446,73 @@ const DeleteFile = ({
           <div className="flex justify-end mt-4">
             <Button type="submit" disabled={isPending}>
               <Trash /> Delete Forever
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const CreateDirectory = ({
+  app,
+  parentDir,
+  volumeClaimName,
+  children,
+  onComplete,
+}: {
+  app: App;
+  parentDir: string;
+  volumeClaimName: string;
+  children: ReactNode;
+  onComplete: () => void;
+}) => {
+  const [name, setName] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const { mutateAsync: createFile, isPending } = api.useMutation(
+    "post",
+    "/app/{appId}/file",
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Folder</DialogTitle>
+        </DialogHeader>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const promise = createFile({
+              params: {
+                path: { appId: app.id },
+                query: {
+                  path: parentDir.endsWith("/")
+                    ? parentDir + name
+                    : parentDir + "/" + name,
+                  volumeClaimName,
+                },
+              },
+              body: { type: "directory" },
+            }).then(onComplete);
+            toast.promise(promise, {
+              success: "Folder created successfully!",
+              error: "There was a problem creating the folder.",
+              loading: "Creating folder...",
+            });
+          }}
+        >
+          <Label htmlFor="createDirName">Name</Label>
+          <Input
+            id="createDirName"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+          />
+          <div className="flex justify-end mt-4">
+            <Button type="submit" disabled={isPending}>
+              <Plus /> Create
             </Button>
           </div>
         </form>
