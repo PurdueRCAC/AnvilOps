@@ -112,6 +112,7 @@ const OrgApps = ({
         {org.appGroups.map((group) => (
           <AppGroup
             appGroup={group}
+            key={group.id}
             deleteAppGroup={async () => {
               await deleteAppGroup(group.id);
               refetch();
@@ -170,7 +171,6 @@ const AppGroup = ({
   return (
     <>
       <div
-        key={appGroup.id}
         className={
           !appGroup.isMono
             ? "rounded-md col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-2 pl-4 pr-4 pb-6 border border-stone-300 shadow-stone-300 shadow-sm"
@@ -239,7 +239,7 @@ const AppGroup = ({
         )}
 
         {appGroup.apps.map((app) => (
-          <AppCard app={app} appGroup={appGroup} />
+          <AppCard app={app} key={app.id} appGroup={appGroup} />
         ))}
       </div>
     </>
@@ -255,7 +255,6 @@ const AppCard = ({
 }) => {
   return (
     <div
-      key={app.id}
       className={cn(
         "flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative",
         !appGroup.isMono

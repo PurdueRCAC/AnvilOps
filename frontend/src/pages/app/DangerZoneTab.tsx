@@ -39,16 +39,16 @@ export const DangerZoneTab = ({ app }: { app: App }) => {
         repository.
       </p>
       <AlertDialog>
-        <AlertDialogTrigger>
+        <AlertDialogTrigger asChild>
           <Button variant="destructive">Delete Project</Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm delete project</AlertDialogTitle>
-            <AlertDialogDescription>
-              <p>
-                This action cannot be undone.
+            <AlertDialogDescription asChild>
+              <div>
                 <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                  This action cannot be undone.
                   <li>
                     Your AnvilOps project and all associated deployments and
                     infrastructure will be deleted.
@@ -59,15 +59,15 @@ export const DangerZoneTab = ({ app }: { app: App }) => {
                   </li>
                   <li>Your Git repository will be unaffected.</li>
                 </ul>
-              </p>
-              <p className="mb-2">
-                Type the project name <b>{app.displayName}</b> to continue.
-              </p>
-              <Input
-                placeholder={app.displayName}
-                value={text}
-                onChange={(e) => setText(e.currentTarget.value)}
-              />
+                <p className="mb-2">
+                  Type the project name <b>{app.displayName}</b> to continue.
+                </p>
+                <Input
+                  placeholder={app.displayName}
+                  value={text}
+                  onChange={(e) => setText(e.currentTarget.value)}
+                />
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

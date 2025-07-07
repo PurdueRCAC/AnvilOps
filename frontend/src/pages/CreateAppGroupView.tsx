@@ -1,6 +1,13 @@
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +39,8 @@ export default function CreateAppGroupView() {
 
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
     {
-      env: [],
-      mounts: [],
+      env: [{ name: "", value: "", isSensitive: false }],
+      mounts: [{ path: "", amountInMiB: 1024 }],
       source: "git",
       builder: "railpack",
       subdomain: "",
@@ -191,15 +198,14 @@ export default function CreateAppGroupView() {
             <div ref={scrollRef} className="overflow-x-auto overflow-y-clip">
               <TabsList className="w-fit">
                 {appStates.map((_, idx) => (
-                  <>
+                  <Fragment key={`tab-${idx}`}>
                     <TabsTrigger
-                      key={idx}
                       value={idx.toString()}
                       disabled={orgId === undefined}
                     >
                       <span>{getAppName(appStates[idx])}</span>
                     </TabsTrigger>
-                    <button type="button">
+                    <button type="button" key={`close-${idx}`}>
                       <X
                         className="size-3 stroke-3 inline"
                         onClick={() => {
@@ -215,7 +221,7 @@ export default function CreateAppGroupView() {
                         }}
                       />
                     </button>
-                  </>
+                  </Fragment>
                 ))}
                 <Button
                   key="addApp"
@@ -225,8 +231,8 @@ export default function CreateAppGroupView() {
                     setAppStates((appStates) => [
                       ...appStates,
                       {
-                        env: [],
-                        mounts: [],
+                        env: [{ name: "", value: "", isSensitive: false }],
+                        mounts: [{ path: "", amountInMiB: 1024 }],
                         source: "git",
                         builder: "railpack",
                         orgId,

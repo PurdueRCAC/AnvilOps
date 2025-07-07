@@ -54,8 +54,8 @@ export default function CreateAppView() {
 
   const [formState, setFormState] = useState<AppInfoFormData>({
     groupOption: "standalone",
-    env: [],
-    mounts: [],
+    env: [{ name: "", value: "", isSensitive: false }],
+    mounts: [{ path: "", amountInMiB: 1024 }],
     orgId: search.has("org")
       ? parseInt(search.get("org")!.toString())
       : user?.orgs?.[0]?.id,

@@ -20,8 +20,8 @@ export const ConfigTab = ({
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
   const [formState, setFormState] = useState<AppInfoFormData>({
-    env: app.config.env,
-    mounts: app.config.mounts,
+    env: [...app.config.env, { name: "", value: "", isSensitive: false }],
+    mounts: [...app.config.mounts, { path: "", amountInMiB: 1024 }],
     builder: app.config.builder ?? "railpack",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
