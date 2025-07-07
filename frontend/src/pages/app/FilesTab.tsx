@@ -28,12 +28,28 @@ import {
   Loader,
   Plus,
   RefreshCw,
+  SaveIcon,
   Trash,
   UploadCloud,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { Editor } from "../../lib/monaco";
 import type { App } from "./AppView";
+
+function dirname(path: string) {
+  if (path === "/") {
+    return "/";
+  }
+  if (path.endsWith("/")) {
+    // Remove the base name and the trailing slash
+    const stripped = path.substring(0, path.lastIndexOf("/")); // Remove the trailing slash
+    return stripped.substring(0, stripped.lastIndexOf("/") + 1); // Remove content after the second-last trailing slash
+  }
+
+  // Remove the base name
+  return path.substring(0, path.lastIndexOf("/") + 1);
+}
 
 export const FilesTab = ({ app }: { app: App }) => {
   const [replica, setReplica] = useState("0");
@@ -68,18 +84,7 @@ export const FilesTab = ({ app }: { app: App }) => {
   });
 
   const goUp = () => {
-    if (path === "/") {
-      return;
-    }
-    if (path.endsWith("/")) {
-      // Remove the base name and the trailing slash
-      const stripped = path.substring(0, path.lastIndexOf("/")); // Remove the trailing slash
-      setPath(stripped.substring(0, stripped.lastIndexOf("/") + 1)); // Remove content after the second-last trailing slash
-      return;
-    }
-
-    // Remove the base name
-    setPath(path.substring(0, path.lastIndexOf("/") + 1));
+    setPath(dirname(path));
   };
 
   const CreateOptions = () => (
@@ -294,9 +299,9 @@ const FilePreview = ({
     if (!shouldDownload) setShouldDownload(true);
   };
 
-  const Header = () => (
+  const Header = ({ children }: { children?: ReactNode }) => (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between w-full">
         <div>
           <p className="text-xl">{file.name}</p>
           <p className="opacity-50">
@@ -304,6 +309,7 @@ const FilePreview = ({
           </p>
         </div>
         <div className="flex gap-2">
+          {children}
           <DeleteFile
             app={app}
             path={path}
@@ -345,15 +351,77 @@ const FilePreview = ({
     );
   }
 
+  const [editorContent, setEditorContent] = useState(content);
+  const [saved, setSaved] = useState(true);
+
+  useEffect(() => {
+    if (content && !editorContent) {
+      setEditorContent(content);
+    }
+  }, [content, editorContent]);
+
+  useEffect(() => {
+    if (!saved) {
+      const handler = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+      };
+      window.addEventListener("beforeunload", handler);
+      return () => window.removeEventListener("beforeunload", handler);
+    }
+  }, [saved]);
+
+  const [saving, setSaving] = useState(false);
+
   if (raw || isTextFile(file.fileType!, file.name!)) {
     requestDownload();
     return (
       <div className="w-full">
-        <Header />
+        <Header>
+          <Button
+            disabled={saving}
+            onClick={async () => {
+              const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(dirname(path))}`;
+              const formData = new FormData();
+              formData.set("type", "file");
+              const blob = new Blob([editorContent!], { type: "text/plain" });
+              formData.set("files", blob, file.name);
+              setSaving(true);
+              try {
+                await fetch(uploadURL, { method: "POST", body: formData });
+                toast.success("File saved!");
+                setSaved(true);
+              } catch (e) {
+                console.error(e);
+                toast.error("There was a problem saving the file!");
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? (
+              <>
+                <Loader className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <SaveIcon /> Save
+              </>
+            )}
+          </Button>
+        </Header>
         {loading ? (
           <Loader className="animate-spin" />
         ) : (
-          <pre className="whitespace-pre-wrap">{content}</pre>
+          <Editor
+            loading={<Loader className="animate-spin" />}
+            defaultLanguage={file.fileType}
+            value={editorContent}
+            onChange={(content) => {
+              setEditorContent(content);
+              setSaved(false);
+            }}
+            className="min-h-200"
+          />
         )}
       </div>
     );
@@ -368,30 +436,29 @@ const FilePreview = ({
     );
   }
 
-  switch (file.fileType) {
-    default: {
-      return (
-        <div className="flex flex-col items-center justify-center mt-24">
-          <File size={48} />
-          <p className="mt-2 text-xl">{file.name}</p>
-          <p className="mt-1 opacity-50">{file.fileType}</p>
-          <div className="bg-gray-100 mt-8 rounded-xl p-4">
-            <p>We can't preview this file type.</p>
-            <Button
-              variant="outline"
-              className="mt-4 mr-4"
-              onClick={() => setRaw(true)}
-            >
-              View Raw
-            </Button>
-            <a href={downloadURL}>
-              <Button>Download</Button>
-            </a>
-          </div>
+  return (
+    <>
+      <Header />
+      <div className="flex flex-col items-center justify-center mt-24">
+        <File size={48} />
+        <p className="mt-2 text-xl">{file.name}</p>
+        <p className="mt-1 opacity-50">{file.fileType}</p>
+        <div className="bg-gray-100 mt-8 rounded-xl p-4">
+          <p>We can't preview this file type.</p>
+          <Button
+            variant="outline"
+            className="mt-4 mr-4"
+            onClick={() => setRaw(true)}
+          >
+            View Raw
+          </Button>
+          <a href={downloadURL}>
+            <Button>Download</Button>
+          </a>
         </div>
-      );
-    }
-  }
+      </div>
+    </>
+  );
 };
 
 const DeleteFile = ({
