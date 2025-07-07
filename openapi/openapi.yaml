@@ -983,23 +983,30 @@ paths:
       tags: [app]
       description: Create a new file (or update an existing file) in an app's persistent volume
       operationId: writeAppFile
-      parameters:
-        - in: query
-          name: type
-          schema:
-            type: string
-            enum: [file, directory]
       requestBody:
         content:
-          "*":
+          multipart/form-data:
             schema:
-              description: The full raw content of the file
-              type: string
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [file, directory]
+                files:
+                  type: string
+                  format: binary
       responses:
         "404":
           description: App or parent directory not found
         "201":
           description: Success
+    delete:
+      tags: [app]
+      description: Delete a file in an app's persistent volume
+      operationId: deleteAppFile
+      responses:
+        "204":
+          description: The file was deleted successfully
 
   /app/{appId}/file/download:
     parameters:

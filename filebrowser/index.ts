@@ -1,21 +1,23 @@
+import { formidable } from "formidable";
 import mime from "mime-types";
-import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, readdir, stat } from "node:fs/promises";
+import { once } from "node:events";
+import { createReadStream } from "node:fs";
+import { copyFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
 import { basename, extname, join } from "node:path";
-import { pipeline } from "node:stream/promises";
 
 const port = 8080;
 const rootDir = "/files";
 
 const server = createServer(async (req, res) => {
   try {
-    return handle(req, res);
-  } catch {
+    return await handle(req, res);
+  } catch (error) {
+    console.error(error);
     res.writeHead(500, { "Content-Type": "text/plain" });
     res.write("Internal server error");
     res.end();
@@ -32,12 +34,15 @@ async function handle(
   switch (url.pathname) {
     case "/file":
     case "/file/download": {
+      if (!search.has("volumeClaimName") || !search.has("path")) {
+        res.writeHead(400);
+        res.write("volumeClaimName or path not present");
+        return res.end();
+      }
+
       if (req.method === "GET") {
         try {
           const fileName = search.get("path");
-          if (!fileName) {
-            return res.writeHead(400).end();
-          }
           const filePath = join(rootDir, join("/", fileName));
 
           const mimeType =
@@ -66,7 +71,7 @@ async function handle(
             const readStream = createReadStream(filePath);
 
             await new Promise((resolve, reject) => {
-              readStream.on("data", (chunk) => {
+              readStream.on("data", async (chunk) => {
                 if (!res.headersSent) {
                   res.writeHead(200, {
                     "Content-Type": mimeType,
@@ -80,7 +85,12 @@ async function handle(
                     }"`,
                   });
                 }
-                res.write(chunk);
+                const canWriteMoreNow = res.write(chunk);
+                if (!canWriteMoreNow) {
+                  readStream.pause();
+                  await once(res, "drain");
+                  readStream.resume();
+                }
               });
 
               readStream.on("error", reject);
@@ -103,24 +113,45 @@ async function handle(
             res.end();
           }
         } catch (error) {
-          res.writeHead(404, { "Content-Type": "text/plain" });
+          console.error(error);
+          if (!res.headersSent) {
+            res.writeHead(404, { "Content-Type": "text/plain" });
+          }
           res.write("Not found");
           res.end();
         }
       } else if (req.method === "POST") {
-        const fileName = search.get("path");
-        if (!fileName) {
+        const [fields, files] = await formidable().parse(req);
+        if (!fields["type"]) {
           return res.writeHead(400).end();
         }
-        const filePath = join(rootDir, join("/", fileName));
-        const isDirectory = search.get("type") === "directory";
+        const parentDir = join(
+          rootDir,
+          join("/", search.get("path")!.toString()),
+        );
+        const isDirectory = fields["type"]?.toString() === "directory";
 
         if (isDirectory) {
-          await mkdir(filePath, { recursive: true });
+          await mkdir(parentDir, { recursive: true });
         } else {
-          const writeStream = createWriteStream(filePath);
-          await pipeline(req, writeStream);
+          // Formidable has already parsed the form and placed uploaded files in a temporary directory. We just need to move them to their desired locations.
+          await Promise.all(
+            files["files"]?.map(
+              async (file) =>
+                await copyFile(
+                  file.filepath,
+                  join(parentDir, join("/", file.originalFilename)),
+                ),
+            ),
+          );
         }
+
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.write(JSON.stringify({ success: true }));
+        res.end();
+      } else if (req.method === "DELETE") {
+        const file = join(rootDir, join("/", search.get("path")!.toString()));
+        await unlink(file);
 
         res.writeHead(200, { "Content-Type": "text/plain" });
         res.write("Success");

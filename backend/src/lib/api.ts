@@ -11,6 +11,7 @@ import createApp from "../handlers/createApp.ts";
 import deleteApp from "../handlers/deleteApp.ts";
 import { deleteAppPod } from "../handlers/deleteAppPod.ts";
 import {
+  deleteAppFile,
   downloadAppFile,
   getAppFile,
   writeAppFile,
@@ -564,6 +565,7 @@ const handlers = {
   getAppFile,
   downloadAppFile,
   writeAppFile,
+  deleteAppFile,
 } satisfies HandlerMap;
 
 export const openApiSpecPath = path.resolve(

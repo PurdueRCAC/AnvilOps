@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,13 +18,19 @@ import {
 import { api } from "@/lib/api";
 import {
   ArrowUp,
+  CloudUpload,
   Container,
+  Download,
   File,
   Folder,
   HardDrive,
   Loader,
+  RefreshCw,
+  Trash,
+  UploadCloud,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import type { App } from "./AppView";
 
 export const FilesTab = ({ app }: { app: App }) => {
@@ -43,12 +56,14 @@ export const FilesTab = ({ app }: { app: App }) => {
     },
   };
 
-  const { data: files, isPending: filesLoading } = api.useQuery(
-    "get",
-    "/app/{appId}/file",
-    params,
-    { enabled: volume !== undefined },
-  );
+  const {
+    data: files,
+    isPending: filesLoading,
+    refetch: refreshFiles,
+    isRefetching,
+  } = api.useQuery("get", "/app/{appId}/file", params, {
+    enabled: volume !== undefined,
+  });
 
   const goUp = () => {
     if (path === "/") {
@@ -110,26 +125,37 @@ export const FilesTab = ({ app }: { app: App }) => {
           <Button onClick={goUp} variant="secondary">
             <ArrowUp />
           </Button>
+          <Button onClick={() => refreshFiles()} variant="secondary">
+            <RefreshCw className={isRefetching ? "animate-spin" : ""} />
+          </Button>
           <Button onClick={() => setPath(pathInput)}>Go</Button>
         </div>
       </div>
       {filesLoading ? (
-        <div className="flex items-center justify-center min-h-96">
-          <Loader className="animate-spin" />
-        </div>
+        <>
+          {volume !== undefined && (
+            <div className="flex items-center justify-center min-h-96">
+              <Loader className="animate-spin" />
+            </div>
+          )}
+        </>
       ) : files?.type === "file" ? (
         <div className="flex flex-col items-center justify-center mt-4">
           <FilePreview
+            key={files.modifiedAt} // Refetch the file if it's modified
             file={files}
             app={app}
             path={path}
             volumeClaimName={params.params.query.volumeClaimName}
+            refresh={refreshFiles}
+            goUp={goUp}
           />
         </div>
       ) : files?.type === "directory" && (files?.files?.length ?? 0) > 0 ? (
         <div className="flex flex-col gap-1 mt-4">
           {files?.files?.map((file) => (
             <div
+              key={path + file.name}
               className="flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer"
               onClick={() => {
                 setPath(
@@ -147,13 +173,37 @@ export const FilesTab = ({ app }: { app: App }) => {
               {file.name}
             </div>
           ))}
+          <FileUpload
+            app={app}
+            parentDir={path}
+            volumeClaimName={params.params.query.volumeClaimName}
+            refresh={refreshFiles}
+          >
+            <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+              <Button>
+                <UploadCloud /> Upload Files...
+              </Button>
+            </div>
+          </FileUpload>
         </div>
       ) : (
         <div className="flex items-center justify-center min-h-96">
           <div className="p-16 rounded-xl bg-gray-100 flex flex-col items-center gap-2">
             <Folder size={48} />
             <h3 className="text-xl mt-4">No files found</h3>
-            <Button onClick={goUp}>Go back</Button>
+            <div className="flex gap-2">
+              <Button onClick={goUp} variant="outline">
+                Go back
+              </Button>
+              <FileUpload
+                app={app}
+                parentDir={path}
+                volumeClaimName={params.params.query.volumeClaimName}
+                refresh={refreshFiles}
+              >
+                <Button>Upload Files</Button>
+              </FileUpload>
+            </div>
           </div>
         </div>
       )}
@@ -166,11 +216,15 @@ const FilePreview = ({
   path,
   volumeClaimName,
   app,
+  refresh,
+  goUp,
 }: {
   file: { name?: string; fileType?: string; size?: number };
   path: string;
   volumeClaimName: string;
   app: App;
+  refresh: () => void;
+  goUp: () => void;
 }) => {
   const [raw, setRaw] = useState(false);
 
@@ -202,7 +256,41 @@ const FilePreview = ({
     if (!shouldDownload) setShouldDownload(true);
   };
 
-  if (file.size! > 1_000_000) {
+  const Header = () => (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xl">{file.name}</p>
+          <p className="opacity-50">
+            {file.fileType} &middot; {formatFileSize(file.size!)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <DeleteFile
+            app={app}
+            path={path}
+            onComplete={() => {
+              refresh();
+              goUp();
+            }}
+            volumeClaimName={volumeClaimName}
+          >
+            <Button variant="outline">
+              <Trash />
+            </Button>
+          </DeleteFile>
+          <a href={downloadURL}>
+            <Button variant="outline">
+              <Download />
+            </Button>
+          </a>
+        </div>
+      </div>
+      <hr className="mt-2 mb-4" />
+    </>
+  );
+
+  if (file.size! > 10_000_000) {
     // Large files can't be previewed
     return (
       <div className="mt-24 flex flex-col items-center justify-center">
@@ -218,25 +306,6 @@ const FilePreview = ({
       </div>
     );
   }
-
-  const Header = () => (
-    <>
-      <div className="flex justify-between">
-        <div>
-          <p className="text-xl">{file.name}</p>
-          <p className="opacity-50">
-            {file.fileType} &middot; {formatFileSize(file.size!)}
-          </p>
-        </div>
-        <div>
-          <a href={downloadURL}>
-            <Button>Download</Button>
-          </a>
-        </div>
-      </div>
-      <hr className="mt-2 mb-4" />
-    </>
-  );
 
   if (raw || isTextFile(file.fileType!, file.name!)) {
     requestDownload();
@@ -285,6 +354,127 @@ const FilePreview = ({
       );
     }
   }
+};
+
+const DeleteFile = ({
+  app,
+  path,
+  volumeClaimName,
+  children,
+  onComplete,
+}: {
+  app: App;
+  path: string;
+  volumeClaimName: string;
+  children: ReactNode;
+  onComplete: () => void;
+}) => {
+  const { mutateAsync: deleteFile, isPending } = api.useMutation(
+    "delete",
+    "/app/{appId}/file",
+  );
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete File</DialogTitle>
+        </DialogHeader>
+        <p>
+          Are you sure you want to delete <code>{path}</code>? This cannot be
+          undone.
+        </p>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              await deleteFile({
+                params: {
+                  path: { appId: app.id },
+                  query: { volumeClaimName, path },
+                },
+              });
+              onComplete();
+              setOpen(false);
+            } catch (e) {
+              console.error(e);
+              toast.error("There was a problem deleting the file.");
+            }
+          }}
+        >
+          <div className="flex justify-end mt-4">
+            <Button type="submit" disabled={isPending}>
+              <Trash /> Delete Forever
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const FileUpload = ({
+  app,
+  parentDir,
+  volumeClaimName,
+  children,
+  refresh,
+}: {
+  app: App;
+  parentDir: string;
+  volumeClaimName: string;
+  children: ReactNode;
+  refresh: () => void;
+}) => {
+  const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(parentDir)}`;
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload Files</DialogTitle>
+        </DialogHeader>
+        <p>
+          Files will be placed in <code>{parentDir}</code>.
+        </p>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const promise = fetch(uploadURL, {
+              method: "POST",
+              body: formData,
+            })
+              .then(() => {
+                refresh();
+                setOpen(false);
+              })
+              .catch(console.error);
+            toast.promise(promise, {
+              success: "Files uploaded successfully!",
+              error: "There was a problem uploading files.",
+              loading: "Uploading files...",
+            });
+          }}
+        >
+          <input type="hidden" name="type" value="file" />
+          <input type="hidden" name="basePath" value={parentDir} />
+          <Input type="file" name="files" multiple />
+          <div className="flex justify-end mt-4">
+            <Button type="submit">
+              <CloudUpload /> Upload
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 const formatFileSize = (bytes: number) => {

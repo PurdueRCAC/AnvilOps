@@ -24,6 +24,7 @@ export const ImportRepoDialog = ({
     "get",
     "/org/{orgId}/installation",
     { params: { path: { orgId: orgId } } },
+    { enabled: open },
   );
 
   const { mutateAsync: importRepo, isPending } = api.useMutation(

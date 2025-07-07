@@ -1,8 +1,9 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
+import { Readable } from "node:stream";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
-import { getNamespace } from "../lib/kubernetes.ts";
+import { generateVolumeName, getNamespace } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppFile: HandlerMap["getAppFile"] = async (
@@ -14,9 +15,9 @@ export const getAppFile: HandlerMap["getAppFile"] = async (
     req.user.id,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
-    req,
+    `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
+    {},
     res,
-    false,
   );
 };
 
@@ -29,9 +30,47 @@ export const downloadAppFile: HandlerMap["downloadAppFile"] = async (
     req.user.id,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
-    req,
+    `/file/download?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
+    {},
     res,
-    true,
+  );
+};
+
+export const writeAppFile: HandlerMap["writeAppFile"] = async (
+  ctx,
+  req: AuthenticatedRequest,
+  res,
+) => {
+  return await forward(
+    req.user.id,
+    ctx.request.params.appId,
+    ctx.request.query.volumeClaimName,
+    `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
+    {
+      method: "POST",
+      body: Readable.toWeb(req),
+      duplex: "half",
+      headers: {
+        "content-type": req.headers["content-type"],
+        "content-length": req.headers["content-length"],
+      },
+    },
+    res,
+  );
+};
+
+export const deleteAppFile: HandlerMap["deleteAppFile"] = async (
+  ctx,
+  req: AuthenticatedRequest,
+  res,
+) => {
+  return await forward(
+    req.user.id,
+    ctx.request.params.appId,
+    ctx.request.query.volumeClaimName,
+    `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
+    { method: "DELETE" },
+    res,
   );
 };
 
@@ -39,9 +78,9 @@ async function forward(
   userId: number,
   appId: number,
   volumeClaimName: string,
-  req: Request,
+  path: string,
+  requestInit: RequestInit,
   res: Response,
-  download: boolean,
 ) {
   const app = await db.app.findFirst({
     where: {
@@ -51,13 +90,20 @@ async function forward(
     include: { deploymentConfigTemplate: { include: { mounts: true } } },
   });
 
+  if (
+    !app.deploymentConfigTemplate.mounts.some((mount) =>
+      volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
+    )
+  ) {
+    // This persistent volume doesn't belong to the application
+    return json(400, res, {});
+  }
+
   const response = await forwardRequest(
     getNamespace(app.subdomain),
     volumeClaimName,
-    `/file${download ? "/download" : ""}?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
-    {
-      method: "GET",
-    },
+    path,
+    requestInit,
   );
 
   if (response.status === 404) {
@@ -89,36 +135,3 @@ async function forward(
     res.write(value);
   }
 }
-
-export const writeAppFile: HandlerMap["writeAppFile"] = async (
-  ctx,
-  req: AuthenticatedRequest,
-  res,
-) => {
-  const app = await db.app.findFirst({
-    where: {
-      id: ctx.request.params.appId,
-      org: { users: { some: { userId: req.user.id } } },
-    },
-    include: { deploymentConfigTemplate: { include: { mounts: true } } },
-  });
-
-  const response = await forwardRequest(
-    getNamespace(app.subdomain),
-    ctx.request.query.volumeClaimName,
-    `/files?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
-    {
-      method: "POST",
-      body: req.body,
-    },
-  );
-
-  if (response.status !== 200) {
-    if (response.status === 404) {
-      return json(404, res, {});
-    }
-    throw new Error("Failed to upload file: " + (await response.text()));
-  } else {
-    return json(201, res, {});
-  }
-};
