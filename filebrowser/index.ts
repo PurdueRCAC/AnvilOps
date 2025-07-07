@@ -12,6 +12,7 @@ import { basename, extname, join } from "node:path";
 
 const port = 8080;
 const rootDir = "/files";
+const authToken = process.env.AUTH_TOKEN;
 
 const server = createServer(async (req, res) => {
   try {
@@ -28,6 +29,12 @@ async function handle(
   req: IncomingMessage,
   res: ServerResponse<IncomingMessage>,
 ) {
+  if (req.headers["authorization"]?.toString() !== authToken) {
+    res.writeHead(403);
+    res.write("Forbidden");
+    res.end();
+  }
+
   const url = URL.parse(req.url, `http://${req.headers.host}`);
   const search = url.searchParams;
 

@@ -1,5 +1,5 @@
 import type { ApiException, V1Job } from "@kubernetes/client-node";
-import crypto from "node:crypto";
+import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { k8s } from "./kubernetes.ts";
 
@@ -9,10 +9,14 @@ export async function forwardRequest(
   urlPath: string,
   request: RequestInit,
 ): Promise<Response> {
-  const fb = await getFileBrowserAddress(namespace, volumeClaimName);
-  const address = "http://" + fb + urlPath;
-
-  return await fetch(address, request);
+  const { address, code } = await getFileBrowserAddress(
+    namespace,
+    volumeClaimName,
+  );
+  return await fetch(address + urlPath, {
+    ...request,
+    headers: { ...request.headers, authorization: code },
+  });
 }
 
 async function getFileBrowserAddress(
@@ -40,7 +44,10 @@ async function getFileBrowserAddress(
     if (pods.items.length > 0) {
       const pod = pods.items[0];
       if (pod?.status?.phase === "Running" && pod?.status?.podIP) {
-        return pod.status.podIP;
+        return {
+          address: `http://${pod.status.podIP}`,
+          code: pod.spec.containers[0].env[0].value,
+        };
       }
     }
   } catch (err) {
@@ -75,6 +82,12 @@ async function getFileBrowserAddress(
                     },
                   ],
                   ports: [{ containerPort: 8080 }],
+                  env: [
+                    {
+                      name: "AUTH_TOKEN",
+                      value: randomBytes(48).toString("hex"),
+                    },
+                  ],
                 },
               ],
               volumes: [
@@ -94,10 +107,6 @@ async function getFileBrowserAddress(
   } catch (error) {
     if ((error as ApiException<any>).code === 409) {
       // A Job with this name already exists in this namespace. We don't need to recreate it.
-      job = await k8s.batch.readNamespacedJob({
-        namespace,
-        name: jobName,
-      });
     } else {
       throw error;
     }
@@ -114,7 +123,10 @@ async function getFileBrowserAddress(
       }
       const pod = pods.items[0];
       if (pod?.status?.phase === "Running" && pod?.status?.podIP) {
-        return pod.status.podIP;
+        return {
+          address: `http://${pod.status.podIP}`,
+          code: pod.spec.containers[0].env[0].value,
+        };
       }
     } catch (err) {
       if ((err as ApiException<any>).code !== 404) {
