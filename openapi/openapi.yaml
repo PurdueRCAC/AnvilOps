@@ -1037,7 +1037,7 @@ paths:
         "200":
           description: Success
           content:
-            "*":
+            "application/octet-stream":
               schema:
                 type: string
                 description: The full raw content of the file

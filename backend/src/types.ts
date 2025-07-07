@@ -42,6 +42,7 @@ type ResponseMap = {
     content?: {
       "application/json"?: any;
       "text/event-stream"?: any;
+      "application/octet-stream"?: any;
     };
   };
 };
