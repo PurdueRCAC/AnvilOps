@@ -374,11 +374,11 @@ export const AppConfigFormFields = ({
           refresh={async () => {
             await refreshRepos();
           }}
-          setRepo={(repo) =>
+          setRepo={(repositoryId, repoName) =>
             setState({
               ...state,
-              repositoryId: repo,
-              repoName: repos?.find((r) => r.id === repo)?.name,
+              repositoryId,
+              repoName,
             })
           }
         />

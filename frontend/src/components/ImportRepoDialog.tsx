@@ -18,7 +18,7 @@ export const ImportRepoDialog = ({
   open: boolean;
   setOpen: Dispatch<boolean>;
   refresh: () => Promise<void>;
-  setRepo: Dispatch<number>;
+  setRepo: (id: number, name: string) => void;
 }) => {
   const { data: installation } = api.useQuery(
     "get",
@@ -75,7 +75,7 @@ export const ImportRepoDialog = ({
               const repoId = result.repoId as number;
               await refresh();
               // Set the repo after the <Select> rerenders with the updated list of repositories
-              setTimeout(() => setRepo(repoId));
+              setTimeout(() => setRepo(repoId, repoName));
             }
             setOpen(false);
           }}
