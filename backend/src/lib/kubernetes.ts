@@ -40,6 +40,7 @@ const NAMESPACE_PREFIX = "anvilops-";
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
+export const MAX_GROUPNAME_LEN = 56;
 
 interface SvcParams {
   name: string;

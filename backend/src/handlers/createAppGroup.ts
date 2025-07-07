@@ -20,6 +20,7 @@ import {
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { MAX_GROUPNAME_LEN } from "../lib/kubernetes.ts";
 
 const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
@@ -28,6 +29,16 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
 ) => {
   const data = ctx.request.requestBody;
   {
+    const groupNameIsValid =
+      data.name.length <= MAX_GROUPNAME_LEN &&
+      data.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/);
+    if (!groupNameIsValid) {
+      return json(400, res, {
+        code: 400,
+        message: "Invalid group name",
+      });
+    }
+
     const appValidationErrors = data.apps
       .map((app) => validateDeploymentConfig(app))
       .filter((validation) => !validation.valid)

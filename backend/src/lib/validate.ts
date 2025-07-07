@@ -1,6 +1,7 @@
 import type { components } from "../generated/openapi.ts";
 import {
   getNamespace,
+  MAX_GROUPNAME_LEN,
   MAX_SUBDOMAIN_LEN,
   namespaceInUse,
 } from "./kubernetes.ts";
@@ -15,6 +16,18 @@ export function validateDeploymentConfig(appData: {
   dockerfilePath?: string;
   imageTag?: string;
   secrets?: components["schemas"]["Envs"];
+  appGroup:
+    | {
+        type: "standalone";
+      }
+    | {
+        type: "create-new";
+        name: string;
+      }
+    | {
+        type: "add-to";
+        id: number;
+      };
 }) {
   // TODO verify that the organization has access to the repository
 
@@ -63,6 +76,18 @@ export function validateDeploymentConfig(appData: {
       valid: false,
       message: "Invalid port number",
     };
+  }
+
+  if (appData.appGroup.type === "create-new") {
+    if (
+      appData.appGroup.name.length > MAX_GROUPNAME_LEN ||
+      appData.appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
+    ) {
+      return {
+        valid: false,
+        message: "Invalid group name",
+      };
+    }
   }
 
   try {

@@ -325,6 +325,14 @@ export const AppConfigFormFields = ({
   );
 
   const [importDialogShown, setImportDialogShown] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const isGroupNameValid = useMemo(() => {
+    const MAX_GROUP_LENGTH = 56;
+    return (
+      groupName.length <= MAX_GROUP_LENGTH &&
+      groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/)
+    );
+  }, [groupName]);
 
   if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
     return selectedOrg?.permissionLevel === "OWNER" ? (
@@ -453,7 +461,29 @@ export const AppConfigFormFields = ({
                     *
                   </span>
                 </div>
-                <Input required placeholder="Group name" name="groupName" />
+                <Input
+                  required
+                  placeholder="Group name"
+                  name="groupName"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.currentTarget.value)}
+                  autoComplete="off"
+                />
+                {groupName && !isGroupNameValid && (
+                  <div className="text-sm flex gap-5">
+                    <X className="text-red-500" />
+                    <ul className="text-black-3 list-disc">
+                      <li>A group name must have 56 or fewer characters.</li>
+                      <li>
+                        A group name must contain only alphanumeric characters,
+                        dashes, underscores, dots, and spaces.
+                      </li>
+                      <li>
+                        A group name must start with an alphanumeric character.
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </>
             )}
           </div>

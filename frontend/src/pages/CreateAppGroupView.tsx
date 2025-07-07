@@ -78,6 +78,16 @@ export default function CreateAppGroupView() {
       appStates.map((state) => ({ ...state, orgId })),
     );
   }, [orgId]);
+
+  const [groupName, setGroupName] = useState("");
+  const isGroupNameValid = useMemo(() => {
+    const MAX_GROUP_LENGTH = 56;
+    return (
+      groupName.length <= MAX_GROUP_LENGTH &&
+      groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/)
+    );
+  }, [groupName]);
+
   return (
     <div className="flex max-w-prose mx-auto">
       <form
@@ -173,13 +183,33 @@ export default function CreateAppGroupView() {
               *
             </span>
           </div>
-          <Input required placeholder="Group name" name="groupName" />
+          <Input
+            required
+            placeholder="Group name"
+            name="groupName"
+            value={groupName}
+            onChange={(e) => setGroupName(e.currentTarget.value)}
+            autoComplete="off"
+          />
+          {groupName && !isGroupNameValid && (
+            <div className="text-sm flex gap-5">
+              <X className="text-red-500" />
+              <ul className="text-black-3 list-disc">
+                <li>A group name must have 56 or fewer characters.</li>
+                <li>
+                  A group name must contain only alphanumeric characters,
+                  dashes, underscores, dots, and spaces.
+                </li>
+                <li>A group name must start with an alphanumeric character.</li>
+              </ul>
+            </div>
+          )}
         </div>
         <Tabs value={tab} onValueChange={setTab}>
           <div className="my-4 relative">
             <div
               ref={scrollRef}
-              className="overflow-x-scroll overflow-y-clip pb-4"
+              className="overflow-x-auto overflow-y-clip pb-2"
             >
               <TabsList className="w-fit">
                 {appStates.map((_, idx) => (
@@ -237,7 +267,7 @@ export default function CreateAppGroupView() {
             {/* left shadow */}
             <span
               className={cn(
-                "pointer-events-none absolute inset-y-0 left-0 bottom-3 w-8 bg-gradient-to-r from-black-1 to-transparent transition-opacity",
+                "pointer-events-none absolute inset-y-0 left-0 bottom-3 w-8 bg-gradient-to-r from-stone-300 to-transparent transition-opacity",
                 atStart ? "opacity-0" : "opacity-100",
               )}
             />
@@ -245,7 +275,7 @@ export default function CreateAppGroupView() {
             {/* right shadow */}
             <span
               className={cn(
-                "pointer-events-none absolute inset-y-0 right-0 bottom-3 w-8 bg-gradient-to-l from-black-1 to-transparent transition-opacity",
+                "pointer-events-none absolute inset-y-0 right-0 bottom-3 w-8 bg-gradient-to-l from-stone-300 to-transparent transition-opacity",
                 atEnd ? "opacity-0" : "opacity-100",
               )}
             />
