@@ -3,8 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { ConfigTab } from "./ConfigTab";
 import { DangerZoneTab } from "./DangerZoneTab";
 import { LogsTab } from "./LogsTab";
@@ -46,7 +45,12 @@ export default function AppView() {
     },
   );
 
-  const [tab, setTab] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") ?? "overview";
+  const setTab = (newTab: string) => {
+    searchParams.set("tab", newTab);
+    setSearchParams(searchParams);
+  };
 
   return (
     <main className="px-8 py-10 max-w-6xl mx-auto">
@@ -115,6 +119,7 @@ export const Status = ({
 }) => {
   const colors: Record<DeploymentStatus, string> = {
     PENDING: "bg-amber-500",
+    QUEUED: "bg-teal-300",
     BUILDING: "bg-blue-500",
     DEPLOYING: "bg-purple-500",
     COMPLETE: "bg-green-500",

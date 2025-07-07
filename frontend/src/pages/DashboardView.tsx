@@ -11,7 +11,6 @@ import {
 import { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./app/AppView";
-import { GitHubIcon } from "./CreateAppView";
 import type { components } from "@/generated/openapi";
 import { cn } from "@/lib/utils";
 import {
@@ -33,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { GitHubIcon } from "./CreateAppView";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);

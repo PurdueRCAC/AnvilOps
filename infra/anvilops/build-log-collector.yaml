@@ -35,7 +35,7 @@ metadata:
     app.kubernetes.io/managed-by: fluxcd
 spec:
   http:
-    endpoint: https://anvilops.rcac.purdue.edu/api/logs/ingest?type=build
+    endpoint: http://anvilops-service.anvilops-dev.svc.cluster.local/api/logs/ingest?type=build
     auth:
       # These credentials only allow build logs to be ingested.
       # Builds must run in our namespace because we don't want to copy our registry credentials and BuildKit TLS certs into tenant namespaces,
@@ -49,9 +49,5 @@ spec:
             key: secret
     content_type: application/jsonl # jsonl = newline-delimited JSON objects (https://jsonlines.org/)
     buffer:
-      type: "memory"
-      tags: "time"
-      timekey: "1s"
-      timekey_wait: "0s"
-      flush_mode: "immediate"
+      tags: "[]"
       flush_interval: "1s"

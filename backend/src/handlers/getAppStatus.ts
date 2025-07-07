@@ -7,6 +7,7 @@ import {
   type V1PodList,
   type V1StatefulSet,
 } from "@kubernetes/client-node";
+import { once } from "node:events";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getNamespace, k8s } from "../lib/kubernetes.ts";
@@ -47,7 +48,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
   let events: CoreV1EventList;
 
   let lastStatus: string;
-  const update = () => {
+  const update = async () => {
     if (!pods || !events || !statefulSet) return;
     const newStatus = {
       pods: pods.items.map((pod) => ({
@@ -91,7 +92,10 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
     const str = JSON.stringify(newStatus);
     if (str !== lastStatus) {
       lastStatus = str;
-      res.write(`data: ${str}\n\n`);
+      const canWriteMoreContent = res.write(`data: ${str}\n\n`);
+      if (!canWriteMoreContent) {
+        await once(res, "drain");
+      }
     }
   };
 
@@ -112,9 +116,9 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
           namespace: ns,
         }),
       {},
-      (newValue) => {
+      async (newValue) => {
         pods = newValue;
-        update();
+        await update();
       },
       close,
     );
@@ -126,11 +130,11 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
           namespace: ns,
         }),
       {},
-      (newValue) => {
+      async (newValue) => {
         statefulSet = newValue.items.find(
           (it) => it.metadata.name === app.name,
         );
-        update();
+        await update();
       },
       close,
     );
@@ -146,14 +150,14 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
           limit: 15,
         }),
       { fieldSelector, limit: 15 },
-      (newValue) => {
+      async (newValue) => {
         events = newValue;
         newValue.items = newValue.items.filter(
           (event) =>
             new Date(event.lastTimestamp).getTime() >
             (app.deployments?.[0]?.createdAt?.getTime() ?? 0),
         );
-        update();
+        await update();
       },
       close,
     );
@@ -167,7 +171,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
     close(e);
   }
 
-  update();
+  await update();
 };
 
 function getCondition(conditions: V1PodCondition[], condition: string) {

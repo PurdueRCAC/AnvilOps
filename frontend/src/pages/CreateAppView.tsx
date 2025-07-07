@@ -58,7 +58,7 @@ export default function CreateAppView() {
     mounts: [],
     orgId: search.has("org")
       ? parseInt(search.get("org")!.toString())
-      : undefined,
+      : user?.orgs?.[0]?.id,
     repositoryId: search.has("repo")
       ? parseInt(search.get("repo")!.toString())
       : undefined,
@@ -578,19 +578,17 @@ export const AppConfigFormFields = ({
                     ? Object.entries(
                         Object.groupBy(repos, (repo) => repo.owner!),
                       ).map(([owner, repos]) => (
-                        <>
-                          <SelectGroup key={`group-${owner}`}>
-                            <SelectLabel key={owner}>{owner}</SelectLabel>
-                            {repos?.map((repo) => (
-                              <SelectItem
-                                key={repo.id}
-                                value={repo.id!.toString()}
-                              >
-                                {repo.owner}/{repo.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </>
+                        <SelectGroup key={owner}>
+                          <SelectLabel>{owner}</SelectLabel>
+                          {repos?.map((repo) => (
+                            <SelectItem
+                              key={repo.id}
+                              value={repo.id!.toString()}
+                            >
+                              {repo.owner}/{repo.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))
                     : null}
                 </SelectGroup>
@@ -625,6 +623,7 @@ export const AppConfigFormFields = ({
             </div>
             <Select
               required
+              key={branchesLoading.toString()} // Force this <Select> to rerender when the branches finish loading, which will make it use the new default value
               name="branch"
               disabled={repositoryId === undefined || branchesLoading}
               value={state.branch}

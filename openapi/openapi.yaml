@@ -882,6 +882,29 @@ paths:
                 type: string
                 description: A server-sent events (SSE) response. When the state changes, a new object will be pushed onto the stream with the new state. Each event will follow the schema of '#/components/schemas/AppStatus'.
 
+  /app/{appId}/pods/{podName}:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: podName
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags: [app]
+      description: Delete a pod
+      operationId: deleteAppPod
+      responses:
+        "404":
+          description: App or pod not found
+        "204":
+          description: Deleted successfully
+
   /app/{appId}/deployments:
     parameters:
       - name: appId
@@ -1419,7 +1442,7 @@ components:
       required: [path, amountInMiB]
     DeploymentStatus:
       type: string
-      enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+      enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
     LogLine:
       type: object
       properties:

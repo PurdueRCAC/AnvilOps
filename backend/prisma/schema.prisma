@@ -113,9 +113,6 @@ model AppGroup {
   // Is monolith app and should be displayed to the user as a single app not part of a group.
   isMono Boolean      @default(false)
   apps   App[]
-
-  // Organization cannot have app groups of the same name
-  @@unique([orgId, name])
 }
 
 model Deployment {
@@ -135,6 +132,7 @@ model Deployment {
   config        DeploymentConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
   configId      Int              @unique
   logs          Log[]
+  queuedJob     QueuedJob?
 }
 
 model DeploymentConfig {
@@ -198,6 +196,26 @@ model RepoImportState {
   orgId         Int
 }
 
+model QueuedJob {
+  id               Int        @id @default(autoincrement())
+  tag              String
+  ref              String
+  gitRepoURL       String
+  imageTag         String
+  imageCacheTag    String
+  deploymentSecret String
+  deploymentId     Int        @unique
+  deployment       Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+}
+
+// Used to cache things like GitHub API responses so that we don't have to fetch them every time.
+// This reduces load on the upstream and makes the site faster.
+model Cache {
+  key       String   @id
+  value     String
+  expiresAt DateTime
+}
+
 enum LogType {
   // System logs created by the AnvilOps backend
   SYSTEM
@@ -210,6 +228,8 @@ enum LogType {
 enum DeploymentStatus {
   // Creating and starting the build job
   PENDING
+  // Build job is waiting in the queue
+  QUEUED
   // Building the image and pushing it to the registry
   BUILDING
   // Applying the update to the cluster

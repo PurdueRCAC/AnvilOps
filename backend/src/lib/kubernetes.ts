@@ -291,7 +291,8 @@ export const createLogConfig = (
       spec: {
         http: {
           // https://kube-logging.dev/docs/configuration/plugins/outputs/http/
-          endpoint: `https://anvilops.rcac.purdue.edu/api/logs/ingest?type=runtime&appId=${appId}`,
+          endpoint: `http://anvilops-service.anvilops-dev.svc.cluster.local/api/logs/ingest?type=runtime&appId=${appId}`,
+          error_response_as_unrecoverable: false,
           auth: {
             username: {
               value: "anvilops",
@@ -308,11 +309,7 @@ export const createLogConfig = (
           },
           content_type: "application/jsonl",
           buffer: {
-            type: "memory",
-            tags: "time",
-            timekey: "1s",
-            timekey_wait: "0s",
-            flush_mode: "immediate",
+            tags: "[]",
             flush_interval: "1s",
           },
         },

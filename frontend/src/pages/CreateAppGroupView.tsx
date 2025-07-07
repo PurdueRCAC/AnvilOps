@@ -29,7 +29,7 @@ export default function CreateAppGroupView() {
   const { mutateAsync: createAppGroup, isPending: createPending } =
     api.useMutation("post", "/app/group");
 
-  const [orgId, setOrgId] = useState<number | undefined>();
+  const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
 
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
     {

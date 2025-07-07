@@ -209,7 +209,7 @@ const OrgSection = ({
                 <>
                   <Button
                     variant="outline"
-                    className="border border-red-400 text-bold text-red-600 hover:text-red-700 shadow-red-800 shadow-sm hover:shadow-md"
+                    className="border border-red-400 text-bold text-red-600 hover:text-red-700 shadow-red-800 shadow-xs hover:shadow-sm"
                   >
                     Transfer Ownership
                   </Button>
