@@ -1259,7 +1259,7 @@ components:
           type: string
         status:
           type: string
-          enum: [PENDING, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+          enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
         source:
           type: string
           enum: [GIT, IMAGE]

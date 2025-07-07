@@ -16,7 +16,7 @@ export function validateDeploymentConfig(appData: {
   dockerfilePath?: string;
   imageTag?: string;
   secrets?: components["schemas"]["Envs"];
-  appGroup:
+  appGroup?:
     | {
         type: "standalone";
       }
