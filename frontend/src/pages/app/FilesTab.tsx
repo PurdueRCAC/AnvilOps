@@ -33,7 +33,7 @@ import {
   Trash,
   UploadCloud,
 } from "lucide-react";
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Editor } from "../../lib/monaco";
 import type { App } from "./AppView";
