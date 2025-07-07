@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { AppConfigFormFields, type AppInfoFormData } from "../CreateAppView";
 import type { App } from "./AppView";
+import type { components } from "@/generated/openapi";
 
 export const ConfigTab = ({
   app,
@@ -23,8 +24,16 @@ export const ConfigTab = ({
     mounts: app.config.mounts,
     builder: app.config.builder ?? "railpack",
     orgId: app.orgId,
-    repoId: app.config.repositoryId ?? undefined,
+    groupOption: app.appGroup.standalone ? "standalone" : "add-to",
+    groupId: app.appGroup.id,
+    repositoryId: app.config.repositoryId ?? undefined,
+    imageTag: app.config.imageTag ?? undefined,
+    branch: app.config.branch ?? undefined,
+    rootDir: app.config.rootDir ?? undefined,
+    dockerfilePath: app.config.dockerfilePath ?? "Dockerfile",
+    port: app.config.port.toString(),
     source: app.config.source,
+    subdomain: "",
   });
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
@@ -39,17 +48,33 @@ export const ConfigTab = ({
 
         const formData = new FormData(e.currentTarget);
         try {
+          let appGroup: components["schemas"]["NewApp"]["appGroup"];
+          switch (formState.groupOption) {
+            case "standalone":
+              appGroup = { type: "standalone" };
+              break;
+            case "create-new":
+              appGroup = {
+                type: "create-new",
+                name: formData.get("groupName")!.toString(),
+              };
+              break;
+            default:
+              appGroup = { type: "add-to", id: formState.groupId! };
+              break;
+          }
           await updateApp({
             params: { path: { appId: app.id } },
             body: {
               name: formData.get("name")!.toString(),
+              appGroup,
               config: {
                 source: formState.source!,
-                port: parseInt(formData.get("port")!.toString()),
+                port: parseInt(formData.get("portNumber")!.toString()),
                 dockerfilePath:
                   formData.get("dockerfilePath")?.toString() ?? null,
                 env: formState.env.filter((it) => it.name.length > 0),
-                repositoryId: formState.repoId ?? null,
+                repositoryId: formState.repositoryId ?? null,
                 branch: formData.get("branch")?.toString() ?? null,
                 builder: (formData.get("builder")?.toString() ?? null) as
                   | "dockerfile"

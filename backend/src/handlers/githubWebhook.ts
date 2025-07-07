@@ -171,6 +171,8 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
       return json(200, res, {});
     }
+    case "workflow_run":
+    //
     default: {
       return json(422, res, {});
     }

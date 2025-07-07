@@ -106,14 +106,13 @@ model App {
 }
 
 model AppGroup {
-  id    Int          @id @default(autoincrement())
-  orgId Int
-  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  name  String
-  apps  App[]
-
-  // Organization cannot have app groups of the same name
-  @@unique([orgId, name])
+  id     Int          @id @default(autoincrement())
+  orgId  Int
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name   String
+  // Is monolith app and should be displayed to the user as a single app not part of a group.
+  isMono Boolean      @default(false)
+  apps   App[]
 }
 
 model Deployment {

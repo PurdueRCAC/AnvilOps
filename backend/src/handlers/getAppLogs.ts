@@ -1,10 +1,7 @@
-import { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
-import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db, subscribe } from "../lib/db.ts";
-import { getNamespace, k8s } from "../lib/kubernetes.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
@@ -36,52 +33,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       await once(res, "drain");
     }
   };
-
-  if (ctx.request.query.type === "RUNTIME") {
-    // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
-    let pods: V1PodList;
-    try {
-      pods = await k8s.default.listNamespacedPod({
-        namespace: getNamespace(app.subdomain),
-        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
-      });
-    } catch (err) {
-      // Namespace may not be ready yet
-      pods = { apiVersion: "v1", items: [] };
-    }
-
-    let podIndex = 0;
-    for (const pod of pods.items) {
-      podIndex++;
-      const podName = pod.metadata.name;
-      const logStream = new stream.PassThrough();
-      const abortController = await k8s.log.log(
-        getNamespace(app.subdomain),
-        podName,
-        pod.spec.containers[0].name,
-        logStream,
-        { follow: true, tailLines: 500, timestamps: true },
-      );
-      let i = 0;
-      logStream.on("data", async (chunk: Buffer) => {
-        const lines = chunk.toString().split("\n");
-        for (const line of lines) {
-          if (line.trim().length === 0) continue;
-          const [date, ...text] = line.toString().split(" ");
-          await sendLog({
-            type: "RUNTIME",
-            log: text.join(" "),
-            pod: podName,
-            time: date,
-            id: podIndex * 100_000_000 + i,
-          });
-          i++;
-        }
-      });
-
-      req.on("close", () => abortController.abort());
-    }
-  }
 
   // Pull logs from Postgres and send them to the client as they come in
   if (typeof ctx.request.params.deploymentId !== "number") {

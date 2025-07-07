@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { X } from "lucide-react";
+import { Loader, X } from "lucide-react";
 import { Suspense, useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Status, type DeploymentStatus } from "./app/AppView";
+import type { components } from "@/generated/openapi";
 
 export default function OrgView() {
   const { user, refetch } = useContext(UserContext);
@@ -75,13 +76,14 @@ export default function OrgView() {
         ) : (
           <>
             {user?.orgs?.map((org) => (
-              <OrgSection
-                key={org.id}
-                name={org.name}
-                orgId={org.id}
-                permissionLevel={org.permissionLevel}
-                deleteOrg={createDeleteOrg}
-              />
+              <Suspense fallback={<OrgSectionFallback />}>
+                <OrgSection
+                  name={org.name}
+                  orgId={org.id}
+                  permissionLevel={org.permissionLevel}
+                  deleteOrg={createDeleteOrg}
+                />
+              </Suspense>
             ))}
           </>
         )}
@@ -123,47 +125,44 @@ const OrgSection = ({
   });
 
   const submitDelete = deleteOrg(orgId);
-
   return (
-    <div key={orgId} className="mt-8">
+    <div className="mt-8">
       <h3 className="text-xl font-medium mb-2">{name}</h3>
       <div className="flex flex-wrap lg:justify-start space-x-10 space-y-10 w-full">
         <Card title="Members">
-          <Suspense fallback={<p>Loading...</p>}>
-            <div>
-              {data.members.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors"
-                >
-                  <div className="space-x-2">
-                    <span className="text-md">{m.name}</span>
-                    <span className="opacity-50">
-                      <a href={`mailto:${m.email}`} className="hover:underline">
-                        {m.email}
-                      </a>
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-end gap-4">
-                    {m.permissionLevel === "OWNER" ? (
-                      <p className="opacity-50">Owner</p>
-                    ) : null}
-                    {permissionLevel === "OWNER" &&
-                    m.permissionLevel !== "OWNER" ? (
-                      <Button
-                        variant="ghost"
-                        type="button"
-                        className="text-sm hover:bg-stone-300"
-                        title="Remove User"
-                      >
-                        <X className="text-red-500 size-5" />
-                      </Button>
-                    ) : null}
-                  </div>
+          <div>
+            {data.members.map((m) => (
+              <div
+                key={m.id}
+                className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors"
+              >
+                <div className="space-x-2">
+                  <span className="text-md">{m.name}</span>
+                  <span className="opacity-50">
+                    <a href={`mailto:${m.email}`} className="hover:underline">
+                      {m.email}
+                    </a>
+                  </span>
                 </div>
-              ))}
-            </div>
-          </Suspense>
+                <div className="flex items-center justify-end gap-4">
+                  {m.permissionLevel === "OWNER" ? (
+                    <p className="opacity-50">Owner</p>
+                  ) : null}
+                  {permissionLevel === "OWNER" &&
+                  m.permissionLevel !== "OWNER" ? (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      className="text-sm hover:bg-stone-300"
+                      title="Remove User"
+                    >
+                      <X className="text-red-500 size-5" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* {permissionLevel === "OWNER" ? (
@@ -173,9 +172,16 @@ const OrgSection = ({
                 </Card>
             ) : null} */}
         <Card title="Apps">
-          <Suspense fallback={<p>Loading...</p>}>
-            <div className="overflow-y-auto h-90">
-              {data.apps.map((app) => (
+          <div className="overflow-y-auto h-90">
+            {data.appGroups
+              .reduce(
+                (appList, group) => {
+                  appList.push(...group.apps);
+                  return appList;
+                },
+                [] as components["schemas"]["AppSummary"][],
+              )
+              .map((app) => (
                 <div key={`app-${orgId}-${app.id}`}>
                   <Link to={`/app/${app.id}`}>
                     <div className="w-full flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors">
@@ -187,8 +193,7 @@ const OrgSection = ({
                   </Link>
                 </div>
               ))}
-            </div>
-          </Suspense>
+          </div>
         </Card>
         <Card title="Danger">
           <div className="flex items-center justify-center p-4 size-full">
@@ -237,6 +242,43 @@ const OrgSection = ({
                 </>
               )}
             </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const OrgSectionFallback = () => {
+  return (
+    <div className="mt-8">
+      <h3 className="text-xl font-medium mb-2 text-black-3">
+        Loading organization...
+      </h3>
+      <div className="flex flex-wrap lg:justify-start space-x-10 space-y-10 w-full">
+        <Card title="Members">
+          <div className="flex size-full items-center justify-center">
+            <Loader
+              className="animate-spin font-light text-black-3"
+              size={50}
+            />
+          </div>
+        </Card>
+
+        <Card title="Apps">
+          <div className="flex size-full items-center justify-center">
+            <Loader
+              className="animate-spin font-light text-black-3"
+              size={50}
+            />
+          </div>
+        </Card>
+        <Card title="Danger">
+          <div className="flex size-full items-center justify-center">
+            <Loader
+              className="animate-spin font-light text-black-3"
+              size={50}
+            />
           </div>
         </Card>
       </div>

@@ -77,7 +77,7 @@ const deleteApp: HandlerMap["deleteApp"] = async (
   });
 
   try {
-    await deleteRepo(imageRepo);
+    if (imageRepo) await deleteRepo(imageRepo);
 
     // cascade deletes App
     await db.deploymentConfig.delete({

@@ -4,24 +4,23 @@ import type { Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { DeploymentSource } from "../generated/prisma/enums.ts";
 import type {
+  AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { validateDeploymentConfig } from "../lib/validate.ts";
+import {
+  validateDeploymentConfig,
+  validateSubdomain,
+} from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
-import {
-  getNamespace,
-  MAX_SUBDOMAIN_LEN,
-  namespaceInUse,
-} from "../lib/kubernetes.ts";
 
 const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -130,6 +129,33 @@ const createApp: HandlerMap["createApp"] = async (
     imageTag: appData.imageTag,
   };
 
+  let appGroup: AppGroupCreateNestedOneWithoutAppsInput;
+  switch (appData.appGroup.type) {
+    case "standalone":
+      appGroup = {
+        create: {
+          name: `${appData.name}-${randomBytes(4).toString("hex")}`,
+          org: { connect: { id: appData.orgId } },
+          isMono: true,
+        },
+      };
+      break;
+    case "create-new":
+      appGroup = {
+        create: {
+          name: appData.appGroup.name,
+          org: { connect: { id: appData.orgId } },
+        },
+      };
+      break;
+    default:
+      appGroup = {
+        connect: {
+          id: appData.appGroup.id,
+        },
+      };
+      break;
+  }
   try {
     app = await db.app.create({
       data: {
@@ -145,19 +171,10 @@ const createApp: HandlerMap["createApp"] = async (
         deploymentConfigTemplate: {
           create: deploymentConfig,
         },
-        appGroup: {
-          // TODO: connect to existing appgroup or create
-          create: {
-            name: `${appData.name}-${randomBytes(4).toString("hex")}`,
-            org: {
-              connect: {
-                id: appData.orgId,
-              },
-            },
-          },
-        },
+        appGroup,
       },
     });
+
     app = await db.app.update({
       where: { id: app.id },
       data: { imageRepo: `app-${appData.orgId}-${app.id}` },
@@ -198,21 +215,6 @@ const createApp: HandlerMap["createApp"] = async (
   }
 
   return json(200, res, { id: app.id });
-};
-
-const validateSubdomain = async (subdomain: string) => {
-  if (
-    subdomain.length > MAX_SUBDOMAIN_LEN ||
-    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
-  ) {
-    return { valid: false, message: "Invalid subdomain" };
-  }
-
-  if (await namespaceInUse(getNamespace(subdomain))) {
-    return { valid: false, message: "Subdomain is unavailable" };
-  }
-
-  return { valid: true };
 };
 
 export function convertSource(input: string) {

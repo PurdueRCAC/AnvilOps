@@ -1,4 +1,10 @@
 import type { components } from "../generated/openapi.ts";
+import {
+  getNamespace,
+  MAX_GROUPNAME_LEN,
+  MAX_SUBDOMAIN_LEN,
+  namespaceInUse,
+} from "./kubernetes.ts";
 
 export function validateDeploymentConfig(appData: {
   source?: "git" | "image";
@@ -10,6 +16,18 @@ export function validateDeploymentConfig(appData: {
   dockerfilePath?: string;
   imageTag?: string;
   secrets?: components["schemas"]["Envs"];
+  appGroup?:
+    | {
+        type: "standalone";
+      }
+    | {
+        type: "create-new";
+        name: string;
+      }
+    | {
+        type: "add-to";
+        id: number;
+      };
 }) {
   // TODO verify that the organization has access to the repository
 
@@ -60,6 +78,18 @@ export function validateDeploymentConfig(appData: {
     };
   }
 
+  if (appData.appGroup.type === "create-new") {
+    if (
+      appData.appGroup.name.length > MAX_GROUPNAME_LEN ||
+      appData.appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
+    ) {
+      return {
+        valid: false,
+        message: "Invalid group name",
+      };
+    }
+  }
+
   try {
     validateEnv(appData.env);
   } catch (err) {
@@ -79,4 +109,19 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
     }
     envNames.add(envVar.name);
   }
+};
+
+export const validateSubdomain = async (subdomain: string) => {
+  if (
+    subdomain.length > MAX_SUBDOMAIN_LEN ||
+    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
+  ) {
+    return { valid: false, message: `Invalid subdomain ${subdomain}` };
+  }
+
+  if (await namespaceInUse(getNamespace(subdomain))) {
+    return { valid: false, message: `Subdomain ${subdomain} is unavailable` };
+  }
+
+  return { valid: true };
 };

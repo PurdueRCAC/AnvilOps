@@ -131,13 +131,20 @@
   );
 }
 
-[data-slot="tabs-trigger"][data-state="active"] > * {
+[data-slot="tabs-trigger"][data-state="active"] > span {
   border-bottom: 3px solid var(--color-gold);
 }
 
-[data-slot="tabs-trigger"]:hover > * {
+[data-slot="tabs-trigger"]:hover > span {
   border-bottom: 3px solid var(--color-gold);
   transition: all 0.15s cubic-bezier(1, 0.25, 0, 0.75) 0s;
+}
+
+#scroll-tabs.hide-left > span:first-child {
+  opacity: 0;
+}
+#scroll-tabs.hide-right > span:last-child {
+  opacity: 0;
 }
 
 @layer base {

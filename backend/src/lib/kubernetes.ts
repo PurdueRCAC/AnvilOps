@@ -40,6 +40,7 @@ const NAMESPACE_PREFIX = "anvilops-";
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
+export const MAX_GROUPNAME_LEN = 56;
 
 interface SvcParams {
   name: string;
@@ -290,7 +291,8 @@ export const createLogConfig = (
       spec: {
         http: {
           // https://kube-logging.dev/docs/configuration/plugins/outputs/http/
-          endpoint: `https://anvilops.rcac.purdue.edu/api/logs/ingest?type=runtime&appId=${appId}`,
+          endpoint: `http://anvilops-service.anvilops-dev.svc.cluster.local/api/logs/ingest?type=runtime&appId=${appId}`,
+          error_response_as_unrecoverable: false,
           auth: {
             username: {
               value: "anvilops",
@@ -307,11 +309,7 @@ export const createLogConfig = (
           },
           content_type: "application/jsonl",
           buffer: {
-            type: "memory",
-            tags: "time",
-            timekey: "1s",
-            timekey_wait: "0s",
-            flush_mode: "immediate",
+            tags: "[]",
             flush_interval: "1s",
           },
         },
@@ -413,13 +411,15 @@ export const createAppConfigsFromDeployment = (
   );
 
   configs.push(...logs, statefulSet, svc);
+
+  const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
   const labels = {
     "anvilops.rcac.purdue.edu/app-group-id":
       deployment.app.appGroup.id.toString(),
     "anvilops.rcac.purdue.edu/app-id": deployment.appId.toString(),
     "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
     "app.kubernetes.io/name": deployment.app.name,
-    "app.kubernetes.io/part-of": `${deployment.app.appGroup.name}-${deployment.app.appGroup.orgId}`,
+    "app.kubernetes.io/part-of": appGroupLabel,
     "app.kubernetes.io/managed-by": "anvilops",
   };
   applyLabels(namespace, labels);

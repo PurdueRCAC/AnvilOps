@@ -635,6 +635,35 @@ paths:
                     items:
                       type: string
 
+  /org/{orgId}/groups:
+    parameters:
+      - name: orgId
+        in: path
+        description: Id of organization to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [org]
+      description: List the ids and names of app groups belonging to the organization to which apps can be added
+      operationId: listOrgGroups
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                      format: int64
+                    name:
+                      type: string
+                  required: [id, name]
   /app:
     post:
       tags:
@@ -679,6 +708,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /app/group:
+    post:
+      tags: [app]
+      description: Create a group of apps.
+      operationId: createAppGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                orgId:
+                  type: integer
+                  format: int64
+                apps:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/NewApp"
+              required:
+                - name
+                - orgId
+                - apps
+      responses:
+        "200":
+          description: Success
+        "302":
+          description: Redirecting to finish GitHub App installation
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Contact owner to complete GitHub App installation
+        "409":
+          description: Subdomain is taken
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /app/group/{appGroupId}:
+    parameters:
+      - name: appGroupId
+        in: path
+        description: Id of app group.
+        required: true
+        schema:
+          type: integer
+          format: int64
+    delete:
+      tags: [app]
+      description: Delete an app group by id.
+      operationId: deleteAppGroup
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/App"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /app/{appId}:
     parameters:
       - name: appId
@@ -1116,7 +1223,7 @@ components:
                 type: string
                 enum: [OWNER, USER]
             required: [id, name, email, permissionLevel]
-        apps:
+        appGroups:
           type: array
           items:
             type: object
@@ -1124,40 +1231,15 @@ components:
               id:
                 type: integer
                 format: int64
-              displayName:
+              name:
                 type: string
-              status:
-                $ref: "#/components/schemas/DeploymentStatus"
-              source:
-                type: string
-                enum: [GIT, IMAGE]
-              imageTag:
-                type: string
-                nullable: true
-              repositoryURL:
-                type: string
-                format: uri
-                nullable: true
-              branch:
-                type: string
-                nullable: true
-              commitHash:
-                type: string
-                nullable: true
-              link:
-                type: string
-                format: uri
-            required:
-              - id
-              - displayName
-              - status
-              - source
-              - imageTag
-              - repositoryURL
-              - branch
-              - commitHash
-              - link
-
+              isMono:
+                type: boolean
+              apps:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppSummary"
+            required: [id, name, apps]
         githubInstallationId:
           type: integer
           format: int64
@@ -1165,7 +1247,48 @@ components:
         - id
         - name
         - members
-        - apps
+        - appGroups
+
+    AppSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+        source:
+          type: string
+          enum: [GIT, IMAGE]
+        imageTag:
+          type: string
+          nullable: true
+        repositoryURL:
+          type: string
+          format: uri
+          nullable: true
+        branch:
+          type: string
+          nullable: true
+        commitHash:
+          type: string
+          nullable: true
+        link:
+          type: string
+          format: uri
+      required:
+        - id
+        - displayName
+        - status
+        - source
+        - imageTag
+        - repositoryURL
+        - branch
+        - commitHash
+        - link
     App:
       type: object
       properties:
@@ -1175,6 +1298,17 @@ components:
         orgId:
           type: integer
           format: int64
+        appGroup:
+          type: object
+          properties:
+            standalone:
+              type: boolean
+            name:
+              type: string
+            id:
+              type: integer
+              format: int64
+          required: [standalone, id]
         createdAt:
           type: string
         updatedAt:
@@ -1196,6 +1330,7 @@ components:
       required:
         - id
         - orgId
+        - appGroup
         - createdAt
         - updatedAt
         - displayName
@@ -1207,10 +1342,36 @@ components:
       properties:
         name:
           type: string
+        appGroup:
+          oneOf:
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [standalone]
+              required: [type]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [create-new]
+                name:
+                  type: string
+              required: [type, name]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [add-to]
+                id:
+                  type: integer
+                  format: int64
+              required: [type, id]
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
         - name
+        - appGroup
         - config
     DeploymentConfig:
       type: object
@@ -1348,6 +1509,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
+        appGroup:
+          oneOf:
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [standalone]
+              required: [type]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [create-new]
+                name:
+                  type: string
+              required: [type, name]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [add-to]
+                id:
+                  type: integer
+                  format: int64
+              required: [type, id]
       required:
         - orgId
         - source
@@ -1362,6 +1548,7 @@ components:
         - mounts
         - imageTag
         - env
+        - appGroup
     NewEnvs:
       type: array
       items:
