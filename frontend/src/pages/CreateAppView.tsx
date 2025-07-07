@@ -38,7 +38,7 @@ import {
   Tag,
   X,
 } from "lucide-react";
-import { useContext, useMemo, useState, type Dispatch } from "react";
+import { useContext, useEffect, useMemo, useState, type Dispatch } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -306,6 +306,13 @@ export const AppConfigFormFields = ({
     },
   );
 
+  useEffect(() => {
+    setState({
+      ...state,
+      branch: branches?.default ?? branches?.branches?.[0],
+    });
+  }, [branches]);
+
   const MAX_SUBDOMAIN_LENGTH = 54;
   const subdomainIsValid =
     subdomain.length < MAX_SUBDOMAIN_LENGTH &&
@@ -561,7 +568,7 @@ export const AppConfigFormFields = ({
                   }));
                 }
               }}
-              value={repositoryId?.toString()}
+              value={repositoryId?.toString() ?? ""}
             >
               <SelectTrigger className="w-full peer" id="selectRepo">
                 <SelectValue
@@ -623,10 +630,9 @@ export const AppConfigFormFields = ({
             </div>
             <Select
               required
-              key={branchesLoading.toString()} // Force this <Select> to rerender when the branches finish loading, which will make it use the new default value
               name="branch"
               disabled={repositoryId === undefined || branchesLoading}
-              value={state.branch}
+              value={state.branch ?? ""}
               onValueChange={(branch) => {
                 setState({ ...state, branch });
               }}
@@ -636,13 +642,14 @@ export const AppConfigFormFields = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {repositoryId !== undefined
-                    ? branches?.branches?.map((branch) => (
+                  {repositoryId !== undefined &&
+                    branches?.branches?.map((branch) => {
+                      return (
                         <SelectItem key={branch} value={branch}>
                           {branch}
                         </SelectItem>
-                      ))
-                    : null}
+                      );
+                    })}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -663,7 +670,7 @@ export const AppConfigFormFields = ({
               </span>
             </div>
             <Input
-              value={state.imageTag}
+              value={state.imageTag ?? ""}
               onChange={(e) => {
                 const imageTag = e.currentTarget.value;
                 setState((state) => ({ ...state, imageTag }));
@@ -874,7 +881,7 @@ export const AppConfigFormFields = ({
           required
           min="1"
           max="65536"
-          value={state.port}
+          value={state.port ?? ""}
           onChange={(e) => {
             const port = e.currentTarget.value;
             setState((state) => ({ ...state, port }));
