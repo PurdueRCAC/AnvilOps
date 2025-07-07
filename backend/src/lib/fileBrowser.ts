@@ -45,7 +45,7 @@ async function getFileBrowserAddress(
       const pod = pods.items[0];
       if (pod?.status?.phase === "Running" && pod?.status?.podIP) {
         return {
-          address: `http://${pod.status.podIP}`,
+          address: `http://${pod.status.podIP}:8080`,
           code: pod.spec.containers[0].env[0].value,
         };
       }
@@ -124,7 +124,7 @@ async function getFileBrowserAddress(
       const pod = pods.items[0];
       if (pod?.status?.phase === "Running" && pod?.status?.podIP) {
         return {
-          address: `http://${pod.status.podIP}`,
+          address: `http://${pod.status.podIP}:8080`,
           code: pod.spec.containers[0].env[0].value,
         };
       }
