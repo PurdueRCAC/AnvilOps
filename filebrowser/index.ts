@@ -2,14 +2,7 @@ import { formidable } from "formidable";
 import mime from "mime-types";
 import { once } from "node:events";
 import { createReadStream } from "node:fs";
-import {
-  copyFile,
-  mkdir,
-  readdir,
-  rmdir,
-  stat,
-  unlink,
-} from "node:fs/promises";
+import { mkdir, readdir, rm, stat, unlink } from "node:fs/promises";
 import {
   createServer,
   type IncomingMessage,
@@ -128,7 +121,14 @@ async function handle(
           res.end();
         }
       } else if (req.method === "POST") {
-        const [fields, files] = await formidable().parse(req);
+        const [fields, files] = await formidable({
+          allowEmptyFiles: true,
+          minFileSize: 0,
+          uploadDir: join(rootDir, join("/", search.get("path")!.toString())),
+          filename: (name, ext, part, form) => {
+            return join("/", part.originalFilename);
+          },
+        }).parse(req);
         if (!fields["type"]) {
           return res.writeHead(400).end();
         }
@@ -141,16 +141,7 @@ async function handle(
         if (isDirectory) {
           await mkdir(parentDir, { recursive: true });
         } else {
-          // Formidable has already parsed the form and placed uploaded files in a temporary directory. We just need to move them to their desired locations.
-          await Promise.all(
-            files["files"]?.map(
-              async (file) =>
-                await copyFile(
-                  file.filepath,
-                  join(parentDir, join("/", file.originalFilename)),
-                ),
-            ),
-          );
+          // Formidable has already parsed the form and placed uploaded files in the persistent volume. See the `uploadDir` and `filename` options passed to `formidable` above.
         }
 
         res.writeHead(200, { "Content-Type": "text/plain" });
@@ -161,7 +152,7 @@ async function handle(
         const info = await stat(file);
 
         if (info.isDirectory()) {
-          await rmdir(file);
+          await rm(file, { recursive: true });
         } else {
           await unlink(file);
         }

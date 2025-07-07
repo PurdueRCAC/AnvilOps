@@ -22,6 +22,7 @@ import {
   Container,
   Download,
   File,
+  FilePlus,
   Folder,
   FolderPlus,
   HardDrive,
@@ -32,7 +33,7 @@ import {
   Trash,
   UploadCloud,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Editor } from "../../lib/monaco";
 import type { App } from "./AppView";
@@ -101,7 +102,21 @@ export const FilesTab = ({ app }: { app: App }) => {
           </Button>
         </div>
       </FileUpload>
-      <CreateDirectory
+      <CreateFile
+        type="file"
+        app={app}
+        parentDir={path}
+        volumeClaimName={params.params.query.volumeClaimName}
+        onComplete={refreshFiles}
+      >
+        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+          <Button>
+            <FilePlus /> Create New File...
+          </Button>
+        </div>
+      </CreateFile>
+      <CreateFile
+        type="directory"
         app={app}
         parentDir={path}
         volumeClaimName={params.params.query.volumeClaimName}
@@ -112,7 +127,7 @@ export const FilesTab = ({ app }: { app: App }) => {
             <FolderPlus /> Create New Folder...
           </Button>
         </div>
-      </CreateDirectory>
+      </CreateFile>
     </>
   );
 
@@ -152,7 +167,13 @@ export const FilesTab = ({ app }: { app: App }) => {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPath(pathInput);
+          }}
+        >
           <Input
             value={pathInput}
             onChange={(e) => setPathInput(e.currentTarget.value)}
@@ -164,8 +185,8 @@ export const FilesTab = ({ app }: { app: App }) => {
           <Button onClick={() => refreshFiles()} variant="secondary">
             <RefreshCw className={isRefetching ? "animate-spin" : ""} />
           </Button>
-          <Button onClick={() => setPath(pathInput)}>Go</Button>
-        </div>
+          <Button type="submit">Go</Button>
+        </form>
       </div>
       {filesLoading ? (
         <>
@@ -352,7 +373,27 @@ const FilePreview = ({
   }
 
   const [editorContent, setEditorContent] = useState(content);
+  const [editorVisible, setEditorVisible] = useState(false);
   const [saved, setSaved] = useState(true);
+
+  const save = async () => {
+    const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(dirname(path))}`;
+    const formData = new FormData();
+    formData.set("type", "file");
+    const blob = new Blob([editorContent!], { type: "text/plain" });
+    formData.set("files", blob, file.name);
+    setSaving(true);
+    try {
+      await fetch(uploadURL, { method: "POST", body: formData });
+      toast.success("File saved!");
+      setSaved(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("There was a problem saving the file!");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (content && !editorContent) {
@@ -370,6 +411,19 @@ const FilePreview = ({
     }
   }, [saved]);
 
+  useEffect(() => {
+    if (editorVisible) {
+      const handler = (e: KeyboardEvent) => {
+        if (e.ctrlKey && e.key === "s") {
+          e.preventDefault();
+          save();
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }
+  }, [editorVisible]);
+
   const [saving, setSaving] = useState(false);
 
   if (raw || isTextFile(file.fileType!, file.name!)) {
@@ -377,27 +431,7 @@ const FilePreview = ({
     return (
       <div className="w-full">
         <Header>
-          <Button
-            disabled={saving}
-            onClick={async () => {
-              const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(dirname(path))}`;
-              const formData = new FormData();
-              formData.set("type", "file");
-              const blob = new Blob([editorContent!], { type: "text/plain" });
-              formData.set("files", blob, file.name);
-              setSaving(true);
-              try {
-                await fetch(uploadURL, { method: "POST", body: formData });
-                toast.success("File saved!");
-                setSaved(true);
-              } catch (e) {
-                console.error(e);
-                toast.error("There was a problem saving the file!");
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
+          <Button disabled={saving} onClick={save}>
             {saving ? (
               <>
                 <Loader className="animate-spin" /> Saving...
@@ -414,6 +448,7 @@ const FilePreview = ({
         ) : (
           <Editor
             loading={<Loader className="animate-spin" />}
+            onMount={() => setEditorVisible(true)}
             defaultLanguage={file.fileType}
             value={editorContent}
             onChange={(content) => {
@@ -521,13 +556,15 @@ const DeleteFile = ({
   );
 };
 
-const CreateDirectory = ({
+const CreateFile = ({
+  type,
   app,
   parentDir,
   volumeClaimName,
   children,
   onComplete,
 }: {
+  type: "file" | "directory";
   app: App;
   parentDir: string;
   volumeClaimName: string;
@@ -547,33 +584,50 @@ const CreateDirectory = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Folder</DialogTitle>
+          <DialogTitle>
+            Create {type === "file" ? "File" : "Folder"}
+          </DialogTitle>{" "}
+          <p>
+            Located in <code>{parentDir}</code>
+          </p>
         </DialogHeader>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
+
+            const files = new Blob([""], { type: "text/plain" });
+            const formData = new FormData();
+            if (type === "file") {
+              formData.set("files", files, name);
+            }
+            formData.set("type", type);
+
             const promise = createFile({
               params: {
                 path: { appId: app.id },
                 query: {
-                  path: parentDir.endsWith("/")
-                    ? parentDir + name
-                    : parentDir + "/" + name,
+                  path:
+                    type === "file"
+                      ? parentDir
+                      : parentDir.endsWith("/")
+                        ? parentDir + name
+                        : parentDir + "/" + name,
                   volumeClaimName,
                 },
               },
-              body: { type: "directory" },
+              body: formData as unknown as any,
             }).then(onComplete);
             toast.promise(promise, {
-              success: "Folder created successfully!",
-              error: "There was a problem creating the folder.",
-              loading: "Creating folder...",
+              success: `${type === "file" ? "File" : "Folder"} created successfully!`,
+              error: `There was a problem creating the ${type === "file" ? "file" : "folder"}.`,
+              loading: `Creating ${type === "file" ? "file" : "folder"}...`,
             });
           }}
         >
-          <Label htmlFor="createDirName">Name</Label>
+          <Label htmlFor="createFileName">Name</Label>
           <Input
-            id="createDirName"
+            id="createFileName"
             value={name}
             onChange={(e) => setName(e.currentTarget.value)}
           />
