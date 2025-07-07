@@ -136,7 +136,7 @@
 }
 
 [data-slot="tabs-trigger"]:hover > span {
-  border-bottom: 3px solid var(--color-gold);
+  border-bottom: 3px solid var(--color-gold-1);
   transition: all 0.15s cubic-bezier(1, 0.25, 0, 0.75) 0s;
 }
 

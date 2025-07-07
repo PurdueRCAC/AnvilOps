@@ -1,6 +1,13 @@
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +28,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
@@ -33,8 +39,8 @@ export default function CreateAppGroupView() {
 
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
     {
-      env: [],
-      mounts: [],
+      env: [{ name: "", value: "", isSensitive: false }],
+      mounts: [{ path: "", amountInMiB: 1024 }],
       source: "git",
       builder: "railpack",
       subdomain: "",
@@ -54,24 +60,6 @@ export default function CreateAppGroupView() {
   }, [user, orgId]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Tracking whether tab list is scrolled to start or end
-  const [atStart, setAtStart] = useState(true);
-  const [atEnd, setAtEnd] = useState(true);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const update = () => {
-      setAtStart(el.scrollLeft <= 0);
-      setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
-    };
-
-    // passive avoids blocking the main thread while scrolling
-    el.addEventListener("scroll", update, { passive: true });
-    return () => el.removeEventListener("scroll", update);
-  }, []);
 
   useEffect(() => {
     setAppStates((appStates) =>
@@ -207,21 +195,17 @@ export default function CreateAppGroupView() {
         </div>
         <Tabs value={tab} onValueChange={setTab}>
           <div className="my-4 relative">
-            <div
-              ref={scrollRef}
-              className="overflow-x-auto overflow-y-clip pb-2"
-            >
+            <div ref={scrollRef} className="overflow-x-auto overflow-y-clip">
               <TabsList className="w-fit">
                 {appStates.map((_, idx) => (
-                  <>
+                  <Fragment key={`tab-${idx}`}>
                     <TabsTrigger
-                      key={idx}
                       value={idx.toString()}
                       disabled={orgId === undefined}
                     >
                       <span>{getAppName(appStates[idx])}</span>
                     </TabsTrigger>
-                    <button type="button">
+                    <button type="button" key={`close-${idx}`}>
                       <X
                         className="size-3 stroke-3 inline"
                         onClick={() => {
@@ -237,7 +221,7 @@ export default function CreateAppGroupView() {
                         }}
                       />
                     </button>
-                  </>
+                  </Fragment>
                 ))}
                 <Button
                   key="addApp"
@@ -247,8 +231,8 @@ export default function CreateAppGroupView() {
                     setAppStates((appStates) => [
                       ...appStates,
                       {
-                        env: [],
-                        mounts: [],
+                        env: [{ name: "", value: "", isSensitive: false }],
+                        mounts: [{ path: "", amountInMiB: 1024 }],
                         source: "git",
                         builder: "railpack",
                         orgId,
@@ -264,21 +248,6 @@ export default function CreateAppGroupView() {
                 </Button>
               </TabsList>
             </div>
-            {/* left shadow */}
-            <span
-              className={cn(
-                "pointer-events-none absolute inset-y-0 left-0 bottom-3 w-8 bg-gradient-to-r from-stone-300 to-transparent transition-opacity",
-                atStart ? "opacity-0" : "opacity-100",
-              )}
-            />
-
-            {/* right shadow */}
-            <span
-              className={cn(
-                "pointer-events-none absolute inset-y-0 right-0 bottom-3 w-8 bg-gradient-to-l from-stone-300 to-transparent transition-opacity",
-                atEnd ? "opacity-0" : "opacity-100",
-              )}
-            />
           </div>
           {appStates.map((app, idx) => (
             <TabsContent key={idx} value={idx.toString()} className="space-y-8">

@@ -76,7 +76,7 @@ export default function OrgView() {
         ) : (
           <>
             {user?.orgs?.map((org) => (
-              <Suspense fallback={<OrgSectionFallback />}>
+              <Suspense fallback={<OrgSectionFallback />} key={org.id}>
                 <OrgSection
                   name={org.name}
                   orgId={org.id}
