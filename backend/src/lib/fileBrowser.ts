@@ -10,10 +10,7 @@ export async function forwardRequest(
   request: RequestInit,
 ): Promise<Response> {
   const fb = await getFileBrowserAddress(namespace, volumeClaimName);
-
-  // TODO replace:
-  // const address = "http://" + fb + urlPath;
-  const address = "http://localhost:8080" + urlPath;
+  const address = "http://" + fb + urlPath;
 
   return await fetch(address, request);
 }
