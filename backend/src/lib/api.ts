@@ -8,7 +8,9 @@ import type { Octokit } from "octokit";
 import { OpenAPIBackend, type Context, type Request } from "openapi-backend";
 import { type components } from "../generated/openapi.ts";
 import createApp from "../handlers/createApp.ts";
+import createAppGroup from "../handlers/createAppGroup.ts";
 import deleteApp from "../handlers/deleteApp.ts";
+import deleteAppGroup from "../handlers/deleteAppGroup.ts";
 import { deleteAppPod } from "../handlers/deleteAppPod.ts";
 import {
   deleteAppFile,
@@ -49,8 +51,6 @@ import {
   namespaceInUse,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
-import createAppGroup from "../handlers/createAppGroup.ts";
-import deleteAppGroup from "../handlers/deleteAppGroup.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
