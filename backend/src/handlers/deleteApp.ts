@@ -83,7 +83,8 @@ const deleteApp: HandlerMap["deleteApp"] = async (
     await db.deploymentConfig.delete({
       where: { id: deploymentConfigTemplateId },
     });
-    if (appGroup._count.apps === 0) {
+    if (appGroup._count.apps === 1) {
+      // If this was the last app in the group, delete the group as well
       await db.appGroup.delete({ where: { id: appGroup.id } });
     }
   } catch (err) {
