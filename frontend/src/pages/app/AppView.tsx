@@ -80,9 +80,11 @@ export default function AppView() {
           <TabsTrigger value="logs">
             <span>Logs</span>
           </TabsTrigger>
-          <TabsTrigger value="files">
-            <span>Files</span>
-          </TabsTrigger>
+          {app.config.mounts.length > 0 && (
+            <TabsTrigger value="files">
+              <span>Files</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="danger">
             <span>Danger</span>
           </TabsTrigger>

@@ -463,8 +463,6 @@ export const createOrUpdateApp = async (
     }
   }
 
-  if (postCreate) {
-    postCreate();
-  }
+  postCreate?.();
   console.log(`App ${name} updated`);
 };
