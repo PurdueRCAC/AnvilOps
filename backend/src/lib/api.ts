@@ -115,7 +115,7 @@ const handlers = {
       await db.user.delete({ where: { id: req.user.id } });
       return res.status(200);
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
@@ -175,7 +175,7 @@ const handlers = {
         isOwner: true,
       });
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
@@ -290,7 +290,7 @@ const handlers = {
         appGroups: appGroupRes,
       });
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
@@ -354,7 +354,7 @@ const handlers = {
       await db.organization.delete({ where: { id: orgId } });
       return json(200, res, {});
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
@@ -476,7 +476,7 @@ const handlers = {
           : undefined,
       });
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
   },

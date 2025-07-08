@@ -321,13 +321,27 @@ export const createLogConfig = (
   ];
 };
 
+const REQUIRED_LABELS = [
+  "field.cattle.io/projectId",
+  "field.cattle.io/resourceQuota",
+  "lifecycle.cattle.io/create.namespace-auth",
+];
 const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
   await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {
-    if (await resourceExists(namespace)) {
-      return;
-    }
+    try {
+      const res: V1Namespace = await k8s.full.read(namespace);
+      if (
+        res.status.phase === "Active" &&
+        REQUIRED_LABELS.every((label) =>
+          res.metadata.annotations.hasOwnProperty(label),
+        )
+      ) {
+        return;
+      }
+    } catch (err) {}
 
+    console.log("namespace not ready yet");
     await new Promise((r) => setTimeout(r, 500));
   }
 
