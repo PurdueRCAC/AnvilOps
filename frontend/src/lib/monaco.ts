@@ -1,6 +1,8 @@
 /**
  * This file configures @monaco-editor/react to use local files instead of a CDN to load the editor.
  * Import the Editor component from this file instead of through @monaco-editor/react directly so that the side effects run.
+ *
+ * DO NOT IMPORT THIS FILE DIRECTLY. Use the async `import()` function instead! It allows this file to be separated into its own bundle and only loaded when it's needed.
  */
 import { loader } from "@monaco-editor/react";
 

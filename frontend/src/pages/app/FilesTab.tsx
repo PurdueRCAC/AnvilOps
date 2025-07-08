@@ -33,9 +33,8 @@ import {
   Trash,
   UploadCloud,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Editor } from "../../lib/monaco";
 import type { App } from "./AppView";
 
 function dirname(path: string) {
@@ -426,6 +425,10 @@ const FilePreview = ({
 
   const [saving, setSaving] = useState(false);
 
+  const LazyEditor = lazy(() =>
+    import("../../lib/monaco").then((module) => ({ default: module.Editor })),
+  );
+
   if (raw || isTextFile(file.fileType!, file.name!)) {
     requestDownload();
     return (
@@ -446,17 +449,20 @@ const FilePreview = ({
         {loading ? (
           <Loader className="animate-spin" />
         ) : (
-          <Editor
-            loading={<Loader className="animate-spin" />}
-            onMount={() => setEditorVisible(true)}
-            defaultLanguage={file.fileType}
-            value={editorContent}
-            onChange={(content) => {
-              setEditorContent(content);
-              setSaved(false);
-            }}
-            className="min-h-200"
-          />
+          <Suspense fallback={<Loader className="animate-spin" />}>
+            {/* ^ This Suspense boundary is triggered when the JavaScript bundle for the Editor component is loading */}
+            <LazyEditor
+              loading={<Loader className="animate-spin" />}
+              onMount={() => setEditorVisible(true)}
+              defaultLanguage={file.fileType}
+              value={editorContent}
+              onChange={(content) => {
+                setEditorContent(content);
+                setSaved(false);
+              }}
+              className="min-h-200"
+            />
+          </Suspense>
         )}
       </div>
     );
