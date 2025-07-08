@@ -71,19 +71,25 @@ export default function AppView() {
           <TabsTrigger value="overview">
             <span>Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="status">
-            <span>Status</span>
-          </TabsTrigger>
+          {!!app.activeDeployment && (
+            <TabsTrigger value="status">
+              <span>Status</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="configuration">
             <span>Configuration</span>
           </TabsTrigger>
-          <TabsTrigger value="logs">
-            <span>Logs</span>
-          </TabsTrigger>
-          {app.config.mounts.length > 0 && (
-            <TabsTrigger value="files">
-              <span>Files</span>
-            </TabsTrigger>
+          {!!app.activeDeployment && (
+            <>
+              <TabsTrigger value="logs">
+                <span>Logs</span>
+              </TabsTrigger>
+              {app.config.mounts.length > 0 && (
+                <TabsTrigger value="files">
+                  <span>Files</span>
+                </TabsTrigger>
+              )}
+            </>
           )}
           <TabsTrigger value="danger">
             <span>Danger</span>
