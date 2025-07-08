@@ -16,12 +16,20 @@ export const Logs = ({
   type: LogType;
 }) => {
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
+  const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
 
   const { connected } = useEventSource(
     new URL(
       `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
     ),
-    (event) => {
+    ["log", "pastLogsSent"],
+    (eventName, event) => {
+      if (eventName === "pastLogsSent") {
+        if (logs.length === 0) {
+          setNoLogs(true);
+        }
+        return;
+      }
       const newLine = event.data as string;
       setLogs((lines) => {
         const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
@@ -34,6 +42,9 @@ export const Logs = ({
         }
         return lines.concat(parsed);
       });
+      if (noLogs) {
+        setNoLogs(false);
+      }
     },
   );
 
@@ -61,7 +72,7 @@ export const Logs = ({
             </p>
           ))}
         </pre>
-      ) : type === "BUILD" ? (
+      ) : type === "BUILD" && !noLogs ? (
         <>
           <p className="flex gap-2 text-lg font-medium">
             <SatelliteDish /> Logs Unavailable

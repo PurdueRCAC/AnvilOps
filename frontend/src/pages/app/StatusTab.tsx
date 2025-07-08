@@ -42,7 +42,8 @@ export const StatusTab = ({
     new URL(
       `${window.location.protocol}//${window.location.host}/api/app/${app.id}/status`,
     ),
-    (event) => {
+    ["message"],
+    (_, event) => {
       const data = event.data as string;
       setStatus(JSON.parse(data));
     },

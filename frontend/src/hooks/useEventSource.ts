@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-export const useEventSource = (
+export const useEventSource = <T extends string>(
   url: URL,
-  onMessage: (message: MessageEvent) => void,
+  eventNames: T[],
+  onMessage: (eventName: T, message: MessageEvent) => void,
 ) => {
   const [connected, setConnected] = useState(false);
   const shouldOpen = useRef(true);
@@ -23,7 +24,11 @@ export const useEventSource = (
       }, 3000);
     };
 
-    eventSource.onmessage = onMessage;
+    for (const eventName of eventNames) {
+      eventSource.addEventListener(eventName, (event: MessageEvent<any>) =>
+        onMessage(eventName, event),
+      );
+    }
 
     return eventSource;
   };

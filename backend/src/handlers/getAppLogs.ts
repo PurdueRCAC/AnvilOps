@@ -31,7 +31,9 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   res.flushHeaders();
 
   const sendLog = async (log: components["schemas"]["LogLine"]) => {
-    const readyForMoreContent = res.write(`data: ${JSON.stringify(log)}\n\n`);
+    const readyForMoreContent = res.write(
+      `event: log\nid: ${log.id}\ndata: ${JSON.stringify(log)}\n\n`,
+    );
     if (!readyForMoreContent) {
       await once(res, "drain");
     }
@@ -91,6 +93,16 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
 
   let lastLogId = -1;
 
+  {
+    // The Last-Event-Id header allows SSE streams to resume after being disconnected: https://html.spec.whatwg.org/multipage/server-sent-events.html#the-last-event-id-header
+    const lastEventId = req.headers["last-event-id"];
+    if (lastEventId) {
+      try {
+        lastLogId = parseInt(lastEventId.toString());
+      } catch {}
+    }
+  }
+
   const fetchNewLogs = async () => {
     // Fetch them in reverse order so that we can take only the 500 most recent lines
     const newLogs = await db.log.findMany({
@@ -129,4 +141,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
 
   // Send all previous logs now
   await fetchNewLogs();
+
+  res.write("event: pastLogsSent\ndata:\n\n"); // Let the browser know that all previous logs have been sent. If none were received, then there are no logs for this deployment so far.
 };
