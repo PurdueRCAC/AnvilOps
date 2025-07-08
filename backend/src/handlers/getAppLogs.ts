@@ -85,7 +85,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
 
   // Pull logs from Postgres and send them to the client as they come in
   if (typeof ctx.request.params.deploymentId !== "number") {
-    // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation
+    // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation and additional sanitization in `subscribe()`
     return json(400, res, {});
   }
 
@@ -99,7 +99,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         deploymentId: ctx.request.params.deploymentId,
         type: ctx.request.query.type,
       },
-      orderBy: [{ createdAt: "desc" }, { index: "desc" }],
+      orderBy: [{ timestamp: "desc" }, { index: "desc" }],
       take: 500,
     });
     if (newLogs.length > 0) {
