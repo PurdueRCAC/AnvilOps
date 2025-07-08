@@ -187,9 +187,11 @@ const updateApp: HandlerMap["updateApp"] = async (
   if (
     appConfig.source === "git" &&
     (appConfig.branch !== app.deploymentConfigTemplate.branch ||
-      appConfig.repositoryId !== app.deploymentConfigTemplate.repositoryId)
+      appConfig.repositoryId !== app.deploymentConfigTemplate.repositoryId ||
+      appConfig.builder !== app.deploymentConfigTemplate.builder ||
+      appConfig.dockerfilePath !== app.deploymentConfigTemplate.dockerfilePath)
   ) {
-    // When changing branches or repositories, start a new build
+    // When changing branches or repositories or any build settings, start a new build
     const octokit = await getOctokit(app.org.githubInstallationId);
     const repo = await getRepoById(
       octokit,
