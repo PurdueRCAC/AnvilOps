@@ -1,9 +1,9 @@
 import { Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState, type Dispatch } from "react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Checkbox } from "./ui/checkbox";
 import HelpTooltip from "./HelpTooltip";
+import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
+import { Input } from "./ui/input";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -14,7 +14,7 @@ export const EnvVarGrid = ({
   fixedSensitiveNames,
 }: {
   value: EnvVars;
-  setValue: Dispatch<EnvVars>;
+  setValue: Dispatch<React.SetStateAction<EnvVars>>;
   fixedSensitiveNames: Set<string>;
 }) => {
   const [error, setError] = useState("");
@@ -26,7 +26,8 @@ export const EnvVarGrid = ({
         !envVars[i].isSensitive &&
         +i < envVars.length - 1
       ) {
-        setEnvironmentVariables(envVars.toSpliced(+i, 1));
+        setEnvironmentVariables((prev) => prev.toSpliced(+i, 1));
+        return;
       }
     }
     if (
@@ -34,8 +35,8 @@ export const EnvVarGrid = ({
       envVars[envVars.length - 1]?.value !== "" ||
       envVars[envVars.length - 1]?.isSensitive
     ) {
-      setEnvironmentVariables([
-        ...envVars,
+      setEnvironmentVariables((prev) => [
+        ...prev,
         { name: "", value: "", isSensitive: false },
       ]);
     }

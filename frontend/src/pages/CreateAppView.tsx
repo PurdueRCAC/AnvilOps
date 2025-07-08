@@ -54,8 +54,8 @@ export default function CreateAppView() {
 
   const [formState, setFormState] = useState<AppInfoFormData>({
     groupOption: "standalone",
-    env: [{ name: "", value: "", isSensitive: false }],
-    mounts: [{ path: "", amountInMiB: 1024 }],
+    env: [],
+    mounts: [],
     orgId: search.has("org")
       ? parseInt(search.get("org")!.toString())
       : user?.orgs?.[0]?.id,
@@ -153,7 +153,7 @@ export default function CreateAppView() {
           <Select
             required
             onValueChange={(orgId) =>
-              setFormState({ ...formState, orgId: parseInt(orgId!) })
+              setFormState((prev) => ({ ...prev, orgId: parseInt(orgId!) }))
             }
             value={formState.orgId?.toString()}
             name="org"
@@ -307,10 +307,10 @@ export const AppConfigFormFields = ({
   );
 
   useEffect(() => {
-    setState({
-      ...state,
+    setState((prev) => ({
+      ...prev,
       branch: branches?.default ?? branches?.branches?.[0],
-    });
+    }));
   }, [branches]);
 
   const MAX_SUBDOMAIN_LENGTH = 54;
@@ -382,11 +382,11 @@ export const AppConfigFormFields = ({
             await refreshRepos();
           }}
           setRepo={(repositoryId, repoName) =>
-            setState({
-              ...state,
+            setState((prev) => ({
+              ...prev,
               repositoryId,
               repoName,
-            })
+            }))
           }
         />
       )}
@@ -418,13 +418,17 @@ export const AppConfigFormFields = ({
               onValueChange={(groupOption) => {
                 const groupId = parseInt(groupOption);
                 if (isNaN(groupId)) {
-                  setState({
-                    ...state,
+                  setState((prev) => ({
+                    ...prev,
                     groupOption: groupOption,
                     groupId: undefined,
-                  });
+                  }));
                 } else {
-                  setState({ ...state, groupOption: "add-to", groupId });
+                  setState((prev) => ({
+                    ...prev,
+                    groupOption: "add-to",
+                    groupId,
+                  }));
                 }
               }}
               value={
@@ -634,7 +638,7 @@ export const AppConfigFormFields = ({
               disabled={repositoryId === undefined || branchesLoading}
               value={state.branch ?? ""}
               onValueChange={(branch) => {
-                setState({ ...state, branch });
+                setState((prev) => ({ ...prev, branch }));
               }}
             >
               <SelectTrigger className="w-full" id="selectBranch">
@@ -895,7 +899,12 @@ export const AppConfigFormFields = ({
         <EnvVarGrid
           value={env}
           setValue={(env) => {
-            setState((prev) => ({ ...prev, env }));
+            setState((prev) => {
+              return {
+                ...prev,
+                env: typeof env === "function" ? env(prev.env) : env,
+              };
+            });
           }}
           fixedSensitiveNames={
             defaults?.config
@@ -919,7 +928,13 @@ export const AppConfigFormFields = ({
         </p>
         <MountsGrid
           value={mounts}
-          setValue={(mounts) => setState((prev) => ({ ...prev, mounts }))}
+          setValue={(mounts) =>
+            setState((prev) => ({
+              ...prev,
+              mounts:
+                typeof mounts === "function" ? mounts(prev.mounts) : mounts,
+            }))
+          }
         />
       </div>
     </>

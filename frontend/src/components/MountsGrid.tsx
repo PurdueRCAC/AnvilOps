@@ -12,16 +12,17 @@ export const MountsGrid = ({
   setValue: setMounts,
 }: {
   value: Mounts;
-  setValue: Dispatch<Mounts>;
+  setValue: Dispatch<React.SetStateAction<Mounts>>;
 }) => {
   useEffect(() => {
     for (let i in mounts) {
       if (mounts[i].path === "" && +i < mounts.length - 1) {
-        setMounts(mounts.toSpliced(+i, 1));
+        setMounts((prev) => prev.toSpliced(+i, 1));
+        return;
       }
     }
     if (mounts[mounts.length - 1]?.path !== "") {
-      setMounts([...mounts, { path: "", amountInMiB: 1024 }]);
+      setMounts((prev) => [...prev, { path: "", amountInMiB: 1024 }]);
     }
   }, [mounts]);
 
