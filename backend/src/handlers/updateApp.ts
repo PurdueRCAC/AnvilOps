@@ -1,5 +1,6 @@
 import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type {
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
@@ -18,7 +19,6 @@ import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
-import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 
 const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -29,7 +29,10 @@ const updateApp: HandlerMap["updateApp"] = async (
   const appConfig = appData.config;
 
   {
-    const result = validateDeploymentConfig(appConfig);
+    const result = validateDeploymentConfig({
+      ...appConfig,
+      appGroup: appData.appGroup,
+    });
     if (!result.valid) {
       return json(400, res, { code: 400, message: result.message });
     }
