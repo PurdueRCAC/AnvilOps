@@ -144,6 +144,19 @@ export async function createBuildJob(data: {
     );
   }
 
+  await db.deployment.updateMany({
+    where: {
+      id: {
+        not: data.deploymentId,
+      },
+      appId: data.appId,
+      status: {
+        notIn: ["COMPLETE", "ERROR"],
+      },
+    },
+    data: { status: "STOPPED" },
+  });
+
   await cancelBuildJobsForApp(data.appId);
 
   // Store it in db - we'll pop it out when another job finishes.
@@ -161,24 +174,6 @@ export async function createBuildJob(data: {
 }
 
 async function cancelBuildJobsForApp(appId: number) {
-  const jobs = await k8s.batch.listNamespacedJob({
-    namespace: "anvilops-dev",
-    labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
-  });
-
-  await db.deployment.updateMany({
-    where: {
-      id: {
-        in: jobs.items.map((job) =>
-          parseInt(job.metadata.labels["anvilops.rcac.purdue.edu/app-id"]),
-        ),
-      },
-    },
-    data: {
-      status: "STOPPED",
-    },
-  });
-
   await k8s.batch.deleteCollectionNamespacedJob({
     namespace: "anvilops-dev",
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
@@ -219,7 +214,15 @@ async function queueBuildJob({
   });
 
   await db.deployment.updateMany({
-    where: { appId },
+    where: {
+      id: {
+        not: deploymentId,
+      },
+      appId,
+      status: {
+        notIn: ["COMPLETE", "ERROR"],
+      },
+    },
     data: { status: "STOPPED" },
   });
 

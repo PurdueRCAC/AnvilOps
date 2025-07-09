@@ -179,7 +179,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
 
       return json(200, res, {});
     }
-    case "workflow_run":
+    case "workflow_run": {
       const payload = ctx.request
         .requestBody as components["schemas"]["webhook-workflow-run"];
 
@@ -192,7 +192,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         break;
       }
 
-      // Look up the connected app and create a deployment job
+      // Look up the connected apps
       const linkedApps = await db.app.findMany({
         where: {
           deploymentConfigTemplate: {
@@ -206,12 +206,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           deploymentConfigTemplate: {
             include: { mounts: { select: { amountInMiB: true, path: true } } },
           },
-          deployments: {
-            take: 1,
-            orderBy: {
-              createdAt: "desc",
-            },
-          },
         },
       });
 
@@ -219,7 +213,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         throw new Error("Linked app not found");
       }
 
-      console.log(payload);
+      // Filter for apps that deploy on when this workflow runs on this branch
       const apps = linkedApps.filter(
         (app) =>
           app.deploymentConfigTemplate.event === "workflow_run" &&
@@ -232,7 +226,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         for (const app of apps) {
           const octokit = await getOctokit(app.org.githubInstallationId);
           try {
-            createPendingDeployment({
+            createPendingWorkflowDeployment({
               orgId: app.orgId,
               appId: app.id,
               imageRepo: app.imageRepo,
@@ -258,6 +252,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
                   createMany: { data: app.deploymentConfigTemplate.mounts },
                 },
               },
+              workflowRunId: payload.workflow_run.id,
               createCheckRun: true,
               octokit,
               owner: payload.repository.owner.login,
@@ -268,22 +263,33 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           }
         }
       } else if (payload.action === "completed") {
-        if (payload.workflow_run.conclusion !== "success") {
-          for (const app of apps) {
-            if (
-              app.deployments.length === 0 ||
-              app.deployments[0].status !== "PENDING" ||
-              !app.deployments[0].checkRunId
-            ) {
+        for (const app of apps) {
+          const deployment = await db.deployment.findUnique({
+            where: { appId: app.id, workflowRunId: payload.workflow_run.id },
+            include: {
+              app: { include: { appGroup: true } },
+              config: { include: { mounts: true } },
+            },
+          });
+          if (!deployment) {
+            continue;
+          }
+          if (
+            deployment.status !== "PENDING" ||
+            payload.workflow_run.conclusion !== "success"
+          ) {
+            // No need to build for this workflow run
+            if (payload.workflow_run.conclusion !== "success") {
+              log(
+                deployment.id,
+                "BUILD",
+                "Workflow run did not complete successfully",
+              );
+            }
+            if (!deployment.checkRunId) {
               continue;
             }
             const octokit = await getOctokit(app.org.githubInstallationId);
-            const deployment = app.deployments[0];
-            log(
-              deployment.id,
-              "BUILD",
-              "Workflow run did not complete successfully",
-            );
             try {
               await octokit.rest.checks.update({
                 check_run_id: deployment.checkRunId,
@@ -297,62 +303,22 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
                 "BUILD",
                 "Updated GitHub check run to Completed with conclusion Cancelled",
               );
+              if (deployment.status !== "ERROR") {
+                await db.deployment.update({
+                  where: { id: deployment.id },
+                  data: { status: "STOPPED" },
+                });
+              }
             } catch (e) {}
-          }
-          return json(200, res, {});
-        }
-        for (const app of apps) {
-          const octokit = await getOctokit(app.org.githubInstallationId);
-          if (
-            app.deployments.length === 0 ||
-            app.deployments[0].status !== "PENDING"
-          ) {
-            console.log(
-              `Pending deployment not found for app ${app.id}, continuing to build`,
-            );
-
-            delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
-            await buildAndDeploy({
-              orgId: app.orgId,
-              appId: app.id,
-              imageRepo: app.imageRepo,
-              commitSha: payload.workflow_run.head_commit.id,
-              commitMessage: payload.workflow_run.head_commit.message,
-              cloneURL: await generateCloneURLWithCredentials(
-                octokit,
-                payload.repository.html_url,
-              ),
-              config: {
-                // Reuse the config from the previous deployment
-                port: app.deploymentConfigTemplate.port,
-                source: "GIT",
-                env: app.deploymentConfigTemplate.getPlaintextEnv(),
-                replicas: app.deploymentConfigTemplate.replicas,
-                repositoryId: app.deploymentConfigTemplate.repositoryId,
-                branch: app.deploymentConfigTemplate.branch,
-                builder: app.deploymentConfigTemplate.builder,
-                rootDir: app.deploymentConfigTemplate.rootDir,
-                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-                imageTag: app.deploymentConfigTemplate.imageTag,
-                mounts: {
-                  createMany: { data: app.deploymentConfigTemplate.mounts },
-                },
-              },
-              createCheckRun: true,
-              octokit,
-              owner: payload.repository.owner.login,
-              repo: payload.repository.name,
-            });
             continue;
           }
+
+          //
           const secret = randomBytes(32).toString("hex");
-          const deployment = await db.deployment.update({
-            where: { id: app.deployments[0].id },
+          const octokit = await getOctokit(app.org.githubInstallationId);
+          await db.deployment.update({
+            where: { id: deployment.id },
             data: { secret },
-            include: {
-              app: { include: { appGroup: true } },
-              config: { include: { mounts: true } },
-            },
           });
           const cloneURL = await generateCloneURLWithCredentials(
             octokit,
@@ -370,11 +336,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             },
           });
         }
-        return json(200, res, {});
       }
-
       return json(200, res, {});
-
+    }
     default: {
       return json(422, res, {});
     }
@@ -616,15 +580,16 @@ async function buildAndDeployFromRepo({
   }
 }
 
-async function createPendingDeployment({
+async function createPendingWorkflowDeployment({
   orgId,
   appId,
   imageRepo,
   commitSha,
   commitMessage,
   config,
+  workflowRunId,
   ...opts
-}: BuildAndDeployOptions) {
+}: BuildAndDeployOptions & { workflowRunId: number }) {
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
@@ -638,6 +603,7 @@ async function createPendingDeployment({
       config: {
         create: { ...config, imageTag },
       },
+      workflowRunId,
     },
     select: {
       id: true,

@@ -2883,10 +2883,13 @@ components:
           title: Workflow Run
           type: object
           required:
+            - id
             - head_branch
             - head_commit
             - conclusion
           properties:
+            id:
+              type: integer
             conclusion:
               oneOf:
                 - type: string
