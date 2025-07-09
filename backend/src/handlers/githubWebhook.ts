@@ -176,7 +176,10 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       const payload = ctx.request
         .requestBody as components["schemas"]["webhook-workflow-run-completed"];
 
-      if (payload.action !== "completed") {
+      if (
+        payload.action !== "completed" ||
+        payload.workflow_run.conclusion !== "success"
+      ) {
         break;
       }
 
@@ -206,7 +209,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         throw new Error("Linked app not found");
       }
 
-      console.log(payload);
       for (const app of apps) {
         // Require that the app deploys on workflow run and that the branch and workflow id match
         if (

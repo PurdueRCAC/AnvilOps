@@ -2883,7 +2883,21 @@ components:
           required:
             - head_branch
             - head_commit
+            - conclusion
           properties:
+            conclusion:
+              type: string
+              nullable: true
+              enum:
+                - action_required
+                - cancelled
+                - failure
+                - neutral
+                - skipped
+                - stale
+                - success
+                - timed_out
+                - startup_failure
             head_branch:
               type: string
               nullable: true
