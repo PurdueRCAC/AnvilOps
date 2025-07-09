@@ -150,6 +150,9 @@ model DeploymentConfig {
   // > Git deployment source
   repositoryId   Int?
   branch         String?          @default("main")
+  event          WebhookEvent     @default(push)
+  // e.g. workflow ID
+  eventId        Int?
   builder        ImageBuilder?
   rootDir        String?
   dockerfilePath String?
@@ -214,6 +217,12 @@ model Cache {
   key       String   @id
   value     String
   expiresAt DateTime
+}
+
+enum WebhookEvent {
+  // GitHub webhook events to deploy on
+  push
+  workflow_run
 }
 
 enum LogType {

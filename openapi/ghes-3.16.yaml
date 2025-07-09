@@ -2815,3 +2815,141 @@ components:
         - changes
         - repository
         - sender
+
+    webhooks_workflow:
+      title: Workflow
+      type: object
+      nullable: true
+      properties:
+        badge_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        html_url:
+          type: string
+          format: uri
+        id:
+          type: integer
+        name:
+          type: string
+        node_id:
+          type: string
+        path:
+          type: string
+        state:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+      required:
+        - badge_url
+        - created_at
+        - html_url
+        - id
+        - name
+        - node_id
+        - path
+        - state
+        - updated_at
+        - url
+    webhook-workflow-run-completed:
+      title: workflow_run completed event
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - completed
+        enterprise:
+          "$ref": "#/components/schemas/enterprise-webhooks"
+        installation:
+          "$ref": "#/components/schemas/simple-installation"
+        organization:
+          "$ref": "#/components/schemas/organization-simple-webhooks"
+        repository:
+          "$ref": "#/components/schemas/repository-webhooks"
+        sender:
+          "$ref": "#/components/schemas/simple-user"
+        workflow:
+          "$ref": "#/components/schemas/webhooks_workflow"
+        workflow_run:
+          title: Workflow Run
+          type: object
+          required:
+            - head_branch
+            - head_commit
+          properties:
+            head_branch:
+              type: string
+              nullable: true
+            head_commit:
+              title: SimpleCommit
+              type: object
+              required:
+                - id
+                - tree_id
+                - message
+                - timestamp
+                - author
+                - committer
+              properties:
+                author:
+                  title: Committer
+                  description: Metaproperties for Git author/committer information.
+                  type: object
+                  required:
+                    - email
+                    - name
+                  properties:
+                    date:
+                      type: string
+                      format: date-time
+                    email:
+                      type: string
+                      nullable: true
+                      format: email
+                    name:
+                      description: The git author's name.
+                      type: string
+                    username:
+                      type: string
+                committer:
+                  title: Committer
+                  description: Metaproperties for Git author/committer information.
+                  type: object
+                  required:
+                    - email
+                    - name
+                  properties:
+                    date:
+                      type: string
+                      format: date-time
+                    email:
+                      type: string
+                      nullable: true
+                      format: email
+                    name:
+                      description: The git author's name.
+                      type: string
+                    username:
+                      type: string
+                id:
+                  type: string
+                message:
+                  type: string
+                timestamp:
+                  type: string
+                tree_id:
+                  type: string
+          additionalProperties: true
+      required:
+        - action
+        - repository
+        - sender
+        - workflow
+        - workflow_run

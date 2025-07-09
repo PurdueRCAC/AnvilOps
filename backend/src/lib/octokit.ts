@@ -75,3 +75,27 @@ export async function getRepoById(octokit: Octokit, repoId: number) {
     ),
   ) as Repo;
 }
+
+export async function getWorkflowsByRepoId(octokit: Octokit, repoId: number) {
+  type Workflow = Awaited<
+    ReturnType<typeof octokit.rest.actions.getWorkflow>
+  >["data"];
+  if (!octokit[installationIdSymbol]) {
+    throw new Error("Octokit doesn't have installationId field");
+  }
+
+  return JSON.parse(
+    await getOrCreate(
+      `github-workflows-${octokit[installationIdSymbol]}-${repoId}`,
+      15,
+      async () => {
+        const res = await octokit.request(
+          `GET /repositories/${repoId}/actions/workflows`,
+          {},
+        );
+        const workflows = res.data.workflows;
+        return JSON.stringify(workflows);
+      },
+    ),
+  ) as Workflow[];
+}

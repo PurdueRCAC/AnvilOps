@@ -126,8 +126,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       }
 
       for (const app of apps) {
-        // Require that the push was made to the right branch
+        // Require that the app deploys on push and the push was made to the right branch
         if (
+          app.deploymentConfigTemplate.event !== "push" ||
           payload.ref !== `refs/heads/${app.deploymentConfigTemplate.branch}`
         ) {
           continue;
@@ -172,7 +173,88 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       return json(200, res, {});
     }
     case "workflow_run":
-    //
+      const payload = ctx.request
+        .requestBody as components["schemas"]["webhook-workflow-run-completed"];
+
+      if (payload.action !== "completed") {
+        break;
+      }
+
+      const repoId = payload.repository?.id;
+      if (!repoId) {
+        throw new Error("Repository ID not specified");
+      }
+
+      // Look up the connected app and create a deployment job
+      const apps = await db.app.findMany({
+        where: {
+          deploymentConfigTemplate: {
+            source: DeploymentSource.GIT,
+            repositoryId: repoId,
+          },
+          org: { githubInstallationId: { not: null } },
+        },
+        include: {
+          org: { select: { githubInstallationId: true } },
+          deploymentConfigTemplate: {
+            include: { mounts: { select: { amountInMiB: true, path: true } } },
+          },
+        },
+      });
+
+      if (apps.length === 0) {
+        throw new Error("Linked app not found");
+      }
+
+      console.log(payload);
+      for (const app of apps) {
+        // Require that the app deploys on workflow run and that the branch and workflow id match
+        if (
+          app.deploymentConfigTemplate.event !== "workflow_run" ||
+          payload.workflow_run.head_branch !==
+            app.deploymentConfigTemplate.branch ||
+          payload.workflow.id !== app.deploymentConfigTemplate.eventId
+        ) {
+          continue;
+        }
+
+        const octokit = await getOctokit(app.org.githubInstallationId);
+
+        delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
+        await buildAndDeploy({
+          orgId: app.orgId,
+          appId: app.id,
+          imageRepo: app.imageRepo,
+          commitSha: payload.workflow_run.head_commit.id,
+          commitMessage: payload.workflow_run.head_commit.message,
+          cloneURL: await generateCloneURLWithCredentials(
+            octokit,
+            payload.repository.html_url,
+          ),
+          config: {
+            // Reuse the config from the previous deployment
+            port: app.deploymentConfigTemplate.port,
+            source: "GIT",
+            env: app.deploymentConfigTemplate.getPlaintextEnv(),
+            replicas: app.deploymentConfigTemplate.replicas,
+            repositoryId: app.deploymentConfigTemplate.repositoryId,
+            branch: app.deploymentConfigTemplate.branch,
+            builder: app.deploymentConfigTemplate.builder,
+            rootDir: app.deploymentConfigTemplate.rootDir,
+            dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+            imageTag: app.deploymentConfigTemplate.imageTag,
+            mounts: {
+              createMany: { data: app.deploymentConfigTemplate.mounts },
+            },
+          },
+          createCheckRun: true,
+          octokit,
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+        });
+      }
+      return json(200, res, {});
+
     default: {
       return json(422, res, {});
     }
