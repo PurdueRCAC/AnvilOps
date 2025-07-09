@@ -217,6 +217,7 @@ const handlers = {
                     include: {
                       config: true,
                     },
+                    orderBy: { createdAt: "desc" },
                   },
                 },
               },
@@ -589,6 +590,8 @@ const api = new OpenAPIBackend({
     },
 
     validationFail: (ctx, req, res) => {
+      console.log(ctx.request.requestBody);
+      console.log(ctx.validation.errors);
       return res.status(400).json({
         code: 400,
         message: "Request validation failed",

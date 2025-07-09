@@ -184,7 +184,7 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-workflow-run-completed"
+                - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-workflow-run"
                 - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-push"
                 - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-created"
                 - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-installation-deleted"

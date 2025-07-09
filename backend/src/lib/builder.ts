@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import { k8s } from "./kubernetes.ts";
 import { db } from "./db.ts";
+import type { DeploymentConfig } from "../generated/prisma/client.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
@@ -26,7 +26,7 @@ async function createJob({
   ref: string;
   appId: number;
   deploymentId: number;
-  config: DeploymentConfigCreateWithoutDeploymentInput;
+  config: Pick<DeploymentConfig, "builder" | "dockerfilePath" | "rootDir">;
 }) {
   const label = randomBytes(4).toString("hex");
   return k8s.batch.createNamespacedJob({
@@ -134,7 +134,7 @@ export async function createBuildJob(data: {
   ref: string;
   appId: number;
   deploymentId: number;
-  config: DeploymentConfigCreateWithoutDeploymentInput;
+  config: Pick<DeploymentConfig, "builder" | "dockerfilePath" | "rootDir">;
 }) {
   if (!["dockerfile", "railpack"].includes(data.config.builder)) {
     throw new Error(

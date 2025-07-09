@@ -2857,14 +2857,16 @@ components:
         - state
         - updated_at
         - url
-    webhook-workflow-run-completed:
-      title: workflow_run completed event
+    webhook-workflow-run:
+      title: workflow_run event
       type: object
       properties:
         action:
           type: string
           enum:
             - completed
+            - in_progress
+            - requested
         enterprise:
           "$ref": "#/components/schemas/enterprise-webhooks"
         installation:

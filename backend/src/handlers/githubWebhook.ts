@@ -22,6 +22,13 @@ import {
 import { getInstallationAccessToken, getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
+import type {
+  App,
+  AppGroup,
+  Deployment,
+  DeploymentConfig,
+  MountConfig,
+} from "../generated/prisma/client.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -174,22 +181,19 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
     }
     case "workflow_run":
       const payload = ctx.request
-        .requestBody as components["schemas"]["webhook-workflow-run-completed"];
-
-      if (
-        payload.action !== "completed" ||
-        payload.workflow_run.conclusion !== "success"
-      ) {
-        break;
-      }
+        .requestBody as components["schemas"]["webhook-workflow-run"];
 
       const repoId = payload.repository?.id;
       if (!repoId) {
         throw new Error("Repository ID not specified");
       }
 
+      if (payload.action === "in_progress") {
+        break;
+      }
+
       // Look up the connected app and create a deployment job
-      const apps = await db.app.findMany({
+      const linkedApps = await db.app.findMany({
         where: {
           deploymentConfigTemplate: {
             source: DeploymentSource.GIT,
@@ -202,59 +206,172 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           deploymentConfigTemplate: {
             include: { mounts: { select: { amountInMiB: true, path: true } } },
           },
+          deployments: {
+            take: 1,
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
         },
       });
 
-      if (apps.length === 0) {
+      if (linkedApps.length === 0) {
         throw new Error("Linked app not found");
       }
 
-      for (const app of apps) {
-        // Require that the app deploys on workflow run and that the branch and workflow id match
-        if (
-          app.deploymentConfigTemplate.event !== "workflow_run" ||
-          payload.workflow_run.head_branch !==
-            app.deploymentConfigTemplate.branch ||
-          payload.workflow.id !== app.deploymentConfigTemplate.eventId
-        ) {
-          continue;
+      const apps = linkedApps.filter(
+        (app) =>
+          app.deploymentConfigTemplate.event === "workflow_run" &&
+          app.deploymentConfigTemplate.branch ===
+            payload.workflow_run.head_branch &&
+          app.deploymentConfigTemplate.eventId === payload.workflow.id,
+      );
+
+      if (payload.action === "requested") {
+        for (const app of apps) {
+          const octokit = await getOctokit(app.org.githubInstallationId);
+          try {
+            createPendingDeployment({
+              orgId: app.orgId,
+              appId: app.id,
+              imageRepo: app.imageRepo,
+              commitSha: payload.workflow_run.head_commit.id,
+              commitMessage: payload.workflow_run.head_commit.message,
+              cloneURL: await generateCloneURLWithCredentials(
+                octokit,
+                payload.repository.html_url,
+              ),
+              config: {
+                // Reuse the config from the previous deployment
+                port: app.deploymentConfigTemplate.port,
+                source: "GIT",
+                env: app.deploymentConfigTemplate.getPlaintextEnv(),
+                replicas: app.deploymentConfigTemplate.replicas,
+                repositoryId: app.deploymentConfigTemplate.repositoryId,
+                branch: app.deploymentConfigTemplate.branch,
+                builder: app.deploymentConfigTemplate.builder,
+                rootDir: app.deploymentConfigTemplate.rootDir,
+                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+                imageTag: app.deploymentConfigTemplate.imageTag,
+                mounts: {
+                  createMany: { data: app.deploymentConfigTemplate.mounts },
+                },
+              },
+              createCheckRun: true,
+              octokit,
+              owner: payload.repository.owner.login,
+              repo: payload.repository.name,
+            });
+          } catch (e) {
+            console.error(e);
+          }
         }
+      } else if (payload.action === "completed") {
+        if (payload.workflow_run.conclusion !== "success") {
+          for (const app of apps) {
+            if (
+              app.deployments.length === 0 ||
+              app.deployments[0].status !== "PENDING" ||
+              !app.deployments[0].checkRunId
+            ) {
+              continue;
+            }
+            const octokit = await getOctokit(app.org.githubInstallationId);
+            const deployment = app.deployments[0];
+            log(
+              deployment.id,
+              "BUILD",
+              "Workflow run did not complete successfully",
+            );
+            try {
+              await octokit.rest.checks.update({
+                check_run_id: deployment.checkRunId,
+                owner: payload.repository.owner.login,
+                repo: payload.repository.name,
+                status: "completed",
+                conclusion: "cancelled",
+              });
+              log(
+                deployment.id,
+                "BUILD",
+                "Updated GitHub check run to Completed with conclusion Cancelled",
+              );
+            } catch (e) {}
+          }
+          return json(200, res, {});
+        }
+        for (const app of apps) {
+          const octokit = await getOctokit(app.org.githubInstallationId);
+          if (
+            app.deployments.length === 0 ||
+            app.deployments[0].status !== "PENDING"
+          ) {
+            console.log(
+              `Pending deployment not found for app ${app.id}, continuing to build`,
+            );
 
-        const octokit = await getOctokit(app.org.githubInstallationId);
-
-        delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
-        await buildAndDeploy({
-          orgId: app.orgId,
-          appId: app.id,
-          imageRepo: app.imageRepo,
-          commitSha: payload.workflow_run.head_commit.id,
-          commitMessage: payload.workflow_run.head_commit.message,
-          cloneURL: await generateCloneURLWithCredentials(
+            delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
+            await buildAndDeploy({
+              orgId: app.orgId,
+              appId: app.id,
+              imageRepo: app.imageRepo,
+              commitSha: payload.workflow_run.head_commit.id,
+              commitMessage: payload.workflow_run.head_commit.message,
+              cloneURL: await generateCloneURLWithCredentials(
+                octokit,
+                payload.repository.html_url,
+              ),
+              config: {
+                // Reuse the config from the previous deployment
+                port: app.deploymentConfigTemplate.port,
+                source: "GIT",
+                env: app.deploymentConfigTemplate.getPlaintextEnv(),
+                replicas: app.deploymentConfigTemplate.replicas,
+                repositoryId: app.deploymentConfigTemplate.repositoryId,
+                branch: app.deploymentConfigTemplate.branch,
+                builder: app.deploymentConfigTemplate.builder,
+                rootDir: app.deploymentConfigTemplate.rootDir,
+                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+                imageTag: app.deploymentConfigTemplate.imageTag,
+                mounts: {
+                  createMany: { data: app.deploymentConfigTemplate.mounts },
+                },
+              },
+              createCheckRun: true,
+              octokit,
+              owner: payload.repository.owner.login,
+              repo: payload.repository.name,
+            });
+            continue;
+          }
+          const secret = randomBytes(32).toString("hex");
+          const deployment = await db.deployment.update({
+            where: { id: app.deployments[0].id },
+            data: { secret },
+            include: {
+              app: { include: { appGroup: true } },
+              config: { include: { mounts: true } },
+            },
+          });
+          const cloneURL = await generateCloneURLWithCredentials(
             octokit,
             payload.repository.html_url,
-          ),
-          config: {
-            // Reuse the config from the previous deployment
-            port: app.deploymentConfigTemplate.port,
-            source: "GIT",
-            env: app.deploymentConfigTemplate.getPlaintextEnv(),
-            replicas: app.deploymentConfigTemplate.replicas,
-            repositoryId: app.deploymentConfigTemplate.repositoryId,
-            branch: app.deploymentConfigTemplate.branch,
-            builder: app.deploymentConfigTemplate.builder,
-            rootDir: app.deploymentConfigTemplate.rootDir,
-            dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-            imageTag: app.deploymentConfigTemplate.imageTag,
-            mounts: {
-              createMany: { data: app.deploymentConfigTemplate.mounts },
+          );
+          await buildAndDeployFromRepo({
+            deployment,
+            secret,
+            cloneURL,
+            opts: {
+              createCheckRun: true,
+              octokit,
+              owner: payload.repository.owner.login,
+              repo: payload.repository.name,
             },
-          },
-          createCheckRun: true,
-          octokit,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-        });
+          });
+        }
+        return json(200, res, {});
       }
+
       return json(200, res, {});
 
     default: {
@@ -327,95 +444,14 @@ export async function buildAndDeploy({
       id: true,
       appId: true,
       secret: true,
+      commitHash: true,
       config: { include: { mounts: true } },
       app: { include: { appGroup: true } },
     },
   });
 
   if (config.source === "GIT") {
-    let checkRun:
-      | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
-      | undefined;
-
-    if (opts.createCheckRun) {
-      try {
-        // Create a check on their commit that says the build is "in progress"
-        checkRun = await opts.octokit.rest.checks.create({
-          head_sha: commitSha,
-          name: "AnvilOps",
-          status: "in_progress",
-          details_url: `https://anvilops.rcac.purdue.edu/app/${appId}/deployment/${deployment.id}`,
-          owner: opts.owner,
-          repo: opts.repo,
-        });
-        log(
-          deployment.id,
-          "BUILD",
-          "Created GitHub check run at " + checkRun.data.html_url,
-        );
-      } catch (e) {
-        console.error("Failed to create check run: ", e);
-      }
-    }
-
-    let jobId: string | undefined;
-    try {
-      jobId = await createBuildJob({
-        tag: imageRepo,
-        ref: commitSha,
-        gitRepoURL: cloneURL,
-        imageTag,
-        imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:build-cache`,
-        deploymentSecret: secret,
-        appId: deployment.appId,
-        deploymentId: deployment.id,
-        config,
-      });
-      log(deployment.id, "BUILD", "Created build job with ID " + jobId);
-    } catch (e) {
-      log(
-        deployment.id,
-        "BUILD",
-        "Error creating build job: " + JSON.stringify(e),
-      );
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: { status: "ERROR" },
-      });
-      if (opts.createCheckRun && checkRun?.data?.id) {
-        // If a check run was created, make sure it's marked as failed
-        try {
-          await opts.octokit.rest.checks.update({
-            check_run_id: checkRun?.data?.id,
-            owner: opts.owner,
-            repo: opts.repo,
-            status: "completed",
-            conclusion: "failure",
-          });
-          log(
-            deployment.id,
-            "BUILD",
-            "Updated GitHub check run to Completed with conclusion Failure",
-          );
-        } catch {}
-      }
-      throw new Error("Failed to create build job", { cause: e });
-    }
-
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
-    });
-
-    try {
-      // Eagerly create the app's K8s namespace
-      const namespace = createNamespaceConfig(
-        getNamespace(deployment.app.subdomain),
-      );
-      await createOrUpdateApp(deployment.app.name, namespace, []);
-    } catch {
-      // If there was an error creating the namespace now, it'll be retried later when the build finishes
-    }
+    buildAndDeployFromRepo({ deployment, secret, cloneURL, opts });
   } else if (config.source === "IMAGE") {
     log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
@@ -452,6 +488,194 @@ export async function buildAndDeploy({
       });
       await notifyLogStream(deployment.id);
     }
+  }
+}
+
+type BuildFromRepoOptions = {
+  deployment: Pick<Deployment, "id" | "appId" | "commitHash"> & {
+    checkRunId?: number;
+  } & { app: App & { appGroup: AppGroup } } & {
+    config: Pick<
+      DeploymentConfig,
+      "builder" | "dockerfilePath" | "rootDir" | "imageTag"
+    > & { mounts: MountConfig[] };
+  };
+  secret: string;
+  cloneURL: string;
+  opts:
+    | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
+    | { createCheckRun: false };
+};
+async function buildAndDeployFromRepo({
+  deployment,
+  secret,
+  cloneURL,
+  opts,
+}: BuildFromRepoOptions) {
+  let checkRun:
+    | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
+    | Awaited<ReturnType<Octokit["rest"]["checks"]["update"]>>
+    | undefined;
+
+  if (opts.createCheckRun) {
+    try {
+      if (deployment.checkRunId) {
+        // We are finishing a deployment that was pending earlier
+        checkRun = await opts.octokit.rest.checks.update({
+          check_run_id: checkRun.data.id,
+          status: "in_progress",
+          owner: opts.owner,
+          repo: opts.repo,
+        });
+        log(
+          deployment.id,
+          "BUILD",
+          "Updated GitHub check run to In Progress at " +
+            checkRun.data.html_url,
+        );
+      } else {
+        // Create a check on their commit that says the build is "in progress"
+        checkRun = await opts.octokit.rest.checks.create({
+          head_sha: deployment.commitHash,
+          name: "AnvilOps",
+          status: "in_progress",
+          details_url: `https://anvilops.rcac.purdue.edu/app/${deployment.appId}/deployment/${deployment.id}`,
+          owner: opts.owner,
+          repo: opts.repo,
+        });
+        log(
+          deployment.id,
+          "BUILD",
+          "Created GitHub check run with status In Progress at " +
+            checkRun.data.html_url,
+        );
+      }
+    } catch (e) {
+      console.error("Failed to modify check run: ", e);
+    }
+  }
+
+  let jobId: string | undefined;
+  try {
+    jobId = await createBuildJob({
+      tag: deployment.app.imageRepo,
+      ref: deployment.commitHash,
+      gitRepoURL: cloneURL,
+      imageTag: deployment.config.imageTag as ImageTag,
+      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${deployment.app.imageRepo}:build-cache`,
+      deploymentSecret: secret,
+      appId: deployment.appId,
+      deploymentId: deployment.id,
+      config: deployment.config,
+    });
+    log(deployment.id, "BUILD", "Created build job with ID " + jobId);
+  } catch (e) {
+    log(
+      deployment.id,
+      "BUILD",
+      "Error creating build job: " + JSON.stringify(e),
+    );
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "ERROR" },
+    });
+    if (opts.createCheckRun && checkRun.data.id) {
+      // If a check run was created, make sure it's marked as failed
+      try {
+        await opts.octokit.rest.checks.update({
+          check_run_id: checkRun.data.id,
+          owner: opts.owner,
+          repo: opts.repo,
+          status: "completed",
+          conclusion: "failure",
+        });
+        log(
+          deployment.id,
+          "BUILD",
+          "Updated GitHub check run to Completed with conclusion Failure",
+        );
+      } catch {}
+    }
+    throw new Error("Failed to create build job", { cause: e });
+  }
+
+  await db.deployment.update({
+    where: { id: deployment.id },
+    data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
+  });
+
+  try {
+    // Eagerly create the app's K8s namespace
+    const namespace = createNamespaceConfig(
+      getNamespace(deployment.app.subdomain),
+    );
+    await createOrUpdateApp(deployment.app.name, namespace, []);
+  } catch {
+    // If there was an error creating the namespace now, it'll be retried later when the build finishes
+  }
+}
+
+async function createPendingDeployment({
+  orgId,
+  appId,
+  imageRepo,
+  commitSha,
+  commitMessage,
+  config,
+  ...opts
+}: BuildAndDeployOptions) {
+  const imageTag =
+    config.source === DeploymentSource.IMAGE
+      ? (config.imageTag as ImageTag)
+      : (`registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const);
+
+  const deployment = await db.deployment.create({
+    data: {
+      app: { connect: { id: appId } },
+      commitHash: commitSha,
+      commitMessage: commitMessage,
+      config: {
+        create: { ...config, imageTag },
+      },
+    },
+    select: {
+      id: true,
+      appId: true,
+      secret: true,
+      commitHash: true,
+      config: { include: { mounts: true } },
+      app: { include: { appGroup: true } },
+    },
+  });
+
+  let checkRun:
+    | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
+    | undefined;
+  if (opts.createCheckRun) {
+    try {
+      checkRun = await opts.octokit.rest.checks.create({
+        head_sha: deployment.commitHash,
+        name: "AnvilOps",
+        status: "queued",
+        details_url: `https://anvilops.rcac.purdue.edu/app/${deployment.appId}/deployment/${deployment.id}`,
+        owner: opts.owner,
+        repo: opts.repo,
+      });
+      log(
+        deployment.id,
+        "BUILD",
+        "Created GitHub check run with status Queued at " +
+          checkRun.data.html_url,
+      );
+    } catch (e) {
+      console.error("Failed to modify check run: ", e);
+    }
+  }
+  if (checkRun) {
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { checkRunId: checkRun.data.id },
+    });
   }
 }
 
