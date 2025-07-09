@@ -2888,18 +2888,19 @@ components:
             - conclusion
           properties:
             conclusion:
-              type: string
-              nullable: true
-              enum:
-                - action_required
-                - cancelled
-                - failure
-                - neutral
-                - skipped
-                - stale
-                - success
-                - timed_out
-                - startup_failure
+              oneOf:
+                - type: string
+                  enum:
+                    - action_required
+                    - cancelled
+                    - failure
+                    - neutral
+                    - skipped
+                    - stale
+                    - success
+                    - timed_out
+                    - startup_failure
+                - type: "null"
             head_branch:
               type: string
               nullable: true

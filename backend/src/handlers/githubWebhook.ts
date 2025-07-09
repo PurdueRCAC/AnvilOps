@@ -219,6 +219,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         throw new Error("Linked app not found");
       }
 
+      console.log(payload);
       const apps = linkedApps.filter(
         (app) =>
           app.deploymentConfigTemplate.event === "workflow_run" &&
@@ -522,7 +523,7 @@ async function buildAndDeployFromRepo({
       if (deployment.checkRunId) {
         // We are finishing a deployment that was pending earlier
         checkRun = await opts.octokit.rest.checks.update({
-          check_run_id: checkRun.data.id,
+          check_run_id: deployment.checkRunId,
           status: "in_progress",
           owner: opts.owner,
           repo: opts.repo,
