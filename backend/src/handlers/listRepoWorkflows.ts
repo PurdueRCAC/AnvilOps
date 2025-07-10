@@ -1,6 +1,6 @@
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { getOctokit, getWorkflowsByRepoId } from "../lib/octokit.ts";
+import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
@@ -17,10 +17,12 @@ export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
   });
 
   const octokit = await getOctokit(org.githubInstallationId);
-  const workflows = await getWorkflowsByRepoId(
-    octokit,
-    ctx.request.params.repoId,
-  );
+  const workflows = await octokit
+    .request({
+      method: "GET",
+      url: `/repositories/${ctx.request.params.repoId}/actions/workflows`,
+    })
+    .then((res) => res.data.workflows);
   return json(200, res, {
     workflows: workflows.map((workflow) => ({
       id: workflow.id,

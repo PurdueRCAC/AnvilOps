@@ -10,11 +10,7 @@ import type {
 } from "../generated/prisma/models.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import {
-  getOctokit,
-  getRepoById,
-  getWorkflowsByRepoId,
-} from "../lib/octokit.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
   validateSubdomain,
@@ -110,7 +106,12 @@ const createApp: HandlerMap["createApp"] = async (
 
     if (appData.event === "workflow_run" && appData.eventId) {
       try {
-        const workflows = await getWorkflowsByRepoId(octokit, repo.id);
+        const workflows = await octokit
+          .request({
+            method: "GET",
+            url: `/repositories/${repo.id}/actions/workflows`,
+          })
+          .then((res) => res.data.workflows);
         if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
           return json(400, res, { code: 400, message: "Invalid workflow id" });
         }

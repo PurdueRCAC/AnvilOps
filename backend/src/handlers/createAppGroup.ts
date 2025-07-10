@@ -8,11 +8,7 @@ import {
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
-import {
-  getOctokit,
-  getRepoById,
-  getWorkflowsByRepoId,
-} from "../lib/octokit.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import type {
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
@@ -147,10 +143,12 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
 
       if (app.event === "workflow_run") {
         try {
-          const workflows = await getWorkflowsByRepoId(
-            octokit,
-            app.repositoryId,
-          );
+          const workflows = await octokit
+            .request({
+              method: "GET",
+              url: `/repositories/${app.repositoryId}/actions/workflows`,
+            })
+            .then((res) => res.data.workflows);
           if (!workflows.some((workflow) => workflow.id == app.eventId)) {
             return json(400, res, {
               code: 400,

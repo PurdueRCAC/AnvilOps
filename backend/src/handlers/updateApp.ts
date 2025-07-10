@@ -177,12 +177,21 @@ const updateApp: HandlerMap["updateApp"] = async (
       updatedDeploymentConfig.repositoryId!,
     );
     try {
+      const latestCommit = (
+        await octokit.rest.repos.listCommits({
+          per_page: 1,
+          owner: repo.owner.login,
+          repo: repo.name,
+          sha: appConfig.branch,
+        })
+      ).data[0];
+
       await buildAndDeploy({
         appId: app.id,
         orgId: app.orgId,
         imageRepo: app.imageRepo,
-        commitSha: "Unknown",
-        commitMessage: "Redeploy of previous deployment", // TODO: get latest commit info
+        commitSha: latestCommit.sha,
+        commitMessage: latestCommit.commit.message, // TODO: get latest commit info
         cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
         config: updatedDeploymentConfig,
         createCheckRun: false,
