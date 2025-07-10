@@ -84,6 +84,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       })),
       source: deployment.config.source === "GIT" ? "git" : "image",
       repositoryId: deployment.config.repositoryId,
+      event: deployment.config.event,
+      eventId: deployment.config.eventId,
       builder: deployment.config.builder,
       dockerfilePath: deployment.config.dockerfilePath,
       env: deployment.config.displayEnv,

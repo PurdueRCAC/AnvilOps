@@ -14,7 +14,6 @@ import {
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
-import { convertSource } from "./createApp.ts";
 import {
   buildAndDeploy,
   cancelAllOtherDeployments,
@@ -45,13 +44,6 @@ const updateApp: HandlerMap["updateApp"] = async (
       org: { users: { some: { userId: req.user.id } } },
     },
     include: {
-      deployments: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 1,
-        include: { config: true },
-      },
       deploymentConfigTemplate: true,
       org: { select: { githubInstallationId: true } },
     },
@@ -61,12 +53,17 @@ const updateApp: HandlerMap["updateApp"] = async (
     return json(401, res, {});
   }
 
-  if (!app.deployments) {
-    return json(400, res, {});
+  if (!app.deploymentConfigTemplate.imageTag) {
+    return json(400, res, {
+      code: 409,
+      message: "No image available to redeploy",
+    });
   }
 
-  if (!app.deploymentConfigTemplate.imageTag && appConfig.source !== "git") {
-    return json(400, res, {});
+  if (appConfig.source === "git") {
+    if (appConfig.event === "workflow_run" && !appConfig.eventId) {
+      return json(400, res, { code: 400, message: "Missing workflow id" });
+    }
   }
 
   if (appData.appGroup.type === "add-to") {
@@ -129,52 +126,39 @@ const updateApp: HandlerMap["updateApp"] = async (
     await db.app.update({
       where: { id: app.id },
       data: {
-        displayName: appData.name ?? app.displayName,
+        displayName: appData.name,
       },
     });
   }
 
-  const lastDeployment = app.deployments[0];
   const secret = randomBytes(32).toString("hex");
 
   const updatedDeploymentConfig: DeploymentConfigCreateInput & {
     mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
   } = {
-    source: convertSource(appConfig.source),
+    port: appConfig.port,
+    // Null values for unchanged sensitive vars need to be replaced with their true values
+    env: withSensitiveEnv(
+      app.deploymentConfigTemplate.getPlaintextEnv(),
+      appConfig.env,
+    ),
+    replicas: appConfig.replicas,
+    mounts: { createMany: { data: appConfig.mounts } },
     ...(appConfig.source === "git"
       ? {
+          source: "GIT",
           branch: appConfig.branch,
           repositoryId: appConfig.repositoryId,
           builder: appConfig.builder,
           rootDir: appConfig.rootDir,
           dockerfilePath: appConfig.dockerfilePath,
+          event: appConfig.event,
+          eventId: appConfig.eventId,
         }
       : {
-          // If we're not using the Git image source, clear these fields from the config
-          branch: null,
-          repositoryId: null,
-          builder: null,
-          rootDir: null,
-          dockerfilePath: null,
-        }),
-
-    ...(appConfig.source === "image"
-      ? {
+          source: "IMAGE",
           imageTag: appConfig.imageTag,
-        }
-      : {
-          // If we're not using the OCI image source, clear the imageTag field. It will be populated later when the image is built.
-          imageTag: null,
         }),
-
-    port: appConfig.port,
-    // Null values for unchanged sensitive vars need to be replaced with their true values
-    env: withSensitiveEnv(
-      lastDeployment?.config?.getPlaintextEnv(),
-      appConfig.env,
-    ),
-    replicas: appConfig.replicas,
-    mounts: { createMany: { data: appConfig.mounts } },
   };
 
   if (
@@ -182,7 +166,9 @@ const updateApp: HandlerMap["updateApp"] = async (
     (appConfig.branch !== app.deploymentConfigTemplate.branch ||
       appConfig.repositoryId !== app.deploymentConfigTemplate.repositoryId ||
       appConfig.builder !== app.deploymentConfigTemplate.builder ||
-      appConfig.dockerfilePath !== app.deploymentConfigTemplate.dockerfilePath)
+      appConfig.dockerfilePath !==
+        app.deploymentConfigTemplate.dockerfilePath ||
+      appConfig.rootDir !== app.deploymentConfigTemplate.rootDir)
   ) {
     // When changing branches or repositories or any build settings, start a new build
     const octokit = await getOctokit(app.org.githubInstallationId);
@@ -195,8 +181,8 @@ const updateApp: HandlerMap["updateApp"] = async (
         appId: app.id,
         orgId: app.orgId,
         imageRepo: app.imageRepo,
-        commitSha: lastDeployment?.commitHash ?? "Unknown",
-        commitMessage: `Redeploy of ${lastDeployment?.commitHash?.slice(0, 8) ?? "previous deployment"}`,
+        commitSha: "Unknown",
+        commitMessage: "Redeploy of previous deployment", // TODO: get latest commit info
         cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
         config: updatedDeploymentConfig,
         createCheckRun: false,
@@ -226,8 +212,8 @@ const updateApp: HandlerMap["updateApp"] = async (
         },
         status: "DEPLOYING",
         app: { connect: { id: app.id } },
-        commitHash: lastDeployment?.commitHash ?? "Unknown",
-        commitMessage: `Redeploy of ${lastDeployment ? `#${lastDeployment?.id}` : "previous deployment"}`,
+        commitHash: "Unknown",
+        commitMessage: "Redeploy of previous deployment",
         secret,
       },
       select: {
@@ -278,8 +264,9 @@ const updateApp: HandlerMap["updateApp"] = async (
     data: {
       ...updatedDeploymentConfig,
       imageTag:
-        updatedDeploymentConfig.imageTag ??
-        app.deploymentConfigTemplate.imageTag,
+        appConfig.source === "image"
+          ? updatedDeploymentConfig.imageTag
+          : app.deploymentConfigTemplate.imageTag,
       mounts: {
         // Delete all existing mounts and replace them with new ones
         deleteMany: { deploymentConfigId: app.deploymentConfigTemplateId },
@@ -291,6 +278,7 @@ const updateApp: HandlerMap["updateApp"] = async (
   return json(200, res, {});
 };
 
+// Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
 const withSensitiveEnv = (
   lastPlaintextEnv: PrismaJson.EnvVar[],
   envVars: {

@@ -18,7 +18,6 @@ import type {
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
 import type { DeploymentConfig, App } from "../generated/prisma/client.ts";
-import { convertSource } from "./createApp.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
@@ -178,20 +177,28 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
   const appConfigs = data.apps.map((app) => {
     const deploymentConfig: DeploymentConfigCreateInput & {
       mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-    } = {
-      source: convertSource(app.source),
-      repositoryId: app.repositoryId,
-      event: app.event,
-      eventId: app.eventId,
-      branch: app.branch,
-      port: app.port,
-      env: app.env,
-      builder: app.builder,
-      dockerfilePath: app.dockerfilePath,
-      rootDir: app.rootDir,
-      mounts: { createMany: { data: app.mounts } },
-      imageTag: app.imageTag,
-    };
+    } =
+      app.source === "git"
+        ? {
+            source: "GIT",
+            repositoryId: app.repositoryId,
+            event: app.event,
+            eventId: app.eventId,
+            branch: app.branch,
+            port: app.port,
+            env: app.env,
+            builder: app.builder,
+            dockerfilePath: app.dockerfilePath,
+            rootDir: app.rootDir,
+            mounts: { createMany: { data: app.mounts } },
+          }
+        : {
+            source: "IMAGE",
+            port: app.port,
+            env: app.env,
+            mounts: { createMany: { data: app.mounts } },
+          };
+
     return {
       name: app.name,
       displayName: app.name,

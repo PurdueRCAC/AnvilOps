@@ -140,20 +140,28 @@ const createApp: HandlerMap["createApp"] = async (
 
   const deploymentConfig: DeploymentConfigCreateInput & {
     mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-  } = {
-    source: convertSource(appData.source),
-    repositoryId: appData.repositoryId,
-    event: appData.event,
-    eventId: appData.eventId,
-    branch: appData.branch,
-    port: appData.port,
-    env: appData.env,
-    builder: appData.builder,
-    dockerfilePath: appData.dockerfilePath,
-    rootDir: appData.rootDir,
-    mounts: { createMany: { data: appData.mounts } },
-    imageTag: appData.imageTag,
-  };
+  } =
+    appData.source === "git"
+      ? {
+          source: "GIT",
+          repositoryId: appData.repositoryId,
+          event: appData.event,
+          eventId: appData.eventId,
+          branch: appData.branch,
+          port: appData.port,
+          env: appData.env,
+          builder: appData.builder,
+          dockerfilePath: appData.dockerfilePath,
+          rootDir: appData.rootDir,
+          mounts: { createMany: { data: appData.mounts } },
+        }
+      : {
+          source: "IMAGE",
+          imageTag: appData.imageTag,
+          port: appData.port,
+          env: appData.env,
+          mounts: { createMany: { data: appData.mounts } },
+        };
 
   let appGroup: AppGroupCreateNestedOneWithoutAppsInput;
   switch (appData.appGroup.type) {

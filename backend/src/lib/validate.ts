@@ -7,37 +7,19 @@ import {
 } from "./kubernetes.ts";
 
 export function validateDeploymentConfig(
-  data: Pick<
-    components["schemas"]["NewApp"],
-    | "source"
-    | "builder"
-    | "rootDir"
-    | "env"
-    | "mounts"
-    | "port"
-    | "dockerfilePath"
-    | "imageTag"
-    | "appGroup"
-    | "event"
-    | "eventId"
-  >,
+  data: (
+    | components["schemas"]["GitDeploymentOptions"]
+    | components["schemas"]["ImageDeploymentOptions"]
+  ) &
+    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas"> & {
+      appGroup: components["schemas"]["NewApp"]["appGroup"];
+    },
 ) {
   // TODO verify that the organization has access to the repository
 
-  const {
-    source,
-    builder,
-    rootDir,
-    env,
-    mounts,
-    port,
-    dockerfilePath,
-    imageTag,
-    appGroup,
-    event,
-    eventId,
-  } = data;
+  const { source, env, mounts, port, appGroup } = data;
   if (source === "git") {
+    const { builder, dockerfilePath, rootDir, event, eventId } = data;
     if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
       return { valid: false, message: "Invalid root directory" };
     }
@@ -57,6 +39,7 @@ export function validateDeploymentConfig(
       return { valid: false, message: "Must provide workflow id" };
     }
   } else if (source === "image") {
+    const { imageTag } = data;
     if (
       !imageTag ||
       imageTag.match(

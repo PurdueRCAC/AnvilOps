@@ -774,10 +774,6 @@ paths:
       responses:
         "200":
           description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/App"
         "401":
           description: Unauthorized
         "500":
@@ -834,8 +830,16 @@ paths:
           description: Unauthorized
         "400":
           description: Malformed app
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "409":
           description: No image available to redeploy because app has never built successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "500":
           description: Unexpected Error
           content:
@@ -1516,49 +1520,14 @@ components:
         - config
     DeploymentConfig:
       type: object
+      allOf:
+        - oneOf:
+            - $ref: "#/components/schemas/GitDeploymentOptions"
+            - $ref: "#/components/schemas/ImageDeploymentOptions"
+        - $ref: "#/components/schemas/KnownDeploymentOptions"
+    KnownDeploymentOptions:
+      type: object
       properties:
-        # Source options
-        source:
-          type: string
-          enum: ["image", "git"]
-        # Source options > Git repository
-        dockerfilePath:
-          type: string
-          nullable: true
-          description: Required when source == "git"
-        rootDir:
-          type: string
-          nullable: true
-          description: Required when source == "git"
-        repositoryId:
-          type: integer
-          format: int64
-          nullable: true
-          description: Required when source == "git"
-        event:
-          type: string
-          nullable: true
-          description: Required when source == "git"
-          enum: [push, workflow_run, null]
-        eventId:
-          type: integer
-          nullable: true
-          format: int64
-          description: Required when event == "workflow_run"
-        branch:
-          type: string
-          nullable: true
-          description: Required when source == "git"
-        builder:
-          type: string
-          nullable: true
-          description: Required when source == "git"
-          enum: [dockerfile, railpack, null]
-        # Source options > OCI image
-        imageTag:
-          type: string
-          nullable: true
-          description: Required when source == "image"
         # Deployment options
         port:
           type: integer
@@ -1572,17 +1541,57 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
-      required:
-        - source
-        - imageTag
-        - port
-        - dockerfilePath
-        - rootDir
-        - branch
-        - builder
-        - replicas
-        - mounts
-        - env
+      required: [port, replicas, env, mounts]
+    GitDeploymentOptions:
+      allOf:
+        - type: object
+          properties:
+            source:
+              type: string
+              enum: [git]
+            # Source options > Git repository
+            dockerfilePath:
+              type: string
+              nullable: true
+            rootDir:
+              type: string
+            repositoryId:
+              type: integer
+              format: int64
+            event:
+              type: string
+              enum: [push, workflow_run]
+            eventId:
+              type: integer
+              nullable: true
+              format: int64
+              description: Required when event == "workflow_run"
+            branch:
+              type: string
+              nullable: true
+            builder:
+              type: string
+              enum: [dockerfile, railpack]
+          required:
+            [
+              source,
+              dockerfilePath,
+              rootDir,
+              repositoryId,
+              event,
+              eventId,
+              builder,
+            ]
+    ImageDeploymentOptions:
+      properties:
+        source:
+          type: string
+          enum: [image]
+        # Source options > OCI image
+        imageTag:
+          type: string
+        # Deployment options
+      required: [source, imageTag]
     Mount:
       type: object
       properties:
@@ -1617,111 +1626,56 @@ components:
       enum: [SYSTEM, BUILD, RUNTIME]
     NewApp:
       type: object
-      properties:
-        name:
-          type: string
-        # Source options
-        orgId:
-          type: integer
-          format: int64
-        source:
-          type: string
-          enum: [git, image]
-        # Source options > Git repository
-        repositoryId:
-          type: number
-          nullable: true
-          format: int64
-        event:
-          type: string
-          nullable: true
-          enum: [push, workflow_run, null]
-        eventId:
-          type: integer
-          nullable: true
-          format: int64
-        dockerfilePath:
-          type: string
-          nullable: true
-        rootDir:
-          type: string
-          nullable: true
-        branch:
-          type: string
-          nullable: true
-        builder:
-          type: string
-          nullable: true
-          enum: [dockerfile, railpack, null]
-        # Source options > OCI image
-        imageTag:
-          type: string
-          nullable: true
-        # Deployment options
-        subdomain:
-          type: string
-          format: hostname
-        port:
-          type: integer
-          format: int64
-        env:
-          $ref: "#/components/schemas/Envs"
-        mounts:
-          type: array
-          items:
-            $ref: "#/components/schemas/Mount"
-        appGroup:
-          oneOf:
-            - type: object
-              properties:
-                type:
-                  type: string
-                  enum: [standalone]
-              required: [type]
-            - type: object
-              properties:
-                type:
-                  type: string
-                  enum: [create-new]
-                name:
-                  type: string
-              required: [type, name]
-            - type: object
-              properties:
-                type:
-                  type: string
-                  enum: [add-to]
-                id:
-                  type: integer
-                  format: int64
-              required: [type, id]
-      required:
-        - orgId
-        - source
-        - name
-        - repositoryId
-        - dockerfilePath
-        - subdomain
-        - port
-        - rootDir
-        - branch
-        - builder
-        - mounts
-        - imageTag
-        - env
-        - appGroup
-    NewEnvs:
-      type: array
-      items:
-        type: object
-        properties:
-          name:
-            type: string
-          value:
-            type: string
-          isSensitive:
-            type: boolean
-        required: [name, value, isSensitive]
+      allOf:
+        - type: object
+          properties:
+            name:
+              type: string
+            # Source options
+            orgId:
+              type: integer
+              format: int64
+            subdomain:
+              type: string
+              format: hostname
+            port:
+              type: integer
+              format: int64
+            env:
+              $ref: "#/components/schemas/Envs"
+            mounts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Mount"
+            appGroup:
+              oneOf:
+                - type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [standalone]
+                  required: [type]
+                - type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [create-new]
+                    name:
+                      type: string
+                  required: [type, name]
+                - type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [add-to]
+                    id:
+                      type: integer
+                      format: int64
+                  required: [type, id]
+          required: [name, orgId, subdomain, port, env, mounts, appGroup]
+        - oneOf:
+            - $ref: "#/components/schemas/GitDeploymentOptions"
+            - $ref: "#/components/schemas/ImageDeploymentOptions"
     Envs:
       type: array
       items:
