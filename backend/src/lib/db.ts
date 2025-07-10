@@ -64,7 +64,10 @@ const patchEnvIfExists = (data: {
   }
 };
 
-const pool = new Pool({ connectionString: DATABASE_URL });
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  connectionTimeoutMillis: 5000,
+});
 
 const prismaPostgresAdapter = new PrismaPg({ connectionString: DATABASE_URL });
 
@@ -109,6 +112,7 @@ export async function subscribe(
   return async () => {
     await conn.query(`UNLISTEN "${channel}"`);
     conn.off("notification", listener);
+    conn.release();
   };
 }
 

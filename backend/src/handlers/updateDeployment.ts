@@ -116,7 +116,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           where: { id: deployment.id },
           data: { status: "COMPLETE" },
         }),
-        await db.deployment.updateMany({
+        db.deployment.updateMany({
           where: {
             id: { not: deployment.id },
             appId: app.id,
