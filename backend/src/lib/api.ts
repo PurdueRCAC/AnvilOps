@@ -51,6 +51,7 @@ import {
   namespaceInUse,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
+import { listRepoWorkflows } from "../handlers/listRepoWorkflows.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -564,6 +565,7 @@ const handlers = {
   updateDeployment,
   listOrgRepos,
   listRepoBranches,
+  listRepoWorkflows,
   listDeployments,
   getDeployment,
   getAppLogs,

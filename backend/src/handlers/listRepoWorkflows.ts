@@ -1,13 +1,9 @@
 import type { AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import {
-  getBranchesByRepoId,
-  getOctokit,
-  getRepoById,
-} from "../lib/octokit.ts";
+import { getOctokit, getWorkflowsByRepoId } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 
-export const listRepoBranches: HandlerMap["listRepoBranches"] = async (
+export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -21,14 +17,14 @@ export const listRepoBranches: HandlerMap["listRepoBranches"] = async (
   });
 
   const octokit = await getOctokit(org.githubInstallationId);
-  const repo = await getRepoById(octokit, ctx.request.params.repoId);
-  const branches = await getBranchesByRepoId(
+  const workflows = await getWorkflowsByRepoId(
     octokit,
     ctx.request.params.repoId,
   );
-
   return json(200, res, {
-    default: repo.default_branch,
-    branches: branches.map((branch) => branch.name),
+    workflows: workflows.map((workflow) => ({
+      id: workflow.id,
+      name: workflow.name,
+    })),
   });
 };

@@ -10,11 +10,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  AppConfigFormFields,
-  type AppInfoFormData,
-  type NonNullableEnv,
-} from "./CreateAppView";
+import { AppConfigFormFields, type AppInfoFormData } from "./CreateAppView";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
@@ -28,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { components } from "@/generated/openapi";
 
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
@@ -84,31 +81,39 @@ export default function CreateAppGroupView() {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
           try {
-            const apps = appStates.map((appState) => {
-              return {
-                source: appState.source!,
-                orgId: orgId!,
-                name: getAppName(appState),
-                port: parseInt(appState.port!),
-                subdomain: appState.subdomain,
-                dockerfilePath: appState.dockerfilePath ?? null,
-                env: appState.env.filter(
-                  (it) => it.name.length > 0,
-                ) as NonNullableEnv,
-                repositoryId: appState.repositoryId ?? null,
-                branch: appState.branch ?? null,
-                builder:
-                  appState.builder ??
-                  (null as "dockerfile" | "railpack" | null),
-                rootDir: appState.rootDir ?? null,
-                mounts: appState.mounts.filter((it) => it.path.length > 0),
-                imageTag: appState.imageTag ?? null,
-                appGroup: {
-                  type: "add-to" as "add-to",
-                  id: -1,
-                },
-              };
-            });
+            const apps = appStates.map(
+              (appState): components["schemas"]["NewApp"] => {
+                return {
+                  orgId: orgId!,
+                  name: getAppName(appState),
+                  subdomain: appState.subdomain,
+                  port: parseInt(appState.port!),
+                  env: appState.env.filter((ev) => ev.name.length > 0),
+                  mounts: appState.mounts.filter((m) => m.path.length > 0),
+                  appGroup: {
+                    type: "add-to" as "add-to",
+                    id: -1,
+                  },
+                  ...(appState.source === "git"
+                    ? {
+                        source: "git",
+                        repositoryId: appState.repositoryId!,
+                        branch: appState.branch!,
+                        event: appState.event!,
+                        eventId: appState.eventId
+                          ? parseInt(appState.eventId)
+                          : null,
+                        dockerfilePath: appState.dockerfilePath!,
+                        rootDir: appState.rootDir!,
+                        builder: appState.builder!,
+                      }
+                    : {
+                        source: "image",
+                        imageTag: appState.imageTag!,
+                      }),
+                };
+              },
+            );
 
             await createAppGroup({
               body: {
