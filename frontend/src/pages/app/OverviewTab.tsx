@@ -16,7 +16,7 @@ import {
   LogsIcon,
   Tag,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { GitHubIcon } from "../CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
@@ -56,12 +56,61 @@ export const OverviewTab = ({
     },
   );
 
+  const { data: workflows } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos/{repoId}/workflows",
+    {
+      params: {
+        path: {
+          orgId: app.orgId,
+          repoId: app.config.source === "git" ? app.config.repositoryId : -1,
+        },
+      },
+    },
+    {
+      enabled:
+        app.config.source === "git" && app.config.event === "workflow_run",
+      refetchIntervalInBackground: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+    },
+  );
+
+  let workflow: { id: number; name: string; url: string } | undefined;
+  if (app.config.source === "git") {
+    const id = app.config.eventId;
+    workflow = useMemo(
+      () => workflows?.workflows?.find((workflow) => workflow.id === id),
+      [workflows],
+    );
+  }
+
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
     if (deployments?.[0]?.status === "COMPLETE") {
       refetchApp();
     }
   }, [deployments?.[0]?.status]);
+
+  let deployTrigger = null;
+  if (app.config.source === "git") {
+    deployTrigger =
+      app.config.event === "workflow_run" ? (
+        <span>
+          {" successful runs of "}
+          {!workflow ? (
+            " a workflow "
+          ) : (
+            <a href={workflow.url} target="_blank" className="underline">
+              {workflow.name}
+            </a>
+          )}
+          {" on "}
+        </span>
+      ) : (
+        <span>{" pushes to "}</span>
+      );
+  }
 
   return (
     <>
@@ -114,7 +163,7 @@ export const OverviewTab = ({
       <p className="opacity-50 mb-2">
         {app.config.source === "git" ? (
           <>
-            Automatically triggered from pushes to{" "}
+            Automatically triggered by {deployTrigger}
             <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
               <GitBranch className="inline" size={16} />{" "}
               <code>{app.config.branch}</code>

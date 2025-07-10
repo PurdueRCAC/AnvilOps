@@ -255,17 +255,23 @@ const handlers = {
                   );
                   repoURL = repo.html_url;
                 }
+
+                const latestCompleteDeployment = app.deployments.find(
+                  (deploy) => deploy.status === "COMPLETE",
+                );
+                const selectedDeployment =
+                  latestCompleteDeployment ?? app.deployments[0];
                 return {
                   id: app.id,
                   displayName: app.displayName,
-                  status: app.deployments[0]?.status,
-                  source: app.deployments[0]?.config?.source,
-                  imageTag: app.deployments[0]?.config?.imageTag,
+                  status: selectedDeployment.status,
+                  source: selectedDeployment.config.source,
+                  imageTag: selectedDeployment.config?.imageTag,
                   repositoryURL: repoURL,
                   branch: app.deploymentConfigTemplate.branch,
-                  commitHash: app.deployments[0]?.commitHash,
+                  commitHash: selectedDeployment.commitHash,
                   link:
-                    app.deployments[0]?.status === "COMPLETE"
+                    selectedDeployment.status === "COMPLETE"
                       ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
                       : undefined,
                 };

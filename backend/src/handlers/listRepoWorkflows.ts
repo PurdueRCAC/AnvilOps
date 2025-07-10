@@ -25,6 +25,7 @@ export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
     workflows: workflows.map((workflow) => ({
       id: workflow.id,
       name: workflow.name,
+      url: workflow.html_url,
     })),
   });
 };
