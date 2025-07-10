@@ -51,6 +51,7 @@ import {
   namespaceInUse,
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
+import { listRepoWorkflows } from "../handlers/listRepoWorkflows.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -231,10 +232,6 @@ const handlers = {
           },
         },
       });
-
-      if (!org) {
-        return json(401, res, {});
-      }
 
       if (!org) {
         return json(401, res, {});
@@ -456,22 +453,30 @@ const handlers = {
         repositoryURL: repoURL,
         subdomain: app.subdomain,
         config: {
-          source:
-            app.deploymentConfigTemplate.source === "GIT" ? "git" : "image",
-          imageTag: app.deploymentConfigTemplate.imageTag,
+          port: app.deploymentConfigTemplate.port,
+          env: app.deploymentConfigTemplate.displayEnv,
+          replicas: app.deploymentConfigTemplate.replicas,
           mounts: app.deploymentConfigTemplate.mounts.map((mount) => ({
             amountInMiB: mount.amountInMiB,
             path: mount.path,
             volumeClaimName: generateVolumeName(mount.path),
           })),
-          env: app.deploymentConfigTemplate.displayEnv,
-          replicas: app.deploymentConfigTemplate.replicas,
-          branch: app.deploymentConfigTemplate.branch,
-          dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-          port: app.deploymentConfigTemplate.port,
-          rootDir: app.deploymentConfigTemplate.rootDir,
-          builder: app.deploymentConfigTemplate.builder,
-          repositoryId: app.deploymentConfigTemplate.repositoryId,
+
+          ...(app.deploymentConfigTemplate.source === "GIT"
+            ? {
+                source: "git",
+                branch: app.deploymentConfigTemplate.branch,
+                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
+                rootDir: app.deploymentConfigTemplate.rootDir,
+                builder: app.deploymentConfigTemplate.builder,
+                repositoryId: app.deploymentConfigTemplate.repositoryId,
+                event: app.deploymentConfigTemplate.event,
+                eventId: app.deploymentConfigTemplate.eventId,
+              }
+            : {
+                source: "image",
+                imageTag: app.deploymentConfigTemplate.imageTag,
+              }),
         },
         appGroup: {
           standalone: app.appGroup.isMono,
@@ -560,6 +565,7 @@ const handlers = {
   updateDeployment,
   listOrgRepos,
   listRepoBranches,
+  listRepoWorkflows,
   listDeployments,
   getDeployment,
   getAppLogs,

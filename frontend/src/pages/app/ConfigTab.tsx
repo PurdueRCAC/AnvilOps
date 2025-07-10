@@ -21,25 +21,35 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
+  app.config;
   const [formState, setFormState] = useState<AppInfoFormData>({
+    port: app.config.port.toString(),
     env: app.config.env,
     mounts: app.config.mounts.map((mount) => ({
       // (remove volumeClaimName because it's not stored in the app's deployment config)
       amountInMiB: mount.amountInMiB,
       path: mount.path,
     })),
-    builder: app.config.builder ?? "railpack",
+    subdomain: "",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
     groupId: app.appGroup.id,
-    repositoryId: app.config.repositoryId ?? undefined,
-    imageTag: app.config.imageTag ?? undefined,
-    branch: app.config.branch ?? undefined,
-    rootDir: app.config.rootDir ?? undefined,
-    dockerfilePath: app.config.dockerfilePath ?? "Dockerfile",
-    port: app.config.port.toString(),
     source: app.config.source,
-    subdomain: "",
+    ...(app.config.source === "git"
+      ? {
+          repositoryId: app.config.repositoryId,
+          branch: app.config.branch,
+          event: app.config.event,
+          eventId: app.config.eventId?.toString() ?? undefined,
+          rootDir: app.config.rootDir,
+          dockerfilePath: app.config.dockerfilePath,
+          builder: app.config.builder,
+        }
+      : {
+          imageTag: app.config.imageTag,
+          dockerfilePath: "Dockerfile",
+          builder: "railpack",
+        }),
   });
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
@@ -75,21 +85,27 @@ export const ConfigTab = ({
               name: formData.get("name")!.toString(),
               appGroup,
               config: {
-                source: formState.source!,
                 port: parseInt(formData.get("portNumber")!.toString()),
-                dockerfilePath:
-                  formData.get("dockerfilePath")?.toString() ?? null,
                 env: formState.env.filter((it) => it.name.length > 0),
-                repositoryId: formState.repositoryId ?? null,
-                branch: formData.get("branch")?.toString() ?? null,
-                builder: (formData.get("builder")?.toString() ?? null) as
-                  | "dockerfile"
-                  | "railpack"
-                  | null,
-                rootDir: formData.get("rootDir")?.toString() ?? null,
                 mounts: formState.mounts.filter((it) => it.path.length > 0),
-                imageTag: formData.get("imageTag")?.toString() ?? null,
                 replicas: parseInt(formData.get("replicas")!.toString()),
+                ...(formState.source === "git"
+                  ? {
+                      source: "git",
+                      repositoryId: formState.repositoryId!,
+                      branch: formState.branch,
+                      builder: formState.builder,
+                      rootDir: formState.rootDir!,
+                      dockerfilePath: formState.dockerfilePath!,
+                      event: formState.event!,
+                      eventId: formState.eventId
+                        ? parseInt(formState.eventId)
+                        : null,
+                    }
+                  : {
+                      source: "image",
+                      imageTag: formState.imageTag!,
+                    }),
               },
             },
           });

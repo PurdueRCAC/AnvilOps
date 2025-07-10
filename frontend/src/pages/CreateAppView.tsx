@@ -23,6 +23,8 @@ import {
   BookMarked,
   Cable,
   Check,
+  ClipboardCheck,
+  CloudUpload,
   Code2,
   Component,
   Container,
@@ -63,6 +65,7 @@ export default function CreateAppView() {
       ? parseInt(search.get("repo")!.toString())
       : undefined,
     source: "git",
+    event: "push",
     builder: "railpack",
     dockerfilePath: "Dockerfile",
     rootDir: "./",
@@ -113,20 +116,30 @@ export default function CreateAppView() {
             }
             const result = await createApp({
               body: {
-                source: formState.source,
                 orgId: formState.orgId!,
                 name: appName,
-                appGroup,
-                repositoryId: formState.repositoryId ?? null,
-                dockerfilePath: formState.dockerfilePath ?? null,
-                rootDir: formState.rootDir ?? null,
-                branch: formState.branch ?? null,
-                builder: formState.builder,
-                imageTag: formState.imageTag ?? null,
                 subdomain: formState.subdomain!,
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
+                appGroup,
+                ...(formState.source === "git"
+                  ? {
+                      source: "git",
+                      repositoryId: formState.repositoryId!,
+                      dockerfilePath: formState.dockerfilePath!,
+                      rootDir: formState.rootDir!,
+                      branch: formState.branch!,
+                      builder: formState.builder!,
+                      event: formState.event!,
+                      eventId: formState.eventId
+                        ? parseInt(formState.eventId)
+                        : null,
+                    }
+                  : {
+                      source: "image",
+                      imageTag: formState.imageTag!,
+                    }),
               },
             });
 
@@ -224,6 +237,8 @@ export type AppInfoFormData = {
   mounts: Mounts;
   orgId?: number;
   repositoryId?: number;
+  event?: "push" | "workflow_run";
+  eventId?: string;
   repoName?: string;
   imageTag?: string;
   branch?: string;
@@ -256,6 +271,8 @@ export const AppConfigFormFields = ({
     mounts,
     orgId,
     repositoryId,
+    event,
+    eventId,
     subdomain,
   } = state;
 
@@ -303,6 +320,26 @@ export const AppConfigFormFields = ({
     {
       enabled:
         orgId !== undefined && repositoryId !== undefined && source === "git",
+    },
+  );
+
+  const { data: workflows, isPending: workflowsLoading } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos/{repoId}/workflows",
+    {
+      params: {
+        path: {
+          orgId: orgId!,
+          repoId: repositoryId!,
+        },
+      },
+    },
+    {
+      enabled:
+        orgId !== undefined &&
+        repositoryId !== undefined &&
+        source === "git" &&
+        event === "workflow_run",
     },
   );
 
@@ -642,7 +679,13 @@ export const AppConfigFormFields = ({
               }}
             >
               <SelectTrigger className="w-full" id="selectBranch">
-                <SelectValue placeholder="Select a branch" />
+                <SelectValue
+                  placeholder={
+                    branchesLoading && repositoryId !== undefined
+                      ? "Loading..."
+                      : "Select a branch"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -658,6 +701,104 @@ export const AppConfigFormFields = ({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label htmlFor="deployOnEvent" className="pb-1">
+                <CloudUpload className="inline" size={16} />
+                Event
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <Select
+              required
+              name="branch"
+              value={state.event ?? ""}
+              onValueChange={(event) => {
+                setState((prev) => ({
+                  ...prev,
+                  event: event as "push" | "workflow_run",
+                }));
+              }}
+            >
+              <SelectTrigger className="w-full" id="selectEvent">
+                <SelectValue placeholder="Select an event" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="push">Push</SelectItem>
+                  <SelectItem value="workflow_run">
+                    Successful workflow run
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          {event === "workflow_run" && (
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <Label
+                  htmlFor="selectWorkflow"
+                  className={clsx(
+                    "pb-1",
+                    (repositoryId === undefined || workflowsLoading) &&
+                      "opacity-50",
+                  )}
+                >
+                  <ClipboardCheck className="inline" size={16} />
+                  Workflow
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
+              <Select
+                required
+                name="workflow"
+                disabled={
+                  repositoryId === undefined ||
+                  branchesLoading ||
+                  workflows?.workflows?.length === 0
+                }
+                value={eventId ?? ""}
+                onValueChange={(eventId) => {
+                  setState((prev) => ({ ...prev, eventId }));
+                }}
+              >
+                <SelectTrigger className="w-full" id="selectWorkflow">
+                  <SelectValue
+                    placeholder={
+                      workflowsLoading || workflows!.workflows!.length > 0
+                        ? "Select a workflow"
+                        : "No workflows available"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {repositoryId !== undefined &&
+                      workflows?.workflows?.map((workflow) => {
+                        return (
+                          <SelectItem
+                            key={workflow.id}
+                            value={workflow.id.toString()}
+                          >
+                            {workflow.name}
+                          </SelectItem>
+                        );
+                      })}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </>
       ) : source === "image" ? (
         <>
@@ -776,6 +917,12 @@ export const AppConfigFormFields = ({
             <div>
               <Label className="pb-1 mb-2" htmlFor="dockerfilePath">
                 <Container className="inline" size={16} /> Dockerfile Path
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
               </Label>
               <Input
                 name="dockerfilePath"

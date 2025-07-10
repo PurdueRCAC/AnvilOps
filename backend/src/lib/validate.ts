@@ -6,55 +6,49 @@ import {
   namespaceInUse,
 } from "./kubernetes.ts";
 
-export function validateDeploymentConfig(appData: {
-  source?: "git" | "image";
-  builder?: "dockerfile" | "railpack";
-  rootDir: string;
-  env?: components["schemas"]["Envs"];
-  mounts: components["schemas"]["Mount"][];
-  port: number;
-  dockerfilePath?: string;
-  imageTag?: string;
-  secrets?: components["schemas"]["Envs"];
-  appGroup?:
-    | {
-        type: "standalone";
-      }
-    | {
-        type: "create-new";
-        name: string;
-      }
-    | {
-        type: "add-to";
-        id: number;
-      };
-}) {
+export function validateDeploymentConfig(
+  data: (
+    | components["schemas"]["GitDeploymentOptions"]
+    | components["schemas"]["ImageDeploymentOptions"]
+  ) &
+    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas"> & {
+      appGroup: components["schemas"]["NewApp"]["appGroup"];
+    },
+) {
   // TODO verify that the organization has access to the repository
 
-  if (appData.source === "git") {
-    if (appData.rootDir.startsWith("/") || appData.rootDir.includes(`"`)) {
+  const { source, env, mounts, port, appGroup } = data;
+  if (source === "git") {
+    const { builder, dockerfilePath, rootDir, event, eventId } = data;
+    if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
       return { valid: false, message: "Invalid root directory" };
     }
-    if (appData.builder === "dockerfile") {
-      if (!appData.dockerfilePath) {
+    if (builder === "dockerfile") {
+      if (!dockerfilePath) {
         return {
           valid: false,
           message: "Dockerfile path must be provided",
         };
       }
-      if (
-        appData.dockerfilePath.startsWith("/") ||
-        appData.dockerfilePath.includes(`"`)
-      ) {
+      if (dockerfilePath.startsWith("/") || dockerfilePath.includes(`"`)) {
         return { valid: false, message: "Invalid Dockerfile path" };
       }
     }
-  } else if (appData.source === "image") {
-    if (!appData.imageTag) {
-      // TODO validate image tag format
+
+    if (event === "workflow_run" && eventId === undefined) {
+      return { valid: false, message: "Must provide workflow id" };
+    }
+  } else if (source === "image") {
+    const { imageTag } = data;
+    if (
+      !imageTag ||
+      imageTag.match(
+        /^(?:(?=[^:\/]{4,253})(?!-)[a-zA-Z0-9\-]{1,63}(?<!-)(?:\.(?!-)[a-zA-Z0-9\-]{1,63}(?<!-))*(?::[0-9]{1,5})?\/)?((?![._\-])(?:[a-z0-9._\-]*)(?<![._\-])(?:\/(?![._\-])[a-z0-9._\-]*(?<![._\-]))*)(?::(?![.\-])[a-zA-Z0-9_.\-]{1,128})?$/,
+      ) === null
+    ) {
       return {
         valid: false,
-        message: "Image tag must be provided",
+        message: "Invalid image tag",
       };
     }
   } else {
@@ -64,24 +58,24 @@ export function validateDeploymentConfig(appData: {
     };
   }
 
-  if (appData.env?.some((it) => !it.name || it.name.length === 0)) {
+  if (env?.some((it) => !it.name || it.name.length === 0)) {
     return {
       valid: false,
       message: "Some environment variable(s) are empty",
     };
   }
 
-  if (appData.port < 0 || appData.port > 65535) {
+  if (port < 0 || port > 65535) {
     return {
       valid: false,
       message: "Invalid port number",
     };
   }
 
-  if (appData.appGroup.type === "create-new") {
+  if (appGroup.type === "create-new") {
     if (
-      appData.appGroup.name.length > MAX_GROUPNAME_LEN ||
-      appData.appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
+      appGroup.name.length > MAX_GROUPNAME_LEN ||
+      appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
     ) {
       return {
         valid: false,
@@ -91,7 +85,7 @@ export function validateDeploymentConfig(appData: {
   }
 
   try {
-    validateEnv(appData.env);
+    validateEnv(env);
   } catch (err) {
     return { valid: false, message: err.message };
   }

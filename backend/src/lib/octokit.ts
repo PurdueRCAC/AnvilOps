@@ -52,50 +52,68 @@ export function getUserOctokit(code: string) {
   });
 }
 
-export async function getRepoById(octokit: Octokit, repoId: number) {
-  type Repo = Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
+async function fetchWithCache<T>(
+  octokit: Octokit,
+  request: () => Promise<T>,
+  key: string,
+  ttl = 15,
+): Promise<T> {
   if (!octokit[installationIdSymbol]) {
     // The installationId field is required to prevent leaking repos from other installations to ones that don't have access
     throw new Error("Octokit doesn't have installationId field");
   }
   return JSON.parse(
-    await getOrCreate(
-      `github-repo-${octokit[installationIdSymbol]}-${repoId}`,
-      15,
-      async () => {
-        const repoResponse = await octokit.request({
+    await getOrCreate(key, ttl, async () => JSON.stringify(await request())),
+  ) as T;
+}
+
+export async function getRepoById(octokit: Octokit, repoId: number) {
+  type Repo = Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
+  return fetchWithCache<Repo>(
+    octokit,
+    () =>
+      octokit
+        .request({
           // This API is undocumented but will likely stick around(?) - https://github.com/piotrmurach/github/issues/283#issuecomment-249092851
           method: "GET",
           url: `/repositories/${repoId}`,
-        });
-        const repo = repoResponse.data as Repo;
-
-        return JSON.stringify(repo);
-      },
-    ),
-  ) as Repo;
+        })
+        .then((res) => res.data as Repo),
+    `github-repo-${octokit[installationIdSymbol]}-${repoId}`,
+  );
 }
 
 export async function getWorkflowsByRepoId(octokit: Octokit, repoId: number) {
   type Workflow = Awaited<
     ReturnType<typeof octokit.rest.actions.getWorkflow>
   >["data"];
-  if (!octokit[installationIdSymbol]) {
-    throw new Error("Octokit doesn't have installationId field");
-  }
 
-  return JSON.parse(
-    await getOrCreate(
-      `github-workflows-${octokit[installationIdSymbol]}-${repoId}`,
-      15,
-      async () => {
-        const res = await octokit.request(
-          `GET /repositories/${repoId}/actions/workflows`,
-          {},
-        );
-        const workflows = res.data.workflows;
-        return JSON.stringify(workflows);
-      },
-    ),
-  ) as Workflow[];
+  return fetchWithCache<Workflow[]>(
+    octokit,
+    () =>
+      octokit
+        .request({
+          method: "GET",
+          url: `/repositories/${repoId}/actions/workflows`,
+        })
+        .then((res) => res.data.workflows),
+    `github-workflows-${octokit[installationIdSymbol]}-${repoId}`,
+  );
+}
+
+export async function getBranchesByRepoId(octokit: Octokit, repoId: number) {
+  type Branch = Awaited<
+    ReturnType<typeof octokit.rest.repos.listBranches>
+  >["data"][0];
+  return fetchWithCache<Branch[]>(
+    octokit,
+    () =>
+      octokit
+        .request({
+          method: "GET",
+          url: `/repositories/${repoId}/branches`,
+        })
+        .then((res) => res.data),
+    `github-branches-${octokit[installationIdSymbol]}-${repoId}`,
+  );
 }

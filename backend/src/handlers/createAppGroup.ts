@@ -8,13 +8,16 @@ import {
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import {
+  getOctokit,
+  getRepoById,
+  getWorkflowsByRepoId,
+} from "../lib/octokit.ts";
 import type {
   DeploymentConfigCreateInput,
   MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
 import type { DeploymentConfig, App } from "../generated/prisma/client.ts";
-import { convertSource } from "./createApp.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
@@ -121,6 +124,48 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
     } else {
       octokit = await getOctokit(organization.githubInstallationId);
     }
+
+    for (const app of data.apps) {
+      if (app.source !== "git") continue;
+
+      try {
+        await getRepoById(octokit, app.repositoryId);
+      } catch (err) {
+        if (err.status === 404) {
+          return json(400, res, {
+            code: 400,
+            message: `Invalid repository id ${app.repositoryId} for app ${app.name}`,
+          });
+        }
+
+        console.error(err);
+        return json(500, res, {
+          code: 500,
+          message: `Failed to look up repository for app ${app.name}`,
+        });
+      }
+
+      if (app.event === "workflow_run") {
+        try {
+          const workflows = await getWorkflowsByRepoId(
+            octokit,
+            app.repositoryId,
+          );
+          if (!workflows.some((workflow) => workflow.id == app.eventId)) {
+            return json(400, res, {
+              code: 400,
+              message: `Invalid workflow id ${app.eventId} for app ${app.name}`,
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          return json(500, res, {
+            code: 500,
+            message: `Failed to look up workflow for app ${app.name}`,
+          });
+        }
+      }
+    }
   }
 
   const { id: appGroupId } = await db.appGroup.create({
@@ -132,18 +177,28 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
   const appConfigs = data.apps.map((app) => {
     const deploymentConfig: DeploymentConfigCreateInput & {
       mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-    } = {
-      source: convertSource(app.source),
-      repositoryId: app.repositoryId,
-      branch: app.branch,
-      port: app.port,
-      env: app.env,
-      builder: app.builder,
-      dockerfilePath: app.dockerfilePath,
-      rootDir: app.rootDir,
-      mounts: { createMany: { data: app.mounts } },
-      imageTag: app.imageTag,
-    };
+    } =
+      app.source === "git"
+        ? {
+            source: "GIT",
+            repositoryId: app.repositoryId,
+            event: app.event,
+            eventId: app.eventId,
+            branch: app.branch,
+            port: app.port,
+            env: app.env,
+            builder: app.builder,
+            dockerfilePath: app.dockerfilePath,
+            rootDir: app.rootDir,
+            mounts: { createMany: { data: app.mounts } },
+          }
+        : {
+            source: "IMAGE",
+            port: app.port,
+            env: app.env,
+            mounts: { createMany: { data: app.mounts } },
+          };
+
     return {
       name: app.name,
       displayName: app.name,
