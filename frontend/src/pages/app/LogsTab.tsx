@@ -10,7 +10,9 @@ export const LogsTab = ({ app }: { app: App }) => {
     { params: { path: { appId: app.id } } },
   );
 
-  const mostRecentDeployment = deployments?.[0];
+  const mostRecentDeployment = deployments.find(
+    (deploy) => deploy.status === "COMPLETE",
+  );
 
   if (!mostRecentDeployment) {
     return <Loader className="animate-spin" />;
