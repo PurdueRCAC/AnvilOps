@@ -88,14 +88,6 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       where: {
         id: deployment.appId,
       },
-      include: {
-        deployments: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 2,
-        },
-      },
     });
 
     const { namespace, configs, postCreate } =
@@ -117,17 +109,22 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
 
       await createOrUpdateApp(app.name, namespace, configs, postCreate);
       log(deployment.id, "BUILD", "Deployment succeeded");
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: { status: "COMPLETE" },
-      });
-      if (app.deployments.length === 2) {
-        // Update the status of the deployment before this one
-        await db.deployment.update({
-          where: { id: app.deployments[1].id },
+
+      // Update statuses - this should be the only complete deployment
+      await Promise.all([
+        db.deployment.update({
+          where: { id: deployment.id },
+          data: { status: "COMPLETE" },
+        }),
+        await db.deployment.updateMany({
+          where: {
+            id: { not: deployment.id },
+            appId: app.id,
+            status: "COMPLETE",
+          },
           data: { status: "STOPPED" },
-        });
-      }
+        }),
+      ]);
 
       dequeueBuildJob();
     } catch (err) {

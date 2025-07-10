@@ -19,7 +19,11 @@ import {
   createOrUpdateApp,
   getNamespace,
 } from "../lib/kubernetes.ts";
-import { getInstallationAccessToken, getOctokit } from "../lib/octokit.ts";
+import {
+  getInstallationAccessToken,
+  getOctokit,
+  getRepoById,
+} from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
 import type {
@@ -271,21 +275,18 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
               config: { include: { mounts: true } },
             },
           });
-          if (!deployment) {
+          if (!deployment || deployment.status !== "PENDING") {
+            // If the app was deleted, nothing to do
+            // If the deployment was canceled, its check run will be updated to canceled
             continue;
           }
-          if (
-            deployment.status !== "PENDING" ||
-            payload.workflow_run.conclusion !== "success"
-          ) {
-            // No need to build for this workflow run
-            if (payload.workflow_run.conclusion !== "success") {
-              log(
-                deployment.id,
-                "BUILD",
-                "Workflow run did not complete successfully",
-              );
-            }
+          if (payload.workflow_run.conclusion !== "success") {
+            // No need to build for unsuccessful workflow run
+            log(
+              deployment.id,
+              "BUILD",
+              "Workflow run did not complete successfully",
+            );
             if (!deployment.checkRunId) {
               continue;
             }
@@ -303,17 +304,14 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
                 "BUILD",
                 "Updated GitHub check run to Completed with conclusion Cancelled",
               );
-              if (deployment.status !== "ERROR") {
-                await db.deployment.update({
-                  where: { id: deployment.id },
-                  data: { status: "STOPPED" },
-                });
-              }
+              await db.deployment.update({
+                where: { id: deployment.id },
+                data: { status: "STOPPED" },
+              });
             } catch (e) {}
             continue;
           }
 
-          //
           const secret = randomBytes(32).toString("hex");
           const octokit = await getOctokit(app.org.githubInstallationId);
           await db.deployment.update({
@@ -411,9 +409,16 @@ export async function buildAndDeploy({
       secret: true,
       commitHash: true,
       config: { include: { mounts: true } },
-      app: { include: { appGroup: true } },
+      app: {
+        include: {
+          appGroup: true,
+          org: { select: { githubInstallationId: true } },
+        },
+      },
     },
   });
+
+  await cancelAllOtherDeployments(deployment.id, deployment.app);
 
   if (config.source === "GIT") {
     buildAndDeployFromRepo({ deployment, secret, cloneURL, opts });
@@ -611,9 +616,16 @@ async function createPendingWorkflowDeployment({
       secret: true,
       commitHash: true,
       config: { include: { mounts: true } },
-      app: { include: { appGroup: true } },
+      app: {
+        include: {
+          appGroup: true,
+          org: { select: { githubInstallationId: true } },
+        },
+      },
     },
   });
+
+  await cancelAllOtherDeployments(deployment.id, deployment.app);
 
   let checkRun:
     | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
@@ -644,6 +656,58 @@ async function createPendingWorkflowDeployment({
       data: { checkRunId: checkRun.data.id },
     });
   }
+}
+
+export async function cancelAllOtherDeployments(
+  deploymentId: number,
+  app: App & { org: { githubInstallationId?: number } },
+  cancelComplete = false,
+) {
+  const deployments = await db.deployment.findMany({
+    where: {
+      id: { not: deploymentId },
+      appId: app.id,
+      status: {
+        notIn: cancelComplete ? ["ERROR"] : ["COMPLETE", "ERROR"],
+      },
+    },
+    include: {
+      config: true,
+    },
+  });
+
+  const octokit = await getOctokit(app.org.githubInstallationId);
+  for (const deployment of deployments) {
+    if (
+      !["STOPPED", "COMPLETE", "ERROR"].includes(deployment.status) &&
+      deployment.checkRunId
+    ) {
+      // Should have a check run that is either queued or in_progress
+      const repo = await getRepoById(octokit, deployment.config.repositoryId);
+      await octokit.rest.checks.update({
+        check_run_id: deployment.checkRunId,
+        owner: repo.owner.login,
+        repo: repo.name,
+        status: "completed",
+        conclusion: "cancelled",
+      });
+      log(
+        deployment.id,
+        "BUILD",
+        "Updated GitHub check run to Completed with conclusion Cancelled",
+      );
+    }
+  }
+
+  await db.queuedJob.deleteMany({
+    where: { deployment: { appId: app.id } },
+  });
+  await db.deployment.updateMany({
+    where: {
+      id: { in: deployments.map((deploy) => deploy.id) },
+    },
+    data: { status: "STOPPED" },
+  });
 }
 
 export async function log(

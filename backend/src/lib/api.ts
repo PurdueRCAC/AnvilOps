@@ -331,21 +331,27 @@ const handlers = {
         where: { orgId },
         include: {
           deployments: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
+            where: {
+              status: {
+                in: ["DEPLOYING", "COMPLETE", "ERROR"],
+              },
+            },
           },
         },
       });
       for (let app of apps) {
-        const hasResourcesStatus = ["DEPLOYING", "COMPLETE"];
-        if (hasResourcesStatus.includes(app.deployments[0]?.status)) {
+        if (app.deployments.length > 0) {
           try {
             await deleteNamespace(getNamespace(app.subdomain));
           } catch (err) {
             console.error(err);
           }
-          await db.deployment.update({
-            where: { id: app.deployments[0].id },
+          await db.deployment.updateMany({
+            where: {
+              id: {
+                in: app.deployments.map((deploy) => deploy.id),
+              },
+            },
             data: { status: "STOPPED" },
           });
         }

@@ -17,6 +17,7 @@ import { type HandlerMap, json } from "../types.ts";
 import { convertSource } from "./createApp.ts";
 import {
   buildAndDeploy,
+  cancelAllOtherDeployments,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
@@ -134,14 +135,6 @@ const updateApp: HandlerMap["updateApp"] = async (
   }
 
   const lastDeployment = app.deployments[0];
-
-  if (lastDeployment && lastDeployment.status != "ERROR") {
-    await db.deployment.update({
-      where: { id: lastDeployment.id },
-      data: { status: "STOPPED" },
-    });
-  }
-
   const secret = randomBytes(32).toString("hex");
 
   const updatedDeploymentConfig: DeploymentConfigCreateInput & {
@@ -240,10 +233,17 @@ const updateApp: HandlerMap["updateApp"] = async (
       select: {
         id: true,
         appId: true,
-        app: { include: { appGroup: true } },
+        app: {
+          include: {
+            appGroup: true,
+            org: { select: { githubInstallationId: true } },
+          },
+        },
         config: { include: { mounts: true } },
       },
     });
+
+    await cancelAllOtherDeployments(deployment.id, deployment.app, true);
 
     try {
       const { namespace, configs, postCreate } =

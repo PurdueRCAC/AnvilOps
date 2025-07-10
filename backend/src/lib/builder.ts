@@ -144,21 +144,6 @@ export async function createBuildJob(data: {
     );
   }
 
-  await db.deployment.updateMany({
-    where: {
-      id: {
-        not: data.deploymentId,
-      },
-      appId: data.appId,
-      status: {
-        notIn: ["COMPLETE", "ERROR"],
-      },
-    },
-    data: { status: "STOPPED" },
-  });
-
-  await cancelBuildJobsForApp(data.appId);
-
   // Store it in db - we'll pop it out when another job finishes.
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
     await queueBuildJob(data);
@@ -173,7 +158,7 @@ export async function createBuildJob(data: {
   return job.metadata.uid;
 }
 
-async function cancelBuildJobsForApp(appId: number) {
+export async function cancelBuildJobsForApp(appId: number) {
   await k8s.batch.deleteCollectionNamespacedJob({
     namespace: "anvilops-dev",
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
@@ -207,25 +192,6 @@ async function queueBuildJob({
   deploymentId: number;
   appId: number;
 }) {
-  // Ensure one deployment queued for each app
-
-  await db.queuedJob.deleteMany({
-    where: { deployment: { appId } },
-  });
-
-  await db.deployment.updateMany({
-    where: {
-      id: {
-        not: deploymentId,
-      },
-      appId,
-      status: {
-        notIn: ["COMPLETE", "ERROR"],
-      },
-    },
-    data: { status: "STOPPED" },
-  });
-
   await db.deployment.update({
     where: { id: deploymentId },
     data: { status: "QUEUED" },
