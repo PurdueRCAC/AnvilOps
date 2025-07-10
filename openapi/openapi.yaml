@@ -1535,6 +1535,16 @@ components:
           format: int64
           nullable: true
           description: Required when source == "git"
+        event:
+          type: string
+          nullable: true
+          description: Required when source == "git"
+          enum: [push, workflow_run, null]
+        eventId:
+          type: integer
+          nullable: true
+          format: int64
+          description: Required when event == "workflow_run"
         branch:
           type: string
           nullable: true
@@ -1620,6 +1630,14 @@ components:
         # Source options > Git repository
         repositoryId:
           type: number
+          nullable: true
+          format: int64
+        event:
+          type: string
+          nullable: true
+          enum: [push, workflow_run, null]
+        eventId:
+          type: integer
           nullable: true
           format: int64
         dockerfilePath:

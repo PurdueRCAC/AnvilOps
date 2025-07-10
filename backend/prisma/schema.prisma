@@ -151,7 +151,7 @@ model DeploymentConfig {
   // > Git deployment source
   repositoryId   Int?
   branch         String?          @default("main")
-  event          WebhookEvent     @default(push)
+  event          WebhookEvent?
   // e.g. workflow ID
   eventId        Int?
   builder        ImageBuilder?

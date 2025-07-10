@@ -1,6 +1,6 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
-import type { Octokit } from "octokit";
+import { RequestError, type Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { DeploymentSource } from "../generated/prisma/enums.ts";
 import type {
@@ -10,7 +10,11 @@ import type {
 } from "../generated/prisma/models.ts";
 import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import {
+  getOctokit,
+  getRepoById,
+  getWorkflowsByRepoId,
+} from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
   validateSubdomain,
@@ -93,10 +97,30 @@ const createApp: HandlerMap["createApp"] = async (
       octokit = await getOctokit(organization.githubInstallationId);
       repo = await getRepoById(octokit, appData.repositoryId);
     } catch (err) {
+      if (err.status === 404) {
+        return json(400, res, { code: 400, message: "Invalid repository id" });
+      }
+
+      console.error(err);
       return json(500, res, {
         code: 500,
         message: "Failed to look up GitHub repository.",
       });
+    }
+
+    if (appData.event === "workflow_run" && appData.eventId) {
+      try {
+        const workflows = await getWorkflowsByRepoId(octokit, repo.id);
+        if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
+          return json(400, res, { code: 400, message: "Invalid workflow id" });
+        }
+      } catch (err) {
+        console.error(err);
+        return json(500, res, {
+          code: 500,
+          message: "Failed to look up GitHub workflows.",
+        });
+      }
     }
 
     const latestCommit = (
@@ -119,6 +143,8 @@ const createApp: HandlerMap["createApp"] = async (
   } = {
     source: convertSource(appData.source),
     repositoryId: appData.repositoryId,
+    event: appData.event,
+    eventId: appData.eventId,
     branch: appData.branch,
     port: appData.port,
     env: appData.env,
