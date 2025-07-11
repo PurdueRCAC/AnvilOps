@@ -674,9 +674,9 @@ paths:
                           format: int64
                         name:
                           type: string
-                        url:
+                        path:
                           type: string
-                      required: [id, name, url]
+                      required: [id, name, path]
 
   /org/{orgId}/groups:
     parameters:

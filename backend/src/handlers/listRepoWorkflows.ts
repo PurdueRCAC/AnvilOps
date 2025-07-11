@@ -17,17 +17,19 @@ export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
   });
 
   const octokit = await getOctokit(org.githubInstallationId);
-  const workflows = await octokit
+  const workflows = (await octokit
     .request({
       method: "GET",
       url: `/repositories/${ctx.request.params.repoId}/actions/workflows`,
     })
-    .then((res) => res.data.workflows);
+    .then((res) => res.data.workflows)) as Awaited<
+    ReturnType<typeof octokit.rest.actions.getWorkflow>
+  >["data"][];
   return json(200, res, {
     workflows: workflows.map((workflow) => ({
       id: workflow.id,
       name: workflow.name,
-      url: workflow.html_url,
+      path: workflow.path,
     })),
   });
 };

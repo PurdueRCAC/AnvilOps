@@ -76,7 +76,7 @@ export const OverviewTab = ({
     },
   );
 
-  let workflow: { id: number; name: string; url: string } | undefined;
+  let workflow: { id: number; name: string; path: string } | undefined;
   if (app.config.source === "git") {
     const id = app.config.eventId;
     workflow = useMemo(
@@ -101,7 +101,11 @@ export const OverviewTab = ({
           {!workflow ? (
             " a workflow "
           ) : (
-            <a href={workflow.url} target="_blank" className="underline">
+            <a
+              href={`${app.repositoryURL}/tree/${app.config.branch}/${workflow.path}`}
+              target="_blank"
+              className="underline"
+            >
               {workflow.name}
             </a>
           )}
