@@ -10,7 +10,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AppConfigFormFields, type AppInfoFormData } from "./CreateAppView";
+import AppConfigFormFields, {
+  type AppInfoFormData,
+} from "./AppConfigFormFields";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Globe, Loader, Plus, Rocket, X } from "lucide-react";

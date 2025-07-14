@@ -7,7 +7,9 @@ import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
-import { AppConfigFormFields, type AppInfoFormData } from "../CreateAppView";
+import AppConfigFormFields, {
+  type AppInfoFormData,
+} from "@/pages/create-app/AppConfigFormFields";
 import type { App } from "./AppView";
 
 export const ConfigTab = ({
@@ -21,7 +23,6 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
-  app.config;
   const [formState, setFormState] = useState<AppInfoFormData>({
     port: app.config.port.toString(),
     env: app.config.env,

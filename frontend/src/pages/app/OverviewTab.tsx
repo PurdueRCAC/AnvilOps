@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { GitHubIcon } from "../CreateAppView";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 
 export const format = new Intl.DateTimeFormat(undefined, {

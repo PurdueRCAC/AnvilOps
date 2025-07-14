@@ -39,7 +39,7 @@ import {
 } from "react-icons/si";
 import { BiLogoGoLang } from "react-icons/bi";
 import { Link } from "react-router-dom";
-import { GitHubIcon } from "./CreateAppView";
+import { GitHubIcon } from "./create-app/CreateAppView";
 
 export default function LandingView() {
   return (
