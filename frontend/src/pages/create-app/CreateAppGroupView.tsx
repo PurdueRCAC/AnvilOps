@@ -36,16 +36,18 @@ export default function CreateAppGroupView() {
 
   const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
 
+  const defaultState = {
+    env: [],
+    mounts: [],
+    source: "git" as "git",
+    builder: "railpack" as "railpack",
+    event: "push" as "push",
+    subdomain: "",
+    rootDir: "./",
+    dockerfilePath: "Dockerfile",
+  };
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
-    {
-      env: [{ name: "", value: "", isSensitive: false }],
-      mounts: [{ path: "", amountInMiB: 1024 }],
-      source: "git",
-      builder: "railpack",
-      subdomain: "",
-      rootDir: "./",
-      dockerfilePath: "Dockerfile",
-    },
+    { ...defaultState },
   ]);
 
   const [tab, setTab] = useState("0");
@@ -237,16 +239,7 @@ export default function CreateAppGroupView() {
                   onClick={() => {
                     setAppStates((appStates) => [
                       ...appStates,
-                      {
-                        env: [{ name: "", value: "", isSensitive: false }],
-                        mounts: [{ path: "", amountInMiB: 1024 }],
-                        source: "git",
-                        builder: "railpack",
-                        orgId,
-                        subdomain: "",
-                        rootDir: "./",
-                        dockerfilePath: "Dockerfile",
-                      },
+                      { ...defaultState, orgId },
                     ]);
                   }}
                   disabled={orgId === undefined}

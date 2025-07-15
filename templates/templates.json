@@ -5,6 +5,7 @@
     "description": "Astro project that showcases the features of AnvilOps.",
     "port": "3000",
     "builder": "railpack",
+    "subdomain": "anvilops-demo",
     "env": [],
     "mounts": []
   },
@@ -15,6 +16,7 @@
     "port": "3838",
     "builder": "dockerfile",
     "dockerfilePath": "Dockerfile",
+    "subdomain": "anvilops-rshiny",
     "env": [],
     "mounts": []
   }

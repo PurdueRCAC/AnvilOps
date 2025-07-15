@@ -1369,6 +1369,8 @@ paths:
                       enum: [dockerfile, railpack]
                     dockerfilePath:
                       type: string
+                    subdomain:
+                      type: string
                     env:
                       $ref: "#/components/schemas/Envs"
                     mounts:
@@ -1376,7 +1378,16 @@ paths:
                       items:
                         $ref: "#/components/schemas/Mount"
                   required:
-                    [displayName, url, description, port, builder, env, mounts]
+                    [
+                      displayName,
+                      url,
+                      description,
+                      port,
+                      builder,
+                      subdomain,
+                      env,
+                      mounts,
+                    ]
 components:
   schemas:
     UserOrg:

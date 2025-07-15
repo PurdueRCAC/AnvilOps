@@ -70,16 +70,16 @@ export const ImportRepoDialog = ({
     (it) => it.owner === installation?.targetName && it.name === repoState.name,
   );
 
+  const handleOpenChange = (open: boolean) => {
+    setOpen(open);
+    if (open === false) {
+      setRepoState({ url: "", name: "" });
+      setTemplateSelect("");
+      setShowRepoOptions(false);
+    }
+  };
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(open) => {
-        setRepoState({ url: "", name: "" });
-        setTemplateSelect("");
-        setShowRepoOptions(false);
-        setOpen(open);
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Import Git Repository</DialogTitle>
@@ -114,7 +114,7 @@ export const ImportRepoDialog = ({
               // Set the repo after the <Select> rerenders with the updated list of repositories
               setTimeout(() => setRepo(repoId, repoState.name));
             }
-            setOpen(false);
+            handleOpenChange(false);
             if (
               templateSelect &&
               templateSelect !== "$new-repo" &&
@@ -126,6 +126,11 @@ export const ImportRepoDialog = ({
                 port: template.port,
                 builder: template.builder,
                 dockerfilePath: template.dockerfilePath,
+                // https://stackoverflow.com/a/38622545
+                subdomain:
+                  template.subdomain +
+                  "-" +
+                  Math.random().toString(36).slice(2, 7),
                 env: template.env,
                 mounts: template.mounts,
               }));
