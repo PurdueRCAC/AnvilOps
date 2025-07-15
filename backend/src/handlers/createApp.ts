@@ -165,22 +165,15 @@ const createApp: HandlerMap["createApp"] = async (
           event: appData.event,
           eventId: appData.eventId,
           branch: appData.branch,
-          port: appData.port,
-          env: appData.env,
           builder: appData.builder,
           dockerfilePath: appData.dockerfilePath,
           rootDir: appData.rootDir,
-          mounts: { createMany: { data: appData.mounts } },
         }
       : {
           source: "IMAGE",
           imageTag: appData.imageTag,
-          port: appData.port,
-          env: appData.env,
-          mounts: { createMany: { data: appData.mounts } },
         }),
   };
-
   let appGroup: AppGroupCreateNestedOneWithoutAppsInput;
   switch (appData.appGroup.type) {
     case "standalone":

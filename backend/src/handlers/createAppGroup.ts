@@ -201,20 +201,16 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
             event: app.event,
             eventId: app.eventId,
             branch: app.branch,
-            port: app.port,
-            env: app.env,
             builder: app.builder,
             dockerfilePath: app.dockerfilePath,
             rootDir: app.rootDir,
-            mounts: { createMany: { data: app.mounts } },
           }
         : {
             source: "IMAGE",
-            port: app.port,
-            env: app.env,
-            mounts: { createMany: { data: app.mounts } },
+            imageTag: app.imageTag,
           }),
     };
+
     return {
       name: app.name,
       displayName: app.name,
