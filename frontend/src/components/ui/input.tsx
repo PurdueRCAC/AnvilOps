@@ -30,7 +30,7 @@ function Input({
           {...props}
         />
       </TooltipTrigger>
-      {disabled ? (
+      {disabled && disabledTooltip ? (
         <TooltipContent side="bottom">{disabledTooltip}</TooltipContent>
       ) : null}
     </Tooltip>

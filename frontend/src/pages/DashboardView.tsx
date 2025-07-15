@@ -31,7 +31,7 @@ import { Fragment, useContext, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Status } from "./app/AppView";
-import { GitHubIcon } from "./CreateAppView";
+import { GitHubIcon } from "./create-app/CreateAppView";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);

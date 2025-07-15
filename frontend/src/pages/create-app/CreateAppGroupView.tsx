@@ -10,7 +10,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AppConfigFormFields, type AppInfoFormData } from "./CreateAppView";
+import AppConfigFormFields, {
+  type AppInfoFormData,
+} from "./AppConfigFormFields";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
@@ -25,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components } from "@/generated/openapi";
+import { FormContext } from "./CreateAppView";
 
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
@@ -34,16 +37,18 @@ export default function CreateAppGroupView() {
 
   const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
 
+  const defaultState = {
+    env: [],
+    mounts: [],
+    source: "git" as "git",
+    builder: "railpack" as "railpack",
+    event: "push" as "push",
+    subdomain: "",
+    rootDir: "./",
+    dockerfilePath: "Dockerfile",
+  };
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
-    {
-      env: [{ name: "", value: "", isSensitive: false }],
-      mounts: [{ path: "", amountInMiB: 1024 }],
-      source: "git",
-      builder: "railpack",
-      subdomain: "",
-      rootDir: "./",
-      dockerfilePath: "Dockerfile",
-    },
+    { ...defaultState },
   ]);
 
   const [tab, setTab] = useState("0");
@@ -235,16 +240,7 @@ export default function CreateAppGroupView() {
                   onClick={() => {
                     setAppStates((appStates) => [
                       ...appStates,
-                      {
-                        env: [{ name: "", value: "", isSensitive: false }],
-                        mounts: [{ path: "", amountInMiB: 1024 }],
-                        source: "git",
-                        builder: "railpack",
-                        orgId,
-                        subdomain: "",
-                        rootDir: "./",
-                        dockerfilePath: "Dockerfile",
-                      },
+                      { ...defaultState, orgId },
                     ]);
                   }}
                   disabled={orgId === undefined}
@@ -254,29 +250,35 @@ export default function CreateAppGroupView() {
               </TabsList>
             </div>
           </div>
-          {appStates.map((app, idx) => (
-            <TabsContent key={idx} value={idx.toString()} className="space-y-8">
-              <AppConfigFormFields
-                state={app}
-                setState={(stateAction) => {
-                  if (typeof stateAction === "function") {
-                    setAppStates((appStates) =>
-                      appStates.map((app, i) =>
-                        i === idx ? stateAction(app) : app,
-                      ),
-                    );
-                  } else {
-                    setAppStates((appStates) =>
-                      appStates.map((app, i) =>
-                        i === idx ? stateAction : app,
-                      ),
-                    );
-                  }
-                }}
-                hideGroupSelect
-              />
-            </TabsContent>
-          ))}
+          <FormContext value="CreateAppGroup">
+            {appStates.map((app, idx) => (
+              <TabsContent
+                key={idx}
+                value={idx.toString()}
+                className="space-y-8"
+              >
+                <AppConfigFormFields
+                  state={app}
+                  setState={(stateAction) => {
+                    if (typeof stateAction === "function") {
+                      setAppStates((appStates) =>
+                        appStates.map((app, i) =>
+                          i === idx ? stateAction(app) : app,
+                        ),
+                      );
+                    } else {
+                      setAppStates((appStates) =>
+                        appStates.map((app, i) =>
+                          i === idx ? stateAction : app,
+                        ),
+                      );
+                    }
+                  }}
+                  hideGroupSelect
+                />
+              </TabsContent>
+            ))}
+          </FormContext>
         </Tabs>
         {shouldShowDeploy ? (
           <Button className="mt-8" size="lg" type="submit">

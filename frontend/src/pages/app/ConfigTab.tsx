@@ -7,8 +7,11 @@ import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
-import { AppConfigFormFields, type AppInfoFormData } from "../CreateAppView";
+import AppConfigFormFields, {
+  type AppInfoFormData,
+} from "@/pages/create-app/AppConfigFormFields";
 import type { App } from "./AppView";
+import { FormContext } from "../create-app/CreateAppView";
 
 export const ConfigTab = ({
   app,
@@ -21,7 +24,6 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
-  app.config;
   const [formState, setFormState] = useState<AppInfoFormData>({
     port: app.config.port.toString(),
     env: app.config.env,
@@ -155,12 +157,14 @@ export const ConfigTab = ({
           defaultValue={app.config.replicas}
         />
       </div>
-      <AppConfigFormFields
-        state={formState}
-        setState={setFormState}
-        defaults={{ config: app.config }}
-        hideSubdomainInput
-      />
+      <FormContext value="UpdateApp">
+        <AppConfigFormFields
+          state={formState}
+          setState={setFormState}
+          defaults={{ config: app.config }}
+          hideSubdomainInput
+        />
+      </FormContext>
       <Button className="mt-8 max-w-max" disabled={updatePending}>
         {updatePending ? (
           <>
