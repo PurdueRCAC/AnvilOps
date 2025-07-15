@@ -52,6 +52,7 @@ import {
 } from "./kubernetes.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 import { listRepoWorkflows } from "../handlers/listRepoWorkflows.ts";
+import fs from "fs";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -558,6 +559,41 @@ const handlers = {
       res,
       appGroups.map((group) => ({ id: group.id, name: group.name })),
     );
+  },
+  getTemplates: function (
+    ctx: Context,
+    req: ExpressRequest,
+    res: ExpressResponse,
+  ): OptionalPromise<
+    HandlerResponse<{
+      200: {
+        headers: { [name: string]: unknown };
+        content: {
+          "application/json": {
+            [key: string]: {
+              displayName: string;
+              url: string;
+              description: string;
+              port: number;
+            };
+          };
+        };
+      };
+    }>
+  > {
+    const path =
+      process.env.NODE_ENV === "development"
+        ? "../templates/templates.json"
+        : "./templates.json";
+    const data = JSON.parse(fs.readFileSync(path, "utf8")) as {
+      [key: string]: {
+        displayName: string;
+        url: string;
+        description: string;
+        port: number;
+      };
+    };
+    return json(200, res, data);
   },
   createApp,
   createAppGroup,

@@ -1341,6 +1341,30 @@ paths:
           description: No secret provided
         "403":
           description: Invalid secret
+  /templates:
+    get:
+      description: Get a list of template applications.
+      operationId: getTemplates
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    displayName:
+                      type: string
+                    url:
+                      type: string
+                      format: uri
+                    description:
+                      type: string
+                    port:
+                      type: integer
+                  required: [displayName, url, description, port]
 components:
   schemas:
     UserOrg:

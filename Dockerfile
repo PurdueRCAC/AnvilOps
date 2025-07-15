@@ -64,6 +64,7 @@ COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY openapi/*.yaml /openapi/
+COPY templates/templates.json ./templates.json
 COPY --from=backend_build /app .
 
 CMD ["npm", "run", "start:prod"]
