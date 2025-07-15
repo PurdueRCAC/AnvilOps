@@ -26,10 +26,17 @@ import {
   Database,
   Server,
   Component,
+  Info,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
 import { GitHubIcon, SubdomainStatus } from "./CreateAppView";
 import { GitDeploymentFields } from "./GitDeploymentFields";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export type AppInfoFormData = {
   name?: string;
@@ -384,7 +391,20 @@ const AppConfigFormFields = ({
                 <Loader className="animate-spin inline" /> Checking subdomain...
               </span>
             ) : (
-              <SubdomainStatus available={subStatus!.available} />
+              <>
+                <SubdomainStatus available={subStatus!.available} />
+                <p className="text-black-3 text-sm flex items-center gap-1">
+                  <Info className="inline" />
+                  Your application will be reachable from within the cluster
+                  at{" "}
+                </p>
+                <p className="text-black-3 text-xs">
+                  <code>
+                    anvilops-{subdomain}.anvilops-{subdomain}.svc.cluster.local
+                  </code>
+                  .
+                </p>
+              </>
             )
           ) : null}
         </div>
@@ -417,51 +437,61 @@ const AppConfigFormFields = ({
           }}
         />
       </div>
-      <div className="space-y-2">
-        <Label className="pb-1">
-          <Code2 className="inline" size={16} /> Environment Variables
-        </Label>
-        <EnvVarGrid
-          value={env}
-          setValue={(env) => {
-            setState((prev) => {
-              return {
-                ...prev,
-                env: typeof env === "function" ? env(prev.env) : env,
-              };
-            });
-          }}
-          fixedSensitiveNames={
-            defaults?.config
-              ? new Set(
-                  defaults.config.env
-                    .filter((env) => env.isSensitive)
-                    .map((env) => env.name),
-                )
-              : new Set()
-          }
-        />
-      </div>
-      <div className="space-y-2">
-        <Label className="pb-1">
-          <Database className="inline" size={16} /> Volume Mounts
-        </Label>
-        <p className="opacity-50 text-sm">
-          Preserve files contained at these paths across app restarts. All other
-          files will be discarded. Every replica will get its own separate
-          volume.
-        </p>
-        <MountsGrid
-          value={mounts}
-          setValue={(mounts) =>
-            setState((prev) => ({
-              ...prev,
-              mounts:
-                typeof mounts === "function" ? mounts(prev.mounts) : mounts,
-            }))
-          }
-        />
-      </div>
+      <Accordion type="single" collapsible>
+        <AccordionItem value="env">
+          <AccordionTrigger>
+            <Label className="pb-1">
+              <Code2 className="inline" size={16} /> Environment Variables
+            </Label>
+          </AccordionTrigger>
+          <AccordionContent>
+            <EnvVarGrid
+              value={env}
+              setValue={(env) => {
+                setState((prev) => {
+                  return {
+                    ...prev,
+                    env: typeof env === "function" ? env(prev.env) : env,
+                  };
+                });
+              }}
+              fixedSensitiveNames={
+                defaults?.config
+                  ? new Set(
+                      defaults.config.env
+                        .filter((env) => env.isSensitive)
+                        .map((env) => env.name),
+                    )
+                  : new Set()
+              }
+            />
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="mounts">
+          <AccordionTrigger>
+            <Label className="pb-1">
+              <Database className="inline" size={16} /> Volume Mounts
+            </Label>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="opacity-50 text-sm">
+              Preserve files contained at these paths across app restarts. All
+              other files will be discarded. Every replica will get its own
+              separate volume.
+            </p>
+            <MountsGrid
+              value={mounts}
+              setValue={(mounts) =>
+                setState((prev) => ({
+                  ...prev,
+                  mounts:
+                    typeof mounts === "function" ? mounts(prev.mounts) : mounts,
+                }))
+              }
+            />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </>
   );
 };

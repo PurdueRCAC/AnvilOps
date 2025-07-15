@@ -205,13 +205,13 @@ export type NonNullableEnv = {
 
 export const SubdomainStatus = ({ available }: { available: boolean }) => {
   return available ? (
-    <span className="text-green-500 text-sm">
+    <p className="text-green-500 text-sm">
       <Check className="inline" /> Subdomain is available.
-    </span>
+    </p>
   ) : (
-    <span className="text-red-500 text-sm">
+    <p className="text-red-500 text-sm">
       <X className="inline" /> Subdomain is in use.
-    </span>
+    </p>
   );
 };
 
