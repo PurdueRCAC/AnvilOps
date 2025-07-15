@@ -188,8 +188,13 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
   const appConfigs = data.apps.map((app) => {
     const deploymentConfig: DeploymentConfigCreateInput & {
       mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-    } =
-      app.source === "git"
+    } = {
+      port: app.port,
+      env: app.env,
+      mounts: { createMany: { data: app.mounts } },
+      postStart: app.postStart,
+      preStop: app.preStop,
+      ...(app.source === "git"
         ? {
             source: "GIT",
             repositoryId: app.repositoryId,
@@ -208,8 +213,8 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
             port: app.port,
             env: app.env,
             mounts: { createMany: { data: app.mounts } },
-          };
-
+          }),
+    };
     return {
       name: app.name,
       displayName: app.name,

@@ -32,6 +32,8 @@ export const ConfigTab = ({
       amountInMiB: mount.amountInMiB,
       path: mount.path,
     })),
+    postStart: app.config.postStart,
+    preStop: app.config.preStop,
     subdomain: "",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
@@ -90,6 +92,8 @@ export const ConfigTab = ({
                 port: parseInt(formData.get("portNumber")!.toString()),
                 env: formState.env.filter((it) => it.name.length > 0),
                 mounts: formState.mounts.filter((it) => it.path.length > 0),
+                postStart: formState.postStart,
+                preStop: formState.preStop,
                 replicas: parseInt(formData.get("replicas")!.toString()),
                 ...(formState.source === "git"
                   ? {

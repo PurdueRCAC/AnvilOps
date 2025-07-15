@@ -95,6 +95,8 @@ export default function CreateAppGroupView() {
                   port: parseInt(appState.port!),
                   env: appState.env.filter((ev) => ev.name.length > 0),
                   mounts: appState.mounts.filter((m) => m.path.length > 0),
+                  postStart: appState.postStart,
+                  preStop: appState.preStop,
                   appGroup: {
                     type: "add-to" as "add-to",
                     id: -1,
@@ -281,7 +283,7 @@ export default function CreateAppGroupView() {
           </FormContext>
         </Tabs>
         {shouldShowDeploy ? (
-          <Button className="mt-8" size="lg" type="submit">
+          <Button size="lg" type="submit">
             {createPending ? (
               <>
                 <Loader className="animate-spin" /> Deploying...

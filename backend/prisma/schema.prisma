@@ -160,6 +160,9 @@ model DeploymentConfig {
   // > Image deployment source
   imageTag       String?
 
+  postStart String?
+  preStop   String?
+
   // Reverse relation field for when this DeploymentConfig is an App's template config
   app App?
 }

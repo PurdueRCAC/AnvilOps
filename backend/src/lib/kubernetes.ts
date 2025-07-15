@@ -60,6 +60,8 @@ interface DeploymentParams {
   port: number;
   replicas: number;
   mounts: { path: string; amountInMiB: number }[];
+  postStart?: string;
+  preStop?: string;
 }
 
 interface K8sObject {
@@ -145,6 +147,22 @@ const createStatefulSetConfig = (deploy: DeploymentParams) => {
                 mountPath: mount.path,
                 name: generateVolumeName(mount.path),
               })),
+              lifecycle: {
+                ...(deploy.postStart && {
+                  postStart: {
+                    exec: {
+                      command: ["/bin/sh", "-c", deploy.postStart],
+                    },
+                  },
+                }),
+                ...(deploy.preStop && {
+                  preStop: {
+                    exec: {
+                      command: ["/bin/sh", "-c", deploy.preStop],
+                    },
+                  },
+                }),
+              },
             },
           ],
         },
@@ -374,7 +392,13 @@ export const createAppConfigsFromDeployment = (
     >;
     config: Pick<
       DeploymentConfig,
-      "id" | "getPlaintextEnv" | "port" | "replicas" | "imageTag"
+      | "id"
+      | "getPlaintextEnv"
+      | "port"
+      | "replicas"
+      | "imageTag"
+      | "postStart"
+      | "preStop"
     > & {
       mounts: Pick<MountConfig, "path" | "amountInMiB">[];
     };
@@ -419,6 +443,8 @@ export const createAppConfigsFromDeployment = (
     port: conf.port,
     replicas: conf.replicas,
     mounts: conf.mounts,
+    postStart: conf.postStart,
+    preStop: conf.preStop,
   });
 
   const logs = createLogConfig(

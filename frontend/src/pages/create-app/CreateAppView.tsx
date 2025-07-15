@@ -98,6 +98,8 @@ export default function CreateAppView() {
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
+                postStart: formState.postStart,
+                preStop: formState.preStop,
                 appGroup,
                 ...(formState.source === "git"
                   ? {
@@ -166,7 +168,7 @@ export default function CreateAppView() {
           <AppConfigFormFields state={formState} setState={setFormState} />
         </FormContext>
         {shouldShowDeploy ? (
-          <Button className="mt-8" size="lg" type="submit">
+          <Button size="lg" type="submit">
             {createPending ? (
               <>
                 <Loader className="animate-spin" /> Deploying...
@@ -205,13 +207,13 @@ export type NonNullableEnv = {
 
 export const SubdomainStatus = ({ available }: { available: boolean }) => {
   return available ? (
-    <span className="text-green-500 text-sm">
+    <p className="text-green-500 text-sm">
       <Check className="inline" /> Subdomain is available.
-    </span>
+    </p>
   ) : (
-    <span className="text-red-500 text-sm">
+    <p className="text-red-500 text-sm">
       <X className="inline" /> Subdomain is in use.
-    </span>
+    </p>
   );
 };
 

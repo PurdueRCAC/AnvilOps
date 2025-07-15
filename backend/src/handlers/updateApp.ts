@@ -144,6 +144,8 @@ const updateApp: HandlerMap["updateApp"] = async (
     ),
     replicas: appConfig.replicas,
     mounts: { createMany: { data: appConfig.mounts } },
+    postStart: appConfig.postStart,
+    preStop: appConfig.preStop,
     ...(appConfig.source === "git"
       ? {
           source: "GIT",
