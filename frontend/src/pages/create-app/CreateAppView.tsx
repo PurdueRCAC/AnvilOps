@@ -68,7 +68,8 @@ export default function CreateAppView() {
 
           let appName = "untitled";
           if (formState.source === "git") {
-            appName = formState.repoName!;
+            // https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+            appName = formState.repoName!.toLowerCase().substring(0, 64);
           } else if (formState.source === "image") {
             const tag = formState.imageTag!.split("/");
             appName = tag[tag.length - 1].split(":")[0];

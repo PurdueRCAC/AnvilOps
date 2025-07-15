@@ -303,7 +303,7 @@ const getAppName = (state: AppInfoFormData) => {
   let appName = "Untitled";
   if (state.source === "git") {
     if (state.repoName) {
-      appName = state.repoName;
+      appName = state.repoName.toLowerCase().substring(0, 64);
     }
   } else if (state.source === "image") {
     if (state.imageTag) {

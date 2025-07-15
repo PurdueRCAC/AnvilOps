@@ -13,6 +13,7 @@ import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
+  validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
@@ -40,6 +41,16 @@ const createApp: HandlerMap["createApp"] = async (
       return json(400, res, {
         code: 400,
         message: subdomainValidation.message,
+      });
+    }
+
+    if (!validateRFC1123(appData.name)) {
+      return json(400, res, {
+        code: 400,
+        message:
+          "App name must contain only lowercase alphanumeric characters or '-', " +
+          "start and end with an alphanumeric character, " +
+          "and contain at most 63 characters.",
       });
     }
   }

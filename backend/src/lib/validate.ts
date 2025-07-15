@@ -106,10 +106,7 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
 };
 
 export const validateSubdomain = async (subdomain: string) => {
-  if (
-    subdomain.length > MAX_SUBDOMAIN_LEN ||
-    subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) == null
-  ) {
+  if (subdomain.length > MAX_SUBDOMAIN_LEN || !validateRFC1123(subdomain)) {
     return { valid: false, message: `Invalid subdomain ${subdomain}` };
   }
 
@@ -119,3 +116,7 @@ export const validateSubdomain = async (subdomain: string) => {
 
   return { valid: true };
 };
+
+export const validateRFC1123 = (value: string) =>
+  value.length <= 63 &&
+  value.match(/[a-zA-Z0-9]([-a-z0-9]*[a-z0-9])?$/) !== null;

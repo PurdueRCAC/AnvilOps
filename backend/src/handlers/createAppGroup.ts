@@ -4,6 +4,7 @@ import { type AuthenticatedRequest } from "../lib/api.ts";
 import { db } from "../lib/db.ts";
 import {
   validateDeploymentConfig,
+  validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
@@ -61,6 +62,18 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
         code: 400,
         message: JSON.stringify(subdomainErrors),
       });
+    }
+
+    for (const app of data.apps) {
+      if (!validateRFC1123(app.name)) {
+        return json(400, res, {
+          code: 400,
+          message:
+            "App name must contain only lowercase alphanumeric characters or '-', " +
+            "start and end with an alphanumeric character, " +
+            "and contain at most 63 characters.",
+        });
+      }
     }
   }
 
