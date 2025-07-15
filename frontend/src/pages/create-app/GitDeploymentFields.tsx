@@ -118,6 +118,7 @@ export const GitDeploymentFields = ({
               repoName,
             }))
           }
+          setState={setState}
         />
       )}
       <div className="space-y-2">

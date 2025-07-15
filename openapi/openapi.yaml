@@ -1363,8 +1363,20 @@ paths:
                     description:
                       type: string
                     port:
-                      type: integer
-                  required: [displayName, url, description, port]
+                      type: string
+                    builder:
+                      type: string
+                      enum: [dockerfile, railpack]
+                    dockerfilePath:
+                      type: string
+                    env:
+                      $ref: "#/components/schemas/Envs"
+                    mounts:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Mount"
+                  required:
+                    [displayName, url, description, port, builder, env, mounts]
 components:
   schemas:
     UserOrg:

@@ -3,12 +3,19 @@
     "displayName": "AnvilOps Demo",
     "url": "https://github.rcac.purdue.edu/swans150/anvilops-demo",
     "description": "Astro project that showcases the features of AnvilOps.",
-    "port": 3000
+    "port": "3000",
+    "builder": "railpack",
+    "env": [],
+    "mounts": []
   },
   "AnvilOps-RShiny-Template": {
     "displayName": "AnvilOps RShiny Template",
     "url": "https://github.rcac.purdue.edu/RCAC-Staff/AnvilOps-RShiny-Template",
     "description": "Template for deploying R Shiny applications.",
-    "port": 3838
+    "port": "3838",
+    "builder": "dockerfile",
+    "dockerfilePath": "Dockerfile",
+    "env": [],
+    "mounts": []
   }
 }

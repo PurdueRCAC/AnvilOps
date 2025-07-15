@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
+import { toast } from "sonner";
 
 export const ImportRepoDialog = ({
   orgId,
@@ -22,12 +24,14 @@ export const ImportRepoDialog = ({
   setOpen,
   refresh,
   setRepo,
+  setState,
 }: {
   orgId: number;
   open: boolean;
   setOpen: Dispatch<boolean>;
   refresh: () => Promise<void>;
   setRepo: (id: number, name: string) => void;
+  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
 }) => {
   const { data: installation } = api.useQuery(
     "get",
@@ -70,6 +74,7 @@ export const ImportRepoDialog = ({
     <Dialog
       open={open}
       onOpenChange={(open) => {
+        setRepoState({ url: "", name: "" });
         setTemplateSelect("");
         setShowRepoOptions(false);
         setOpen(open);
@@ -110,6 +115,22 @@ export const ImportRepoDialog = ({
               setTimeout(() => setRepo(repoId, repoState.name));
             }
             setOpen(false);
+            if (
+              templateSelect &&
+              templateSelect !== "$new-repo" &&
+              templates?.[templateSelect]
+            ) {
+              const template = templates[templateSelect];
+              setState((state) => ({
+                ...state,
+                port: template.port,
+                builder: template.builder,
+                dockerfilePath: template.dockerfilePath,
+                env: template.env,
+                mounts: template.mounts,
+              }));
+              toast.info("Autofilled form fields.");
+            }
           }}
         >
           <Label htmlFor="srcRepoTemplate">Select a Template</Label>
