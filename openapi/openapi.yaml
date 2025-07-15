@@ -1630,6 +1630,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
+        postStart:
+          type: string
+        preStop:
+          type: string
       required: [port, replicas, env, mounts]
     GitDeploymentOptions:
       allOf:
@@ -1734,6 +1738,10 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Mount"
+            postStart:
+              type: string
+            preStop:
+              type: string
             appGroup:
               oneOf:
                 - type: object

@@ -27,6 +27,9 @@ import {
   Server,
   Component,
   Info,
+  Cog,
+  Terminal,
+  Minimize,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
 import { GitHubIcon, SubdomainStatus } from "./CreateAppView";
@@ -57,6 +60,8 @@ export type AppInfoFormData = {
   rootDir?: string;
   source: "git" | "image";
   builder: "dockerfile" | "railpack";
+  postStart?: string;
+  preStop?: string;
 };
 type Env = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -393,16 +398,16 @@ const AppConfigFormFields = ({
             ) : (
               <>
                 <SubdomainStatus available={subStatus!.available} />
-                <p className="text-black-3 text-sm flex items-center gap-1">
+                <p className="text-black-3 text-sm flex items-start gap-1">
                   <Info className="inline" />
-                  Your application will be reachable from within the cluster
-                  at{" "}
-                </p>
-                <p className="text-black-3 text-xs">
-                  <code>
-                    anvilops-{subdomain}.anvilops-{subdomain}.svc.cluster.local
-                  </code>
-                  .
+                  <span>
+                    Your application will be reachable at{" "}
+                    <code className="text-xs">
+                      anvilops-{subdomain}.anvilops-{subdomain}
+                      .svc.cluster.local
+                    </code>{" "}
+                    from within the cluster.
+                  </span>
                 </p>
               </>
             )
@@ -489,6 +494,59 @@ const AppConfigFormFields = ({
                 }))
               }
             />
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="advanced">
+          <AccordionTrigger>
+            <Label className="pb-1">
+              <Cog className="inline" size={16} /> Advanced
+            </Label>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-10">
+            <div className="space-y-2">
+              <div>
+                <Label className="pb-1" htmlFor="postStart">
+                  <Terminal className="inline" size={16} /> Post-Start Command
+                </Label>
+                <p className="text-sm text-black-2">
+                  Run a shell(sh) command on each pod of your app immediately
+                  after it starts, and before it becomes reachable.
+                </p>
+              </div>
+              <Input
+                name="postStart"
+                id="postStart"
+                placeholder="echo Hello World"
+                className="w-full"
+                value={state.postStart ?? ""}
+                onChange={(e) => {
+                  const postStart = e.currentTarget.value;
+                  setState((state) => ({ ...state, postStart }));
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <div>
+                <Label className="pb-1" htmlFor="preStop">
+                  <Minimize className="inline" size={16} /> Pre-Stop Command
+                </Label>
+                <p className="text-sm text-black-2">
+                  Run a shell(sh) command on each pod of your app just before it
+                  is deleted.
+                </p>
+              </div>
+              <Input
+                name="preStop"
+                id="preStop"
+                placeholder="echo Goodbye"
+                className="w-full"
+                value={state.preStop ?? ""}
+                onChange={(e) => {
+                  const preStop = e.currentTarget.value;
+                  setState((state) => ({ ...state, preStop }));
+                }}
+              />
+            </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -73,11 +73,15 @@ export const EnvVarGrid = ({
               onChange={(e) => {
                 const newList = structuredClone(envVars);
                 newList[index].name = e.currentTarget.value;
+                console.log(newList);
                 const duplicates = getDuplicates(newList);
+                console.log("duplicates: " + duplicates);
                 if (duplicates.length != 0) {
                   setError(
                     `Duplicate environment variable(s): ${duplicates.join(", ")}`,
                   );
+                } else {
+                  setError("");
                 }
                 setEnvironmentVariables(newList);
               }}
@@ -132,6 +136,9 @@ const getDuplicates = (values: EnvVars): string[] => {
   const names = new Set();
   const result = [];
   for (let env of values) {
+    if (env.name === "") {
+      continue;
+    }
     if (names.has(env.name)) {
       result.push(env.name);
     }

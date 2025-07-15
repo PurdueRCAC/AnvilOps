@@ -90,6 +90,8 @@ export const ConfigTab = ({
                 port: parseInt(formData.get("portNumber")!.toString()),
                 env: formState.env.filter((it) => it.name.length > 0),
                 mounts: formState.mounts.filter((it) => it.path.length > 0),
+                postStart: formState.postStart,
+                preStop: formState.preStop,
                 replicas: parseInt(formData.get("replicas")!.toString()),
                 ...(formState.source === "git"
                   ? {
