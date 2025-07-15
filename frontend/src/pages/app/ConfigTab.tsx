@@ -32,6 +32,8 @@ export const ConfigTab = ({
       amountInMiB: mount.amountInMiB,
       path: mount.path,
     })),
+    postStart: app.config.postStart,
+    preStop: app.config.preStop,
     subdomain: "",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",

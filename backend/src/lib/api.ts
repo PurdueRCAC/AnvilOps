@@ -468,7 +468,8 @@ const handlers = {
             path: mount.path,
             volumeClaimName: generateVolumeName(mount.path),
           })),
-
+          postStart: app.deploymentConfigTemplate.postStart,
+          preStop: app.deploymentConfigTemplate.preStop,
           ...(app.deploymentConfigTemplate.source === "GIT"
             ? {
                 source: "git",
