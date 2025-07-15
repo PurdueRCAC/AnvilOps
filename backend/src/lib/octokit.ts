@@ -1,6 +1,7 @@
 import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
-import { Octokit } from "octokit";
+import { Octokit, RequestError } from "octokit";
 import { get, getOrCreate, set } from "./cache.ts";
+import { db } from "./db.ts";
 
 const privateKey = Buffer.from(
   process.env.GITHUB_PRIVATE_KEY,
@@ -16,8 +17,14 @@ const githubAuthCache = {
     else return undefined;
   },
   set: (key: string, value: any) =>
-    set(`github-auth-${key}`, value, 45 * 60 * 1000, false), // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+    set(`github-auth-${key}`, value, 45 * 60, false), // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
 };
+
+export class InstallationNotFoundError extends Error {
+  constructor(cause: unknown) {
+    super("GitHub App installation not found", { cause });
+  }
+}
 
 export async function getOctokit(installationId: number) {
   const octokit = new Octokit({
@@ -32,6 +39,20 @@ export async function getOctokit(installationId: number) {
   });
 
   octokit[installationIdSymbol] = installationId;
+  try {
+    // Run the authorization step right now so that we can rethrow if the installation wasn't found
+    await octokit.auth({ type: "installation" });
+  } catch (e) {
+    if ((e as RequestError)?.status === 404) {
+      // Installation not found. Remove it from its organization(s).
+      await db.organization.updateMany({
+        where: { githubInstallationId: installationId },
+        data: { githubInstallationId: null },
+      });
+      throw new InstallationNotFoundError(e);
+    }
+    throw e;
+  }
   return octokit;
 }
 

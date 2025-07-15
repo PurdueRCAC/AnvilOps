@@ -39,12 +39,17 @@ export async function get(key: string): Promise<string | undefined> {
     }
   }
 
-  return (
-    await db.cache.findUnique({
-      where: { key, expiresAt: { lt: new Date() } },
-      select: { value: true },
-    })
-  )?.value;
+  try {
+    return (
+      await db.cache.findUnique({
+        where: { key, expiresAt: { lt: new Date() } },
+        select: { value: true },
+      })
+    )?.value;
+  } catch (e) {
+    console.error("Failed to look up cache key", key, ":", e);
+    return undefined;
+  }
 }
 
 export async function set(

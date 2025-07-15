@@ -1,6 +1,6 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
-import { RequestError, type Octokit } from "octokit";
+import { type Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { DeploymentSource } from "../generated/prisma/enums.ts";
 import type {
