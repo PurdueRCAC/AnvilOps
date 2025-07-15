@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components } from "@/generated/openapi";
+import { FormContext } from "./CreateAppView";
 
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
@@ -249,29 +250,35 @@ export default function CreateAppGroupView() {
               </TabsList>
             </div>
           </div>
-          {appStates.map((app, idx) => (
-            <TabsContent key={idx} value={idx.toString()} className="space-y-8">
-              <AppConfigFormFields
-                state={app}
-                setState={(stateAction) => {
-                  if (typeof stateAction === "function") {
-                    setAppStates((appStates) =>
-                      appStates.map((app, i) =>
-                        i === idx ? stateAction(app) : app,
-                      ),
-                    );
-                  } else {
-                    setAppStates((appStates) =>
-                      appStates.map((app, i) =>
-                        i === idx ? stateAction : app,
-                      ),
-                    );
-                  }
-                }}
-                hideGroupSelect
-              />
-            </TabsContent>
-          ))}
+          <FormContext value="CreateAppGroup">
+            {appStates.map((app, idx) => (
+              <TabsContent
+                key={idx}
+                value={idx.toString()}
+                className="space-y-8"
+              >
+                <AppConfigFormFields
+                  state={app}
+                  setState={(stateAction) => {
+                    if (typeof stateAction === "function") {
+                      setAppStates((appStates) =>
+                        appStates.map((app, i) =>
+                          i === idx ? stateAction(app) : app,
+                        ),
+                      );
+                    } else {
+                      setAppStates((appStates) =>
+                        appStates.map((app, i) =>
+                          i === idx ? stateAction : app,
+                        ),
+                      );
+                    }
+                  }}
+                  hideGroupSelect
+                />
+              </TabsContent>
+            ))}
+          </FormContext>
         </Tabs>
         {shouldShowDeploy ? (
           <Button className="mt-8" size="lg" type="submit">

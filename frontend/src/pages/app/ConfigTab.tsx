@@ -11,6 +11,7 @@ import AppConfigFormFields, {
   type AppInfoFormData,
 } from "@/pages/create-app/AppConfigFormFields";
 import type { App } from "./AppView";
+import { FormContext } from "../create-app/CreateAppView";
 
 export const ConfigTab = ({
   app,
@@ -156,12 +157,14 @@ export const ConfigTab = ({
           defaultValue={app.config.replicas}
         />
       </div>
-      <AppConfigFormFields
-        state={formState}
-        setState={setFormState}
-        defaults={{ config: app.config }}
-        hideSubdomainInput
-      />
+      <FormContext value="UpdateApp">
+        <AppConfigFormFields
+          state={formState}
+          setState={setFormState}
+          defaults={{ config: app.config }}
+          hideSubdomainInput
+        />
+      </FormContext>
       <Button className="mt-8 max-w-max" disabled={updatePending}>
         {updatePending ? (
           <>

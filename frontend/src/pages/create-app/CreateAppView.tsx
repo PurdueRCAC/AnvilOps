@@ -12,7 +12,7 @@ import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
-import { useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import AppConfigFormFields, {
@@ -161,7 +161,9 @@ export default function CreateAppView() {
           </Select>
         </div>
 
-        <AppConfigFormFields state={formState} setState={setFormState} />
+        <FormContext value="CreateApp">
+          <AppConfigFormFields state={formState} setState={setFormState} />
+        </FormContext>
         {shouldShowDeploy ? (
           <Button className="mt-8" size="lg" type="submit">
             {createPending ? (
@@ -211,3 +213,7 @@ export const SubdomainStatus = ({ available }: { available: boolean }) => {
     </span>
   );
 };
+
+export const FormContext = createContext<
+  "CreateApp" | "CreateAppGroup" | "UpdateApp"
+>("CreateApp");

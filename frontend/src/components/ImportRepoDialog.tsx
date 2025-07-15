@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import { Info, Library, Loader, X } from "lucide-react";
-import { useState, type Dispatch } from "react";
+import { useContext, useState, type Dispatch } from "react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -17,6 +17,7 @@ import {
 } from "./ui/select";
 import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
 import { toast } from "sonner";
+import { FormContext } from "@/pages/create-app/CreateAppView";
 
 export const ImportRepoDialog = ({
   orgId,
@@ -78,6 +79,8 @@ export const ImportRepoDialog = ({
       setShowRepoOptions(false);
     }
   };
+
+  const formContext = useContext(FormContext);
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
@@ -126,11 +129,14 @@ export const ImportRepoDialog = ({
                 port: template.port,
                 builder: template.builder,
                 dockerfilePath: template.dockerfilePath,
-                // https://stackoverflow.com/a/38622545
-                subdomain:
-                  template.subdomain +
-                  "-" +
-                  Math.random().toString(36).slice(2, 7),
+                ...(formContext !== "UpdateApp" && {
+                  // Do not autofill subdomain if updating instead of creating the app!
+                  // https://stackoverflow.com/a/38622545
+                  subdomain:
+                    template.subdomain +
+                    "-" +
+                    Math.random().toString(36).slice(2, 7),
+                }),
                 env: template.env,
                 mounts: template.mounts,
               }));
