@@ -175,6 +175,11 @@ const createStatefulSetConfig = (deploy: DeploymentParams) => {
           resources: { requests: { storage: `${mount.amountInMiB}Mi` } },
         },
       })),
+      persistentVolumeClaimRetentionPolicy: {
+        // Delete volumes when the StatefulSet is deleted, but not when it's scaled down
+        whenDeleted: "Delete",
+        whenScaled: "Retain",
+      },
     },
   } satisfies V1StatefulSet;
 };
