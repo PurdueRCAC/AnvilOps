@@ -63,6 +63,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-repository-transferred"];
           // TODO
+          break;
         }
         case "deleted": {
           const payload = ctx.request
@@ -79,6 +80,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           return json(422, res, {});
         }
       }
+      break;
     }
     case "installation": {
       switch (action) {
@@ -106,6 +108,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           return json(422, res, {});
         }
       }
+      break;
     }
     case "push": {
       const payload = ctx.request
