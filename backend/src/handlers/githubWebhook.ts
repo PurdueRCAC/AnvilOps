@@ -86,6 +86,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-created"];
           // TODO
+          break;
         }
         case "deleted": {
           const payload = ctx.request
