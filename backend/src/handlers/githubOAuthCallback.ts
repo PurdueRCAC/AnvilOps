@@ -34,7 +34,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   // 2) Verify that the user ID hasn't changed
   if (userId !== req.user.id) {
     return json(401, res, {
-      code: "401",
+      code: 401,
       message:
         "You signed in to a different account while connecting your GitHub account!",
     });
@@ -44,7 +44,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   const octokit = getUserOctokit(code);
 
   const org = await db.organization.findFirst({
-    select: { newInstallationId: true },
+    select: { id: true, newInstallationId: true },
     where: {
       id: orgId,
       users: {
@@ -55,6 +55,13 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
       },
     },
   });
+
+  if (!org) {
+    return json(404, res, {
+      code: 404,
+      message: "Organization not found",
+    });
+  }
 
   if (!org?.newInstallationId) {
     return json(500, res, {
@@ -76,7 +83,10 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
 
   if (!found) {
     // The user doesn't have access to the new installation
-    return json(403, res, {});
+    return json(403, res, {
+      code: 403,
+      message: "You do not have access to that GitHub App installation.",
+    });
   }
 
   // Update the organization's installation ID

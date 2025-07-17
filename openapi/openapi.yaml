@@ -120,8 +120,22 @@ paths:
           description: Success (redirecting back to the frontend)
         "401":
           description: User IDs don't match (the user signed in to a new account in the middle of the authorization flow)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "403":
           description: Forbidden (invalid state or code)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "500":
           description: Unknown error
           content:
