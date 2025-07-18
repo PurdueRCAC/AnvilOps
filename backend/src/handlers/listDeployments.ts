@@ -7,6 +7,18 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
+  const page = ctx.request.query.page ?? 0;
+  const pageLength = ctx.request.query.length ?? 25;
+
+  if (
+    page < 0 ||
+    pageLength <= 0 ||
+    !Number.isInteger(page) ||
+    !Number.isInteger(pageLength)
+  ) {
+    return json(400, res, {});
+  }
+
   const deployments = await db.deployment.findMany({
     where: {
       app: {
@@ -16,7 +28,8 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     },
     include: { config: true },
     orderBy: { createdAt: "desc" },
-    take: 25,
+    skip: page * pageLength,
+    take: pageLength,
   });
 
   return json(

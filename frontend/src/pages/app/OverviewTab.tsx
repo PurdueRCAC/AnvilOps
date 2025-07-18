@@ -7,6 +7,8 @@ import {
 import { api } from "@/lib/api";
 import {
   CheckCheck,
+  ChevronLeft,
+  ChevronRight,
   Container,
   ExternalLink,
   GitBranch,
@@ -16,7 +18,7 @@ import {
   LogsIcon,
   Tag,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
@@ -35,10 +37,21 @@ export const OverviewTab = ({
   activeDeployment: number | undefined;
   refetch: () => void;
 }) => {
-  const { data: deployments, isPending } = api.useSuspenseQuery(
+  const [page, setPage] = useState(0);
+  const pageLength = 25;
+  const {
+    data: deployments,
+    isPending,
+    refetch: refetchDeployments,
+  } = api.useSuspenseQuery(
     "get",
     "/app/{appId}/deployments",
-    { params: { path: { appId: app.id } } },
+    {
+      params: {
+        path: { appId: app.id },
+        query: { page, length: pageLength },
+      },
+    },
     {
       refetchInterval: ({ state: { data } }) => {
         if (!data) return false;
@@ -254,6 +267,46 @@ export const OverviewTab = ({
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={4}>
+                <div className="flex justify-center items-center gap-5">
+                  <Button
+                    variant="outline"
+                    disabled={page == 0}
+                    className="disabled:cursor-not-allowed"
+                    onClick={() => {
+                      setPage((page) => page - 1);
+                      refetchDeployments();
+                    }}
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <p className="text-black-2 text-center">
+                    Showing {page * pageLength + 1} to{" "}
+                    {Math.min(
+                      app.deploymentCount,
+                      page * pageLength + pageLength,
+                    )}{" "}
+                    of {app.deploymentCount}
+                  </p>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      page * pageLength + pageLength >= app.deploymentCount
+                    }
+                    className="disabled:cursor-not-allowed"
+                    onClick={() => {
+                      setPage((page) => page + 1);
+                      refetchDeployments();
+                    }}
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       )}
     </>

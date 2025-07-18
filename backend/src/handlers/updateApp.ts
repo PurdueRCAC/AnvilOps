@@ -216,7 +216,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
         },
         status: "DEPLOYING",
         app: { connect: { id: app.id } },
-        commitHash: "Unknown",
         commitMessage: "Redeploy of previous deployment",
         secret,
       },
