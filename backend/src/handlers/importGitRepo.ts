@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
 import { getOctokit } from "../lib/octokit.ts";

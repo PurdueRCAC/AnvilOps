@@ -1,16 +1,11 @@
 import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import type {
-  DeploymentConfigCreateInput,
-  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
-} from "../generated/prisma/models.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
+import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import {
-  createAppConfigsFromDeployment,
-  createOrUpdateApp,
-} from "../lib/kubernetes.ts";
+import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
@@ -20,7 +15,7 @@ import {
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
-const updateApp: HandlerMap["updateApp"] = async (
+export const updateApp: HandlerMap["updateApp"] = async (
   ctx,
   req: AuthenticatedRequest,
   res: ExpressResponse,
@@ -51,13 +46,6 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   if (!app) {
     return json(401, res, {});
-  }
-
-  if (!app.deploymentConfigTemplate.imageTag) {
-    return json(400, res, {
-      code: 409,
-      message: "No image available to redeploy",
-    });
   }
 
   if (appConfig.source === "git") {
@@ -133,19 +121,22 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   const secret = randomBytes(32).toString("hex");
 
-  const updatedDeploymentConfig: DeploymentConfigCreateInput & {
-    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-  } = {
-    port: appConfig.port,
+  const updatedDeploymentConfig: DeploymentConfigCreateInput = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(
       app.deploymentConfigTemplate.getPlaintextEnv(),
       appConfig.env,
     ),
-    replicas: appConfig.replicas,
-    mounts: { createMany: { data: appConfig.mounts } },
-    postStart: appConfig.postStart,
-    preStop: appConfig.preStop,
+    fieldValues: {
+      replicas: 1,
+      port: appConfig.port,
+      servicePort: 80,
+      mounts: appConfig.mounts,
+      extra: {
+        postStart: appConfig.postStart,
+        preStop: appConfig.preStop,
+      },
+    },
     ...(appConfig.source === "git"
       ? {
           source: "GIT",
@@ -165,14 +156,16 @@ const updateApp: HandlerMap["updateApp"] = async (
 
   if (
     appConfig.source === "git" &&
-    (appConfig.branch !== app.deploymentConfigTemplate.branch ||
+    (!app.deploymentConfigTemplate.imageTag ||
+      appConfig.branch !== app.deploymentConfigTemplate.branch ||
       appConfig.repositoryId !== app.deploymentConfigTemplate.repositoryId ||
       appConfig.builder !== app.deploymentConfigTemplate.builder ||
       appConfig.dockerfilePath !==
         app.deploymentConfigTemplate.dockerfilePath ||
       appConfig.rootDir !== app.deploymentConfigTemplate.rootDir)
   ) {
-    // When changing branches or repositories or any build settings, start a new build
+    // If source is git, start a new build if the app was not successfully built in the past,
+    // or if branches or repositories or any build settings were changed.
     const octokit = await getOctokit(app.org.githubInstallationId);
     const repo = await getRepoById(
       octokit,
@@ -236,7 +229,7 @@ const updateApp: HandlerMap["updateApp"] = async (
             org: { select: { githubInstallationId: true } },
           },
         },
-        config: { include: { mounts: true } },
+        config: true,
       },
     });
 
@@ -278,11 +271,6 @@ const updateApp: HandlerMap["updateApp"] = async (
         appConfig.source === "image"
           ? updatedDeploymentConfig.imageTag
           : app.deploymentConfigTemplate.imageTag,
-      mounts: {
-        // Delete all existing mounts and replace them with new ones
-        deleteMany: { deploymentConfigId: app.deploymentConfigTemplateId },
-        ...updatedDeploymentConfig.mounts,
-      },
     },
   });
 
@@ -291,7 +279,7 @@ const updateApp: HandlerMap["updateApp"] = async (
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
 const withSensitiveEnv = (
-  lastPlaintextEnv: PrismaJson.EnvVar[],
+  lastPlaintextEnv: DeploymentJson.EnvVar[],
   envVars: {
     name: string;
     value: string | null;
@@ -312,5 +300,3 @@ const withSensitiveEnv = (
       : env,
   );
 };
-
-export default updateApp;

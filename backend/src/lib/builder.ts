@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { k8s } from "./kubernetes.ts";
+import { k8s } from "./cluster/kubernetes.ts";
 import { db } from "./db.ts";
 import type { DeploymentConfig } from "../generated/prisma/client.ts";
 

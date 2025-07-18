@@ -67,63 +67,59 @@ export const ConfigTab = ({
         e.preventDefault();
 
         const formData = new FormData(e.currentTarget);
-        try {
-          let appGroup: components["schemas"]["NewApp"]["appGroup"];
-          switch (formState.groupOption) {
-            case "standalone":
-              appGroup = { type: "standalone" };
-              break;
-            case "create-new":
-              appGroup = {
-                type: "create-new",
-                name: formData.get("groupName")!.toString(),
-              };
-              break;
-            default:
-              appGroup = { type: "add-to", id: formState.groupId! };
-              break;
-          }
-          await updateApp({
-            params: { path: { appId: app.id } },
-            body: {
-              name: formData.get("name")!.toString(),
-              appGroup,
-              config: {
-                port: parseInt(formData.get("portNumber")!.toString()),
-                env: formState.env.filter((it) => it.name.length > 0),
-                mounts: formState.mounts.filter((it) => it.path.length > 0),
-                postStart: formState.postStart,
-                preStop: formState.preStop,
-                replicas: parseInt(formData.get("replicas")!.toString()),
-                ...(formState.source === "git"
-                  ? {
-                      source: "git",
-                      repositoryId: formState.repositoryId!,
-                      branch: formState.branch,
-                      builder: formState.builder,
-                      rootDir: formState.rootDir!,
-                      dockerfilePath: formState.dockerfilePath!,
-                      event: formState.event!,
-                      eventId: formState.eventId
-                        ? parseInt(formState.eventId)
-                        : null,
-                    }
-                  : {
-                      source: "image",
-                      imageTag: formState.imageTag!,
-                    }),
-              },
-            },
-          });
-
-          toast.success("App updated successfully!");
-          if (tab === "configuration") {
-            setTab("status");
-          }
-          refetch({});
-        } catch (e) {
-          toast.error("There was a problem reconfiguring your app.");
+        let appGroup: components["schemas"]["NewApp"]["appGroup"];
+        switch (formState.groupOption) {
+          case "standalone":
+            appGroup = { type: "standalone" };
+            break;
+          case "create-new":
+            appGroup = {
+              type: "create-new",
+              name: formData.get("groupName")!.toString(),
+            };
+            break;
+          default:
+            appGroup = { type: "add-to", id: formState.groupId! };
+            break;
         }
+        await updateApp({
+          params: { path: { appId: app.id } },
+          body: {
+            name: formData.get("name")!.toString(),
+            appGroup,
+            config: {
+              port: parseInt(formData.get("portNumber")!.toString()),
+              env: formState.env.filter((it) => it.name.length > 0),
+              mounts: formState.mounts.filter((it) => it.path.length > 0),
+              postStart: formState.postStart,
+              preStop: formState.preStop,
+              replicas: parseInt(formData.get("replicas")!.toString()),
+              ...(formState.source === "git"
+                ? {
+                    source: "git",
+                    repositoryId: formState.repositoryId!,
+                    branch: formState.branch,
+                    builder: formState.builder,
+                    rootDir: formState.rootDir!,
+                    dockerfilePath: formState.dockerfilePath!,
+                    event: formState.event!,
+                    eventId: formState.eventId
+                      ? parseInt(formState.eventId)
+                      : null,
+                  }
+                : {
+                    source: "image",
+                    imageTag: formState.imageTag!,
+                  }),
+            },
+          },
+        });
+
+        toast.success("App updated successfully!");
+        if (tab === "configuration") {
+          setTab("overview");
+        }
+        refetch({});
       }}
       className="flex flex-col gap-8"
     >

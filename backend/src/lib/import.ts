@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { Octokit } from "octokit";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
-import { k8s } from "./kubernetes.ts";
+import { k8s } from "./cluster/kubernetes.ts";
 
 import { getOctokit, getUserOctokit } from "./octokit.ts";
 

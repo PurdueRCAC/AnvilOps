@@ -7,18 +7,19 @@ import {
   DeploymentStatus,
   type LogType,
 } from "../generated/prisma/enums.ts";
-import type {
-  DeploymentConfigCreateWithoutDeploymentInput,
-  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
-} from "../generated/prisma/models.ts";
-import { createBuildJob, type ImageTag } from "../lib/builder.ts";
+import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
+import {
+  cancelBuildJobsForApp,
+  createBuildJob,
+  type ImageTag,
+} from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
 import {
   createAppConfigsFromDeployment,
   createNamespaceConfig,
-  createOrUpdateApp,
   getNamespace,
-} from "../lib/kubernetes.ts";
+} from "../lib/cluster/resources.ts";
+import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
 import {
   getInstallationAccessToken,
   getOctokit,
@@ -31,7 +32,6 @@ import type {
   AppGroup,
   Deployment,
   DeploymentConfig,
-  MountConfig,
 } from "../generated/prisma/client.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
@@ -130,9 +130,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         },
         include: {
           org: { select: { githubInstallationId: true } },
-          deploymentConfigTemplate: {
-            include: { mounts: { select: { amountInMiB: true, path: true } } },
-          },
+          deploymentConfigTemplate: true,
         },
       });
 
@@ -164,19 +162,15 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           ),
           config: {
             // Reuse the config from the previous deployment
-            port: app.deploymentConfigTemplate.port,
+            fieldValues: app.deploymentConfigTemplate.fieldValues,
             source: "GIT",
             env: app.deploymentConfigTemplate.getPlaintextEnv(),
-            replicas: app.deploymentConfigTemplate.replicas,
             repositoryId: app.deploymentConfigTemplate.repositoryId,
             branch: app.deploymentConfigTemplate.branch,
             builder: app.deploymentConfigTemplate.builder,
             rootDir: app.deploymentConfigTemplate.rootDir,
             dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
             imageTag: app.deploymentConfigTemplate.imageTag,
-            mounts: {
-              createMany: { data: app.deploymentConfigTemplate.mounts },
-            },
           },
           createCheckRun: true,
           octokit,
@@ -211,9 +205,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         },
         include: {
           org: { select: { githubInstallationId: true } },
-          deploymentConfigTemplate: {
-            include: { mounts: { select: { amountInMiB: true, path: true } } },
-          },
+          deploymentConfigTemplate: true,
         },
       });
 
@@ -246,19 +238,15 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
               ),
               config: {
                 // Reuse the config from the previous deployment
-                port: app.deploymentConfigTemplate.port,
+                fieldValues: app.deploymentConfigTemplate.fieldValues,
                 source: "GIT",
                 env: app.deploymentConfigTemplate.getPlaintextEnv(),
-                replicas: app.deploymentConfigTemplate.replicas,
                 repositoryId: app.deploymentConfigTemplate.repositoryId,
                 branch: app.deploymentConfigTemplate.branch,
                 builder: app.deploymentConfigTemplate.builder,
                 rootDir: app.deploymentConfigTemplate.rootDir,
                 dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
                 imageTag: app.deploymentConfigTemplate.imageTag,
-                mounts: {
-                  createMany: { data: app.deploymentConfigTemplate.mounts },
-                },
               },
               workflowRunId: payload.workflow_run.id,
               createCheckRun: true,
@@ -276,7 +264,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             where: { appId: app.id, workflowRunId: payload.workflow_run.id },
             include: {
               app: { include: { appGroup: true } },
-              config: { include: { mounts: true } },
+              config: true,
             },
           });
           if (!deployment || deployment.status !== "PENDING") {
@@ -373,9 +361,7 @@ type BuildAndDeployOptions = {
   commitSha: string;
   commitMessage: string;
   cloneURL: string | null;
-  config: DeploymentConfigCreateWithoutDeploymentInput & {
-    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-  };
+  config: DeploymentConfigCreateWithoutDeploymentInput;
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
   | { createCheckRun: false }
@@ -412,7 +398,7 @@ export async function buildAndDeploy({
       appId: true,
       secret: true,
       commitHash: true,
-      config: { include: { mounts: true } },
+      config: true,
       app: {
         include: {
           appGroup: true,
@@ -472,7 +458,7 @@ type BuildFromRepoOptions = {
     config: Pick<
       DeploymentConfig,
       "builder" | "dockerfilePath" | "rootDir" | "imageTag"
-    > & { mounts: MountConfig[] };
+    >;
   };
   secret: string;
   cloneURL: string;
@@ -619,7 +605,7 @@ async function createPendingWorkflowDeployment({
       appId: true,
       secret: true,
       commitHash: true,
-      config: { include: { mounts: true } },
+      config: true,
       app: {
         include: {
           appGroup: true,
@@ -667,6 +653,8 @@ export async function cancelAllOtherDeployments(
   app: App & { org: { githubInstallationId?: number } },
   cancelComplete = false,
 ) {
+  cancelBuildJobsForApp(app.id);
+
   const deployments = await db.deployment.findMany({
     where: {
       id: { not: deploymentId },

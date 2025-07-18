@@ -402,7 +402,7 @@ const AppConfigFormFields = ({
                   <Info className="inline" />
                   <span>
                     Your application will be reachable at{" "}
-                    <code className="text-xs">
+                    <code className="text-xs text-black-4 font-bold whitespace-nowrap">
                       anvilops-{subdomain}.anvilops-{subdomain}
                       .svc.cluster.local
                     </code>{" "}

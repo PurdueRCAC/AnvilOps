@@ -1,0 +1,190 @@
+import type { V1EnvVar, V1Namespace, V1Secret } from "@kubernetes/client-node";
+import type {
+  App,
+  AppGroup,
+  Deployment,
+} from "../../generated/prisma/client.ts";
+import { createServiceConfig } from "./resources/service.ts";
+import {
+  createStatefulSetConfig,
+  type DeploymentParams,
+} from "./resources/statefulset.ts";
+import { createLogConfig } from "./resources/log.ts";
+import { k8s } from "./kubernetes.ts";
+
+const NAMESPACE_PREFIX = "anvilops-";
+export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
+export const MAX_GROUPNAME_LEN = 56;
+
+export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
+
+export interface K8sObject {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    namespace?: string;
+    labels?: {
+      [key: string]: string;
+    };
+  };
+  spec?: {
+    template?: {
+      metadata?: {
+        labels?: {
+          [key: string]: string;
+        };
+      };
+    };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export const createNamespaceConfig = (
+  namespace: string,
+): V1Namespace & K8sObject => {
+  return {
+    apiVersion: "v1",
+    kind: "Namespace",
+    metadata: {
+      name: namespace,
+      annotations: {
+        "field.cattle.io/projectId": `${process.env.PROJECT_NS}:${process.env.PROJECT_NAME}`,
+      },
+    },
+  };
+};
+
+const getEnvVars = (
+  env: DeploymentJson.EnvVar[],
+  secretName: string,
+): V1EnvVar[] => {
+  const envVars = [];
+  for (let envVar of env) {
+    envVars.push({
+      name: envVar.name,
+      valueFrom: {
+        secretKeyRef: {
+          name: secretName,
+          key: envVar.name,
+        },
+      },
+    });
+  }
+
+  return envVars;
+};
+
+const getEnvRecord = (
+  envVars: DeploymentJson.EnvVar[],
+): Record<string, string> => {
+  if (envVars.length == 0) return null;
+  return envVars.reduce((data, env) => {
+    return Object.assign(data, { [env.name]: env.value });
+  }, {});
+};
+
+const createSecretConfig = (
+  secrets: Record<string, string>,
+  name: string,
+  namespace: string,
+): V1Secret & K8sObject => {
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name,
+      namespace,
+    },
+    stringData: secrets,
+  };
+};
+
+const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
+  config.metadata.labels = { ...config.metadata.labels, ...labels };
+  if (config.spec?.template) {
+    const meta = config.spec.template.metadata;
+    if (!meta) {
+      config.spec.template.metadata = {
+        labels: labels,
+      };
+    } else {
+      meta.labels = { ...meta.labels, ...labels };
+    }
+  }
+};
+
+export const createAppConfigsFromDeployment = (
+  deployment: Pick<Deployment, "appId" | "id"> & {
+    app: Pick<
+      App & { appGroup: AppGroup },
+      "name" | "logIngestSecret" | "subdomain" | "appGroup"
+    >;
+    config: ExtendedDeploymentConfig;
+  },
+) => {
+  const app = deployment.app;
+  const conf = deployment.config;
+  const namespaceName = getNamespace(app.subdomain);
+
+  const namespace = createNamespaceConfig(namespaceName);
+  const configs: K8sObject[] = [];
+
+  const secretName = `${app.name}-secrets-${deployment.id}`;
+  const envVars = getEnvVars(conf.getPlaintextEnv(), secretName);
+  const secretData = getEnvRecord(conf.getPlaintextEnv());
+  if (secretData !== null) {
+    const secretConfig = createSecretConfig(
+      secretData,
+      secretName,
+      namespaceName,
+    );
+
+    // Secrets should be created first
+    configs.unshift(secretConfig);
+  }
+
+  const params: DeploymentParams = {
+    name: app.name,
+    namespace: namespaceName,
+    serviceName: namespaceName,
+    image: conf.imageTag,
+    env: envVars,
+    ...conf.fieldValues,
+  };
+
+  const svc = createServiceConfig(params);
+
+  const statefulSet = createStatefulSetConfig(params);
+
+  const logs = createLogConfig(
+    namespaceName,
+    deployment.appId,
+    app.logIngestSecret,
+  );
+
+  configs.push(...logs, statefulSet, svc);
+
+  const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
+  const labels = {
+    "anvilops.rcac.purdue.edu/app-group-id":
+      deployment.app.appGroup.id.toString(),
+    "anvilops.rcac.purdue.edu/app-id": deployment.appId.toString(),
+    "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
+    "app.kubernetes.io/name": deployment.app.name,
+    "app.kubernetes.io/part-of": appGroupLabel,
+    "app.kubernetes.io/managed-by": "anvilops",
+  };
+  applyLabels(namespace, labels);
+  for (let config of configs) {
+    applyLabels(config, labels);
+  }
+  const postCreate = () => {
+    k8s.default.deleteCollectionNamespacedSecret({
+      namespace: namespaceName,
+      labelSelector: `anvilops.rcac.purdue.edu/deployment-id!=${deployment.id}`,
+    });
+  };
+  return { namespace, configs, postCreate };
+};

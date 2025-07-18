@@ -890,12 +890,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "409":
-          description: No image available to redeploy because app has never built successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
         "500":
           description: Unexpected Error
           content:
@@ -1648,6 +1642,14 @@ components:
           type: string
         preStop:
           type: string
+        limits:
+          type: object
+          additionalProperties:
+            type: string
+        requests:
+          type: object
+          additionalProperties:
+            type: string
       required: [port, replicas, env, mounts]
     GitDeploymentOptions:
       allOf:
