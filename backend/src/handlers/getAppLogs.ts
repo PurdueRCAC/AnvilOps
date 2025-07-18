@@ -2,9 +2,10 @@ import { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
 import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db, subscribe } from "../lib/db.ts";
-import { getNamespace, k8s } from "../lib/kubernetes.ts";
+import { k8s } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (

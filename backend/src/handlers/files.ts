@@ -1,9 +1,10 @@
 import type { Response } from "express";
 import { Readable } from "node:stream";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
-import { generateVolumeName, getNamespace } from "../lib/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
+import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppFile: HandlerMap["getAppFile"] = async (
@@ -87,11 +88,11 @@ async function forward(
       id: appId,
       org: { users: { some: { userId } } },
     },
-    include: { deploymentConfigTemplate: { include: { mounts: true } } },
+    include: { deploymentConfigTemplate: true },
   });
 
   if (
-    !app.deploymentConfigTemplate.mounts.some((mount) =>
+    !app.deploymentConfigTemplate.fieldValues.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
     )
   ) {

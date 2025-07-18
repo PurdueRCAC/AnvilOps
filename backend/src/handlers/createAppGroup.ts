@@ -1,6 +1,6 @@
 import { type Octokit } from "octokit";
 import { randomBytes } from "node:crypto";
-import { type AuthenticatedRequest } from "../lib/api.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import {
   validateDeploymentConfig,
@@ -10,19 +10,16 @@ import {
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import type {
-  DeploymentConfigCreateInput,
-  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
-} from "../generated/prisma/models.ts";
+import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import type { DeploymentConfig, App } from "../generated/prisma/client.ts";
 import {
   buildAndDeploy,
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
-import { MAX_GROUPNAME_LEN } from "../lib/kubernetes.ts";
+import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
 
-const createAppGroup: HandlerMap["createAppGroup"] = async (
+export const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -186,14 +183,18 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
     },
   });
   const appConfigs = data.apps.map((app) => {
-    const deploymentConfig: DeploymentConfigCreateInput & {
-      mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-    } = {
-      port: app.port,
+    const deploymentConfig: DeploymentConfigCreateInput = {
       env: app.env,
-      mounts: { createMany: { data: app.mounts } },
-      postStart: app.postStart,
-      preStop: app.preStop,
+      fieldValues: {
+        replicas: 1,
+        port: app.port,
+        servicePort: 80,
+        mounts: app.mounts,
+        extra: {
+          postStart: app.postStart,
+          preStop: app.preStop,
+        },
+      },
       ...(app.source === "git"
         ? {
             source: "GIT",
@@ -238,7 +239,7 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
       appConfigs.map((app) =>
         db.app.create({
           data: app,
-          include: { deploymentConfigTemplate: { include: { mounts: true } } },
+          include: { deploymentConfigTemplate: true },
         }),
       ),
     );
@@ -248,7 +249,7 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
         db.app.update({
           where: { id: app.id },
           data: { imageRepo: `app-${app.orgId}-${app.id}` },
-          include: { deploymentConfigTemplate: { include: { mounts: true } } },
+          include: { deploymentConfigTemplate: true },
         }),
       ),
     );
@@ -321,4 +322,3 @@ const createAppGroup: HandlerMap["createAppGroup"] = async (
 
   return json(200, res, {});
 };
-export default createAppGroup;

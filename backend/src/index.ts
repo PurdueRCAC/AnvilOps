@@ -1,7 +1,6 @@
 import bodyParser from "body-parser";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import express from "express";
 import session from "express-session";
 import morgan from "morgan";
@@ -80,6 +79,12 @@ app.use(
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);
 
+app.use("/openapi.yaml", express.static(openApiSpecPath));
+app.use(
+  "/ghes-3.16.yaml",
+  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml")),
+);
+
 const publicDir = path.resolve(path.dirname(import.meta.dirname), "public");
 if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   console.log("Serving static files from", publicDir);
@@ -97,14 +102,6 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
     }
   });
 }
-
-app.use(cors());
-
-app.use("/openapi.yaml", express.static(openApiSpecPath));
-app.use(
-  "/ghes-3.16.yaml",
-  express.static(path.resolve(openApiSpecPath, "../ghes-3.16.yaml")),
-);
 
 app.listen(port, (err) => {
   if (err !== undefined) {

@@ -1,5 +1,5 @@
 import { PermissionLevel } from "../generated/prisma/enums.ts";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getUserOctokit } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";

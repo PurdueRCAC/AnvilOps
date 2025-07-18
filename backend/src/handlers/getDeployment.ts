@@ -1,7 +1,8 @@
 import { V1PodList } from "@kubernetes/client-node";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { getNamespace, k8s } from "../lib/kubernetes.ts";
+import { k8s } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
@@ -16,7 +17,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       app: { org: { users: { some: { userId: req.user.id } } } },
     },
     include: {
-      config: { include: { mounts: true } },
+      config: true,
       app: { select: { subdomain: true, name: true } },
     },
   });
@@ -78,7 +79,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     config: {
       branch: deployment.config.branch,
       imageTag: deployment.config.imageTag,
-      mounts: deployment.config.mounts.map((mount) => ({
+      mounts: deployment.config.fieldValues.mounts.map((mount) => ({
         path: mount.path,
         amountInMiB: mount.amountInMiB,
       })),
@@ -89,8 +90,8 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       builder: deployment.config.builder,
       dockerfilePath: deployment.config.dockerfilePath,
       env: deployment.config.displayEnv,
-      port: deployment.config.port,
-      replicas: deployment.config.replicas,
+      port: deployment.config.fieldValues.port,
+      replicas: deployment.config.fieldValues.replicas,
       rootDir: deployment.config.rootDir,
     },
   });

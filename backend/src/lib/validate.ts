@@ -1,10 +1,10 @@
 import type { components } from "../generated/openapi.ts";
+import { namespaceInUse } from "./cluster/kubernetes.ts";
 import {
   getNamespace,
   MAX_GROUPNAME_LEN,
   MAX_SUBDOMAIN_LEN,
-  namespaceInUse,
-} from "./kubernetes.ts";
+} from "./cluster/resources.ts";
 
 export function validateDeploymentConfig(
   data: (
@@ -95,7 +95,7 @@ export function validateDeploymentConfig(
   return { valid: true };
 }
 
-export const validateEnv = (env: PrismaJson.EnvVar[]) => {
+export const validateEnv = (env: DeploymentJson.EnvVar[]) => {
   const envNames = new Set();
   for (let envVar of env) {
     if (envNames.has(envVar.name)) {

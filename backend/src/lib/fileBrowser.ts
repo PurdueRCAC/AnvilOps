@@ -1,7 +1,7 @@
 import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import { k8s } from "./kubernetes.ts";
+import { k8s } from "./cluster/kubernetes.ts";
 
 export async function forwardRequest(
   namespace: string,

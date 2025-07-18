@@ -6,9 +6,8 @@ import { DeploymentSource } from "../generated/prisma/enums.ts";
 import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
-  MountConfigCreateNestedManyWithoutDeploymentConfigInput,
 } from "../generated/prisma/models.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
@@ -23,7 +22,7 @@ import {
   generateCloneURLWithCredentials,
 } from "./githubWebhook.ts";
 
-const createApp: HandlerMap["createApp"] = async (
+export const createApp: HandlerMap["createApp"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -150,14 +149,18 @@ const createApp: HandlerMap["createApp"] = async (
 
   let app: App;
 
-  const deploymentConfig: DeploymentConfigCreateInput & {
-    mounts: MountConfigCreateNestedManyWithoutDeploymentConfigInput;
-  } = {
-    port: appData.port,
+  const deploymentConfig: DeploymentConfigCreateInput = {
     env: appData.env,
-    mounts: { createMany: { data: appData.mounts } },
-    postStart: appData.postStart,
-    preStop: appData.preStop,
+    fieldValues: {
+      replicas: 1,
+      port: appData.port,
+      servicePort: 80,
+      mounts: appData.mounts,
+      extra: {
+        postStart: appData.postStart,
+        preStop: appData.preStop,
+      },
+    },
     ...(appData.source === "git"
       ? {
           source: "GIT",
@@ -272,5 +275,3 @@ export function convertSource(input: string) {
       return null;
   }
 }
-
-export default createApp;

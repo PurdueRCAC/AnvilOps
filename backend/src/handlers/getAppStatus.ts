@@ -8,9 +8,10 @@ import {
   type V1StatefulSet,
 } from "@kubernetes/client-node";
 import { once } from "node:events";
-import type { AuthenticatedRequest } from "../lib/api.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { getNamespace, k8s } from "../lib/kubernetes.ts";
+import { k8s } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getAppStatus: HandlerMap["getAppStatus"] = async (

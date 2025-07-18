@@ -1,11 +1,12 @@
 import { type components } from "../generated/openapi.ts";
-import { type AuthenticatedRequest } from "../lib/api.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { deleteNamespace, getNamespace } from "../lib/kubernetes.ts";
+import { deleteNamespace } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
 
-const deleteApp: HandlerMap["deleteApp"] = async (
+export const deleteApp: HandlerMap["deleteApp"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -94,5 +95,3 @@ const deleteApp: HandlerMap["deleteApp"] = async (
 
   return json(200, res, {});
 };
-
-export default deleteApp;

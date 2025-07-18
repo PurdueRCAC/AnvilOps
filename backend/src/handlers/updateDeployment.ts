@@ -1,9 +1,7 @@
 import { dequeueBuildJob } from "../lib/builder.ts";
 import { db } from "../lib/db.ts";
-import {
-  createAppConfigsFromDeployment,
-  createOrUpdateApp,
-} from "../lib/kubernetes.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
+import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { log } from "./githubWebhook.ts";
@@ -27,7 +25,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     where: { secret: secret },
     data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
     include: {
-      config: { include: { mounts: true } },
+      config: true,
       app: {
         select: {
           name: true,
