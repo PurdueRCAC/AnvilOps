@@ -29,7 +29,7 @@ import { updateDeployment } from "./updateDeployment.ts";
 import type { Context } from "openapi-backend";
 import {
   json,
-  OptionalPromise,
+  type OptionalPromise,
   type HandlerMap,
   type HandlerResponse,
 } from "../types.ts";
