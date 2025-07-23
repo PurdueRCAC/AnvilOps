@@ -11,11 +11,7 @@ const privateKey = Buffer.from(
 const installationIdSymbol = Symbol("installationId");
 
 const githubAuthCache = {
-  get: async (key: string) => {
-    const value = await get(`github-auth-${key}`);
-    if (value) return JSON.parse(value);
-    else return undefined;
-  },
+  get: async (key: string) => get(`github-auth-${key}`),
   set: (key: string, value: any) =>
     set(`github-auth-${key}`, value, 45 * 60, false), // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
 };

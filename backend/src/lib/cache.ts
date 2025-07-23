@@ -42,7 +42,7 @@ export async function get(key: string): Promise<string | undefined> {
   try {
     return (
       await db.cache.findUnique({
-        where: { key, expiresAt: { lt: new Date() } },
+        where: { key, expiresAt: { gt: new Date() } },
         select: { value: true },
       })
     )?.value;
