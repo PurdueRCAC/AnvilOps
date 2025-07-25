@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { type AppInfoFormData } from "../create-app/AppConfigFormFields";
 import {
   AppConfigDiff,
   type DeploymentConfigFormData,
@@ -198,8 +197,8 @@ export const OverviewTab = ({
       >
         <DialogContent
           className={cn(
-            "max-h-5/6 overflow-scroll duration-300",
-            redeployState.configOpen && "sm:max-w-4xl",
+            "duration-300",
+            redeployState.configOpen && "h-5/6 overflow-auto sm:max-w-4xl",
           )}
         >
           <DialogHeader>
@@ -246,38 +245,35 @@ export const OverviewTab = ({
               </>
             ) : (
               <>
-                <div className="h-11/12 overflow-auto">
-                  <AppConfigDiff
-                    orgId={app.orgId}
-                    base={{
-                      ...app.config,
-                      replicas: app.config.replicas.toString(),
-                      port: app.config.port.toString(),
-                      ...(app.config.source === "git"
-                        ? {
-                            builder: app.config.builder,
-                            eventId:
-                              app.config.eventId?.toString() ?? undefined,
-                          }
-                        : {
-                            builder: "dockerfile",
-                            eventId: undefined,
-                          }),
-                    }}
-                    state={redeployState.configState}
-                    setState={(
-                      updateConfig: (
-                        s: DeploymentConfigFormData,
-                      ) => DeploymentConfigFormData,
-                    ) => {
-                      setRedeployState((rs) => ({
-                        ...rs,
-                        configState: updateConfig(rs.configState),
-                      }));
-                    }}
-                    defaults={{ config: pastDeployment?.config }}
-                  />
-                </div>
+                <AppConfigDiff
+                  orgId={app.orgId}
+                  base={{
+                    ...app.config,
+                    replicas: app.config.replicas.toString(),
+                    port: app.config.port.toString(),
+                    ...(app.config.source === "git"
+                      ? {
+                          builder: app.config.builder,
+                          eventId: app.config.eventId?.toString() ?? undefined,
+                        }
+                      : {
+                          builder: "dockerfile",
+                          eventId: undefined,
+                        }),
+                  }}
+                  state={redeployState.configState}
+                  setState={(
+                    updateConfig: (
+                      s: DeploymentConfigFormData,
+                    ) => DeploymentConfigFormData,
+                  ) => {
+                    setRedeployState((rs) => ({
+                      ...rs,
+                      configState: updateConfig(rs.configState),
+                    }));
+                  }}
+                  defaults={{ config: pastDeployment?.config }}
+                />
                 <Button
                   className="float-right"
                   type="button"

@@ -393,6 +393,7 @@ export const GitConfigDiff = ({
                     className={cn(
                       "w-full",
                       shouldDiffEventId &&
+                        state.eventId &&
                         base.eventId !== state.eventId &&
                         "bg-red-200",
                     )}
