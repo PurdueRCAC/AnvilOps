@@ -2,18 +2,14 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
-import { type AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
 import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
-import {
-  buildAndDeploy,
-  cancelAllOtherDeployments,
-  generateCloneURLWithCredentials,
-} from "./githubWebhook.ts";
+import { buildAndDeploy, cancelAllOtherDeployments } from "./githubWebhook.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 
 export const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -187,7 +183,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
         imageRepo: app.imageRepo,
         commitSha: latestCommit.sha,
         commitMessage: latestCommit.commit.message, // TODO: get latest commit info
-        cloneURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
         config: updatedDeploymentConfig,
         createCheckRun: false,
       });

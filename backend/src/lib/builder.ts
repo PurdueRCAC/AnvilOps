@@ -1,11 +1,49 @@
 import { randomBytes } from "node:crypto";
+import type {
+  App,
+  Deployment,
+  DeploymentConfig,
+  Organization,
+} from "../generated/prisma/client.ts";
+import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { k8s } from "./cluster/kubernetes.ts";
 import { db } from "./db.ts";
-import type { DeploymentConfig } from "../generated/prisma/client.ts";
+import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
 const MAX_JOBS = 6;
+
+export type CreateJobFromDeploymentInput = Parameters<
+  typeof createJobFromDeployment
+>[0];
+
+async function createJobFromDeployment(
+  deployment: Pick<Deployment, "id" | "commitHash" | "appId" | "secret"> & {
+    config: Pick<
+      DeploymentConfig,
+      "builder" | "dockerfilePath" | "imageTag" | "repositoryId" | "rootDir"
+    >;
+    app: Pick<App, "imageRepo"> & {
+      org: Pick<Organization, "githubInstallationId">;
+    };
+  },
+) {
+  const octokit = await getOctokit(deployment.app.org.githubInstallationId);
+  const repo = await getRepoById(octokit, deployment.config.repositoryId);
+
+  return await createJob({
+    tag: deployment.app.imageRepo,
+    ref: deployment.commitHash,
+    gitRepoURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
+    imageTag: deployment.config.imageTag as ImageTag,
+    imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${deployment.app.imageRepo}:build-cache`,
+    deploymentSecret: deployment.secret,
+    appId: deployment.appId,
+    deploymentId: deployment.id,
+    config: deployment.config,
+  });
+}
 
 async function createJob({
   tag,
@@ -125,35 +163,28 @@ async function createJob({
   });
 }
 
-export async function createBuildJob(data: {
-  tag: string;
-  gitRepoURL: string;
-  imageTag: ImageTag;
-  imageCacheTag: ImageTag;
-  deploymentSecret: string;
-  ref: string;
-  appId: number;
-  deploymentId: number;
-  config: Pick<DeploymentConfig, "builder" | "dockerfilePath" | "rootDir">;
-}) {
-  if (!["dockerfile", "railpack"].includes(data.config.builder)) {
+export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
+  if (!["dockerfile", "railpack"].includes(deployment.config.builder)) {
     throw new Error(
       "Invalid builder: " +
-        data.config.builder +
+        deployment.config.builder +
         ". Expected dockerfile or railpack.",
     );
   }
 
-  // Store it in db - we'll pop it out when another job finishes.
+  // Mark this deployment as "queued" - we'll run it when another job finishes.
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
-    await queueBuildJob(data);
-    return undefined;
+    await db.deployment.update({
+      where: { id: deployment.id },
+      data: { status: "QUEUED" },
+    });
+    return await dequeueBuildJob();
   }
 
   console.log(
-    `Starting build job for deployment ${data.deploymentId} of app ${data.appId}`,
+    `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
   );
-  const job = await createJob(data);
+  const job = await createJobFromDeployment(deployment);
 
   return job.metadata.uid;
 }
@@ -173,97 +204,53 @@ async function countActiveBuildJobs() {
   return jobs.items.filter((job) => job.status?.active).length;
 }
 
-async function queueBuildJob({
-  tag,
-  ref,
-  gitRepoURL,
-  imageTag,
-  imageCacheTag,
-  deploymentSecret,
-  deploymentId,
-  appId,
-}: {
-  tag: string;
-  ref: string;
-  gitRepoURL: string;
-  imageTag: string;
-  imageCacheTag: string;
-  deploymentSecret: string;
-  deploymentId: number;
-  appId: number;
-}) {
-  await db.deployment.update({
-    where: { id: deploymentId },
-    data: { status: "QUEUED" },
-  });
-
-  await db.queuedJob.create({
-    data: {
-      tag,
-      ref,
-      gitRepoURL,
-      imageTag,
-      imageCacheTag,
-      deploymentSecret,
-      deployment: {
-        connect: {
-          id: deploymentId,
-        },
-      },
-    },
-  });
-}
-
-export async function dequeueBuildJob() {
+/** @returns The UID of the created build job, or null if the queue is full */
+export async function dequeueBuildJob(): Promise<string> {
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
-    return;
+    return null;
   }
 
   // Remove the job at the front of the queue, locking the row
   // so it cannot be dequeued twice
-  const [result] = await db.$queryRaw<
-    {
-      tag: string;
-      ref: string;
-      gitRepoURL: string;
-      imageTag: `${string}/${string}/${string}:${string}`;
-      imageCacheTag: `${string}/${string}/${string}:${string}`;
-      deploymentSecret: string;
-      deploymentId: number;
-      id: number;
-    }[]
-  >`
+  const [result] = await db.$queryRaw<{ id: number }[]>`
     WITH next as (
-    SELECT id FROM "QueuedJob"
-    ORDER BY id
-    FOR UPDATE SKIP LOCKED
-    LIMIT 1
+      SELECT id FROM "Deployment"
+        WHERE status = 'QUEUED'
+        ORDER BY "createdAt"
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
     )
-    DELETE FROM "QueuedJob" as job
-    USING next
-    WHERE job.id = next.id
-    RETURNING job.*
+    UPDATE "Deployment" SET status = 'PENDING'
+      WHERE id IN (SELECT id FROM next)
+      RETURNING id
   `;
 
   if (result) {
     const deployment = await db.deployment.findUnique({
-      where: { id: result.deploymentId },
-      include: {
+      where: { id: result.id },
+      select: {
+        id: true,
+        appId: true,
+        secret: true,
         config: true,
+        commitHash: true,
+        app: {
+          select: {
+            imageRepo: true,
+            org: { select: { githubInstallationId: true } },
+          },
+        },
       },
     });
     console.log(
       `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
     );
-    const job = await createJob({
-      ...result,
-      appId: deployment.appId,
-      config: deployment.config,
-    });
+    const job = await createJobFromDeployment(deployment);
     await db.deployment.update({
       where: { id: deployment.id },
       data: { builderJobId: job.metadata.uid },
     });
+    return job.metadata.uid;
   } else {
     console.log("Build job queue is empty.");
   }

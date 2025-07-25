@@ -7,7 +7,6 @@ import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
 } from "../generated/prisma/models.ts";
-import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
@@ -17,10 +16,8 @@ import {
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
-import {
-  buildAndDeploy,
-  generateCloneURLWithCredentials,
-} from "./githubWebhook.ts";
+import { buildAndDeploy } from "./githubWebhook.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 
 export const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -70,8 +67,7 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   let commitSha = "unknown",
-    commitMessage = "Initial deployment",
-    cloneURL: string | undefined = undefined;
+    commitMessage = "Initial deployment";
 
   if (appData.source === "git") {
     if (!organization.githubInstallationId) {
@@ -144,7 +140,6 @@ export const createApp: HandlerMap["createApp"] = async (
 
     commitSha = latestCommit.sha;
     commitMessage = latestCommit.commit.message;
-    cloneURL = await generateCloneURLWithCredentials(octokit, repo.html_url);
   }
 
   let app: App;
@@ -250,7 +245,6 @@ export const createApp: HandlerMap["createApp"] = async (
       imageRepo: app.imageRepo,
       commitSha: commitSha,
       commitMessage: commitMessage,
-      cloneURL: appData.source === "git" ? cloneURL : undefined,
       config: deploymentConfig,
       createCheckRun: false,
     });

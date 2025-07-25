@@ -1,7 +1,11 @@
-import { type Octokit } from "octokit";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
-import { type AuthenticatedRequest } from "./index.ts";
+import { type Octokit } from "octokit";
+import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
+import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
   validateRFC1123,
@@ -9,15 +13,8 @@ import {
 } from "../lib/validate.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
-import type { DeploymentConfig, App } from "../generated/prisma/client.ts";
-import {
-  buildAndDeploy,
-  generateCloneURLWithCredentials,
-} from "./githubWebhook.ts";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
-import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
+import { buildAndDeploy } from "./githubWebhook.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 
 export const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
@@ -273,8 +270,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       apps.map((app, idx) =>
         (async () => {
           let commitSha = "unknown",
-            commitMessage = "Initial deployment",
-            cloneURL: string | undefined = undefined;
+            commitMessage = "Initial deployment";
 
           if (app.deploymentConfigTemplate.source === "GIT") {
             const repo = await getRepoById(
@@ -291,10 +287,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 
             commitSha = latestCommit.sha;
             commitMessage = latestCommit.commit.message;
-            cloneURL = await generateCloneURLWithCredentials(
-              octokit,
-              repo.html_url,
-            );
           }
           await buildAndDeploy({
             orgId: app.orgId,
@@ -302,10 +294,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
             imageRepo: app.imageRepo,
             commitSha: commitSha,
             commitMessage: commitMessage,
-            cloneURL:
-              app.deploymentConfigTemplate.source === "GIT"
-                ? cloneURL
-                : undefined,
             config: appConfigs[idx].deploymentConfigTemplate.create,
             createCheckRun: false,
           });

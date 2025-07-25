@@ -4,10 +4,10 @@ import { deleteApp } from "./deleteApp.ts";
 import { deleteAppGroup } from "./deleteAppGroup.ts";
 import { deleteAppPod } from "./deleteAppPod.ts";
 import {
-  getAppFile,
-  downloadAppFile,
-  writeAppFile,
   deleteAppFile,
+  downloadAppFile,
+  getAppFile,
+  writeAppFile,
 } from "./files.ts";
 import { getAppLogs } from "./getAppLogs.ts";
 import { getAppStatus } from "./getAppStatus.ts";
@@ -26,21 +26,21 @@ import { listRepoWorkflows } from "./listRepoWorkflows.ts";
 import { updateApp } from "./updateApp.ts";
 import { updateDeployment } from "./updateDeployment.ts";
 
-import type { Context } from "openapi-backend";
-import {
-  json,
-  type OptionalPromise,
-  type HandlerMap,
-  type HandlerResponse,
-} from "../types.ts";
-import type { components } from "../generated/openapi.ts";
 import {
   type Request as ExpressRequest,
   type Response as ExpressResponse,
 } from "express";
 import type { Octokit } from "octokit";
+import type { Context } from "openapi-backend";
+import type { components } from "../generated/openapi.ts";
+import {
+  json,
+  type HandlerMap,
+  type HandlerResponse,
+  type OptionalPromise,
+} from "../types.ts";
 
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import fs from "fs";
 import {
   deleteNamespace,
   k8s,
@@ -49,7 +49,7 @@ import {
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
-import fs from "fs";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -262,14 +262,14 @@ export const handlers = {
                 return {
                   id: app.id,
                   displayName: app.displayName,
-                  status: selectedDeployment.status,
-                  source: selectedDeployment.config.source,
-                  imageTag: selectedDeployment.config?.imageTag,
+                  status: selectedDeployment?.status,
+                  source: selectedDeployment?.config.source,
+                  imageTag: selectedDeployment?.config?.imageTag,
                   repositoryURL: repoURL,
                   branch: app.deploymentConfigTemplate.branch,
-                  commitHash: selectedDeployment.commitHash,
+                  commitHash: selectedDeployment?.commitHash,
                   link:
-                    selectedDeployment.status === "COMPLETE"
+                    selectedDeployment?.status === "COMPLETE"
                       ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
                       : undefined,
                 };

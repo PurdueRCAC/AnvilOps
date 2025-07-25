@@ -2,6 +2,7 @@ import { Webhooks } from "@octokit/webhooks";
 import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
+import type { App, Deployment } from "../generated/prisma/client.ts";
 import {
   DeploymentSource,
   DeploymentStatus,
@@ -11,15 +12,12 @@ import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/
 import {
   cancelBuildJobsForApp,
   createBuildJob,
+  type CreateJobFromDeploymentInput,
   type ImageTag,
 } from "../lib/builder.ts";
-import { db } from "../lib/db.ts";
-import {
-  createAppConfigsFromDeployment,
-  createNamespaceConfig,
-  getNamespace,
-} from "../lib/cluster/resources.ts";
 import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
 import {
   getInstallationAccessToken,
   getOctokit,
@@ -27,12 +25,6 @@ import {
 } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
-import type {
-  App,
-  AppGroup,
-  Deployment,
-  DeploymentConfig,
-} from "../generated/prisma/client.ts";
 
 const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
 
@@ -156,10 +148,6 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           imageRepo: app.imageRepo,
           commitSha: payload.head_commit.id,
           commitMessage: payload.head_commit.message,
-          cloneURL: await generateCloneURLWithCredentials(
-            octokit,
-            payload.repository.html_url,
-          ),
           config: {
             // Reuse the config from the previous deployment
             fieldValues: app.deploymentConfigTemplate.fieldValues,
@@ -226,16 +214,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         for (const app of apps) {
           const octokit = await getOctokit(app.org.githubInstallationId);
           try {
-            createPendingWorkflowDeployment({
+            await createPendingWorkflowDeployment({
               orgId: app.orgId,
               appId: app.id,
               imageRepo: app.imageRepo,
               commitSha: payload.workflow_run.head_commit.id,
               commitMessage: payload.workflow_run.head_commit.message,
-              cloneURL: await generateCloneURLWithCredentials(
-                octokit,
-                payload.repository.html_url,
-              ),
               config: {
                 // Reuse the config from the previous deployment
                 fieldValues: app.deploymentConfigTemplate.fieldValues,
@@ -262,8 +246,14 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         for (const app of apps) {
           const deployment = await db.deployment.findUnique({
             where: { appId: app.id, workflowRunId: payload.workflow_run.id },
-            include: {
-              app: { include: { appGroup: true } },
+            select: {
+              id: true,
+              status: true,
+              secret: true,
+              checkRunId: true,
+              appId: true,
+              commitHash: true,
+              app: { include: { org: true, appGroup: true } },
               config: true,
             },
           });
@@ -304,20 +294,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             continue;
           }
 
-          const secret = randomBytes(32).toString("hex");
           const octokit = await getOctokit(app.org.githubInstallationId);
-          await db.deployment.update({
-            where: { id: deployment.id },
-            data: { secret },
-          });
-          const cloneURL = await generateCloneURLWithCredentials(
-            octokit,
-            payload.repository.html_url,
-          );
           await buildAndDeployFromRepo({
             deployment,
-            secret,
-            cloneURL,
             opts: {
               createCheckRun: true,
               octokit,
@@ -360,7 +339,6 @@ type BuildAndDeployOptions = {
   imageRepo: string;
   commitSha: string;
   commitMessage: string;
-  cloneURL: string | null;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
@@ -373,7 +351,6 @@ export async function buildAndDeploy({
   imageRepo,
   commitSha,
   commitMessage,
-  cloneURL,
   config,
   ...opts
 }: BuildAndDeployOptions) {
@@ -396,8 +373,9 @@ export async function buildAndDeploy({
     select: {
       id: true,
       appId: true,
-      secret: true,
       commitHash: true,
+      secret: true,
+      checkRunId: true,
       config: true,
       app: {
         include: {
@@ -411,7 +389,7 @@ export async function buildAndDeploy({
   await cancelAllOtherDeployments(deployment.id, deployment.app);
 
   if (config.source === "GIT") {
-    buildAndDeployFromRepo({ deployment, secret, cloneURL, opts });
+    buildAndDeployFromRepo({ deployment, opts });
   } else if (config.source === "IMAGE") {
     log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
@@ -452,24 +430,13 @@ export async function buildAndDeploy({
 }
 
 type BuildFromRepoOptions = {
-  deployment: Pick<Deployment, "id" | "appId" | "commitHash"> & {
-    checkRunId?: number;
-  } & { app: App & { appGroup: AppGroup } } & {
-    config: Pick<
-      DeploymentConfig,
-      "builder" | "dockerfilePath" | "rootDir" | "imageTag"
-    >;
-  };
-  secret: string;
-  cloneURL: string;
+  deployment: CreateJobFromDeploymentInput & Pick<Deployment, "checkRunId">;
   opts:
     | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
     | { createCheckRun: false };
 };
 async function buildAndDeployFromRepo({
   deployment,
-  secret,
-  cloneURL,
   opts,
 }: BuildFromRepoOptions) {
   let checkRun:
@@ -517,17 +484,7 @@ async function buildAndDeployFromRepo({
 
   let jobId: string | undefined;
   try {
-    jobId = await createBuildJob({
-      tag: deployment.app.imageRepo,
-      ref: deployment.commitHash,
-      gitRepoURL: cloneURL,
-      imageTag: deployment.config.imageTag as ImageTag,
-      imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${deployment.app.imageRepo}:build-cache`,
-      deploymentSecret: secret,
-      appId: deployment.appId,
-      deploymentId: deployment.id,
-      config: deployment.config,
-    });
+    jobId = await createBuildJob(deployment);
     log(deployment.id, "BUILD", "Created build job with ID " + jobId);
   } catch (e) {
     log(
@@ -563,16 +520,6 @@ async function buildAndDeployFromRepo({
     where: { id: deployment.id },
     data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
   });
-
-  try {
-    // Eagerly create the app's K8s namespace
-    const namespace = createNamespaceConfig(
-      getNamespace(deployment.app.subdomain),
-    );
-    await createOrUpdateApp(deployment.app.name, namespace, []);
-  } catch {
-    // If there was an error creating the namespace now, it'll be retried later when the build finishes
-  }
 }
 
 async function createPendingWorkflowDeployment({
@@ -653,7 +600,7 @@ export async function cancelAllOtherDeployments(
   app: App & { org: { githubInstallationId?: number } },
   cancelComplete = false,
 ) {
-  cancelBuildJobsForApp(app.id);
+  await cancelBuildJobsForApp(app.id);
 
   const deployments = await db.deployment.findMany({
     where: {
@@ -691,9 +638,6 @@ export async function cancelAllOtherDeployments(
     }
   }
 
-  await db.queuedJob.deleteMany({
-    where: { deployment: { appId: app.id } },
-  });
   await db.deployment.updateMany({
     where: {
       id: { in: deployments.map((deploy) => deploy.id) },

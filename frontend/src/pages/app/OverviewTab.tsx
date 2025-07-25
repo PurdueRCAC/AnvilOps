@@ -5,6 +5,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
   Container,
@@ -18,7 +19,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 
 export const format = new Intl.DateTimeFormat(undefined, {
@@ -76,14 +76,12 @@ export const OverviewTab = ({
     },
   );
 
-  let workflow: { id: number; name: string; path: string } | undefined;
-  if (app.config.source === "git") {
-    const id = app.config.eventId;
-    workflow = useMemo(
-      () => workflows?.workflows?.find((workflow) => workflow.id === id),
-      [workflows],
-    );
-  }
+  const workflow = useMemo(() => {
+    if (app.config.source === "git") {
+      const id = app.config.eventId;
+      return workflows?.workflows?.find((workflow) => workflow.id === id);
+    }
+  }, [workflows, app.config.source]);
 
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
