@@ -218,5 +218,5 @@ export const SubdomainStatus = ({ available }: { available: boolean }) => {
 };
 
 export const FormContext = createContext<
-  "CreateApp" | "CreateAppGroup" | "UpdateApp"
+  "CreateApp" | "CreateAppGroup" | "UpdateApp" | "ReuseApp"
 >("CreateApp");

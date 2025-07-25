@@ -17,11 +17,26 @@ import {
   Loader,
   LogsIcon,
   Tag,
+  Undo2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { type AppInfoFormData } from "../create-app/AppConfigFormFields";
+import {
+  AppConfigDiff,
+  type DeploymentConfigFormData,
+} from "./diff/AppConfigDiff";
+import { cn } from "@/lib/utils";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -89,14 +104,60 @@ export const OverviewTab = ({
     },
   );
 
-  let workflow: { id: number; name: string; path: string } | undefined;
-  if (app.config.source === "git") {
-    const id = app.config.eventId;
-    workflow = useMemo(
-      () => workflows?.workflows?.find((workflow) => workflow.id === id),
-      [workflows],
+  const [redeployState, setRedeployState] = useState<{
+    open: boolean;
+    configOpen: boolean;
+    configState: DeploymentConfigFormData;
+    id: number | undefined;
+  }>({
+    open: false,
+    configOpen: false,
+    configState: {
+      replicas: "",
+      env: [],
+      source: "git",
+      builder: "dockerfile",
+      port: "",
+    },
+    id: undefined,
+  });
+
+  const { data: pastDeployment, isPending: pastDeploymentLoading } =
+    api.useQuery(
+      "get",
+      "/app/{appId}/deployments/{deploymentId}",
+      { params: { path: { appId: app.id, deploymentId: redeployState.id! } } },
+      { enabled: redeployState.open && !!redeployState.id },
     );
-  }
+
+  useEffect(() => {
+    if (!pastDeploymentLoading && pastDeployment) {
+      setRedeployState((rs) => ({
+        ...rs,
+        configState: {
+          orgId: app.orgId,
+          ...pastDeployment.config,
+          port: pastDeployment.config.port.toString(),
+          replicas: pastDeployment.config.replicas.toString(),
+          ...(pastDeployment.config.source === "git"
+            ? {
+                builder: pastDeployment.config.builder,
+                eventId: pastDeployment.config.eventId?.toString() ?? undefined,
+              }
+            : {
+                builder: "dockerfile",
+                eventId: undefined,
+              }),
+        },
+      }));
+    }
+  }, [pastDeploymentLoading]);
+
+  const id = app.config.source === "git" ? app.config.eventId : null;
+  const workflow = useMemo(
+    () => workflows?.workflows?.find((workflow) => workflow.id === id),
+    [workflows],
+  );
 
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
@@ -131,6 +192,106 @@ export const OverviewTab = ({
 
   return (
     <>
+      <Dialog
+        open={redeployState.open}
+        onOpenChange={(open) => setRedeployState((s) => ({ ...s, open }))}
+      >
+        <DialogContent
+          className={cn(
+            "max-h-5/6 overflow-scroll duration-300",
+            redeployState.configOpen && "sm:max-w-4xl",
+          )}
+        >
+          <DialogHeader>
+            <DialogTitle>Reuse This Deployment</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-1">
+            {!redeployState.configOpen ? (
+              <>
+                <ul className="list-none space-y-2">
+                  <li>
+                    <Label>
+                      <Checkbox />
+                      Redeploy this version of the application
+                    </Label>
+                    {true && (
+                      <ul className="list-none ml-10 mt-2">
+                        <Label>
+                          <Checkbox />
+                          Also suspend automatic redeployments
+                        </Label>
+                      </ul>
+                    )}
+                  </li>
+                  <li>
+                    <Label>
+                      <Checkbox />
+                      <p>Reuse this configuration</p>
+                    </Label>
+                  </li>
+                </ul>
+                <Button
+                  variant="secondary"
+                  className="w-full font-bold my-2"
+                  type="button"
+                  onClick={() =>
+                    setRedeployState((s) => ({ ...s, configOpen: true }))
+                  }
+                >
+                  Review configuration
+                </Button>
+                <Button className="w-full" type="submit">
+                  Deploy
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="h-11/12 overflow-auto">
+                  <AppConfigDiff
+                    orgId={app.orgId}
+                    base={{
+                      ...app.config,
+                      replicas: app.config.replicas.toString(),
+                      port: app.config.port.toString(),
+                      ...(app.config.source === "git"
+                        ? {
+                            builder: app.config.builder,
+                            eventId:
+                              app.config.eventId?.toString() ?? undefined,
+                          }
+                        : {
+                            builder: "dockerfile",
+                            eventId: undefined,
+                          }),
+                    }}
+                    state={redeployState.configState}
+                    setState={(
+                      updateConfig: (
+                        s: DeploymentConfigFormData,
+                      ) => DeploymentConfigFormData,
+                    ) => {
+                      setRedeployState((rs) => ({
+                        ...rs,
+                        configState: updateConfig(rs.configState),
+                      }));
+                    }}
+                    defaults={{ config: pastDeployment?.config }}
+                  />
+                </div>
+                <Button
+                  className="float-right"
+                  type="button"
+                  onClick={() =>
+                    setRedeployState((rs) => ({ ...rs, configOpen: false }))
+                  }
+                >
+                  Use this configuration
+                </Button>
+              </>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
       <h3 className="text-xl font-medium mb-4">General</h3>
       <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
         {app.config.source === "git" ? (
@@ -167,7 +328,7 @@ export const OverviewTab = ({
         <p>
           <a
             href={`https://${app.subdomain}.anvilops.rcac.purdue.edu`}
-            className="underline flex gap-1 items-center"
+            className="underline flex gap-1 items-center w-fit"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -236,7 +397,7 @@ export const OverviewTab = ({
                     >
                       <span className="opacity-50 flex items-center gap-1">
                         <GitCommit className="shrink-0" />
-                        {d.commitHash?.substring(0, 7)}
+                        {d.commitHash?.substring(0, 7) ?? "Unknown"}
                       </span>
                       {d.commitMessage}
                     </a>
@@ -264,6 +425,23 @@ export const OverviewTab = ({
                     </Button>
                   </Link>
                 </td>
+                {d.id !== activeDeployment && (
+                  <td>
+                    <button
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setRedeployState((rs) => ({
+                          open: true,
+                          configOpen: false,
+                          configState: rs.configState,
+                          id: d.id,
+                        }))
+                      }
+                    >
+                      <Undo2 className="text-black-2 hover:text-black-3" />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
