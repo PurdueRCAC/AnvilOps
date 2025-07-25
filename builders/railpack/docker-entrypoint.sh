@@ -20,7 +20,7 @@ run_job() {
   build() {
     # Railpack is a tool that generates BuildKit LLB from a repository by looking at the files it contains and making an educated guess on the repo's technologies, package managers, etc.
     # https://railpack.com/
-    railpack prepare "/work/repo/$ROOT_DIRECTORY" --plan-out /work/railpack-plan.json --info-out /work/railpack-info.json &&
+    railpack prepare "/work/repo/$ROOT_DIRECTORY" $RAILPACK_ENV_ARGS --plan-out /work/railpack-plan.json --info-out /work/railpack-info.json &&
     
     # https://railpack.com/guides/running-railpack-in-production/#building-with-buildkit
     buildctl \
@@ -32,6 +32,8 @@ run_job() {
       --opt source=registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:latest \
       --local context="/work/repo/$ROOT_DIRECTORY" \
       --local dockerfile=/work \
+      $BUILDKIT_SECRET_DEFS \
+      --opt "secrets-hash=$SECRET_CHECKSUM" \
       --export-cache type=registry,ref="$CACHE_TAG" \
       --import-cache type=registry,ref="$CACHE_TAG" \
       --output type=image,name="$IMAGE_TAG",push=true

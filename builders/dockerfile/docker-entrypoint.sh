@@ -32,6 +32,8 @@ run_job() {
     --frontend dockerfile.v0 \
     --local context=. \
     --local dockerfile="$DOCKERFILE_DIR" \
+    $BUILDKIT_SECRET_DEFS \
+    --opt "build-arg:anvilops-secrets-checksum=$SECRET_CHECKSUM" \
     --opt filename="./$DOCKERFILE_NAME" \
     --import-cache type=registry,ref="$CACHE_TAG" \
     --export-cache type=registry,ref="$CACHE_TAG" \

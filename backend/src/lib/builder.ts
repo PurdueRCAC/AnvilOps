@@ -1,10 +1,12 @@
-import { randomBytes } from "node:crypto";
+import { PatchStrategy, setHeaderOptions } from "@kubernetes/client-node";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   App,
   Deployment,
   DeploymentConfig,
   Organization,
 } from "../generated/prisma/client.ts";
+import { DeploymentConfigScalarFieldEnum } from "../generated/prisma/internal/prismaNamespace.ts";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { k8s } from "./cluster/kubernetes.ts";
 import { db } from "./db.ts";
@@ -22,7 +24,12 @@ async function createJobFromDeployment(
   deployment: Pick<Deployment, "id" | "commitHash" | "appId" | "secret"> & {
     config: Pick<
       DeploymentConfig,
-      "builder" | "dockerfilePath" | "imageTag" | "repositoryId" | "rootDir"
+      | "builder"
+      | "dockerfilePath"
+      | "imageTag"
+      | "repositoryId"
+      | "rootDir"
+      | "env"
     >;
     app: Pick<App, "imageRepo"> & {
       org: Pick<Organization, "githubInstallationId">;
@@ -64,14 +71,48 @@ async function createJob({
   ref: string;
   appId: number;
   deploymentId: number;
-  config: Pick<DeploymentConfig, "builder" | "dockerfilePath" | "rootDir">;
+  config: Pick<
+    ExtendedDeploymentConfig,
+    | "builder"
+    | "dockerfilePath"
+    | "rootDir"
+    | "env"
+    | "envKey"
+    | "getPlaintextEnv"
+  >;
 }) {
+  DeploymentConfigScalarFieldEnum;
   const label = randomBytes(4).toString("hex");
-  return k8s.batch.createNamespacedJob({
+  const secretName = `anvilops-temp-build-secrets-${appId}-${deploymentId}`;
+  const jobName = `build-image-${tag}-${label}`;
+
+  const env = config.getPlaintextEnv();
+
+  if (env.length > 0) {
+    const map: Record<string, string> = {};
+    for (const { name, value } of env) {
+      map[name] = value;
+    }
+    await k8s.default.createNamespacedSecret({
+      namespace: "anvilops-dev",
+      body: {
+        apiVersion: "v1",
+        kind: "Secret",
+        metadata: { name: secretName },
+        stringData: map,
+      },
+    });
+  }
+
+  const secretHash = createHash("sha256")
+    .update(JSON.stringify(env))
+    .digest("hex");
+
+  const job = await k8s.batch.createNamespacedJob({
     namespace: "anvilops-dev",
     body: {
       metadata: {
-        name: `build-image-${tag}-${label}`,
+        name: jobName,
         labels: {
           "anvilops.rcac.purdue.edu/app-id": appId.toString(),
           "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
@@ -110,6 +151,39 @@ async function createJob({
                   },
                   { name: "DOCKER_CONFIG", value: "/creds" },
                   { name: "ROOT_DIRECTORY", value: config.rootDir },
+                  { name: "SECRET_CHECKSUM", value: secretHash },
+                  {
+                    name: "BUILDKIT_SECRET_DEFS",
+                    value: env
+                      .map(
+                        (envVar, i) =>
+                          `--secret id=${envVar.name.replaceAll('"', '\\"')},env=ANVILOPS_SECRET_${i}`,
+                      )
+                      .join(" "),
+                  },
+                  ...env.map((envVar, i) => ({
+                    name: `ANVILOPS_SECRET_${i}`,
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: secretName,
+                        key: envVar.name,
+                      },
+                    },
+                  })),
+                  // Railpack builder only
+                  ...(config.builder === "railpack"
+                    ? [
+                        {
+                          name: "RAILPACK_ENV_ARGS",
+                          value: env
+                            .map(
+                              (envVar) =>
+                                `--env ${envVar.name.replaceAll('"', '\\"')}=null`, // The value doesn't matter here - Railpack expects it, but only the name is used to create a secret reference.
+                            )
+                            .join(" "),
+                        },
+                      ]
+                    : []),
                   // Dockerfile builder only
                   ...(config.builder === "dockerfile"
                     ? [
@@ -161,6 +235,43 @@ async function createJob({
       },
     },
   });
+
+  if (env.length > 0) {
+    try {
+      await k8s.default.patchNamespacedSecret(
+        {
+          name: secretName,
+          namespace: "anvilops-dev",
+          body: {
+            metadata: {
+              ownerReferences: [
+                {
+                  apiVersion: "batch/v1",
+                  kind: "Job",
+                  name: jobName,
+                  uid: job?.metadata?.uid,
+                  controller: true, // Delete this secret automatically when the job is deleted
+                },
+              ],
+            },
+          },
+        },
+        setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+      );
+    } catch (e) {
+      try {
+        // The secret won't get cleaned up automatically when the build job does.
+        // Remove it manually now and throw an error.
+        await k8s.default.deleteNamespacedSecret({
+          name: secretName,
+          namespace: "anvilops-dev",
+        });
+      } catch {}
+      throw e;
+    }
+  }
+
+  return job;
 }
 
 export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
