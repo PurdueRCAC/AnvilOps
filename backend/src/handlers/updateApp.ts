@@ -253,15 +253,32 @@ export const updateApp: HandlerMap["updateApp"] = async (
   // Note: if the user is using the Git image source, the imageTag will be filled in later once the image is built.
   //       For now, we'll use the previous image tag because the new one won't be pushed if the build fails,
   //       which would make a new deployment fail if it were created from the template during this time.
-  await db.deploymentConfig.update({
-    where: { id: app.deploymentConfigTemplateId },
-    data: {
-      ...updatedConfig,
-      imageTag:
-        appConfig.source === "image"
-          ? updatedConfig.imageTag
-          : app.deploymentConfigTemplate.imageTag,
-    },
+  await db.$transaction(async (tx) => {
+    const config = await tx.deploymentConfig.create({
+      data: {
+        ...updatedConfig,
+        imageTag:
+          appConfig.source === "image"
+            ? updatedConfig.imageTag
+            : currentConfig.imageTag,
+      },
+      select: {
+        id: true,
+      },
+    });
+    await tx.app.update({
+      where: { id: app.id },
+      data: {
+        deploymentConfigTemplate: {
+          connect: {
+            id: config.id,
+          },
+        },
+      },
+    });
+    await tx.deploymentConfig.delete({
+      where: { id: currentConfig.id },
+    });
   });
 
   return json(200, res, {});
