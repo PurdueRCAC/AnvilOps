@@ -1551,11 +1551,12 @@ components:
                   type: integer
                   format: int64
               required: [type, id]
+        from:
+          type: integer
+          format: int64
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
-        - name
-        - appGroup
         - config
     DeploymentConfig:
       type: object
@@ -1603,6 +1604,7 @@ components:
             # Source options > Git repository
             dockerfilePath:
               type: string
+              nullable: true
             rootDir:
               type: string
             repositoryId:
@@ -1621,6 +1623,8 @@ components:
             builder:
               type: string
               enum: [dockerfile, railpack]
+            imageTag:
+              type: string
           required:
             [
               source,
