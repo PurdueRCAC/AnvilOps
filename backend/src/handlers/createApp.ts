@@ -10,6 +10,7 @@ import type {
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
+  validateAppGroup,
   validateDeploymentConfig,
   validateRFC1123,
   validateSubdomain,
@@ -30,6 +31,15 @@ export const createApp: HandlerMap["createApp"] = async (
     const validation = validateDeploymentConfig(appData);
     if (!validation.valid) {
       return json(400, res, { code: 400, message: validation.message });
+    }
+
+    const appGroupValidation = validateAppGroup(appData.appGroup);
+
+    if (!appGroupValidation.valid) {
+      return json(400, res, {
+        code: 400,
+        message: appGroupValidation.message,
+      });
     }
 
     const subdomainValidation = await validateSubdomain(appData.subdomain);

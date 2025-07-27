@@ -401,19 +401,26 @@ export const handlers = {
   > {
     try {
       const appId = ctx.request.params.appId;
-      const app = await db.app.findUnique({
-        where: { id: appId, org: { users: { some: { userId: req.user.id } } } },
-        include: {
-          deployments: {
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            include: { config: true },
+      const [app, deploymentCount] = await db.$transaction([
+        db.app.findUnique({
+          where: {
+            id: appId,
+            org: { users: { some: { userId: req.user.id } } },
           },
-          appGroup: true,
-          deploymentConfigTemplate: true,
-          org: true,
-        },
-      });
+          include: {
+            deployments: {
+              take: 1,
+              orderBy: { createdAt: "desc" },
+              include: { config: true },
+            },
+            appGroup: true,
+            deploymentConfigTemplate: true,
+            org: true,
+          },
+        }),
+        db.deployment.count({ where: { appId } }),
+      ]);
+
       if (!app) return json(404, res, {});
 
       const [{ repoId, repoURL }, k8sDeployment] = await Promise.all([
@@ -492,6 +499,7 @@ export const handlers = {
         activeDeployment: activeDeployment
           ? parseInt(activeDeployment)
           : undefined,
+        deploymentCount,
       });
     } catch (e) {
       console.error(e);

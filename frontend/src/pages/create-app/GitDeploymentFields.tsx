@@ -32,7 +32,17 @@ export const GitDeploymentFields = ({
   setState,
 }: {
   orgId?: number;
-  state: AppInfoFormData;
+  state: Pick<
+    AppInfoFormData,
+    | "builder"
+    | "repositoryId"
+    | "event"
+    | "eventId"
+    | "source"
+    | "branch"
+    | "rootDir"
+    | "dockerfilePath"
+  >;
   setState: React.Dispatch<React.SetStateAction<AppInfoFormData>>;
 }) => {
   const { builder, repositoryId, event, eventId, source } = state;

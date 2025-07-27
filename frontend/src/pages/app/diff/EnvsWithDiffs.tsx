@@ -1,18 +1,20 @@
 import { Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState, type Dispatch } from "react";
-import HelpTooltip from "./HelpTooltip";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { Input } from "./ui/input";
+import HelpTooltip from "@/components/HelpTooltip";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
 // TODO: show error message on duplicate env names
-export const EnvVarGrid = ({
+export const EnvsWithDiffs = ({
+  base,
   value: envVars,
   setValue: setEnvironmentVariables,
   fixedSensitiveNames,
 }: {
+  base: EnvVars;
   value: EnvVars;
   setValue: Dispatch<React.SetStateAction<EnvVars>>;
   fixedSensitiveNames: Set<string>;
@@ -41,6 +43,23 @@ export const EnvVarGrid = ({
       ]);
     }
   }, [envVars]);
+
+  const currentEnv = envVars.reduce(
+    (obj, current) => {
+      obj[current.name] = {
+        value: current.value,
+        isSensitive: current.isSensitive,
+      };
+      return obj;
+    },
+    {} as Record<string, { value: string | null; isSensitive: boolean }>,
+  );
+
+  const changedBaseVars = base.filter(
+    (envVar) =>
+      !(envVar.name in currentEnv) ||
+      envVar.value !== currentEnv[envVar.name].value,
+  );
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content_min-content] items-center gap-2">
@@ -125,7 +144,29 @@ export const EnvVarGrid = ({
           </Fragment>
         );
       })}
-      <p className="text-sm text-red-500 col-span-4">{error}</p>
+      <p className="text-sm text-red-500 col-span-5">{error}</p>
+      <p className="text-base text-black-4 col-span-5">
+        These variables will be removed:
+      </p>
+      <span className="text-sm text-black-4 col-span-2">Name</span>
+      <span className="text-sm text-black-4 col-span-1">Value</span>
+      <span className="text-sm text-black-4 col-span-1">Sensitive</span>
+      <span></span>
+      {changedBaseVars.map(({ name, value, isSensitive }, index) => (
+        <Fragment key={`base-${index}`}>
+          <Input disabled value={name} className="w-full bg-red-200 italic" />
+          <span className="text-xl align-middle w-fit">=</span>
+          <Input
+            disabled
+            value={value ?? "Hidden value"}
+            className="w-full bg-red-200 italic"
+          />
+          <div className="text-center">
+            <Checkbox className="size-6" disabled checked={isSensitive} />
+          </div>
+          <span></span>
+        </Fragment>
+      ))}
     </div>
   );
 };

@@ -6,7 +6,7 @@ import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { validateDeploymentConfig } from "../lib/validate.ts";
+import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
 import { buildAndDeploy, cancelAllOtherDeployments } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
@@ -18,16 +18,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
   const appConfig = appData.config;
-
-  {
-    const result = validateDeploymentConfig({
-      ...appConfig,
-      appGroup: appData.appGroup,
-    });
-    if (!result.valid) {
-      return json(400, res, { code: 400, message: result.message });
-    }
-  }
 
   const app = await db.app.findUnique({
     where: {
@@ -44,13 +34,24 @@ export const updateApp: HandlerMap["updateApp"] = async (
     return json(401, res, {});
   }
 
-  if (appConfig.source === "git") {
-    if (appConfig.event === "workflow_run" && !appConfig.eventId) {
-      return json(400, res, { code: 400, message: "Missing workflow id" });
+  const currentConfig = app.deploymentConfigTemplate;
+  const validation = validateDeploymentConfig(appData.config);
+  if (!validation.valid) {
+    return json(400, res, { code: 400, message: validation.message });
+  }
+
+  if (appData.appGroup) {
+    const appGroupValidation = validateAppGroup(appData.appGroup);
+
+    if (!appGroupValidation.valid) {
+      return json(400, res, {
+        code: 400,
+        message: appGroupValidation.message,
+      });
     }
   }
 
-  if (appData.appGroup.type === "add-to") {
+  if (appData.appGroup?.type === "add-to") {
     if (appData.appGroup.id !== app.appGroupId) {
       const originalGroupId = app.appGroupId;
       try {
@@ -79,7 +80,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
         }
       }
     }
-  } else {
+  } else if (appData.appGroup) {
     const originalGroupId = app.appGroupId;
     const name =
       appData.appGroup.type === "standalone"
@@ -117,14 +118,14 @@ export const updateApp: HandlerMap["updateApp"] = async (
 
   const secret = randomBytes(32).toString("hex");
 
-  const updatedDeploymentConfig: DeploymentConfigCreateInput = {
+  const updatedConfig: DeploymentConfigCreateInput = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(
       app.deploymentConfigTemplate.getPlaintextEnv(),
       appConfig.env,
     ),
     fieldValues: {
-      replicas: 1,
+      replicas: appConfig.replicas,
       port: appConfig.port,
       servicePort: 80,
       mounts: appConfig.mounts,
@@ -151,29 +152,25 @@ export const updateApp: HandlerMap["updateApp"] = async (
   };
 
   if (
-    appConfig.source === "git" &&
-    (!app.deploymentConfigTemplate.imageTag ||
-      appConfig.branch !== app.deploymentConfigTemplate.branch ||
-      appConfig.repositoryId !== app.deploymentConfigTemplate.repositoryId ||
-      appConfig.builder !== app.deploymentConfigTemplate.builder ||
-      appConfig.dockerfilePath !==
-        app.deploymentConfigTemplate.dockerfilePath ||
-      appConfig.rootDir !== app.deploymentConfigTemplate.rootDir)
+    updatedConfig.source === "GIT" &&
+    (!currentConfig.imageTag ||
+      updatedConfig.branch !== currentConfig.branch ||
+      updatedConfig.repositoryId !== currentConfig.repositoryId ||
+      updatedConfig.builder !== currentConfig.builder ||
+      updatedConfig.dockerfilePath !== currentConfig.dockerfilePath ||
+      updatedConfig.rootDir !== currentConfig.rootDir)
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
     const octokit = await getOctokit(app.org.githubInstallationId);
-    const repo = await getRepoById(
-      octokit,
-      updatedDeploymentConfig.repositoryId!,
-    );
+    const repo = await getRepoById(octokit, updatedConfig.repositoryId);
     try {
       const latestCommit = (
         await octokit.rest.repos.listCommits({
           per_page: 1,
           owner: repo.owner.login,
           repo: repo.name,
-          sha: appConfig.branch,
+          sha: updatedConfig.branch,
         })
       ).data[0];
 
@@ -183,7 +180,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
         imageRepo: app.imageRepo,
         commitSha: latestCommit.sha,
         commitMessage: latestCommit.commit.message, // TODO: get latest commit info
-        config: updatedDeploymentConfig,
+        config: updatedConfig,
         createCheckRun: false,
       });
 
@@ -201,18 +198,16 @@ export const updateApp: HandlerMap["updateApp"] = async (
       data: {
         config: {
           create: {
-            ...updatedDeploymentConfig,
+            ...updatedConfig,
             imageTag:
               // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
               // Use the one that the user specified or the most recent successful one.
-              updatedDeploymentConfig.imageTag ??
-              app.deploymentConfigTemplate.imageTag,
+              updatedConfig.imageTag ?? app.deploymentConfigTemplate.imageTag,
           },
         },
         status: "DEPLOYING",
         app: { connect: { id: app.id } },
-        commitHash: "Unknown",
-        commitMessage: "Redeploy of previous deployment",
+        commitMessage: "Update to deployment configuration",
         secret,
       },
       select: {
@@ -261,10 +256,10 @@ export const updateApp: HandlerMap["updateApp"] = async (
   await db.deploymentConfig.update({
     where: { id: app.deploymentConfigTemplateId },
     data: {
-      ...updatedDeploymentConfig,
+      ...updatedConfig,
       imageTag:
         appConfig.source === "image"
-          ? updatedDeploymentConfig.imageTag
+          ? updatedConfig.imageTag
           : app.deploymentConfigTemplate.imageTag,
     },
   });

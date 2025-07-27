@@ -9,7 +9,11 @@ const clientSecret = process.env.CLIENT_SECRET;
 const server = new URL("https://cilogon.org/.well-known/openid-configuration");
 const redirect_uri = process.env.CALLBACK_URL;
 
-const config = await client.discovery(server, clientID, clientSecret);
+let config: client.Configuration;
+const getConfig = async () => {
+  if (!config) config = await client.discovery(server, clientID, clientSecret);
+  return config;
+};
 const code_challenge_method = "S256";
 const scope = "openid email profile org.cilogon.userinfo";
 const allowedIdp = "https://idp.purdue.edu/idp/shibboleth";
@@ -30,6 +34,7 @@ router.get("/login", async (req, res) => {
     idp_hint: allowedIdp,
   };
 
+  const config = await getConfig();
   if (!config.serverMetadata().supportsPKCE()) {
     const nonce = client.randomNonce();
     (req.session as any).nonce = nonce;

@@ -45,15 +45,15 @@ export const ConfigTab = ({
           branch: app.config.branch,
           event: app.config.event,
           eventId: app.config.eventId?.toString() ?? undefined,
-          rootDir: app.config.rootDir,
-          dockerfilePath: app.config.dockerfilePath,
+          rootDir: app.config.rootDir ?? undefined,
+          dockerfilePath: app.config.dockerfilePath ?? undefined,
           builder: app.config.builder,
         }
       : {
-          imageTag: app.config.imageTag,
           dockerfilePath: "Dockerfile",
           builder: "railpack",
         }),
+    imageTag: app.config.imageTag,
   });
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
@@ -98,14 +98,26 @@ export const ConfigTab = ({
                 ? {
                     source: "git",
                     repositoryId: formState.repositoryId!,
-                    branch: formState.branch,
-                    builder: formState.builder,
+                    branch: formState.branch!,
                     rootDir: formState.rootDir!,
-                    dockerfilePath: formState.dockerfilePath!,
-                    event: formState.event!,
-                    eventId: formState.eventId
-                      ? parseInt(formState.eventId)
-                      : null,
+                    ...(formState.builder === "dockerfile"
+                      ? {
+                          builder: formState.builder,
+                          dockerfilePath: formState.dockerfilePath!,
+                        }
+                      : {
+                          builder: formState.builder,
+                          dockerfilePath: null,
+                        }),
+                    ...(formState.event === "push"
+                      ? {
+                          event: "push",
+                          eventId: null,
+                        }
+                      : {
+                          event: formState.event!,
+                          eventId: parseInt(formState.eventId!),
+                        }),
                   }
                 : {
                     source: "image",

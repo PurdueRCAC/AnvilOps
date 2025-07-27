@@ -1,3 +1,4 @@
+import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
 import { namespaceInUse } from "./cluster/kubernetes.ts";
 import {
@@ -11,13 +12,11 @@ export function validateDeploymentConfig(
     | components["schemas"]["GitDeploymentOptions"]
     | components["schemas"]["ImageDeploymentOptions"]
   ) &
-    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas"> & {
-      appGroup: components["schemas"]["NewApp"]["appGroup"];
-    },
+    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas">,
 ) {
   // TODO verify that the organization has access to the repository
 
-  const { source, env, mounts, port, appGroup } = data;
+  const { source, env, mounts, port } = data;
   if (source === "git") {
     const { builder, dockerfilePath, rootDir, event, eventId } = data;
     if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
@@ -58,30 +57,11 @@ export function validateDeploymentConfig(
     };
   }
 
-  if (env?.some((it) => !it.name || it.name.length === 0)) {
-    return {
-      valid: false,
-      message: "Some environment variable(s) are empty",
-    };
-  }
-
   if (port < 0 || port > 65535) {
     return {
       valid: false,
       message: "Invalid port number",
     };
-  }
-
-  if (appGroup.type === "create-new") {
-    if (
-      appGroup.name.length > MAX_GROUPNAME_LEN ||
-      appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
-    ) {
-      return {
-        valid: false,
-        message: "Invalid group name",
-      };
-    }
   }
 
   try {
@@ -95,8 +75,30 @@ export function validateDeploymentConfig(
   return { valid: true };
 }
 
+export const validateAppGroup = (
+  appGroup: components["schemas"]["NewApp"]["appGroup"],
+) => {
+  if (appGroup.type === "create-new") {
+    if (
+      appGroup.name.length > MAX_GROUPNAME_LEN ||
+      appGroup.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/) === null
+    ) {
+      return {
+        valid: false,
+        message: "Invalid group name",
+      };
+    }
+  }
+  return { valid: true };
+};
+
 export const validateEnv = (env: DeploymentJson.EnvVar[]) => {
+  if (env?.some((it) => !it.name || it.name.length === 0)) {
+    throw new Error("Some environment variable(s) are empty");
+  }
+
   const envNames = new Set();
+
   for (let envVar of env) {
     if (envNames.has(envVar.name)) {
       throw new Error("Duplicate environment variable " + envVar.name);

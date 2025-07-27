@@ -50,7 +50,7 @@ export const DeploymentView = () => {
         </h1>
         <div className="flex gap-4">
           <Status status={deployment.status} />
-          {deployment.config.source === "git" ? (
+          {deployment.config.source === "git" && deployment.commitHash ? (
             <a
               className="flex gap-1"
               href={`${app.repositoryURL}/commit/${deployment.commitHash}`}

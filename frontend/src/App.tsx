@@ -14,7 +14,6 @@ import { ImportRepoView } from "./pages/ImportRepoView";
 import LandingView from "./pages/LandingView";
 import NotFoundView from "./pages/NotFoundView";
 import OrgView from "./pages/OrgView";
-import UnavailableView from "./pages/UnavailableView";
 import CreateAppGroupView from "./pages/create-app/CreateAppGroupView";
 
 function App() {
@@ -73,7 +72,6 @@ function App() {
             }
           />
           <Route path="/organizations" element={<OrgView />} />
-          <Route path="/unavailable" element={<UnavailableView />} />
           <Route path="*" element={<NotFoundView />} />
         </Routes>
       </UserProvider>
