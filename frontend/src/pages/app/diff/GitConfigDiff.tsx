@@ -23,7 +23,7 @@ import {
   Hammer,
   Container,
 } from "lucide-react";
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import type { DeploymentConfigFormData } from "./AppConfigDiff";
 
 export const GitConfigDiff = ({
@@ -68,10 +68,7 @@ export const GitConfigDiff = ({
       },
     },
     {
-      enabled:
-        orgId !== undefined &&
-        state.repositoryId !== undefined &&
-        state.source === "git",
+      enabled: !!orgId && !!state.repositoryId && state.source === "git",
     },
   );
 
@@ -94,13 +91,6 @@ export const GitConfigDiff = ({
         state.event === "workflow_run",
     },
   );
-
-  useEffect(() => {
-    setState((prev) => ({
-      ...prev,
-      branch: branches?.default ?? branches?.branches?.[0],
-    }));
-  }, [branches]);
 
   const shouldDiffBranch =
     state.repositoryId && base.repositoryId === state.repositoryId;
@@ -274,7 +264,7 @@ export const GitConfigDiff = ({
             >
               <SelectValue
                 placeholder={
-                  branchesLoading && state.repositoryId !== undefined
+                  branchesLoading && state.repositoryId
                     ? "Loading..."
                     : "Select a branch"
                 }
@@ -593,7 +583,7 @@ export const GitConfigDiff = ({
                   disabled
                   value={base.dockerfilePath}
                   className={cn(
-                    "w-full",
+                    "w-full italic",
                     state.dockerfilePath &&
                       base.dockerfilePath !== state.dockerfilePath &&
                       "bg-red-200",
@@ -616,6 +606,7 @@ export const GitConfigDiff = ({
               className={cn(
                 "w-full",
                 base.builder === "dockerfile" &&
+                  state.dockerfilePath &&
                   base.dockerfilePath !== state.dockerfilePath &&
                   "bg-green-50",
               )}

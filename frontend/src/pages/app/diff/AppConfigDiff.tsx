@@ -375,7 +375,7 @@ export const AppConfigDiff = ({
                 <Input
                   name="postStart"
                   id="postStart"
-                  placeholder="echo Hello World"
+                  placeholder="(No command)"
                   className={cn(
                     "w-full",
                     (base.postStart || state.postStart) &&
@@ -402,7 +402,12 @@ export const AppConfigDiff = ({
               </div>
               <div className="flex items-center justify-around gap-8">
                 <Input
-                  className="w-full italic"
+                  className={cn(
+                    "w-full italic",
+                    (base.preStop || state.preStop) &&
+                      base.preStop !== state.preStop &&
+                      "bg-red-200",
+                  )}
                   value={base.preStop ?? "(No command specified)"}
                   disabled
                 />
@@ -412,8 +417,13 @@ export const AppConfigDiff = ({
                 <Input
                   name="preStop"
                   id="preStop"
-                  placeholder="echo Goodbye"
-                  className="w-full"
+                  placeholder="(No command)"
+                  className={cn(
+                    "w-full",
+                    (base.preStop || state.preStop) &&
+                      base.preStop !== state.preStop &&
+                      "bg-green-50",
+                  )}
                   value={state.preStop ?? ""}
                   onChange={(e) => {
                     const preStop = e.currentTarget.value;

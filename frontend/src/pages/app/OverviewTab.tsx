@@ -29,13 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   AppConfigDiff,
   type DeploymentConfigFormData,
 } from "./diff/AppConfigDiff";
 import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -103,13 +103,20 @@ export const OverviewTab = ({
     },
   );
 
+  const { mutateAsync: updateApp, isPending: isDeploying } = api.useMutation(
+    "put",
+    "/app/{appId}",
+  );
+
   const [redeployState, setRedeployState] = useState<{
     open: boolean;
+    radioValue: "useBuild" | "useConfig";
     configOpen: boolean;
     configState: DeploymentConfigFormData;
     id: number | undefined;
   }>({
     open: false,
+    radioValue: "useConfig",
     configOpen: false,
     configState: {
       replicas: "",
@@ -135,22 +142,34 @@ export const OverviewTab = ({
         ...rs,
         configState: {
           orgId: app.orgId,
-          ...pastDeployment.config,
           port: pastDeployment.config.port.toString(),
           replicas: pastDeployment.config.replicas.toString(),
+          env: pastDeployment.config.env,
           ...(pastDeployment.config.source === "git"
             ? {
+                source: "git",
                 builder: pastDeployment.config.builder,
+                event: pastDeployment.config.event,
                 eventId: pastDeployment.config.eventId?.toString() ?? undefined,
+                dockerfilePath:
+                  pastDeployment.config.dockerfilePath ?? undefined,
+                rootDir: pastDeployment.config.rootDir ?? undefined,
+                repositoryId: pastDeployment.config.repositoryId,
+                branch: pastDeployment.config.branch,
               }
             : {
+                source: "image",
                 builder: "dockerfile",
                 eventId: undefined,
+                branch: undefined,
+                dockerfilePath: undefined,
+                rootDir: undefined,
               }),
+          imageTag: pastDeployment.config.imageTag,
         },
       }));
     }
-  }, [pastDeploymentLoading]);
+  }, [pastDeploymentLoading, pastDeployment]);
 
   const id = app.config.source === "git" ? app.config.eventId : null;
   const workflow = useMemo(
@@ -204,31 +223,66 @@ export const OverviewTab = ({
           <DialogHeader>
             <DialogTitle>Reuse This Deployment</DialogTitle>
           </DialogHeader>
-          <form className="space-y-1">
+          <form
+            className="space-y-1"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const config = redeployState.configState;
+              await updateApp({
+                params: { path: { appId: app.id } },
+                body: {
+                  config: {
+                    replicas: parseInt(config.replicas),
+                    port: parseInt(config.port),
+                    env: config.env.filter((env) => env.name.length > 0),
+                    mounts: app.config.mounts,
+                    postStart: config.postStart,
+                    preStop: config.preStop,
+                    ...(config.source === "git" &&
+                    redeployState.radioValue === "useConfig"
+                      ? {
+                          source: "git",
+                          repositoryId: config.repositoryId!,
+                          rootDir: config.rootDir!,
+                          branch: config.branch,
+                          event: config.event!,
+                          eventId: config.eventId
+                            ? parseInt(config.eventId)
+                            : null,
+                          builder: config.builder,
+                          dockerfilePath: config.dockerfilePath!,
+                        }
+                      : {
+                          source: "image",
+                          imageTag: config.imageTag!,
+                        }),
+                  },
+                },
+              });
+              setRedeployState((rs) => ({ ...rs, open: false }));
+              refetchDeployments();
+            }}
+          >
             {!redeployState.configOpen ? (
               <>
-                <ul className="list-none space-y-2">
-                  <li>
-                    <Label>
-                      <Checkbox />
-                      Redeploy this version of the application
-                    </Label>
-                    {true && (
-                      <ul className="list-none ml-10 mt-2">
-                        <Label>
-                          <Checkbox />
-                          Also suspend automatic redeployments
-                        </Label>
-                      </ul>
-                    )}
-                  </li>
-                  <li>
-                    <Label>
-                      <Checkbox />
-                      <p>Reuse this configuration</p>
-                    </Label>
-                  </li>
-                </ul>
+                <RadioGroup
+                  value={redeployState.radioValue}
+                  onValueChange={(value) =>
+                    setRedeployState((rs) => ({
+                      ...rs,
+                      radioValue: value as "useBuild" | "useConfig",
+                    }))
+                  }
+                >
+                  <Label>
+                    <RadioGroupItem value="useBuild" />
+                    Redeploy this application build
+                  </Label>
+                  <Label>
+                    <RadioGroupItem value="useConfig" />
+                    Reuse this deployment configuration
+                  </Label>
+                </RadioGroup>
                 <Button
                   variant="secondary"
                   className="w-full font-bold my-2"
@@ -237,10 +291,17 @@ export const OverviewTab = ({
                     setRedeployState((s) => ({ ...s, configOpen: true }))
                   }
                 >
-                  Review configuration
+                  Review this deployment configuration
                 </Button>
                 <Button className="w-full" type="submit">
-                  Deploy
+                  {isDeploying ? (
+                    <>
+                      <Loader className="animate-spin" />
+                      Deploying...
+                    </>
+                  ) : (
+                    "Deploy"
+                  )}
                 </Button>
               </>
             ) : (
@@ -255,10 +316,15 @@ export const OverviewTab = ({
                       ? {
                           builder: app.config.builder,
                           eventId: app.config.eventId?.toString() ?? undefined,
+                          dockerfilePath:
+                            app.config.dockerfilePath ?? undefined,
+                          rootDir: app.config.rootDir ?? undefined,
                         }
                       : {
                           builder: "dockerfile",
                           eventId: undefined,
+                          dockerfilePath: undefined,
+                          rootDir: undefined,
                         }),
                   }}
                   state={redeployState.configState}
@@ -425,14 +491,15 @@ export const OverviewTab = ({
                   <td>
                     <button
                       className="cursor-pointer"
-                      onClick={() =>
+                      onClick={async () => {
                         setRedeployState((rs) => ({
                           open: true,
+                          radioValue: "useConfig",
                           configOpen: false,
                           configState: rs.configState,
                           id: d.id,
-                        }))
-                      }
+                        }));
+                      }}
                     >
                       <Undo2 className="text-black-2 hover:text-black-3" />
                     </button>

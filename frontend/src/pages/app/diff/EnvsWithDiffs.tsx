@@ -80,7 +80,7 @@ export const EnvsWithDiffs = ({
             <Input
               placeholder="NODE_ENV"
               required={index !== envVars.length - 1}
-              className="w-full"
+              className="w-full bg-green-50"
               disabled={isFixedSensitive}
               disabledTooltip={
                 <p>
@@ -107,7 +107,7 @@ export const EnvsWithDiffs = ({
             <label>
               <Input
                 placeholder={isFixedSensitive ? "Hidden value" : "production"}
-                className="w-full"
+                className="w-full bg-green-50"
                 value={value ?? ""}
                 onChange={(e) => {
                   const newList = structuredClone(envVars);

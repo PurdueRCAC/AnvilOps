@@ -1551,9 +1551,6 @@ components:
                   type: integer
                   format: int64
               required: [type, id]
-        from:
-          type: integer
-          format: int64
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
