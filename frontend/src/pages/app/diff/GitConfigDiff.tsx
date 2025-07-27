@@ -131,11 +131,11 @@ export const GitConfigDiff = ({
                     : null),
               )}
             >
-              <SelectValue placeholder="Loading..." />
+              <SelectValue placeholder="(No repository)" />
             </SelectTrigger>
             <SelectContent>
-              {!reposLoading && (
-                <SelectItem value={base.repositoryId!.toString()}>
+              {!reposLoading && base.repositoryId && (
+                <SelectItem value={base.repositoryId?.toString() ?? ""}>
                   {(() => {
                     const repo = repos?.find(
                       (repo) => repo.id === base.repositoryId,
@@ -223,7 +223,7 @@ export const GitConfigDiff = ({
         <div className="flex items-center gap-8">
           {shouldDiffBranch && (
             <>
-              <Select disabled value={base.branch}>
+              <Select disabled value={base?.branch}>
                 <SelectTrigger
                   className={cn(
                     "w-full",
@@ -232,10 +232,12 @@ export const GitConfigDiff = ({
                       "bg-red-200",
                   )}
                 >
-                  <SelectValue />
+                  <SelectValue placeholder="(No branch)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={base.branch!}>{base.branch}</SelectItem>
+                  {base.branch && (
+                    <SelectItem value={base.branch}>{base.branch}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               <div>
@@ -308,7 +310,7 @@ export const GitConfigDiff = ({
                     state.event && base.event !== state.event && "bg-red-200",
                   )}
                 >
-                  <SelectValue />
+                  <SelectValue placeholder="(No event)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="push">Push</SelectItem>
@@ -388,17 +390,14 @@ export const GitConfigDiff = ({
                         "bg-red-200",
                     )}
                   >
-                    <SelectValue placeholder="Loading..." />
+                    <SelectValue placeholder="(No workflow)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!workflowsLoading && (
-                      <SelectItem value={base.eventId!.toString()}>
-                        {
-                          workflows?.workflows?.find(
-                            (workflow) =>
-                              workflow.id.toString() === base.eventId,
-                          )?.name
-                        }
+                    {!workflowsLoading && base.eventId && (
+                      <SelectItem value={base.eventId.toString()}>
+                        {workflows?.workflows?.find(
+                          (workflow) => workflow.id.toString() === base.eventId,
+                        )?.name ?? "(No workflow)"}
                       </SelectItem>
                     )}
                   </SelectContent>
@@ -474,11 +473,12 @@ export const GitConfigDiff = ({
         <div className="flex items-center gap-8 mb-1">
           <Input
             disabled
-            value={base.rootDir}
+            value={base.rootDir ?? ""}
             className={cn(
               "w-full",
               base.rootDir !== state.rootDir && "bg-red-200",
             )}
+            placeholder="(No root directory)"
           />
           <div>
             <MoveRight />
@@ -588,6 +588,7 @@ export const GitConfigDiff = ({
                       base.dockerfilePath !== state.dockerfilePath &&
                       "bg-red-200",
                   )}
+                  placeholder="(No Dockerfile path)"
                 />
                 <div>
                   <MoveRight />

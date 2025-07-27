@@ -160,10 +160,6 @@ export const OverviewTab = ({
             : {
                 source: "image",
                 builder: "dockerfile",
-                eventId: undefined,
-                branch: undefined,
-                dockerfilePath: undefined,
-                rootDir: undefined,
               }),
           imageTag: pastDeployment.config.imageTag,
         },
