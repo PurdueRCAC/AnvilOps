@@ -5,6 +5,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
   ChevronLeft,
@@ -21,7 +22,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import {
   Dialog,
@@ -103,75 +103,77 @@ export const OverviewTab = ({
     },
   );
 
-  const { mutateAsync: updateApp, isPending: isDeploying } = api.useMutation(
-    "put",
-    "/app/{appId}",
+const { mutateAsync: updateApp, isPending: isDeploying } = api.useMutation(
+  "put",
+  "/app/{appId}",
+);
+
+const [redeployState, setRedeployState] = useState<{
+  open: boolean;
+  radioValue: "useBuild" | "useConfig";
+  configOpen: boolean;
+  configState: DeploymentConfigFormData;
+  id: number | undefined;
+}>({
+  open: false,
+  radioValue: "useConfig",
+  configOpen: false,
+  configState: {
+    replicas: "",
+    env: [],
+    source: "git",
+    builder: "dockerfile",
+    port: "",
+  },
+  id: undefined,
+});
+
+const { data: pastDeployment, isPending: pastDeploymentLoading } =
+  api.useQuery(
+    "get",
+    "/app/{appId}/deployments/{deploymentId}",
+    { params: { path: { appId: app.id, deploymentId: redeployState.id! } } },
+    { enabled: redeployState.open && !!redeployState.id },
   );
 
-  const [redeployState, setRedeployState] = useState<{
-    open: boolean;
-    radioValue: "useBuild" | "useConfig";
-    configOpen: boolean;
-    configState: DeploymentConfigFormData;
-    id: number | undefined;
-  }>({
-    open: false,
-    radioValue: "useConfig",
-    configOpen: false,
-    configState: {
-      replicas: "",
-      env: [],
-      source: "git",
-      builder: "dockerfile",
-      port: "",
-    },
-    id: undefined,
-  });
+useEffect(() => {
+  if (!pastDeploymentLoading && pastDeployment) {
+    setRedeployState((rs) => ({
+      ...rs,
+      configState: {
+        orgId: app.orgId,
+        port: pastDeployment.config.port.toString(),
+        replicas: pastDeployment.config.replicas.toString(),
+        env: pastDeployment.config.env,
+        ...(pastDeployment.config.source === "git"
+          ? {
+              source: "git",
+              builder: pastDeployment.config.builder,
+              event: pastDeployment.config.event,
+              eventId: pastDeployment.config.eventId?.toString() ?? undefined,
+              dockerfilePath:
+                pastDeployment.config.dockerfilePath ?? undefined,
+              rootDir: pastDeployment.config.rootDir ?? undefined,
+              repositoryId: pastDeployment.config.repositoryId,
+              branch: pastDeployment.config.branch,
+            }
+          : {
+              source: "image",
+              builder: "dockerfile",
+            }),
+        imageTag: pastDeployment.config.imageTag,
+      },
+    }));
+  }
+}, [pastDeploymentLoading, pastDeployment]);
 
-  const { data: pastDeployment, isPending: pastDeploymentLoading } =
-    api.useQuery(
-      "get",
-      "/app/{appId}/deployments/{deploymentId}",
-      { params: { path: { appId: app.id, deploymentId: redeployState.id! } } },
-      { enabled: redeployState.open && !!redeployState.id },
-    );
-
-  useEffect(() => {
-    if (!pastDeploymentLoading && pastDeployment) {
-      setRedeployState((rs) => ({
-        ...rs,
-        configState: {
-          orgId: app.orgId,
-          port: pastDeployment.config.port.toString(),
-          replicas: pastDeployment.config.replicas.toString(),
-          env: pastDeployment.config.env,
-          ...(pastDeployment.config.source === "git"
-            ? {
-                source: "git",
-                builder: pastDeployment.config.builder,
-                event: pastDeployment.config.event,
-                eventId: pastDeployment.config.eventId?.toString() ?? undefined,
-                dockerfilePath:
-                  pastDeployment.config.dockerfilePath ?? undefined,
-                rootDir: pastDeployment.config.rootDir ?? undefined,
-                repositoryId: pastDeployment.config.repositoryId,
-                branch: pastDeployment.config.branch,
-              }
-            : {
-                source: "image",
-                builder: "dockerfile",
-              }),
-          imageTag: pastDeployment.config.imageTag,
-        },
-      }));
-    }
-  }, [pastDeploymentLoading, pastDeployment]);
-
-  const id = app.config.source === "git" ? app.config.eventId : null;
-  const workflow = useMemo(
-    () => workflows?.workflows?.find((workflow) => workflow.id === id),
-    [workflows],
-  );
+const id = app.config.source === "git" ? app.config.eventId : null;
+const workflow = useMemo(() => {
+  if (app.config.source === "git") {
+    const id = app.config.eventId;
+    return workflows?.workflows?.find((workflow) => workflow.id === id);
+  }
+}, [workflows, app.config.source]);
 
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment

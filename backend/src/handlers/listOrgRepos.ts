@@ -1,7 +1,7 @@
-import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const listOrgRepos: HandlerMap["listOrgRepos"] = async (
   ctx,
