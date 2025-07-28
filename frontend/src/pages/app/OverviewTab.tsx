@@ -36,6 +36,7 @@ import {
 } from "./diff/AppConfigDiff";
 import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "sonner";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -214,7 +215,8 @@ export const OverviewTab = ({
         <DialogContent
           className={cn(
             "duration-300",
-            redeployState.configOpen && "h-5/6 overflow-auto sm:max-w-4xl",
+            redeployState.configOpen &&
+              "h-fit max-h-5/6 2xl:max-h-2/3 flex flex-col overflow-auto sm:max-w-4xl",
           )}
         >
           <DialogHeader>
@@ -225,37 +227,51 @@ export const OverviewTab = ({
             onSubmit={async (e) => {
               e.preventDefault();
               const config = redeployState.configState;
+              const res =
+                redeployState.radioValue === "useConfig"
+                  ? {
+                      replicas: parseInt(config.replicas),
+                      port: parseInt(config.port),
+                      env: config.env.filter((env) => env.name.length > 0),
+                      mounts: app.config.mounts,
+                      postStart: config.postStart,
+                      preStop: config.preStop,
+                      ...(config.source === "git"
+                        ? {
+                            source: "git" as "git",
+                            repositoryId: config.repositoryId!,
+                            rootDir: config.rootDir!,
+                            branch: config.branch,
+                            event: config.event!,
+                            eventId: config.eventId
+                              ? parseInt(config.eventId)
+                              : null,
+                            builder: config.builder,
+                            dockerfilePath: config.dockerfilePath!,
+                          }
+                        : {
+                            source: "image" as "image",
+                            imageTag: config.imageTag!,
+                          }),
+                    }
+                  : {
+                      ...app.config,
+                      replicas: app.config.replicas,
+                      port: app.config.port,
+                      env: app.config.env,
+                      mounts: app.config.mounts,
+                      postStart: app.config.postStart,
+                      preStop: app.config.preStop,
+                      source: "image" as "image",
+                      imageTag: config.imageTag!,
+                    };
               await updateApp({
                 params: { path: { appId: app.id } },
                 body: {
-                  config: {
-                    replicas: parseInt(config.replicas),
-                    port: parseInt(config.port),
-                    env: config.env.filter((env) => env.name.length > 0),
-                    mounts: app.config.mounts,
-                    postStart: config.postStart,
-                    preStop: config.preStop,
-                    ...(config.source === "git" &&
-                    redeployState.radioValue === "useConfig"
-                      ? {
-                          source: "git",
-                          repositoryId: config.repositoryId!,
-                          rootDir: config.rootDir!,
-                          branch: config.branch,
-                          event: config.event!,
-                          eventId: config.eventId
-                            ? parseInt(config.eventId)
-                            : null,
-                          builder: config.builder,
-                          dockerfilePath: config.dockerfilePath!,
-                        }
-                      : {
-                          source: "image",
-                          imageTag: config.imageTag!,
-                        }),
-                  },
+                  config: res,
                 },
               });
+              toast.success("App updated successfully!");
               setRedeployState((rs) => ({ ...rs, open: false }));
               refetchDeployments();
             }}
