@@ -166,7 +166,7 @@ export const OverviewTab = ({
         },
       }));
     }
-  }, [pastDeploymentLoading, pastDeployment]);
+  }, [pastDeploymentLoading, pastDeployment, redeployState.configOpen]);
 
   const workflow = useMemo(() => {
     if (app.config.source === "git") {
@@ -255,7 +255,6 @@ export const OverviewTab = ({
                           }),
                     }
                   : {
-                      ...app.config,
                       replicas: app.config.replicas,
                       port: app.config.port,
                       env: app.config.env,

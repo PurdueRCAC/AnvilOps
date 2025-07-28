@@ -121,34 +121,38 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8">
-          <Select required disabled value={base.repositoryId?.toString()}>
-            <SelectTrigger
-              className={cn(
-                "w-full",
-                state.repositoryId &&
-                  (base.repositoryId !== state.repositoryId
-                    ? "bg-red-200"
-                    : null),
-              )}
-            >
-              <SelectValue placeholder="(No repository)" />
-            </SelectTrigger>
-            <SelectContent>
-              {!reposLoading && base.repositoryId && (
-                <SelectItem value={base.repositoryId?.toString() ?? ""}>
-                  {(() => {
-                    const repo = repos?.find(
-                      (repo) => repo.id === base.repositoryId,
-                    );
-                    return `${repo?.owner}/${repo?.name}`;
-                  })()}
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          <div>
-            <MoveRight />
-          </div>
+          {base.source === "git" && (
+            <>
+              <Select required disabled value={base.repositoryId?.toString()}>
+                <SelectTrigger
+                  className={cn(
+                    "w-full",
+                    state.repositoryId &&
+                      (base.repositoryId !== state.repositoryId
+                        ? "bg-red-200"
+                        : null),
+                  )}
+                >
+                  <SelectValue placeholder="(No repository)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {!reposLoading && base.repositoryId && (
+                    <SelectItem value={base.repositoryId?.toString() ?? ""}>
+                      {(() => {
+                        const repo = repos?.find(
+                          (repo) => repo.id === base.repositoryId,
+                        );
+                        return `${repo?.owner}/${repo?.name}`;
+                      })()}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <div>
+                <MoveRight />
+              </div>
+            </>
+          )}
           <Select
             required
             name="repo"
@@ -165,7 +169,8 @@ export const GitConfigDiff = ({
             <SelectTrigger
               className={cn(
                 "w-full",
-                state.repositoryId &&
+                base.source === "git" &&
+                  state.repositoryId &&
                   base.repositoryId !== state.repositoryId &&
                   "bg-green-50",
               )}
@@ -471,18 +476,22 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8 mb-1">
-          <Input
-            disabled
-            value={base.rootDir ?? ""}
-            className={cn(
-              "w-full",
-              base.rootDir !== state.rootDir && "bg-red-200",
-            )}
-            placeholder="(No root directory)"
-          />
-          <div>
-            <MoveRight />
-          </div>
+          {base.source === "git" && (
+            <>
+              <Input
+                disabled
+                value={base.rootDir ?? ""}
+                className={cn(
+                  "w-full",
+                  base.rootDir !== state.rootDir && "bg-red-200",
+                )}
+                placeholder="(No root directory)"
+              />
+              <div>
+                <MoveRight />
+              </div>
+            </>
+          )}
           <Input
             value={state.rootDir}
             onChange={(e) => {
@@ -494,7 +503,9 @@ export const GitConfigDiff = ({
             placeholder="./"
             className={cn(
               "w-full",
-              base.rootDir !== state.rootDir && "bg-green-50",
+              base.source === "git" &&
+                base.rootDir !== state.rootDir &&
+                "bg-green-50",
             )}
             pattern="^\.\/.*$"
             autoComplete="off"
@@ -533,7 +544,7 @@ export const GitConfigDiff = ({
             htmlFor="builder-dockerfile"
             className={cn(
               "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
-              base.builder !== state.builder
+              base.source === "git" && base.builder !== state.builder
                 ? base.builder === "dockerfile"
                   ? "bg-red-100 hover:bg-red-200"
                   : "bg-green-50"
@@ -550,7 +561,7 @@ export const GitConfigDiff = ({
             htmlFor="builder-railpack"
             className={cn(
               "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
-              base.builder !== state.builder
+              base.source === "git" && base.builder !== state.builder
                 ? base.builder === "railpack"
                   ? "bg-red-100 hover:bg-red-200"
                   : "bg-green-50"
@@ -577,7 +588,7 @@ export const GitConfigDiff = ({
             </span>
           </Label>
           <div className="flex items-center gap-8">
-            {base.builder === "dockerfile" && (
+            {base.source === "git" && base.builder === "dockerfile" && (
               <>
                 <Input
                   disabled
@@ -606,7 +617,8 @@ export const GitConfigDiff = ({
               }}
               className={cn(
                 "w-full",
-                base.builder === "dockerfile" &&
+                base.source === "git" &&
+                  base.builder === "dockerfile" &&
                   state.dockerfilePath &&
                   base.dockerfilePath !== state.dockerfilePath &&
                   "bg-green-50",
