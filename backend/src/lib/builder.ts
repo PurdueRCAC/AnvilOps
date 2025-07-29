@@ -3,7 +3,6 @@ import { createHash, randomBytes } from "node:crypto";
 import type {
   App,
   Deployment,
-  DeploymentConfig,
   Organization,
 } from "../generated/prisma/client.ts";
 import { DeploymentConfigScalarFieldEnum } from "../generated/prisma/internal/prismaNamespace.ts";
@@ -23,13 +22,15 @@ export type CreateJobFromDeploymentInput = Parameters<
 async function createJobFromDeployment(
   deployment: Pick<Deployment, "id" | "commitHash" | "appId" | "secret"> & {
     config: Pick<
-      DeploymentConfig,
+      ExtendedDeploymentConfig,
       | "builder"
       | "dockerfilePath"
       | "imageTag"
       | "repositoryId"
       | "rootDir"
       | "env"
+      | "envKey"
+      | "getPlaintextEnv"
     >;
     app: Pick<App, "imageRepo"> & {
       org: Pick<Organization, "githubInstallationId">;
