@@ -520,46 +520,48 @@ export const OverviewTab = ({
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={4}>
-                <div className="flex justify-center items-center gap-5">
-                  <Button
-                    variant="outline"
-                    disabled={page == 0}
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page - 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <p className="text-black-2 text-center">
-                    Showing {page * pageLength + 1} to{" "}
-                    {Math.min(
-                      app.deploymentCount,
-                      page * pageLength + pageLength,
-                    )}{" "}
-                    of {app.deploymentCount}
-                  </p>
-                  <Button
-                    variant="outline"
-                    disabled={
-                      page * pageLength + pageLength >= app.deploymentCount
-                    }
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page + 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronRight />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          </tfoot>
+          {app.deploymentCount > pageLength && (
+            <tfoot>
+              <tr>
+                <td colSpan={4}>
+                  <div className="flex justify-center items-center gap-5">
+                    <Button
+                      variant="outline"
+                      disabled={page == 0}
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page - 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronLeft />
+                    </Button>
+                    <p className="text-black-2 text-center">
+                      Showing {page * pageLength + 1} to{" "}
+                      {Math.min(
+                        app.deploymentCount,
+                        page * pageLength + pageLength,
+                      )}{" "}
+                      of {app.deploymentCount}
+                    </p>
+                    <Button
+                      variant="outline"
+                      disabled={
+                        page * pageLength + pageLength >= app.deploymentCount
+                      }
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page + 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronRight />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       )}
     </>
