@@ -2,16 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import AppConfigFormFields, {
+  type AppInfoFormData,
+} from "@/pages/create-app/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
-import AppConfigFormFields, {
-  type AppInfoFormData,
-} from "@/pages/create-app/AppConfigFormFields";
-import type { App } from "./AppView";
 import { FormContext } from "../create-app/CreateAppView";
+import type { App } from "./AppView";
 
 export const ConfigTab = ({
   app,
@@ -174,7 +174,7 @@ export const ConfigTab = ({
           state={formState}
           setState={setFormState}
           defaults={{ config: app.config }}
-          hideSubdomainInput
+          isExistingApp
         />
       </FormContext>
       <Button className="mt-8 max-w-max" disabled={updatePending}>

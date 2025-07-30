@@ -8,9 +8,11 @@ import { Tooltip, TooltipContent } from "./ui/tooltip";
 export type Mounts = { path: string; amountInMiB: number }[];
 
 export const MountsGrid = ({
+  readonly = false,
   value: mounts,
   setValue: setMounts,
 }: {
+  readonly?: boolean;
   value: Mounts;
   setValue: Dispatch<React.SetStateAction<Mounts>>;
 }) => {
@@ -33,6 +35,7 @@ export const MountsGrid = ({
       {mounts.map(({ path, amountInMiB }, index) => (
         <Fragment key={index}>
           <Input
+            disabled={readonly}
             placeholder="/mnt/persistent/storage"
             required={index !== mounts.length - 1}
             className="w-full"
@@ -45,6 +48,7 @@ export const MountsGrid = ({
           />
           <span className="text-xl align-middle">:</span>
           <Input
+            disabled={readonly}
             placeholder="production"
             className="w-full"
             value={amountInMiB}
@@ -64,6 +68,7 @@ export const MountsGrid = ({
             <TooltipContent>Mebibytes; 1 MiB = 1,048,576 bytes</TooltipContent>
           </Tooltip>
           <Button
+            disabled={readonly}
             variant="secondary"
             type="button"
             onClick={() => {

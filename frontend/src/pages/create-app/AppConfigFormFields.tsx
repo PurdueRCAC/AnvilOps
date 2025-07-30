@@ -1,45 +1,45 @@
 import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { MountsGrid, type Mounts } from "@/components/MountsGrid";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { UserContext } from "@/components/UserProvider";
-import type { components } from "@/generated/openapi";
-import { api } from "@/lib/api";
-import { useDebouncedValue } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-} from "@/components/ui/select";
-import {
-  X,
-  Cable,
-  Tag,
-  Loader,
-  Link,
-  Code2,
-  Database,
-  Server,
-  Component,
-  Info,
-  Cog,
-  Terminal,
-  Minimize,
-} from "lucide-react";
-import { useContext, useMemo, useState, type Dispatch } from "react";
-import { GitHubIcon, SubdomainStatus } from "./CreateAppView";
-import { GitDeploymentFields } from "./GitDeploymentFields";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { UserContext } from "@/components/UserProvider";
+import type { components } from "@/generated/openapi";
+import { api } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/utils";
+import {
+  Cable,
+  Code2,
+  Cog,
+  Component,
+  Database,
+  Info,
+  Link,
+  Loader,
+  Minimize,
+  Server,
+  Tag,
+  Terminal,
+  X,
+} from "lucide-react";
+import { useContext, useMemo, useState, type Dispatch } from "react";
+import { GitHubIcon, SubdomainStatus } from "./CreateAppView";
+import { GitDeploymentFields } from "./GitDeploymentFields";
 
 export type AppInfoFormData = {
   name?: string;
@@ -68,13 +68,13 @@ type Env = { name: string; value: string | null; isSensitive: boolean }[];
 const AppConfigFormFields = ({
   state,
   setState,
-  hideSubdomainInput,
+  isExistingApp,
   hideGroupSelect,
   defaults,
 }: {
   state: AppInfoFormData;
   setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
-  hideSubdomainInput?: boolean;
+  isExistingApp?: boolean;
   hideGroupSelect?: boolean;
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
@@ -337,7 +337,7 @@ const AppConfigFormFields = ({
 
       <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
 
-      {!hideSubdomainInput && (
+      {!isExistingApp && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label className="pb-1" htmlFor="subdomain">
@@ -449,7 +449,7 @@ const AppConfigFormFields = ({
               <Code2 className="inline" size={16} /> Environment Variables
             </Label>
           </AccordionTrigger>
-          <AccordionContent>
+          <AccordionContent className="px-4">
             <EnvVarGrid
               value={env}
               setValue={(env) => {
@@ -478,13 +478,19 @@ const AppConfigFormFields = ({
               <Database className="inline" size={16} /> Volume Mounts
             </Label>
           </AccordionTrigger>
-          <AccordionContent>
-            <p className="opacity-50 text-sm">
+          <AccordionContent className="px-4">
+            {!!isExistingApp && (
+              <p className="col-span-full text-amber-600">
+                Volume mounts cannot be edited after an app has been created.
+              </p>
+            )}
+            <p className="opacity-50 text-sm mb-4">
               Preserve files contained at these paths across app restarts. All
               other files will be discarded. Every replica will get its own
               separate volume.
             </p>
             <MountsGrid
+              readonly={isExistingApp} // If we're in the Config tab of an existing application, mounts should not be editable. Kubernetes doesn't allow editing volumes after creating a StatefulSet, and we haven't implemented a workaround yet.
               value={mounts}
               setValue={(mounts) =>
                 setState((prev) => ({
@@ -502,7 +508,7 @@ const AppConfigFormFields = ({
               <Cog className="inline" size={16} /> Advanced
             </Label>
           </AccordionTrigger>
-          <AccordionContent className="space-y-10">
+          <AccordionContent className="space-y-10 px-4 mt-2">
             <div className="space-y-2">
               <div>
                 <Label className="pb-1" htmlFor="postStart">
