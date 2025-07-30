@@ -5,6 +5,7 @@ export const useEventSource = <T extends string>(
   eventNames: T[],
   onMessage: (eventName: T, message: MessageEvent) => void,
 ) => {
+  const [hasConnected, setHasConnected] = useState(false); // Whether a connection has been established before; true after the first connection is successfully opened
   const [connected, setConnected] = useState(false);
   const shouldOpen = useRef(true);
 
@@ -14,7 +15,10 @@ export const useEventSource = <T extends string>(
     console.log("Creating EventSource for", url.toString());
     const eventSource = new EventSource(url);
 
-    eventSource.onopen = () => setConnected(true);
+    eventSource.onopen = () => {
+      setConnected(true);
+      setHasConnected(true);
+    };
     eventSource.onerror = () => {
       setConnected(false);
       eventSource.close();
@@ -46,5 +50,5 @@ export const useEventSource = <T extends string>(
     };
   }, [url.toString()]);
 
-  return { connected };
+  return { connected, connecting: !connected && !hasConnected };
 };

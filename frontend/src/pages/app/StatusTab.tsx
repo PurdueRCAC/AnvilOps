@@ -38,7 +38,7 @@ export const StatusTab = ({
     components["schemas"]["AppStatus"] | null
   >(null);
 
-  const { connected } = useEventSource(
+  const { connecting, connected } = useEventSource(
     new URL(
       `${window.location.protocol}//${window.location.host}/api/app/${app.id}/status`,
     ),
@@ -81,7 +81,11 @@ export const StatusTab = ({
           </span>
         )}
       </h2>
-      {!connected ? (
+      {connecting ? (
+        <p className="flex items-center gap-2 text-sm mb-4">
+          <Loader className="animate-spin" /> Connecting...
+        </p>
+      ) : !connected ? (
         <p className="text-amber-600 flex items-center gap-2 text-sm mb-4">
           <AlertTriangle /> Disconnected. Status changes will not appear until
           the connection is re-established.
@@ -114,7 +118,7 @@ export const StatusTab = ({
         </div>
       )}
       {events?.map((event) => <EventInfo event={event} />)}
-      {!pods || pods.length === 0 ? (
+      {connecting ? null : !pods || pods.length === 0 ? (
         <div className="bg-gray-50 rounded-md p-4 my-4">
           <p className="flex items-center gap-2">
             <Container /> No Pods Found

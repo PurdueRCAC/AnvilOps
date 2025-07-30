@@ -1,6 +1,6 @@
 import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
-import { AlertTriangle, FileClock, SatelliteDish } from "lucide-react";
+import { AlertTriangle, FileClock, Loader, SatelliteDish } from "lucide-react";
 import { useState } from "react";
 
 type Deployment =
@@ -18,7 +18,7 @@ export const Logs = ({
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
   const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
 
-  const { connected } = useEventSource(
+  const { connecting, connected } = useEventSource(
     new URL(
       `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
     ),
@@ -50,7 +50,11 @@ export const Logs = ({
 
   return (
     <div className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-scroll">
-      {!connected ? (
+      {connecting ? (
+        <p className="flex items-center gap-2 text-sm">
+          <Loader className="animate-spin" /> Connecting...
+        </p>
+      ) : !connected ? (
         <p className="text-amber-600 flex items-center gap-2 text-sm mb-2">
           <AlertTriangle /> Disconnected. New logs will not appear until the
           connection is re-established.
@@ -83,7 +87,7 @@ export const Logs = ({
               : null}
           </p>
         </>
-      ) : (
+      ) : !connecting ? (
         <>
           <p className="flex gap-2 text-lg font-medium">
             <FileClock /> No Logs Found
@@ -94,7 +98,7 @@ export const Logs = ({
               : "Logs from your app will appear here."}
           </p>
         </>
-      )}
+      ) : null}
     </div>
   );
 };
