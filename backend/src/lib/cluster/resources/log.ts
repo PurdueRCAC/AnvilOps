@@ -72,7 +72,7 @@ export const createLogConfig = (
             tags: "time",
             timekey: "1s",
             timekey_wait: "0s",
-            flush_mode: "immediate",
+            flush_mode: "interval",
             flush_interval: "1s",
           },
         },
