@@ -107,12 +107,10 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       break;
     }
     case "push": {
-      handlePush(ctx, req, res, next);
-      break;
+      return await handlePush(ctx, req, res, next);
     }
     case "workflow_run": {
-      handleWorkflowRun(ctx, req, res, next);
-      break;
+      return await handleWorkflowRun(ctx, req, res, next);
     }
     default: {
       return json(422, res, {});

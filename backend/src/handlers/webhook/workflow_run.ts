@@ -19,11 +19,11 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
 
   const repoId = payload.repository?.id;
   if (!repoId) {
-    throw new Error("Repository ID not specified");
+    return json(400, res, { message: "Repository ID not specified" });
   }
 
   if (payload.action === "in_progress") {
-    return;
+    return json(200, res, {});
   }
 
   // Look up the connected apps
@@ -43,7 +43,7 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
   });
 
   if (linkedApps.length === 0) {
-    return;
+    return json(200, res, { message: "No matching apps found" });
   }
 
   // Filter for apps that deploy on when this workflow runs on this branch

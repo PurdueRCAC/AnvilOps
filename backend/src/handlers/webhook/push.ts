@@ -15,7 +15,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
 
   const repoId = payload.repository?.id;
   if (!repoId) {
-    throw new Error("Repository ID not specified");
+    return json(400, res, { message: "Repository ID not specified" });
   }
 
   // Look up the connected app and create a deployment job
@@ -35,7 +35,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
   });
 
   if (apps.length === 0) {
-    return;
+    return json(200, res, { message: "No matching apps found" });
   }
 
   for (const app of apps) {

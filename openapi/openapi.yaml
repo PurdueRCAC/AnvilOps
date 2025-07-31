@@ -225,6 +225,8 @@ paths:
       responses:
         "200":
           description: Success
+        "400":
+          description: Bad request
         "401":
           description: Signature was not found (X-Hub-Signature-256 header not present)
         "403":
