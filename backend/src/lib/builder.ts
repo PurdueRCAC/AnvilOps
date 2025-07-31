@@ -232,6 +232,7 @@ async function createJob({
                 secret: {
                   secretName: "image-push-secret",
                   defaultMode: 511,
+                  items: [{ key: ".dockerconfigjson", path: "config.json" }],
                 },
               },
             ],
