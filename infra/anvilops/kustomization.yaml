@@ -4,3 +4,4 @@ namespace: anvilops-dev
 resources:
   - harbor-receiver.yaml
   - imageupdate.yaml
+  - helm-release.yaml
