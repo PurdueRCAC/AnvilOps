@@ -61,7 +61,7 @@ router.get("/oauth_callback", async (req, res) => {
 
     const { sub, email, name, idp } = tokens.claims();
 
-    if (allowedIdps && allowedIdps.includes(idp.toString())) {
+    if (allowedIdps && !allowedIdps.includes(idp.toString())) {
       return res.status(401).redirect("/");
     }
     const existingUser = await db.user.findUnique({
