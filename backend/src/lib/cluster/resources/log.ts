@@ -1,3 +1,4 @@
+import { env } from "../../env.ts";
 import type { K8sObject } from "../resources.ts";
 
 /**
@@ -50,7 +51,7 @@ export const createLogConfig = (
       spec: {
         http: {
           // https://kube-logging.dev/docs/configuration/plugins/outputs/http/
-          endpoint: `https://anvilops.rcac.purdue.edu/api/logs/ingest?type=runtime&appId=${appId}`,
+          endpoint: `${env.CLUSTER_INTERNAL_BASE_URL}/api/logs/ingest?type=runtime&appId=${appId}`,
           auth: {
             username: {
               value: "anvilops",

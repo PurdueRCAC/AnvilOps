@@ -1,6 +1,7 @@
 import { PermissionLevel } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState, verifyState } from "./githubAppInstall.ts";
 
@@ -67,7 +68,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
     return redirect(
       302,
       res,
-      `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${newState}`,
+      `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${newState}`,
     );
 
     // When GitHub redirects back, we handle it in githubOAuthCallback.ts

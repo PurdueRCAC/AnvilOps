@@ -4,13 +4,14 @@ import type {
   AppGroup,
   Deployment,
 } from "../../generated/prisma/client.ts";
+import { env } from "../env.ts";
+import { k8s } from "./kubernetes.ts";
+import { createLogConfig } from "./resources/log.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
   type DeploymentParams,
 } from "./resources/statefulset.ts";
-import { createLogConfig } from "./resources/log.ts";
-import { k8s } from "./kubernetes.ts";
 
 const NAMESPACE_PREFIX = "anvilops-";
 export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
@@ -50,7 +51,7 @@ export const createNamespaceConfig = (
     metadata: {
       name: namespace,
       annotations: {
-        "field.cattle.io/projectId": `${process.env.PROJECT_NS}:${process.env.PROJECT_NAME}`,
+        "field.cattle.io/projectId": `${env.PROJECT_NS}:${env.PROJECT_NAME}`,
       },
     },
   };

@@ -9,6 +9,7 @@ import { DeploymentConfigScalarFieldEnum } from "../generated/prisma/internal/pr
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { k8s } from "./cluster/kubernetes.ts";
 import { db } from "./db.ts";
+import { env } from "./env.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
@@ -45,7 +46,7 @@ async function createJobFromDeployment(
     ref: deployment.commitHash,
     gitRepoURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
     imageTag: deployment.config.imageTag as ImageTag,
-    imageCacheTag: `registry.anvil.rcac.purdue.edu/anvilops/${deployment.app.imageRepo}:build-cache`,
+    imageCacheTag: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${deployment.app.imageRepo}:build-cache`,
     deploymentSecret: deployment.secret,
     appId: deployment.appId,
     deploymentId: deployment.id,
@@ -87,11 +88,11 @@ async function createJob({
   const secretName = `anvilops-temp-build-secrets-${appId}-${deploymentId}`;
   const jobName = `build-image-${tag}-${label}`;
 
-  const env = config.getPlaintextEnv();
+  const envVars = config.getPlaintextEnv();
 
-  if (env.length > 0) {
+  if (envVars.length > 0) {
     const map: Record<string, string> = {};
-    for (const { name, value } of env) {
+    for (const { name, value } of envVars) {
       map[name] = value;
     }
     await k8s.default.createNamespacedSecret({
@@ -106,11 +107,11 @@ async function createJob({
   }
 
   const secretHash = createHash("sha256")
-    .update(JSON.stringify(env))
+    .update(JSON.stringify(envVars))
     .digest("hex");
 
   const job = await k8s.batch.createNamespacedJob({
-    namespace: "anvilops-dev",
+    namespace: env.CURRENT_NAMESPACE,
     body: {
       metadata: {
         name: jobName,
@@ -135,7 +136,10 @@ async function createJob({
             containers: [
               {
                 name: "builder",
-                image: `registry.anvil.rcac.purdue.edu/anvilops/${config.builder}-builder:latest`,
+                image:
+                  config.builder === "dockerfile"
+                    ? env.DOCKERFILE_BUILDER_IMAGE
+                    : env.RAILPACK_BUILDER_IMAGE,
                 env: [
                   { name: "CLONE_URL", value: gitRepoURL },
                   { name: "REF", value: ref },
@@ -144,25 +148,25 @@ async function createJob({
                   { name: "DEPLOYMENT_API_SECRET", value: deploymentSecret },
                   {
                     name: "DEPLOYMENT_API_URL",
-                    value: "https://anvilops.rcac.purdue.edu/api",
+                    value: `${env.BASE_URL}/api`,
                   },
                   {
                     name: "BUILDKITD_ADDRESS",
-                    value: "tcp://buildkitd:1234",
+                    value: env.BUILDKITD_ADDRESS,
                   },
                   { name: "DOCKER_CONFIG", value: "/creds" },
                   { name: "ROOT_DIRECTORY", value: config.rootDir },
                   { name: "SECRET_CHECKSUM", value: secretHash },
                   {
                     name: "BUILDKIT_SECRET_DEFS",
-                    value: env
+                    value: envVars
                       .map(
                         (envVar, i) =>
                           `--secret id=${envVar.name.replaceAll('"', '\\"')},env=ANVILOPS_SECRET_${i}`,
                       )
                       .join(" "),
                   },
-                  ...env.map((envVar, i) => ({
+                  ...envVars.map((envVar, i) => ({
                     name: `ANVILOPS_SECRET_${i}`,
                     valueFrom: {
                       secretKeyRef: {
@@ -176,7 +180,7 @@ async function createJob({
                     ? [
                         {
                           name: "RAILPACK_ENV_ARGS",
-                          value: env
+                          value: envVars
                             .map(
                               (envVar) =>
                                 `--env ${envVar.name.replaceAll('"', '\\"')}=null`, // The value doesn't matter here - Railpack expects it, but only the name is used to create a secret reference.
@@ -225,7 +229,7 @@ async function createJob({
               {
                 name: "registry-credentials",
                 secret: {
-                  secretName: "registry-credentials",
+                  secretName: "image-push-secret",
                   defaultMode: 511,
                 },
               },
@@ -237,7 +241,7 @@ async function createJob({
     },
   });
 
-  if (env.length > 0) {
+  if (envVars.length > 0) {
     try {
       await k8s.default.patchNamespacedSecret(
         {
@@ -290,7 +294,7 @@ export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
       where: { id: deployment.id },
       data: { status: "QUEUED" },
     });
-    return await dequeueBuildJob();
+    return null;
   }
 
   console.log(
@@ -303,14 +307,14 @@ export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
 
 export async function cancelBuildJobsForApp(appId: number) {
   await k8s.batch.deleteCollectionNamespacedJob({
-    namespace: "anvilops-dev",
+    namespace: env.CURRENT_NAMESPACE,
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
   });
 }
 
 async function countActiveBuildJobs() {
   const jobs = await k8s.batch.listNamespacedJob({
-    namespace: "anvilops-dev",
+    namespace: env.CURRENT_NAMESPACE,
   });
 
   return jobs.items.filter((job) => job.status?.active).length;

@@ -2,15 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app-proxy
-  namespace: anvilops-dev
   labels:
     app: app-proxy
-    app.kubernetes.io/name: proxy-sandbox
-    app.kubernetes.io/instance: dev
-    app.kubernetes.io/version: 0.0.1
-    app.kubernetes.io/component: server
-    app.kubernetes.io/part-of: anvilops
-    app.kubernetes.io/managed-by: fluxcd
+    {{ include "anvilops.commonLabels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
@@ -23,7 +17,7 @@ spec:
     spec:
       containers:
         - name: app-proxy
-          image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
+          image: {{ .Values.appProxy.image }}
           ports:
             - containerPort: 80
           volumeMounts:

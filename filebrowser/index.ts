@@ -12,7 +12,7 @@ import { basename, extname, join } from "node:path";
 
 const port = 8080;
 const rootDir = "/files";
-const authToken = process.env.AUTH_TOKEN;
+const authToken = env.AUTH_TOKEN;
 
 const server = createServer(async (req, res) => {
   try {

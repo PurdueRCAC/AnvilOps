@@ -1,0 +1,37 @@
+{{ if .Values.appProxy.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "anvilops.fullname" . }}-sandbox-ingress
+  labels:
+    {{ include "anvilops.commonLabels" . | nindent 4 }}
+  {{- with .Values.anvilops.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.appProxy.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.appProxy.ingress.tls }}
+  tls:
+    {{- range .Values.appProxy.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.appProxy.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvilops.fullname" . }}-app-proxy-svc
+                port:
+                  number: {{ .Values.appProxy.ingress.port }}
+{{ end }}

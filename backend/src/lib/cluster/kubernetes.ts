@@ -10,6 +10,7 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
+import { env } from "../env.ts";
 import type { K8sObject } from "./resources.ts";
 
 const kc = new KubeConfig();
@@ -47,11 +48,14 @@ const resourceExists = async (data: K8sObject) => {
   }
 };
 
-const REQUIRED_LABELS = [
-  "field.cattle.io/projectId",
-  "field.cattle.io/resourceQuota",
-  "lifecycle.cattle.io/create.namespace-auth",
-];
+const REQUIRED_LABELS =
+  env["PROJECT_NS"] && env["PROJECT_NAME"]
+    ? [
+        "field.cattle.io/projectId",
+        "field.cattle.io/resourceQuota",
+        "lifecycle.cattle.io/create.namespace-auth",
+      ]
+    : [];
 const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
   await k8s.default.createNamespace({ body: namespace });
   for (let i = 0; i < 20; i++) {

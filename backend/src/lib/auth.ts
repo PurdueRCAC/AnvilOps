@@ -2,12 +2,13 @@ import express from "express";
 import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
 import { db } from "./db.ts";
+import { env, parseCsv } from "./env.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
-const clientID = process.env.CLIENT_ID;
-const clientSecret = process.env.CLIENT_SECRET;
+const clientID = env.CLIENT_ID;
+const clientSecret = env.CLIENT_SECRET;
 const server = new URL("https://cilogon.org/.well-known/openid-configuration");
-const redirect_uri = process.env.CALLBACK_URL;
+const redirect_uri = env.BASE_URL + "/api/oauth_callback";
 
 let config: client.Configuration;
 const getConfig = async () => {
@@ -16,7 +17,7 @@ const getConfig = async () => {
 };
 const code_challenge_method = "S256";
 const scope = "openid email profile org.cilogon.userinfo";
-const allowedIdp = "https://idp.purdue.edu/idp/shibboleth";
+const allowedIdps = parseCsv(env.ALLOWED_IDPS);
 
 const router = express.Router();
 
@@ -30,8 +31,8 @@ router.get("/login", async (req, res) => {
     scope,
     code_challenge,
     code_challenge_method,
-    selected_idp: allowedIdp,
-    idp_hint: allowedIdp,
+    selected_idp: process.env.ALLOWED_IDPS,
+    idp_hint: process.env.ALLOWED_IDPS,
   };
 
   const config = await getConfig();
@@ -60,7 +61,7 @@ router.get("/oauth_callback", async (req, res) => {
 
     const { sub, email, name, idp } = tokens.claims();
 
-    if (idp !== allowedIdp) {
+    if (allowedIdps && allowedIdps.includes(idp.toString())) {
       return res.status(401).redirect("/");
     }
     const existingUser = await db.user.findUnique({
@@ -120,6 +121,7 @@ const ALLOWED_ROUTES = [
   "/deployment/update",
   "/github/webhook",
   "/logs/ingest",
+  "/settings",
 ];
 router.use((req, res, next) => {
   if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {

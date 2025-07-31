@@ -16,7 +16,7 @@ Create a GitHub App with the following settings:
 | Request user authorization (OAuth) during installation | No                                                                                    | No                                                                                                          |
 | Setup URL                                              | http://localhost:5173/api/github/installation-callback                                | https://anvilops.rcac.purdue.edu/api/github/installation-callback                                           |
 | Webhook: Active                                        | Yes                                                                                   | Yes                                                                                                         |
-| Webhook URL                                            | See note below                                                                        | https://anvilops.rcac.purude.edu/api/github-webhook                                                         |
+| Webhook URL                                            | See note below                                                                        | https://anvilops.rcac.purude.edu/api/github/webhook                                                         |
 | Redirect on Update                                     | No                                                                                    | No                                                                                                          |
 
 Note on webhook URLs in development: To receive webhook payloads, you will need to create a publicly-accessible URL that forwards to your machine. The GitHub docs recommend using [`smee`](https://docs.github.com/en/apps/creating-github-apps/writing-code-for-a-github-app/building-a-github-app-that-responds-to-webhook-events#get-a-webhook-proxy-url) for this, or you could also use [`ngrok`](https://ngrok.com/) (account required).
@@ -25,9 +25,10 @@ Generate a random string for the webhook secret (e.g. `openssl rand -hex 32`). I
 
 Repository Permissions:
 
+- Actions: read-only
+- Administration: read and write (to import repos)
 - Checks: read and write
 - Contents: read and write
-- Administration: read and write (to import repos)
 - Deployments: read and write
 - Metadata: read-only
 
@@ -35,9 +36,11 @@ Leave all other permissions on "No access".
 
 Subscribe to events:
 
+- Meta
 - Push
 - Repository
-- Meta
+- Workflow dispatch
+- Workflow run
 
 After you create the app, copy the Client ID. In development, add it to `.env` as `GITHUB_CLIENT_ID`, and in production, add it to a key called `client-id` in the Secret you created earlier.
 
@@ -55,8 +58,9 @@ Finally, look at the URL in your browser. It should look something like this:
 
 Add them as environment variables:
 
-- `GITHUB_APP_NAME`: Your app name (derived from the display name that you entered while creating the app)
-- `GITHUB_BASE_URL`: The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
+- `GITHUB_APP_NAME` (in secret: `app-name`): Your app name (derived from the display name that you entered while creating the app)
+- `GITHUB_BASE_URL` (`base-url`): The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
+- `GITHUB_API_URL` (`api-url`): The URL of the GitHub API, including the protocol, with no trailing slash. For GitHub.com, this is `https://api.github.com`, but on GitHub Enterprise, it will likely be `https://<your GHES server>/api/v3`.
 
 ### CILogon
 
@@ -64,8 +68,9 @@ Environment variables:
 
 - `CLIENT_ID`
 - `CLIENT_SECRET`
+- `ALLOwED_IDPS`: Optional comma-separated list of EntityIDs for CILogon IDPs to allow, e.g. https://access-ci.org/idp,https://idp.purdue.edu/idp/shibboleth. See https://cilogon.org/idplist/ for more supported IDPs.
 - `SESSION_SECRET`: generate a random value, e.g. `openssl rand -hex 32`
-- `CALLBACK_URL`: the URL to redirect to after authorization, e.g. `http://localhost:3000/api/oauth_callback`
+- `BASE_URL`: the base URL of your AnvilOps deployment, e.g. http://localhost:3000 or https://anvilops.rcac.purdue.edu. When you set up CILogon, add "/api/oauth_callback" to this URL and use it as the OAuth callback URL.
 
 ### Postgres
 
@@ -89,7 +94,11 @@ A kubeconfig file is needed to manage resources through the Kubernetes API. Spec
 
 ### Registry API
 
-AnvilOps expects the environment variable `DELETE_REPO_USER` to be set to credentials of an account with repository delete permissions from the project containing apps on AnvilOps. The format is `user:password`, base64-encoded.
+AnvilOps expects environment variables to be set to credentials of an account with repository delete permissions from your Harbor project:
+
+- `DELETE_REPO_HOST`: the hostname of the registry
+- `DELETE_REPO_USERNAME`: the account's username (if you're using a robot account, which we recommend, make sure to include the `robot$<project name>+` prefix)
+- `DELETE_REPO_PASSWORD`: the account's password (if you're using a robot account, this is referred to as the account's secret in the Harbor UI)
 
 ## Running
 
@@ -103,3 +112,19 @@ The app will restart whenever you make changes to `index.ts`.
 In production, run `npm run start`.
 
 The server runs on port 3000 by default.
+
+## Generating and Running Database Migrations
+
+We use Prisma Migrate to handle database migrations. When you make a change to `prisma/schema.prisma`, create a migration:
+
+```sh
+npx prisma migrate dev --name $DESCRIPTIVE_MIGRATION_NAME
+```
+
+This will automatically create a SQL file at `prisma/migrations/(your migration name)/migration.sql` and apply the changes to the database (determined by the `DATABASE_URL` environment variable).
+
+In production, apply the changes like this:
+
+```sh
+npx prisma migrate deploy
+```

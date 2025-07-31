@@ -1,0 +1,9 @@
+dependencies:
+- name: logging-operator
+  repository: oci://ghcr.io/kube-logging/helm-charts
+  version: 5.4.0
+- name: harbor
+  repository: https://helm.goharbor.io
+  version: 1.16.4
+digest: sha256:40c3985a4f3d838456eb4bec3fe5086384ae7d3b58c9924f42465cc04ebf8912
+generated: "2025-07-09T13:26:19.44969807-04:00"

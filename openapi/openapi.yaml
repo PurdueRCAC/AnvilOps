@@ -13,6 +13,23 @@ tags:
   - name: app
     description: Operations about apps
 paths:
+  /settings:
+    get:
+      description: Get AnvilOps configuration
+      operationId: getSettings
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appDomain:
+                    type: string
+                    format: uri
+                  storageEnabled:
+                    type: boolean
   /login:
     get:
       tags:

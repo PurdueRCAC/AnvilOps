@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "anvilops.fullname" . }}-migrate-db
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 30
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: {{ .Values.anvilops.image }}
+          command: ["/bin/sh", "-c"]
+          env:
+            - name: POSTGRES_USER
+              value: anvilops
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: anvilops
+            - name: POSTGRES_HOSTNAME
+              value: anvilops-postgres
+          args: 
+            - |
+              export DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOSTNAME/$POSTGRES_DB"
+              npx prisma migrate deploy
+      restartPolicy: Never

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -57,7 +58,7 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
       // We need a user access token
       const redirectURL = `${req.protocol}://${req.host}/import-repo`;
       return json(200, res, {
-        url: `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
+        url: `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
       });
     }
   };
@@ -114,7 +115,7 @@ async function importRepoHandler(
     // We need to start over.
     const redirectURL = `${req.protocol}://${req.host}/import-repo`;
     return json(200, res, {
-      url: `${process.env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
+      url: `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
     });
   }
 

@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import { DeploymentStatus } from "@/components/DeploymentStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
@@ -53,6 +54,8 @@ export default function AppView() {
     setSearchParams(searchParams);
   };
 
+  const settings = useAppConfig();
+
   return (
     <main className="px-8 py-10 max-w-6xl mx-auto">
       <div className="mb-2 space-x-3">
@@ -79,7 +82,7 @@ export default function AppView() {
           <TabsTrigger value="configuration">
             <span>Configuration</span>
           </TabsTrigger>
-          {!!app.activeDeployment && (
+          {settings.storageEnabled && !!app.activeDeployment && (
             <>
               <TabsTrigger value="logs">
                 <span>Logs</span>

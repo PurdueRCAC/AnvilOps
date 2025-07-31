@@ -156,7 +156,7 @@ export const StatusTab = ({
                         deleting it. Pods will only be removed when they are
                         running successfully, so if you made a configuration
                         change that fixes a crash loop, you will need to delete
-                        this pod.
+                        this pod for the change to take effect.
                       </p>
                       <Button
                         variant="destructive"

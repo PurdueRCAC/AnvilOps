@@ -2,6 +2,7 @@ import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { k8s } from "./cluster/kubernetes.ts";
+import { env } from "./env.ts";
 
 export async function forwardRequest(
   namespace: string,
@@ -73,7 +74,7 @@ async function getFileBrowserAddress(
               containers: [
                 {
                   name: "builder",
-                  image: `registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest`,
+                  image: env.FILE_BROWSER_IMAGE,
                   imagePullPolicy: "Always",
                   volumeMounts: [
                     {

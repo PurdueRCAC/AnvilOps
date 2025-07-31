@@ -1,0 +1,222 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anvilops.fullname" . }}
+  labels:
+    {{- include "anvilops.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.anvilops.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "anvilops.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.anvilops.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+        config/postgres-creds-sum: {{ include (print $.Template.BasePath "/secrets/postgres-credentials.yaml") . | sha256sum }}
+        config/log-ingest-secret-sum: {{ include (print $.Template.BasePath "/secrets/log-ingest-secret.yaml") . | sha256sum }}
+      {{- end }}
+      labels:
+        {{- include "anvilops.labels" . | nindent 8 }}
+        {{- with .Values.anvilops.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.anvilops.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with "anvilops.serviceAccount.name" }}
+      serviceAccountName: {{ . }}
+      {{- end }}
+      {{- with .Values.anvilops.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.anvilops.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.anvilops.image | quote }}
+          imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: ca-cert
+              mountPath: /etc/ssl/certs
+              readOnly: true
+            {{- with .Values.anvilops.serviceAccount.secretName }}
+            - name: kube-auth
+              mountPath: /opt/creds
+              readOnly: true
+            {{- end }}
+          {{- with .Values.anvilops.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/ssl/certs/anvilops-tls.crt
+            - name: POSTGRES_USER
+              value: anvilops
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: anvilops
+            - name: POSTGRES_HOSTNAME
+              value: anvilops-postgres
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-id
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cilogon-credentials
+                  key: client-secret
+            {{- with .Values.anvilops.env.allowedIdps }}
+            - name: ALLOWED_IDPS
+              value: {{ . | quote }}
+            {{- end }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: session-secret
+                  key: secret
+            - name: BASE_URL
+              value: {{ .Values.anvilops.env.baseURL }}
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: webhook-secret
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: client-id
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: app-id
+            - name: GITHUB_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: private-key
+            - name: GITHUB_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: base-url
+            - name: GITHUB_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: api-url
+            - name: GITHUB_APP_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: app-name
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: client-secret
+            - name: PROJECT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-name
+                  optional: true
+            - name: PROJECT_NS
+              valueFrom:
+                secretKeyRef:
+                  name: app-config
+                  key: project-ns
+                  optional: true
+            - name: FIELD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: field-encryption-key
+            - name: DELETE_REPO_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: image-delete-secret
+                  key: server
+            - name: DELETE_REPO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: image-delete-secret
+                  key: username
+            - name: DELETE_REPO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: image-delete-secret
+                  key: password
+            - name: BUILD_LOGGING_INGEST_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: logging-ingest-secret
+                  key: secret
+            {{- with .Values.anvilops.serviceAccount.secretName }}
+            - name: KUBECONFIG
+              value: "/opt/creds/kubeconfig"
+            {{- end }}
+            - name: CURRENT_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: REGISTRY_HOSTNAME
+              value: {{ .Values.harbor.expose.ingress.hosts.core }}
+            - name: CLUSTER_INTERNAL_BASE_URL
+              value: "http://{{ include "anvilops.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: STORAGE_CLASS_NAME
+              value: {{ .Values.tenants.storageClassName }}
+            - name: STORAGE_ACCESS_MODES
+              value: {{ join "," .Values.tenants.accessModes }}
+            - name: APP_DOMAIN
+              value: {{ .Values.anvilops.env.appDomain }}
+            - name: HARBOR_PROJECT_NAME
+              value: {{ .Values.anvilops.env.harborProjectName }}
+            - name: BUILDKITD_ADDRESS
+              value: {{ .Values.buildkitd.address }}
+      volumes:
+        - name: ca-cert
+          secret:
+            secretName: root-ca-cert
+            optional: true
+            items:
+              - key: tls.crt
+                path: anvilops-tls.crt
+      {{- with .Values.anvilops.serviceAccount.secretName }}
+        - name: kube-auth
+          secret:
+            secretName: {{ . }}
+            optional: false
+            items:
+              - key: kubeconfig
+                path: kubeconfig
+      {{- end }}
+      {{- with .Values.anvilops.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.anvilops.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.anvilops.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

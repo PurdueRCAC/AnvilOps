@@ -18,6 +18,7 @@ import {
 import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import {
   getInstallationAccessToken,
   getOctokit,
@@ -26,7 +27,7 @@ import {
 import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
 
-const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET });
+const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
 
 export const githubWebhook: HandlerMap["githubWebhook"] = async (
   ctx,
@@ -322,7 +323,7 @@ export async function generateCloneURLWithCredentials(
 ) {
   const url = URL.parse(originalURL);
 
-  if (url.host !== URL.parse(process.env.GITHUB_BASE_URL).host) {
+  if (url.host !== URL.parse(env.GITHUB_BASE_URL).host) {
     // If the target is on a different GitHub instance, don't add credentials!
     return originalURL;
   }
@@ -357,7 +358,7 @@ export async function buildAndDeploy({
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
-      : (`registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const);
+      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${commitSha}` as const);
   const secret = randomBytes(32).toString("hex");
 
   const deployment = await db.deployment.create({
@@ -466,7 +467,7 @@ async function buildAndDeployFromRepo({
           head_sha: deployment.commitHash,
           name: "AnvilOps",
           status: "in_progress",
-          details_url: `https://anvilops.rcac.purdue.edu/app/${deployment.appId}/deployment/${deployment.id}`,
+          details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
           owner: opts.owner,
           repo: opts.repo,
         });
@@ -535,7 +536,7 @@ async function createPendingWorkflowDeployment({
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
-      : (`registry.anvil.rcac.purdue.edu/anvilops/${imageRepo}:${commitSha}` as const);
+      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${commitSha}` as const);
 
   const deployment = await db.deployment.create({
     data: {
@@ -573,7 +574,7 @@ async function createPendingWorkflowDeployment({
         head_sha: deployment.commitHash,
         name: "AnvilOps",
         status: "queued",
-        details_url: `https://anvilops.rcac.purdue.edu/app/${deployment.appId}/deployment/${deployment.id}`,
+        details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
         owner: opts.owner,
         repo: opts.repo,
       });

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 
 /**
@@ -59,7 +60,7 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   return redirect(
     302,
     res,
-    `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
+    `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
   );
 
   // When GitHub redirects back, we handle it in githubInstallCallback.ts

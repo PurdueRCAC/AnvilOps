@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -58,6 +59,8 @@ export default function CreateAppView() {
     );
   }, [user, formState.orgId]);
 
+  const config = useAppConfig();
+
   return (
     <div className="flex max-w-prose mx-auto">
       <form
@@ -90,11 +93,23 @@ export default function CreateAppView() {
                 appGroup = { type: "add-to", id: formState.groupId! };
                 break;
             }
+
+            let subdomain = formState.subdomain;
+
+            if (!formState.subdomain && config.appDomain === undefined) {
+              // Generate a subdomain value to be used as the namespace name
+              // This should only happen if the APP_DOMAIN environment variable is missing and no publicly-available domain is known to expose users' apps on subdomains. In that case, we hide the subdomain field because it's irrelevant.
+              subdomain =
+                appName.replaceAll(/[^a-zA-Z0-9-_]/g, "_") +
+                "-" +
+                Math.floor(Math.random() * 10_000);
+            }
+
             const result = await createApp({
               body: {
                 orgId: formState.orgId!,
                 name: appName,
-                subdomain: formState.subdomain!,
+                subdomain: subdomain,
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),

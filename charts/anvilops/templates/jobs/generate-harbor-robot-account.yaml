@@ -1,0 +1,274 @@
+{{- if .Values.harbor.install -}}
+# (^ this job should only run if we're installing Harbor automatically instead of using an existing installation)
+# This Job needs to be able to read and write secrets in the Helm installation's namespace.
+# Helm should delete the authentication resources that we create here (ServiceAccount, Role, and RoleBinding) after the hook completes.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "anvilops.fullname" . }}-harbor-robot-setup-sa
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-2" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "anvilops.fullname" . }}-harbor-robot-setup-role
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-2" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["secrets"]
+  resourceNames: ["image-pull-secret", "image-push-secret", "image-delete-secret", "{{ .Values.harbor.existingSecretAdminPassword }}"]
+  verbs: ["get", "list", "patch", "delete"]
+- apiGroups: ["apps"] # Allow the service account to restart the Harbor core deployment
+  resources: ["deployments"]
+  resourceNames: ["{{ include "anvilops.fullname" . }}-harbor-core"]
+  verbs: ["get", "patch", "update"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "anvilops.fullname" . }}-harbor-robot-setup-rb
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-1" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "anvilops.fullname" . }}-harbor-robot-setup-sa
+  namespace: {{ .Release.Namespace }}
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: {{ include "anvilops.fullname" . }}-harbor-robot-setup-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "anvilops.fullname" . }}-setup-harbor-creds
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 30
+  template:
+    spec:
+      serviceAccountName: {{ include "anvilops.fullname" . }}-harbor-robot-setup-sa
+      initContainers:
+      # When deploying Harbor from its Helm chart, for some reason, the default admin password is always Harbor12345, even if we specify the `existingSecretAdminPassword` value.
+      # We can work around this by resetting the password in the database and then restarting the Harbor Core pod, which causes the password to be set to the default (the one that we specify, not Harbor12345).
+      - name: force-reset-admin-password
+        image: postgres:17@sha256:3962158596daaef3682838cc8eb0e719ad1ce520f88e34596ce8d5de1b6330a1
+        command: ["/bin/sh", "-c"]
+        env:
+          - name: POSTGRESQL_USERNAME
+            value: anvilops
+          - name: POSTGRESQL_PORT
+            value: "5432"
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-credentials
+                key: password
+          - name: POSTGRESQL_DATABASE
+            value: anvilops
+          - name: POSTGRESQL_HOST
+            value: anvilops-postgres
+        args:
+          - |
+            set -eu
+
+            # Wait for Harbor's Postgres instance to start up
+            while true; do
+              if pg_isready -h "$POSTGRESQL_HOST" -p "$POSTGRESQL_PORT" -U "$POSTGRESQL_USERNAME" -d "$POSTGRESQL_DATABASE"; then
+                break
+              else
+                echo "Postgres is not ready yet. Trying again in 3 seconds."
+                sleep 3
+              fi
+            done
+
+            # Reset the admin password just in case it doesn't match the value we specified in our `harbor-admin-password` secret
+            echo "update harbor_user set salt='', password='' where user_id = 1;" | psql "postgresql://$POSTGRESQL_USERNAME:$POSTGRESQL_PASSWORD@$POSTGRESQL_HOST:$POSTGRESQL_PORT/$POSTGRESQL_DATABASE"
+      - name: wait-for-harbor
+        image: badouralix/curl-jq:ubuntu@sha256:5feb2e6963a5b64281d7c504f1bd5efec994d9b5571924b6eb204b6ea9c8df2a # an image with `curl` and `jq` preinstalled
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euxo pipefail
+
+          # Wait for Harbor to start up if it hasn't already. We want to be completely sure that we're restarting Harbor (in the next step) so that it resets the password.
+          HARBOR_URL="http://{{ include "anvilops.fullname" . }}-harbor-core.{{ .Release.Namespace }}.svc.cluster.local"
+          curl -v --retry-connrefused --retry 20 "$HARBOR_URL/api/v2.0/health"
+      - name: restart-harbor-pod
+        image: bitnami/kubectl:1.33.2@sha256:e706851b19c0c4e668614b7c5a6b0c5bbcfbe7fb73f5d999250e0da8bfff42c6
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -eu
+          # Restart Harbor to force the admin password to update
+          kubectl rollout restart deployment {{ include "anvilops.fullname" . }}-harbor-core
+      - name: get-admin-password
+        image: bitnami/kubectl:1.33.2@sha256:e706851b19c0c4e668614b7c5a6b0c5bbcfbe7fb73f5d999250e0da8bfff42c6
+        command: ["/bin/sh", "-c"]
+        volumeMounts:
+          - name: data
+            mountPath: /work
+        workingDir: /work
+        args:
+        - |
+          set -eu
+          # Grab the Harbor administrator user's password for later
+          PASSWORD=$(kubectl get secret -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' {{ .Values.harbor.existingSecretAdminPassword }} | base64 -d)
+          printf '%s' $PASSWORD > password.txt
+      - name: create-robot-account
+        image: badouralix/curl-jq:ubuntu@sha256:5feb2e6963a5b64281d7c504f1bd5efec994d9b5571924b6eb204b6ea9c8df2a # an image with `curl` and `jq` preinstalled
+        command: ["/bin/bash", "-c"]
+        volumeMounts:
+          - name: data
+            mountPath: /work
+        workingDir: /work
+        args:
+        - |
+          set -euo pipefail
+          set -o errtrace
+
+          # Generate a Harbor robot account
+          mkdir -p contents
+
+          ADMIN_USERNAME="admin"
+          ADMIN_PASSWORD=$(cat password.txt) # Receive password from previous step
+          PROJECT_NAME="anvilops"
+
+          HARBOR_URL="http://{{ include "anvilops.fullname" . }}-harbor-core.{{ .Release.Namespace }}.svc.cluster.local"
+
+          request () {
+            curl -u $ADMIN_USERNAME:$ADMIN_PASSWORD -s "$@"
+          }
+
+          # Wait until Harbor accepts connections
+          while true; do
+            STATUS=$(request --retry-connrefused --retry 20 "$HARBOR_URL/api/v2.0/health" | jq -r '.status')
+            if [ "$STATUS" == "healthy" ]; then
+              echo "Harbor is ready"
+              break
+            else
+              echo "Waiting for Harbor to be healthy"
+              sleep 3
+            fi
+          done
+
+          # Check if the project exists
+          STATUS_CODE=$(request --head -w "%{http_code}" -o /dev/null "$HARBOR_URL/api/v2.0/projects?project_name=$PROJECT_NAME")
+          echo "Project check: Harbor returned $STATUS_CODE"
+
+          if [ "$STATUS_CODE" -ne 200 ]; then
+            if [ "$STATUS_CODE" -eq 401 ]; then
+              echo "Unauthorized to access Harbor registry. The admin password has likely changed since the registry was created. If this is your first time setting up AnvilOps, try deleting Harbor's persistent volumes."
+              exit 1
+            fi
+
+            echo "Creating Harbor project"
+            # 200 means the project already exists. If it doesn't exist, we need to create it.
+
+            # Create the project
+            request -X POST -H 'Content-Type: application/json' -d '{
+              "project_name": "'"$PROJECT_NAME"'",
+              "public": false
+            }' "$HARBOR_URL/api/v2.0/projects"
+          else
+            echo "Harbor project already exists"
+          fi
+
+          # 1st argument: the robot's name
+          delete_robot () {
+            ROBOT_IDS=$(request "$HARBOR_URL/api/v2.0/projects/$PROJECT_NAME/robots?q=name%3D~$1&page=1&page_size=10" | jq -r 'map (.id) | join(" ")')
+            for ROBOT in $ROBOT_IDS; do
+              echo "Deleting existing robot with name $1 and ID $ROBOT"
+              request -X DELETE "$HARBOR_URL/api/v2.0/robots/$ROBOT"
+            done
+          }
+
+          # 1st argument: the robot's name
+          create_robot () {
+            # Delete the account if it already exists so that this job is idempotent
+            delete_robot "$1" || true
+
+            echo "Creating new robot $1"
+            ROBOT=$(request -X POST -H 'Content-Type: application/json' -d '{
+              "level": "project",
+              "disabled": "false",
+              "name": "'"$1"'",
+              "description": "'"$2"'",
+              "duration": -1,
+              "permissions": [{
+              "access": '"$3"',
+              "kind": "project",
+              "namespace": "'"$PROJECT_NAME"'"
+              }]
+            }' "$HARBOR_URL/api/v2.0/robots")
+
+            mkdir -p "$1"
+            printf '%s' "$(echo "$ROBOT" | jq -r .name)" > ./"$1"/username
+            printf '%s' "$(echo "$ROBOT" | jq -r .secret)" > ./"$1"/secret
+          }
+
+          create_robot "anvilops-puller" "Pulls images from AnvilOps tenant deployments" '[{"resource": "repository", "action": "pull"}]'
+          create_robot "anvilops-pusher" "Pushes images from new AnvilOps builds" '[{"resource": "repository", "action": "pull"},{"resource": "repository", "action": "push"}]'
+          create_robot "anvilops-deleter" "Cleans up images after AnvilOps projects are deleted" '[{"resource": "repository", "action": "delete"}]'
+          echo "Robot accounts created successfully"
+      - name: create-secrets
+        image: bitnami/kubectl:1.33.2@sha256:e706851b19c0c4e668614b7c5a6b0c5bbcfbe7fb73f5d999250e0da8bfff42c6
+        command: ["/bin/sh", "-c"]
+        volumeMounts:
+          - name: data
+            mountPath: /work
+        workingDir: /work
+        args:
+        - |
+          set -eu
+          # Use the generated robot account credentials to create or recreate secrets in the cluster
+
+          kubectl delete secret -n {{ .Release.Namespace }} --ignore-not-found image-pull-secret
+          kubectl create secret -n {{ .Release.Namespace }} docker-registry image-pull-secret --docker-server={{ .Values.harbor.expose.ingress.hosts.core }} --docker-username=$(cat anvilops-puller/username) --docker-password=$(cat anvilops-puller/secret)
+          
+          kubectl delete secret -n {{ .Release.Namespace }} --ignore-not-found image-push-secret
+          kubectl create secret -n {{ .Release.Namespace }} docker-registry image-push-secret --docker-server={{ .Values.harbor.expose.ingress.hosts.core }} --docker-username=$(cat anvilops-pusher/username) --docker-password=$(cat anvilops-pusher/secret)
+          
+          kubectl delete secret -n {{ .Release.Namespace }} --ignore-not-found image-delete-secret
+          kubectl create secret -n {{ .Release.Namespace }} generic image-delete-secret --from-literal=server={{ .Values.harbor.expose.ingress.hosts.core }} --from-literal=username=$(cat anvilops-deleter/username) --from-literal=password=$(cat anvilops-deleter/secret)
+
+      containers: # We're only using initContainers because they run sequentially. We need create-robot-account to complete before create-secrets starts.
+        - name: finish-job
+          image: busybox:1.37.0@sha256:f85340bf132ae937d2c2a763b8335c9bab35d6e8293f70f606b9c6178d84f42b
+          command: ["/bin/sh", "-c"]
+          args: ["exit 0"]
+      restartPolicy: Never
+      volumes:
+        - name: data
+          emptyDir: {}
+
+{{- end }}

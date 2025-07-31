@@ -1,0 +1,131 @@
+# This Job needs to be able to read and write secrets in the Helm installation's namespace.
+# Helm should delete the authentication resources that we create here (ServiceAccount, Role, and RoleBinding) after the hook completes.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "anvilops.fullname" . }}-cert-setup-sa
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-2" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "anvilops.fullname" . }}-cert-setup-role
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-2" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["secrets"]
+  resourceNames: ["buildkit-daemon-certs", "buildkit-client-certs"]
+  verbs: ["get", "list", "patch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "anvilops.fullname" . }}-cert-setup-rb
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-1" # Must run before the Job runs
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "anvilops.fullname" . }}-cert-setup-sa
+  namespace: {{ .Release.Namespace }}
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: {{ include "anvilops.fullname" . }}-cert-setup-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: setup-buildkitd-certs
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 30
+  template:
+    spec:
+      serviceAccountName: {{ include "anvilops.fullname" . }}-cert-setup-sa
+      initContainers:
+      - name: generate-certs
+        image: alpine/mkcert:latest@sha256:a8f4f5af61908b4c79c2e9d1e5f23e747f29de174649209ebafcab03d4f6d5fd
+        command: ["/bin/sh", "-c"]
+        volumeMounts:
+          - name: data
+            mountPath: /work
+        workingDir: /work
+        args:
+        - |
+          # This step uses https://github.com/FiloSottile/mkcert to generate self-signed TLS certificates
+          # The scripts for these two containers are modified from https://github.com/moby/buildkit/blob/master/examples/kubernetes/create-certs.sh under the Apache 2.0 license
+          
+          set -o errexit
+          set -o nounset
+          set -o pipefail
+          set -o errtrace
+
+          PRODUCT=buildkit
+
+          SAN="buildkitd {{ include "anvilops.fullname" . }}-buildkitd.{{ .Release.Namespace }}.svc.cluster.local"
+          SAN_CLIENT=client
+
+          mkdir ./daemon ./client
+
+          echo $SAN | tr " " "\n" >SAN
+          CAROOT=$(pwd) mkcert -cert-file daemon/cert.pem -key-file daemon/key.pem ${SAN} >/dev/null 2>&1
+          CAROOT=$(pwd) mkcert -client -cert-file client/cert.pem -key-file client/key.pem ${SAN_CLIENT} >/dev/null 2>&1
+
+          cp -f rootCA.pem daemon/ca.pem
+          cp -f rootCA.pem client/ca.pem
+          rm -f rootCA.pem rootCA-key.pem
+
+          chmod -R 777 .
+      - name: create-secrets
+        image: bitnami/kubectl:1.33.2@sha256:e706851b19c0c4e668614b7c5a6b0c5bbcfbe7fb73f5d999250e0da8bfff42c6
+        command: ["/bin/sh", "-c"]
+        volumeMounts:
+          - name: data
+            mountPath: /work
+        workingDir: /work
+        args:
+        - |
+          # This step uses the generated certificates to create or update secrets in the cluster
+          PRODUCT=buildkit
+          kubectl create secret generic ${PRODUCT}-daemon-certs --dry-run=client -o yaml --from-file=./daemon >${PRODUCT}-daemon-certs.yaml
+          kubectl create secret generic ${PRODUCT}-client-certs --dry-run=client -o yaml --from-file=./client >${PRODUCT}-client-certs.yaml
+
+          kubectl apply -n {{ .Release.Namespace }} -f ${PRODUCT}-daemon-certs.yaml -f ${PRODUCT}-client-certs.yaml
+      containers: # We're only using initContainers because they run sequentially. We need generate-certs to complete before create-secrets starts.
+        - name: finish-job
+          image: busybox:1.37.0@sha256:f85340bf132ae937d2c2a763b8335c9bab35d6e8293f70f606b9c6178d84f42b
+          command: ["/bin/sh", "-c"]
+          args: ["exit 0"]
+      restartPolicy: Never
+      volumes:
+        - name: data
+          emptyDir: {}

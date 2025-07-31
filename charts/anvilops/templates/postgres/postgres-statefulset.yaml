@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anvilops.fullname" . }}-postgres
+  labels:
+    {{- include "anvilops.postgres.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "anvilops.postgres.selectorLabels" . | nindent 6 }}
+  serviceName: anvilops-postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: anvilops-postgres
+        {{- include "anvilops.postgres.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: anvilops-postgres
+          image: {{ .Values.postgres.image | default "postgres:17" }}
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+              subPath: anvilops-postgres-data
+              {{- if .Values.harbor.install }}
+            - name: init-harbor-db-script
+              mountPath: /docker-entrypoint-initdb.d/
+              {{- end }}
+          env:
+            - name: POSTGRES_USER
+              value: anvilops
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: anvilops
+      {{- if .Values.harbor.install }}
+      volumes:
+        - name: init-harbor-db-script
+          configMap:
+            name: {{ include "anvilops.fullname" . }}-harbor-postgres-db-setup
+            items:
+              - key: create-harbor-db.sh
+                path: create-harbor-db.sh
+      {{- end }}
+      {{- with .Values.postgres.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: db-data
+      spec:
+        {{- toYaml .Values.postgres.volumeClaimTemplate | nindent 8 }}
+
+{{ if .Values.harbor.install -}}
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "anvilops.fullname" . }}-harbor-postgres-db-setup
+data:
+  create-harbor-db.sh: |
+    #!/usr/bin/env bash
+    set -e
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      CREATE DATABASE registry;
+      GRANT ALL PRIVILEGES ON DATABASE registry TO anvilops;
+    EOSQL
+{{- end }}

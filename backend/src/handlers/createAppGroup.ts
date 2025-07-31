@@ -5,6 +5,7 @@ import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
@@ -14,7 +15,7 @@ import {
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
-import { type AuthenticatedRequest } from "./index.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
@@ -115,7 +116,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
         return redirect(
           302,
           res,
-          `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
+          `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
         );
       } else {
         return json(403, res, {

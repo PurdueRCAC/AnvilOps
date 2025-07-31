@@ -1,9 +1,10 @@
 import type { LogType } from "../generated/prisma/enums.ts";
 import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
 import { db, publish } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { json, type HandlerMap } from "../types.ts";
 
-const buildLogSecret = process.env.BUILD_LOGGING_INGEST_SECRET;
+const buildLogSecret = env.BUILD_LOGGING_INGEST_SECRET;
 
 export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
   const authHeader = ctx.request.headers["authorization"]?.split(" ");

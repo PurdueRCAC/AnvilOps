@@ -4,12 +4,13 @@ import { Pool, type Notification } from "pg";
 import "../../prisma/types.ts";
 import { PrismaClient } from "../generated/prisma/client.ts";
 import { type StringFieldUpdateOperationsInput } from "../generated/prisma/internal/prismaNamespace.ts";
+import { env } from "./env.ts";
 
 export const DATABASE_URL =
-  process.env.DATABASE_URL ??
-  `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
+  env.DATABASE_URL ??
+  `postgresql://${env.POSTGRES_USER}:${env.POSTGRES_PASSWORD}@${env.POSTGRES_HOSTNAME}/${env.POSTGRES_DB}`;
 
-const masterKey = Buffer.from(process.env.FIELD_ENCRYPTION_KEY, "base64");
+const masterKey = Buffer.from(env.FIELD_ENCRYPTION_KEY, "base64");
 const separator = "|";
 
 const unwrapKey = (wrapped: string): Buffer => {

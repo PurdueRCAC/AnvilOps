@@ -9,18 +9,7 @@ import path from "node:path";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { DATABASE_URL } from "./lib/db.ts";
-
-if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
-  throw new Error("Credentials not set");
-}
-
-if (!process.env.SESSION_SECRET) {
-  throw new Error("Session secret not set");
-}
-
-if (!DATABASE_URL) {
-  throw new Error("Database credentials not set");
-}
+import { env } from "./lib/env.ts";
 
 const app = express();
 const port = 3000;
@@ -30,12 +19,12 @@ app.use(cookieParser());
 const PgSession = connectPgSimple(session);
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     name: SESSION_COOKIE_NAME,
     cookie: {
-      secure: process.env.NODE_ENV !== "development",
+      secure: "auto",
       sameSite: "lax",
       maxAge: 18 * 60 * 60 * 1000, // 18 hr
       httpOnly: true,

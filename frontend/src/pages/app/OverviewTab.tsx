@@ -1,10 +1,20 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
@@ -22,21 +32,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Status, type App, type DeploymentStatus } from "./AppView";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   AppConfigDiff,
   type DeploymentConfigFormData,
 } from "./diff/AppConfigDiff";
-import { cn } from "@/lib/utils";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { toast } from "sonner";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -205,6 +206,8 @@ export const OverviewTab = ({
         <span>{" pushes to "}</span>
       );
   }
+
+  const appDomain = URL.parse(useAppConfig()?.appDomain ?? "");
 
   return (
     <>
@@ -395,21 +398,25 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        <p className="flex items-center gap-2">
-          <Link2 size={16} />
-          Subdomain
-        </p>
-        <p>
-          <a
-            href={`https://${app.subdomain}.anvilops.rcac.purdue.edu`}
-            className="underline flex gap-1 items-center w-fit"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {app.subdomain}.anvilops.rcac.purdue.edu
-            <ExternalLink size={14} />
-          </a>
-        </p>
+        {appDomain !== null && (
+          <>
+            <p className="flex items-center gap-2">
+              <Link2 size={16} />
+              Subdomain
+            </p>
+            <p>
+              <a
+                href={`${appDomain?.protocol}//${app.subdomain}.${appDomain?.hostname}`}
+                className="underline flex gap-1 items-center"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {app.subdomain}.{appDomain?.hostname}
+                <ExternalLink size={14} />
+              </a>
+            </p>
+          </>
+        )}
       </div>
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">

@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import { EnvVarGrid } from "@/components/EnvVarGrid";
 import { MountsGrid, type Mounts } from "@/components/MountsGrid";
 import {
@@ -154,6 +155,9 @@ const AppConfigFormFields = ({
       </>
     );
   }
+
+  const appConfig = useAppConfig();
+  const appDomain = URL.parse(appConfig?.appDomain ?? "");
 
   return (
     <>
@@ -337,7 +341,7 @@ const AppConfigFormFields = ({
 
       <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
 
-      {!isExistingApp && (
+      {!isExistingApp && appDomain !== null && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label className="pb-1" htmlFor="subdomain">
@@ -351,7 +355,9 @@ const AppConfigFormFields = ({
             </span>
           </div>
           <div className="flex relative items-center gap-2">
-            <span className="absolute left-2 text-sm opacity-50">https://</span>
+            <span className="absolute left-2 text-sm opacity-50">
+              {appDomain?.protocol}//
+            </span>
             <Input
               name="subdomain"
               id="subdomain"
@@ -372,7 +378,7 @@ const AppConfigFormFields = ({
               autoComplete="off"
             />
             <span className="absolute right-2 text-sm opacity-50">
-              .anvilops.rcac.purdue.edu
+              .{appDomain?.host}
             </span>
           </div>
           {subdomain && !subdomainIsValid ? (
@@ -472,36 +478,40 @@ const AppConfigFormFields = ({
             />
           </AccordionContent>
         </AccordionItem>
-        <AccordionItem value="mounts">
-          <AccordionTrigger>
-            <Label className="pb-1">
-              <Database className="inline" size={16} /> Volume Mounts
-            </Label>
-          </AccordionTrigger>
-          <AccordionContent className="px-4">
-            {!!isExistingApp && (
-              <p className="col-span-full text-amber-600">
-                Volume mounts cannot be edited after an app has been created.
+        {appConfig.storageEnabled && (
+          <AccordionItem value="mounts">
+            <AccordionTrigger>
+              <Label className="pb-1">
+                <Database className="inline" size={16} /> Volume Mounts
+              </Label>
+            </AccordionTrigger>
+            <AccordionContent className="px-4">
+              {!!isExistingApp && (
+                <p className="col-span-full text-amber-600">
+                  Volume mounts cannot be edited after an app has been created.
+                </p>
+              )}
+              <p className="opacity-50 text-sm mb-4">
+                Preserve files contained at these paths across app restarts. All
+                other files will be discarded. Every replica will get its own
+                separate volume.
               </p>
-            )}
-            <p className="opacity-50 text-sm mb-4">
-              Preserve files contained at these paths across app restarts. All
-              other files will be discarded. Every replica will get its own
-              separate volume.
-            </p>
-            <MountsGrid
-              readonly={isExistingApp} // If we're in the Config tab of an existing application, mounts should not be editable. Kubernetes doesn't allow editing volumes after creating a StatefulSet, and we haven't implemented a workaround yet.
-              value={mounts}
-              setValue={(mounts) =>
-                setState((prev) => ({
-                  ...prev,
-                  mounts:
-                    typeof mounts === "function" ? mounts(prev.mounts) : mounts,
-                }))
-              }
-            />
-          </AccordionContent>
-        </AccordionItem>
+              <MountsGrid
+                readonly={isExistingApp} // If we're in the Config tab of an existing application, mounts should not be editable. Kubernetes doesn't allow editing volumes after creating a StatefulSet, and we haven't implemented a workaround yet.
+                value={mounts}
+                setValue={(mounts) =>
+                  setState((prev) => ({
+                    ...prev,
+                    mounts:
+                      typeof mounts === "function"
+                        ? mounts(prev.mounts)
+                        : mounts,
+                  }))
+                }
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
         <AccordionItem value="advanced">
           <AccordionTrigger>
             <Label className="pb-1">

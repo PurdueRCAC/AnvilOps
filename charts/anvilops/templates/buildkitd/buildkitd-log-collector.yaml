@@ -1,41 +1,29 @@
-# This Flow and Output collect logs from image builds running in the anvilops-dev namespace.
+# This Flow and Output collect logs from image builds running in the AnvilOps namespace.
 # Other versions of these resources are also created in users' namespaces to forward runtime logs from their pods.
 
 apiVersion: logging.banzaicloud.io/v1beta1
 kind: Flow
 metadata:
-  name: log-generator
-  namespace: anvilops-dev
+  name: {{ include "anvilops.fullname" . }}-log-generator
   labels:
-    app.kubernetes.io/name: flow
-    app.kubernetes.io/instance: dev
-    app.kubernetes.io/version: 0.0.1
-    app.kubernetes.io/component: build-logs
-    app.kubernetes.io/part-of: anvilops
-    app.kubernetes.io/managed-by: fluxcd
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
 spec:
   match:
     - select:
         labels:
           anvilops.rcac.purdue.edu/collect-logs: "true"
   localOutputRefs:
-    - http
+    - {{ include "anvilops.fullname" . }}-output-http
 ---
 apiVersion: logging.banzaicloud.io/v1beta1
 kind: Output
 metadata:
-  name: http
-  namespace: anvilops-dev
+  name: {{ include "anvilops.fullname" . }}-output-http
   labels:
-    app.kubernetes.io/name: output
-    app.kubernetes.io/instance: dev
-    app.kubernetes.io/version: 0.0.1
-    app.kubernetes.io/component: build-logs
-    app.kubernetes.io/part-of: anvilops
-    app.kubernetes.io/managed-by: fluxcd
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
 spec:
   http:
-    endpoint: https://anvilops.rcac.purdue.edu/api/logs/ingest?type=build
+    endpoint: http://{{ include "anvilops.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local/api/logs/ingest?type=build
     auth:
       # These credentials only allow build logs to be ingested.
       # Builds must run in our namespace because we don't want to copy our registry credentials and BuildKit TLS certs into tenant namespaces,
@@ -53,5 +41,5 @@ spec:
       tags: "time"
       timekey: "1s"
       timekey_wait: "0s"
-      flush_mode: "immediate"
+      flush_mode: "interval"
       flush_interval: "1s"

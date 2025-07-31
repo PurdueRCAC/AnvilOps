@@ -2,11 +2,11 @@ import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import { Octokit, RequestError } from "octokit";
 import { get, getOrCreate, set } from "./cache.ts";
 import { db } from "./db.ts";
+import { env } from "./env.ts";
 
-const privateKey = Buffer.from(
-  process.env.GITHUB_PRIVATE_KEY,
-  "base64",
-).toString("utf-8");
+const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
+  "utf-8",
+);
 
 const installationIdSymbol = Symbol("installationId");
 
@@ -24,11 +24,11 @@ export class InstallationNotFoundError extends Error {
 
 export async function getOctokit(installationId: number) {
   const octokit = new Octokit({
-    baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
+    baseUrl: env.GITHUB_API_URL,
     authStrategy: createAppAuth,
     auth: {
       privateKey,
-      appId: process.env.GITHUB_APP_ID,
+      appId: env.GITHUB_APP_ID,
       cache: githubAuthCache,
       installationId,
     },
@@ -61,11 +61,11 @@ export function getUserOctokit(code: string) {
   return new Octokit({
     authStrategy: createOAuthUserAuth,
     auth: {
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
       code: code,
     } satisfies Parameters<typeof createOAuthUserAuth>[0],
-    baseUrl: `${process.env.GITHUB_BASE_URL}/api/v3`,
+    baseUrl: env.GITHUB_API_URL,
   });
 }
 

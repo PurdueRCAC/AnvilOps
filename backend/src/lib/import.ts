@@ -4,10 +4,11 @@ import type { Octokit } from "octokit";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { k8s } from "./cluster/kubernetes.ts";
 
+import { env } from "./env.ts";
 import { getOctokit, getUserOctokit } from "./octokit.ts";
 
 export async function getLocalRepo(octokit: Octokit, url: URL) {
-  if (url.host === new URL(process.env.GITHUB_BASE_URL).host) {
+  if (url.host === new URL(env.GITHUB_BASE_URL).host) {
     // The source and target repositories are on the same GitHub instance. We could create from a template.
     const pathname = url.pathname.split("/"); // /owner/repo
     if (pathname.length !== 3) {
@@ -139,11 +140,11 @@ async function copyRepoManually(
   pushURL: string,
 ) {
   const botUser = await octokit.rest.users.getByUsername({
-    username: `${process.env.GITHUB_APP_NAME}[bot]`, // e.g. "anvilops[bot]"
+    username: `${env.GITHUB_APP_NAME}[bot]`, // e.g. "anvilops[bot]"
   });
 
   const job = await k8s.batch.createNamespacedJob({
-    namespace: "anvilops-dev",
+    namespace: env.CURRENT_NAMESPACE,
     body: {
       metadata: {
         name: `import-repo-${crypto.randomBytes(16).toString("hex")}`,
@@ -213,7 +214,7 @@ git push -u origin main`,
 async function awaitJobCompletion(jobName: string) {
   for (let i = 0; i < 120; i++) {
     const result = await k8s.batch.readNamespacedJobStatus({
-      namespace: "anvilops-dev",
+      namespace: env.CURRENT_NAMESPACE,
       name: jobName,
     });
     if (result.status.succeeded > 0) {

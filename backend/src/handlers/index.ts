@@ -49,7 +49,9 @@ import {
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getSettings } from "./getSettings.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -259,6 +261,9 @@ export const handlers = {
                 );
                 const selectedDeployment =
                   latestCompleteDeployment ?? app.deployments[0];
+
+                const appDomain = URL.parse(env.APP_DOMAIN);
+
                 return {
                   id: app.id,
                   displayName: app.displayName,
@@ -269,8 +274,8 @@ export const handlers = {
                   branch: app.deploymentConfigTemplate.branch,
                   commitHash: selectedDeployment?.commitHash,
                   link:
-                    selectedDeployment?.status === "COMPLETE"
-                      ? `https://${app.subdomain}.anvilops.rcac.purdue.edu`
+                    selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
+                      ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
                       : undefined,
                 };
               }),
@@ -628,5 +633,6 @@ export const handlers = {
   downloadAppFile,
   writeAppFile,
   deleteAppFile,
+  getSettings,
 } satisfies HandlerMap;
 Object.freeze(handlers);

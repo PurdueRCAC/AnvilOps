@@ -1,0 +1,17 @@
+Thank you for installing AnvilOps!
+
+Certificates have been automatically generated for BuildKit. They will expire in 2 years and 3 months.
+
+To renew them, apply ./jobs/setup-certs.yaml to the cluster or reinstall the AnvilOps Helm chart. The certificates will not be regenerated when upgrading the helm chart.
+
+{{ if .Values.harbor.install }}
+An instance of the Harbor container registry has been installed and configured for you.
+
+The admin user's username is `admin`.
+You can retrieve the password by running this command:
+
+kubectl get secret harbor-admin-password -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 --decode
+
+Every time you reinstall this Helm chart, the admin password will be set to a new value, even if you have already set up Harbor with your own password.
+Upgrading will not reset the admin password.
+{{ end }}

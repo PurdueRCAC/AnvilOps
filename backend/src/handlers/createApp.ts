@@ -8,6 +8,7 @@ import type {
   DeploymentConfigCreateInput,
 } from "../generated/prisma/models.ts";
 import { db } from "../lib/db.ts";
+import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
@@ -93,7 +94,7 @@ export const createApp: HandlerMap["createApp"] = async (
         return redirect(
           302,
           res,
-          `${process.env.GITHUB_BASE_URL}/github-apps/${process.env.GITHUB_APP_NAME}/installations/new?state=${state}`,
+          `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
         );
       } else {
         return json(403, res, {

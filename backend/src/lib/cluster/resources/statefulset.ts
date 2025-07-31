@@ -1,6 +1,7 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
-import crypto from "node:crypto";
 import jsonpatch from "fast-json-patch";
+import crypto from "node:crypto";
+import { env } from "../../env.ts";
 import type { K8sObject } from "../resources.ts";
 
 export type DeploymentParams = {
@@ -71,8 +72,8 @@ export const createStatefulSetConfig = (
       volumeClaimTemplates: params.mounts.map((mount) => ({
         metadata: { name: generateVolumeName(mount.path) },
         spec: {
-          accessModes: ["ReadWriteMany"],
-          storageClassName: "anvil-filesystem",
+          accessModes: env.STORAGE_ACCESS_MODES.split(","),
+          storageClassName: env.STORAGE_CLASS_NAME,
           resources: { requests: { storage: `${mount.amountInMiB}Mi` } },
         },
       })),
