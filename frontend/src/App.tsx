@@ -1,9 +1,11 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useContext } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { Route, Routes } from "react-router-dom";
 import { AppConfigProvider } from "./components/AppConfigProvider";
 import Navbar from "./components/Navbar";
+import { Button } from "./components/ui/button";
 import { Toaster } from "./components/ui/sonner";
 import UserProvider, { UserContext } from "./components/UserProvider";
 import { queryClient } from "./lib/api";
@@ -23,59 +25,82 @@ function App() {
       <AppConfigProvider>
         <UserProvider>
           <Navbar />
-          <Routes>
-            <Route path="/" element={<LandingView />} />
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <DashboardView />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/:id"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <AppView />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/:appId/deployment/:deploymentId"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <DeploymentView />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/create-app"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <CreateAppView />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/create-group"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <CreateAppGroupView />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/import-repo"
-              element={
-                <RequireAuth redirectTo="/api/login">
-                  <ImportRepoView />
-                </RequireAuth>
-              }
-            />
-            <Route path="/organizations" element={<OrgView />} />
-            <Route path="*" element={<NotFoundView />} />
-          </Routes>
+          <ErrorBoundary
+            fallbackRender={(props) => (
+              <main className="flex flex-col items-center justify-center min-h-[80vh]">
+                <h1 className="font-bold text-4xl mb-2">
+                  Something went wrong.
+                </h1>
+                <p className="mb-8">
+                  There was a problem displaying this page.
+                </p>
+                <pre className="whitespace-pre-line max-w-lg text-sm bg-gray-100 rounded-md border-input border p-2 mb-4 max-h-40 overflow-y-auto">
+                  <code>
+                    Additional information:{" "}
+                    {props?.error?.message?.toString() ??
+                      JSON.stringify(props?.error)}
+                  </code>
+                </pre>
+                <Button onClick={() => window.location.reload()}>
+                  Refresh
+                </Button>
+              </main>
+            )}
+          >
+            <Routes>
+              <Route path="/" element={<LandingView />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <DashboardView />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/app/:id"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <AppView />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/app/:appId/deployment/:deploymentId"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <DeploymentView />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/create-app"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <CreateAppView />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/create-group"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <CreateAppGroupView />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/import-repo"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <ImportRepoView />
+                  </RequireAuth>
+                }
+              />
+              <Route path="/organizations" element={<OrgView />} />
+              <Route path="*" element={<NotFoundView />} />
+            </Routes>
+          </ErrorBoundary>
         </UserProvider>
       </AppConfigProvider>
       <Toaster />
