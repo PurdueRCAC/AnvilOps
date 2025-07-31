@@ -4,12 +4,14 @@ metadata:
   name: anvilops
   namespace: anvilops-dev
 spec:
-  interval: 1m
+  interval: 10m
+  reconcileStrategy: Revision
   chart: charts/anvilops
   sourceRef:
     kind: GitRepository
     name: anvilops
   valuesFiles:
+    - charts/anvilops/values.yaml
     - infra/anvilops/values.yaml
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -18,7 +20,7 @@ metadata:
   name: anvilops
   namespace: anvilops-dev
 spec:
-  interval: 1m
+  interval: 10m
   chartRef:
     kind: HelmChart
     name: anvilops
