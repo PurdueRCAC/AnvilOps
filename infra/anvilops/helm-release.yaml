@@ -5,7 +5,7 @@ metadata:
   namespace: anvilops-dev
 spec:
   interval: 10m
-  chart: anvilops
+  chart: charts/anvilops
   sourceRef:
     kind: GitRepository
     name: anvilops
