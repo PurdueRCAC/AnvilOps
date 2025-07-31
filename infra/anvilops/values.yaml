@@ -38,8 +38,8 @@ postgres:
     accessModes: ["ReadWriteOnce"]
     storageClassName: anvil-filesystem
 buildkitd:
-  install: false
-  address: "tcp://buildkitd.anvilops-dev.svc.cluster.local:1234"
+  install: true
+  address: "tcp://buildkitd:1234"
 harbor:
   # We already have Harbor installed, so no need to install another instance just for AnvilOps.
   install: false
