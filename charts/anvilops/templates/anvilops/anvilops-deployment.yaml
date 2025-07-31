@@ -60,8 +60,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
+            {{- if (lookup "v1" "Secret" .Release.Namespace "root-ca-cert") }}
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
+            {{- end }}
             - name: POSTGRES_USER
               value: anvilops
             - name: POSTGRES_PASSWORD
