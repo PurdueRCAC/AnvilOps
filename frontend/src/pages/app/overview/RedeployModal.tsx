@@ -83,7 +83,6 @@ export const RedeployModal = ({
         radioValue: "useBuild",
         configState: {
           orgId: app.orgId,
-          // builder: "dockerfile", // (this value is unused but required to satisfy the type checker)
           replicas: app.config.replicas.toString(),
           port: app.config.port.toString(),
           env: app.config.env,
@@ -118,7 +117,6 @@ export const RedeployModal = ({
               }
             : {
                 source: "image",
-                //builder: "dockerfile", // (this value is unused but required to satisfy the type checker)
                 imageTag: pastDeployment.config.imageTag,
               }),
         },
@@ -132,7 +130,6 @@ export const RedeployModal = ({
       pastDeployment &&
       redeployState.radioValue === undefined
     ) {
-      console.log(pastDeployment);
       setRadioValue("useBuild");
     }
   }, [pastDeployment, pastDeploymentLoading]);

@@ -1162,6 +1162,8 @@ paths:
       responses:
         "201":
           description: Created successfully
+        "400":
+          description: Bad request
         "404":
           description: App not found or not accessible to user
         "500":

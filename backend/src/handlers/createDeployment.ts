@@ -1,5 +1,6 @@
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { db } from "../lib/db.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -60,14 +61,40 @@ export const createDeployment: HandlerMap["createDeployment"] = async (
         }),
   };
 
+  let commitSha = "",
+    commitMessage = "Manual deployment";
+
+  if (appConfig.source === "git") {
+    if (!deploymentConfig.repositoryId) {
+      return json(400, res, {});
+    }
+    // Fetch the latest commit and use that.
+    // If the user wants to deploy from a previous version of their app, the UI will have them set the source to OCI Image instead.
+    // TODO: Allow users to rebuild a previous commit as part of a redeploy. Intermittent issues might prevent a build
+    //       from succeeding the first time, so you should be able to retry it in its entirety. Maybe it should even be the default?
+    const octokit = await getOctokit(app.org.githubInstallationId);
+    const repo = await getRepoById(octokit, deploymentConfig.repositoryId);
+    const latestCommit = (
+      await octokit.rest.repos.listCommits({
+        per_page: 1,
+        owner: repo.owner.login,
+        repo: repo.name,
+        sha: appConfig.branch,
+      })
+    ).data[0];
+
+    commitSha = latestCommit.sha;
+    commitMessage = latestCommit.commit.message;
+  }
+
   await buildAndDeploy({
     appId: app.id,
     orgId: app.orgId,
-    commitMessage: "Manual deployment",
-    commitSha: "",
     config: deploymentConfig,
     imageRepo: app.imageRepo,
     createCheckRun: false,
+    commitSha,
+    commitMessage,
   });
 
   return json(201, res, {});

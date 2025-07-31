@@ -179,7 +179,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
         orgId: app.orgId,
         imageRepo: app.imageRepo,
         commitSha: latestCommit.sha,
-        commitMessage: latestCommit.commit.message, // TODO: get latest commit info
+        commitMessage: latestCommit.commit.message,
         config: updatedConfig,
         createCheckRun: false,
       });
