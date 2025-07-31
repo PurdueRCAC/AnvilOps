@@ -241,7 +241,7 @@ export const GitConfigDiff = ({
         <div className="flex items-center gap-8">
           <DiffInput
             required
-            name="branch"
+            name="deployOnEvent"
             left={base.event}
             right={state.event ?? ""}
             setRight={(event) => {
