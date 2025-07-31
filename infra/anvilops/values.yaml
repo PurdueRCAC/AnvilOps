@@ -1,5 +1,5 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-328-17e28c79adb35895aee18145af65aa3e97c5ef6d # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-329-2b65b247df98f5d062c7681d7d9226cc5dc0e6f1 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
   env:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
