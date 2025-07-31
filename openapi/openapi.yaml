@@ -1151,6 +1151,21 @@ paths:
           description: Invalid parameters
         "401":
           description: Unauthorized
+    post:
+      description: Create a deployment
+      operationId: createDeployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentConfig"
+      responses:
+        "201":
+          description: Created successfully
+        "404":
+          description: App not found or not accessible to user
+        "500":
+          description: Internal server error
 
   /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
@@ -1681,6 +1696,8 @@ components:
         appId:
           type: number
           format: int64
+        repositoryURL:
+          type: string
         commitHash:
           type: string
         commitMessage:
@@ -1718,6 +1735,8 @@ components:
         appId:
           type: number
           format: int64
+        repositoryURL:
+          type: string
         commitHash:
           type: string
         commitMessage:

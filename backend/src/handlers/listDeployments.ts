@@ -1,6 +1,7 @@
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 
 export const listDeployments: HandlerMap["listDeployments"] = async (
   ctx,
@@ -32,19 +33,44 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     take: pageLength,
   });
 
+  const { githubInstallationId } = await db.organization.findFirst({
+    where: {
+      apps: { some: { id: ctx.request.params.appId } },
+      users: { some: { userId: req.user.id } },
+    },
+    select: { githubInstallationId: true },
+  });
+
+  const octokit = await getOctokit(githubInstallationId);
+
   return json(
     200,
     res,
-    deployments.map((d) => ({
-      id: d.id,
-      appId: d.appId,
-      commitHash: d.commitHash,
-      commitMessage: d.commitMessage,
-      status: d.status,
-      createdAt: d.createdAt.toISOString(),
-      updatedAt: d.updatedAt.toISOString(),
-      source: d.config.source,
-      imageTag: d.config.imageTag,
-    })),
+    await Promise.all(
+      deployments.map(async (d) => {
+        const repositoryURL =
+          d.config.source === "GIT"
+            ? await getRepoById(octokit, d.config.repositoryId).then(
+                (repo) => repo.html_url,
+                (err) => {
+                  console.error(err);
+                  return undefined;
+                },
+              )
+            : undefined;
+        return {
+          id: d.id,
+          appId: d.appId,
+          repositoryURL,
+          commitHash: d.commitHash,
+          commitMessage: d.commitMessage,
+          status: d.status,
+          createdAt: d.createdAt.toISOString(),
+          updatedAt: d.updatedAt.toISOString(),
+          source: d.config.source,
+          imageTag: d.config.imageTag,
+        };
+      }),
+    ),
   );
 };

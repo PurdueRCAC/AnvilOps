@@ -4,6 +4,7 @@ import { db } from "../lib/db.ts";
 import { k8s } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
   ctx,
@@ -18,7 +19,15 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     },
     include: {
       config: true,
-      app: { select: { subdomain: true, name: true } },
+      app: {
+        select: {
+          subdomain: true,
+          name: true,
+          org: {
+            select: { githubInstallationId: true },
+          },
+        },
+      },
     },
   });
 
@@ -26,16 +35,28 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     return json(404, res, {});
   }
 
-  let pods: V1PodList;
-  try {
-    pods = await k8s.default.listNamespacedPod({
-      namespace: getNamespace(deployment.app.subdomain),
-      labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
-    });
-  } catch (err) {
-    // Namespace may not be ready yet
-    pods = { apiVersion: "v1", items: [] };
-  }
+  const [repositoryURL, pods] = await Promise.all([
+    (async () => {
+      if (deployment.config.source === "GIT") {
+        const octokit = await getOctokit(
+          deployment.app.org.githubInstallationId,
+        );
+        const repo = await getRepoById(octokit, deployment.config.repositoryId);
+        return repo.html_url;
+      }
+      return undefined;
+    })(),
+
+    k8s.default
+      .listNamespacedPod({
+        namespace: getNamespace(deployment.app.subdomain),
+        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+      })
+      .catch(
+        // Namespace may not be ready yet
+        () => ({ apiVersion: "v1", items: [] }),
+      ),
+  ]);
 
   let scheduled = 0,
     ready = 0,
@@ -63,6 +84,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   }
 
   return json(200, res, {
+    repositoryURL,
     commitHash: deployment.commitHash,
     commitMessage: deployment.commitMessage,
     createdAt: deployment.createdAt.toISOString(),

@@ -1,9 +1,9 @@
-import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState, type Dispatch } from "react";
 import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
+import { Fragment, useEffect, useState, type Dispatch } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -145,28 +145,36 @@ export const EnvsWithDiffs = ({
         );
       })}
       <p className="text-sm text-red-500 col-span-5">{error}</p>
-      <p className="text-base text-black-4 col-span-5">
-        These variables will be removed:
-      </p>
-      <span className="text-sm text-black-4 col-span-2">Name</span>
-      <span className="text-sm text-black-4 col-span-1">Value</span>
-      <span className="text-sm text-black-4 col-span-1">Sensitive</span>
-      <span></span>
-      {changedBaseVars.map(({ name, value, isSensitive }, index) => (
-        <Fragment key={`base-${index}`}>
-          <Input disabled value={name} className="w-full bg-red-200 italic" />
-          <span className="text-xl align-middle w-fit">=</span>
-          <Input
-            disabled
-            value={value ?? "Hidden value"}
-            className="w-full bg-red-200 italic"
-          />
-          <div className="text-center">
-            <Checkbox className="size-6" disabled checked={isSensitive} />
-          </div>
+      {changedBaseVars.length > 0 && (
+        <>
+          <p className="text-base text-black-4 col-span-full my-2">
+            These variables will be removed:
+          </p>
+          <span className="text-sm text-black-4 col-span-2">Name</span>
+          <span className="text-sm text-black-4 col-span-1">Value</span>
+          <span className="text-sm text-black-4 col-span-1">Sensitive</span>
           <span></span>
-        </Fragment>
-      ))}
+          {changedBaseVars.map(({ name, value, isSensitive }, index) => (
+            <Fragment key={`base-${index}`}>
+              <Input
+                disabled
+                value={name}
+                className="w-full bg-red-200 italic"
+              />
+              <span className="text-xl align-middle w-fit">=</span>
+              <Input
+                disabled
+                value={value ?? "Hidden value"}
+                className="w-full bg-red-200 italic"
+              />
+              <div className="text-center">
+                <Checkbox className="size-6" disabled checked={isSensitive} />
+              </div>
+              <span></span>
+            </Fragment>
+          ))}
+        </>
+      )}
     </div>
   );
 };

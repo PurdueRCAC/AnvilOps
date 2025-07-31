@@ -285,7 +285,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
 };
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
-const withSensitiveEnv = (
+export const withSensitiveEnv = (
   lastPlaintextEnv: DeploymentJson.EnvVar[],
   envVars: {
     name: string;

@@ -1,20 +1,11 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
@@ -32,12 +23,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { Status, type App, type DeploymentStatus } from "./AppView";
-import {
-  AppConfigDiff,
-  type DeploymentConfigFormData,
-} from "./diff/AppConfigDiff";
+import { RedeployModal } from "./overview/RedeployModal";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -105,70 +92,6 @@ export const OverviewTab = ({
     },
   );
 
-  const { mutateAsync: updateApp, isPending: isDeploying } = api.useMutation(
-    "put",
-    "/app/{appId}",
-  );
-
-  const [redeployState, setRedeployState] = useState<{
-    open: boolean;
-    radioValue: "useBuild" | "useConfig";
-    configOpen: boolean;
-    configState: DeploymentConfigFormData;
-    id: number | undefined;
-  }>({
-    open: false,
-    radioValue: "useConfig",
-    configOpen: false,
-    configState: {
-      replicas: "",
-      env: [],
-      source: "git",
-      builder: "dockerfile",
-      port: "",
-    },
-    id: undefined,
-  });
-
-  const { data: pastDeployment, isPending: pastDeploymentLoading } =
-    api.useQuery(
-      "get",
-      "/app/{appId}/deployments/{deploymentId}",
-      { params: { path: { appId: app.id, deploymentId: redeployState.id! } } },
-      { enabled: redeployState.open && !!redeployState.id },
-    );
-
-  useEffect(() => {
-    if (!pastDeploymentLoading && pastDeployment) {
-      setRedeployState((rs) => ({
-        ...rs,
-        configState: {
-          orgId: app.orgId,
-          port: pastDeployment.config.port.toString(),
-          replicas: pastDeployment.config.replicas.toString(),
-          env: pastDeployment.config.env,
-          ...(pastDeployment.config.source === "git"
-            ? {
-                source: "git",
-                builder: pastDeployment.config.builder,
-                event: pastDeployment.config.event,
-                eventId: pastDeployment.config.eventId?.toString() ?? undefined,
-                dockerfilePath:
-                  pastDeployment.config.dockerfilePath ?? undefined,
-                rootDir: pastDeployment.config.rootDir ?? undefined,
-                repositoryId: pastDeployment.config.repositoryId,
-                branch: pastDeployment.config.branch,
-              }
-            : {
-                source: "image",
-                builder: "dockerfile",
-              }),
-          imageTag: pastDeployment.config.imageTag,
-        },
-      }));
-    }
-  }, [pastDeploymentLoading, pastDeployment, redeployState.configOpen]);
-
   const workflow = useMemo(() => {
     if (app.config.source === "git") {
       const id = app.config.eventId;
@@ -207,168 +130,22 @@ export const OverviewTab = ({
       );
   }
 
+  const [redeployOpen, setRedeployOpen] = useState(false);
+  const [redeployId, setRedeployId] = useState<number | undefined>(undefined);
+
   const appDomain = URL.parse(useAppConfig()?.appDomain ?? "");
 
   return (
     <>
-      <Dialog
-        open={redeployState.open}
-        onOpenChange={(open) => setRedeployState((s) => ({ ...s, open }))}
-      >
-        <DialogContent
-          className={cn(
-            "duration-300",
-            redeployState.configOpen &&
-              "h-fit max-h-5/6 2xl:max-h-2/3 flex flex-col overflow-auto sm:max-w-4xl",
-          )}
-        >
-          <DialogHeader>
-            <DialogTitle>Reuse This Deployment</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-1"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const config = redeployState.configState;
-              const res =
-                redeployState.radioValue === "useConfig"
-                  ? {
-                      replicas: parseInt(config.replicas),
-                      port: parseInt(config.port),
-                      env: config.env.filter((env) => env.name.length > 0),
-                      mounts: app.config.mounts,
-                      postStart: config.postStart,
-                      preStop: config.preStop,
-                      ...(config.source === "git"
-                        ? {
-                            source: "git" as "git",
-                            repositoryId: config.repositoryId!,
-                            rootDir: config.rootDir!,
-                            branch: config.branch,
-                            event: config.event!,
-                            eventId: config.eventId
-                              ? parseInt(config.eventId)
-                              : null,
-                            builder: config.builder,
-                            dockerfilePath: config.dockerfilePath!,
-                          }
-                        : {
-                            source: "image" as "image",
-                            imageTag: config.imageTag!,
-                          }),
-                    }
-                  : {
-                      replicas: app.config.replicas,
-                      port: app.config.port,
-                      env: app.config.env,
-                      mounts: app.config.mounts,
-                      postStart: app.config.postStart,
-                      preStop: app.config.preStop,
-                      source: "image" as "image",
-                      imageTag: config.imageTag!,
-                    };
-              await updateApp({
-                params: { path: { appId: app.id } },
-                body: {
-                  config: res,
-                },
-              });
-              toast.success("App updated successfully!");
-              setRedeployState((rs) => ({ ...rs, open: false }));
-              refetchDeployments();
-            }}
-          >
-            {!redeployState.configOpen ? (
-              <>
-                <RadioGroup
-                  value={redeployState.radioValue}
-                  onValueChange={(value) =>
-                    setRedeployState((rs) => ({
-                      ...rs,
-                      radioValue: value as "useBuild" | "useConfig",
-                    }))
-                  }
-                >
-                  <Label>
-                    <RadioGroupItem value="useBuild" />
-                    Redeploy this application build
-                  </Label>
-                  <Label>
-                    <RadioGroupItem value="useConfig" />
-                    Reuse this deployment configuration
-                  </Label>
-                </RadioGroup>
-                <Button
-                  variant="secondary"
-                  className="w-full font-bold my-2"
-                  type="button"
-                  onClick={() =>
-                    setRedeployState((s) => ({ ...s, configOpen: true }))
-                  }
-                >
-                  Review this deployment configuration
-                </Button>
-                <Button className="w-full" type="submit">
-                  {isDeploying ? (
-                    <>
-                      <Loader className="animate-spin" />
-                      Deploying...
-                    </>
-                  ) : (
-                    "Deploy"
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                <AppConfigDiff
-                  orgId={app.orgId}
-                  base={{
-                    ...app.config,
-                    replicas: app.config.replicas.toString(),
-                    port: app.config.port.toString(),
-                    ...(app.config.source === "git"
-                      ? {
-                          builder: app.config.builder,
-                          eventId: app.config.eventId?.toString() ?? undefined,
-                          dockerfilePath:
-                            app.config.dockerfilePath ?? undefined,
-                          rootDir: app.config.rootDir ?? undefined,
-                        }
-                      : {
-                          builder: "dockerfile",
-                          eventId: undefined,
-                          dockerfilePath: undefined,
-                          rootDir: undefined,
-                        }),
-                  }}
-                  state={redeployState.configState}
-                  setState={(
-                    updateConfig: (
-                      s: DeploymentConfigFormData,
-                    ) => DeploymentConfigFormData,
-                  ) => {
-                    setRedeployState((rs) => ({
-                      ...rs,
-                      configState: updateConfig(rs.configState),
-                    }));
-                  }}
-                  defaults={{ config: pastDeployment?.config }}
-                />
-                <Button
-                  className="float-right"
-                  type="button"
-                  onClick={() =>
-                    setRedeployState((rs) => ({ ...rs, configOpen: false }))
-                  }
-                >
-                  Use this configuration
-                </Button>
-              </>
-            )}
-          </form>
-        </DialogContent>
-      </Dialog>
+      <RedeployModal
+        isOpen={redeployOpen}
+        setOpen={setRedeployOpen}
+        deploymentId={redeployId!}
+        app={app}
+        onSubmitted={() => {
+          refetchDeployments();
+        }}
+      />
       <h3 className="text-xl font-medium mb-4">General</h3>
       <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
         {app.config.source === "git" ? (
@@ -441,6 +218,7 @@ export const OverviewTab = ({
               <th>Source</th>
               <th>Status</th>
               <th>Logs</th>
+              <th>Rollback</th>
             </tr>
           </thead>
           <tbody>
@@ -473,7 +251,8 @@ export const OverviewTab = ({
                 <td>
                   {d.source === "GIT" ? (
                     <a
-                      href={`${app.repositoryURL}/commit/${d.commitHash}`}
+                      href={`${d.repositoryURL}/commit/${d.commitHash}`}
+                      target="_blank"
                       className="flex items-center gap-2"
                     >
                       <span className="opacity-50 flex items-center gap-1">
@@ -506,24 +285,22 @@ export const OverviewTab = ({
                     </Button>
                   </Link>
                 </td>
-                {d.id !== activeDeployment && (
-                  <td>
-                    <button
-                      className="cursor-pointer"
-                      onClick={async () => {
-                        setRedeployState((rs) => ({
-                          open: true,
-                          radioValue: "useConfig",
-                          configOpen: false,
-                          configState: rs.configState,
-                          id: d.id,
-                        }));
-                      }}
-                    >
-                      <Undo2 className="text-black-2 hover:text-black-3" />
-                    </button>
-                  </td>
-                )}
+                <td>
+                  <Button
+                    disabled={
+                      d.id === activeDeployment ||
+                      (d.status !== "COMPLETE" && d.status !== "STOPPED")
+                    }
+                    variant="outline"
+                    className="cursor-pointer disabled:cursor-not-allowed"
+                    onClick={async () => {
+                      setRedeployOpen(true);
+                      setRedeployId(d.id);
+                    }}
+                  >
+                    <Undo2 className="text-black-2 hover:text-black-3" />
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -51,6 +51,7 @@ import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { createDeployment } from "./createDeployment.ts";
 import { getSettings } from "./getSettings.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
@@ -633,6 +634,7 @@ export const handlers = {
   downloadAppFile,
   writeAppFile,
   deleteAppFile,
+  createDeployment,
   getSettings,
 } satisfies HandlerMap;
 Object.freeze(handlers);

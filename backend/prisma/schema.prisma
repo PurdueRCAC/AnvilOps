@@ -103,6 +103,8 @@ model App {
   // The config to use when creating a new deployment
   deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id], onDelete: Cascade)
   deploymentConfigTemplateId Int              @unique
+
+  enableCD Boolean @default(true)
 }
 
 model AppGroup {

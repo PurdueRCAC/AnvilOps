@@ -1,38 +1,38 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { UserContext } from "@/components/UserProvider";
-import type { components } from "@/generated/openapi";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  Cable,
-  Tag,
-  Code2,
-  Server,
-  Cog,
-  Terminal,
-  Minimize,
-  MoveRight,
-  Scale3D,
-} from "lucide-react";
-import { useContext } from "react";
-import { GitHubIcon } from "../../create-app/CreateAppView";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { UserContext } from "@/components/UserProvider";
+import type { components } from "@/generated/openapi";
 import { cn } from "@/lib/utils";
+import {
+  Cable,
+  Code2,
+  Cog,
+  Minimize,
+  Scale3D,
+  Server,
+  Tag,
+  Terminal,
+} from "lucide-react";
+import { useContext } from "react";
+import { GitHubIcon } from "../../create-app/CreateAppView";
 import { EnvsWithDiffs } from "./EnvsWithDiffs";
 import { GitConfigDiff } from "./GitConfigDiff";
+import { DiffInput } from "./DiffInput";
+
 export type DeploymentConfigFormData = {
   port: string;
   replicas: string;
@@ -46,7 +46,7 @@ export type DeploymentConfigFormData = {
   branch?: string;
   rootDir?: string;
   source: "git" | "image";
-  builder: "dockerfile" | "railpack";
+  builder?: "dockerfile" | "railpack";
   postStart?: string;
   preStop?: string;
 };
@@ -106,47 +106,7 @@ export const AppConfigDiff = ({
   }
 
   return (
-    <>
-      <div className="flex items-baseline gap-2 mb-2">
-        <Label className="pb-1">
-          <Scale3D className="inline" size={16} /> Replicas
-        </Label>
-        <span
-          className="text-red-500 cursor-default"
-          title="This field is required."
-        >
-          *
-        </span>
-      </div>
-      <div className="flex items-center gap-8">
-        <Input
-          type="number"
-          disabled
-          required
-          className={cn(
-            "w-full italic",
-            base.replicas !== state.replicas && "bg-red-200",
-          )}
-          value={base.replicas}
-        />
-        <div>
-          <MoveRight />
-        </div>
-        <Input
-          name="replicas"
-          type="number"
-          required
-          className={cn(
-            "w-full",
-            base.replicas !== state.replicas && "bg-green-50",
-          )}
-          value={state.replicas}
-          onChange={(e) => {
-            const replicas = e.currentTarget.value;
-            setState((s) => ({ ...s, replicas }));
-          }}
-        />
-      </div>
+    <div className="flex flex-col gap-8">
       <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
@@ -162,50 +122,33 @@ export const AppConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8">
-          <Select disabled={true} value={base.source}>
-            <SelectTrigger
-              className={cn(
-                "w-full",
-                base.source !== state.source && "bg-red-200",
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="git">Git Repository</SelectItem>
-              <SelectItem value="image">OCI Image</SelectItem>
-            </SelectContent>
-          </Select>
-          <div>
-            <MoveRight className="text-black-4" />
-          </div>
-          <Select
-            required
-            value={state.source}
-            onValueChange={(source) =>
+          <DiffInput
+            left={base.source}
+            right={state.source}
+            placeholder="Select deployment source"
+            setRight={(source) =>
               setState((prev) => ({
                 ...prev,
                 source: source as "git" | "image",
               }))
             }
-            name="source"
-          >
-            <SelectTrigger
-              className={cn(
-                "w-full",
-                base.source !== state.source && "bg-green-50",
-              )}
-              id="deploymentSource"
-            >
-              <SelectValue placeholder="Select deployment source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="git">Git Repository</SelectItem>
-                <SelectItem value="image">OCI Image</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            select={(props) => (
+              <Select {...props}>
+                <SelectTrigger
+                  {...props}
+                  id={props.side === "after" ? "deploymentSource" : undefined}
+                >
+                  <SelectValue placeholder={props.placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="git">Git Repository</SelectItem>
+                    <SelectItem value="image">OCI Image</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       </div>
       {state.source === "git" ? (
@@ -230,31 +173,10 @@ export const AppConfigDiff = ({
               </span>
             </div>
             <div className="flex items-center justify-around gap-8">
-              {base.source === "image" && (
-                <>
-                  <Input
-                    className={cn(
-                      "w-full italic",
-                      base.imageTag !== state.imageTag && "bg-red-200",
-                    )}
-                    value={base.imageTag}
-                    disabled
-                  />
-                  <div>
-                    <MoveRight className="text-black-4" />
-                  </div>
-                </>
-              )}
-              <Input
-                className={cn(
-                  "w-full",
-                  base.source === state.source &&
-                    base.imageTag !== state.imageTag &&
-                    "bg-green-50",
-                )}
-                value={state.imageTag ?? ""}
-                onChange={(e) => {
-                  const imageTag = e.currentTarget.value;
+              <DiffInput
+                left={base.imageTag ?? "(None)"}
+                right={state.imageTag ?? ""}
+                setRight={(imageTag) => {
                   setState((state) => ({ ...state, imageTag }));
                 }}
                 name="imageTag"
@@ -284,27 +206,43 @@ export const AppConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center justify-around gap-8">
-          <Input
-            className={cn("w-full", base.port !== state.port && "bg-red-200")}
-            value={base.port}
-            disabled
-          />
-          <div>
-            <MoveRight className="text-black-4" />
-          </div>
-          <Input
+          <DiffInput
             name="portNumber"
             id="portNumber"
             placeholder="3000"
-            className={cn("w-full", base.port !== state.port && "bg-green-50")}
             type="number"
             required
             min="1"
             max="65536"
-            value={state.port ?? ""}
-            onChange={(e) => {
-              const port = e.currentTarget.value;
+            left={base.port}
+            right={state.port}
+            setRight={(port) => {
               setState((state) => ({ ...state, port }));
+            }}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-2 mb-2">
+          <Label className="pb-1">
+            <Scale3D className="inline" size={16} /> Replicas
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <div className="flex items-center gap-8">
+          <DiffInput
+            name="replicas"
+            type="number"
+            required
+            left={base.replicas}
+            right={state.replicas}
+            setRight={(replicas) => {
+              setState((s) => ({ ...s, replicas }));
             }}
           />
         </div>
@@ -316,7 +254,7 @@ export const AppConfigDiff = ({
               <Code2 className="inline" size={16} /> Environment Variables
             </Label>
           </AccordionTrigger>
-          <AccordionContent>
+          <AccordionContent className="px-4">
             <EnvsWithDiffs
               base={base.env}
               value={state.env}
@@ -346,7 +284,7 @@ export const AppConfigDiff = ({
               <Cog className="inline" size={16} /> Advanced
             </Label>
           </AccordionTrigger>
-          <AccordionContent className="space-y-10">
+          <AccordionContent className="space-y-10 px-4">
             <div className="space-y-2">
               <div>
                 <Label className="pb-1" htmlFor="postStart">
@@ -358,33 +296,13 @@ export const AppConfigDiff = ({
                 </p>
               </div>
               <div className="flex items-center justify-around gap-8">
-                <Input
-                  className={cn(
-                    "w-full italic",
-                    // One of the fields is not empty, and they are not equal.
-                    (base.postStart || state.postStart) &&
-                      base.postStart !== state.postStart &&
-                      "bg-red-200",
-                  )}
-                  value={base.postStart ?? "(No command specified)"}
-                  disabled
-                />
-                <div>
-                  <MoveRight className="text-black-4" />
-                </div>
-                <Input
+                <DiffInput
                   name="postStart"
                   id="postStart"
                   placeholder="(No command)"
-                  className={cn(
-                    "w-full",
-                    (base.postStart || state.postStart) &&
-                      base.postStart !== state.postStart &&
-                      "bg-green-50",
-                  )}
-                  value={state.postStart ?? ""}
-                  onChange={(e) => {
-                    const postStart = e.currentTarget.value;
+                  left={base.postStart}
+                  right={state.postStart ?? ""}
+                  setRight={(postStart) => {
                     setState((state) => ({ ...state, postStart }));
                   }}
                 />
@@ -401,20 +319,7 @@ export const AppConfigDiff = ({
                 </p>
               </div>
               <div className="flex items-center justify-around gap-8">
-                <Input
-                  className={cn(
-                    "w-full italic",
-                    (base.preStop || state.preStop) &&
-                      base.preStop !== state.preStop &&
-                      "bg-red-200",
-                  )}
-                  value={base.preStop ?? "(No command specified)"}
-                  disabled
-                />
-                <div>
-                  <MoveRight className="text-black-4" />
-                </div>
-                <Input
+                <DiffInput
                   name="preStop"
                   id="preStop"
                   placeholder="(No command)"
@@ -424,9 +329,9 @@ export const AppConfigDiff = ({
                       base.preStop !== state.preStop &&
                       "bg-green-50",
                   )}
-                  value={state.preStop ?? ""}
-                  onChange={(e) => {
-                    const preStop = e.currentTarget.value;
+                  left={base.preStop}
+                  right={state.preStop ?? ""}
+                  setRight={(preStop) => {
                     setState((state) => ({ ...state, preStop }));
                   }}
                 />
@@ -435,6 +340,6 @@ export const AppConfigDiff = ({
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </>
+    </div>
   );
 };

@@ -1,30 +1,30 @@
+import { ImportRepoDialog } from "@/components/ImportRepoDialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectGroup,
-  SelectLabel,
   SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import clsx from "clsx";
 import {
   BookMarked,
-  GitBranch,
-  CloudUpload,
   ClipboardCheck,
-  FolderRoot,
+  CloudUpload,
   Container,
+  FolderRoot,
+  GitBranch,
   Hammer,
 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import type { AppInfoFormData } from "./AppConfigFormFields";
-import { ImportRepoDialog } from "@/components/ImportRepoDialog";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const GitDeploymentFields = ({
   orgId,

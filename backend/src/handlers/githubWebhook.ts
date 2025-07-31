@@ -26,6 +26,8 @@ import {
 } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
+import { handlePush } from "./webhook/push.ts";
+import { handleWorkflowRun } from "./webhook/workflow_run.ts";
 
 const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
 
@@ -33,6 +35,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
   ctx,
   req,
   res,
+  next,
 ) => {
   const signature = ctx.request.headers["x-hub-signature-256"];
   const data = req.body as string;
@@ -104,210 +107,12 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
       break;
     }
     case "push": {
-      const payload = ctx.request
-        .requestBody as components["schemas"]["webhook-push"];
-
-      const repoId = payload.repository?.id;
-      if (!repoId) {
-        throw new Error("Repository ID not specified");
-      }
-
-      // Look up the connected app and create a deployment job
-      const apps = await db.app.findMany({
-        where: {
-          deploymentConfigTemplate: {
-            source: DeploymentSource.GIT,
-            repositoryId: repoId,
-          },
-          org: { githubInstallationId: { not: null } },
-        },
-        include: {
-          org: { select: { githubInstallationId: true } },
-          deploymentConfigTemplate: true,
-        },
-      });
-
-      if (apps.length === 0) {
-        throw new Error("Linked app not found");
-      }
-
-      for (const app of apps) {
-        // Require that the app deploys on push and the push was made to the right branch
-        if (
-          app.deploymentConfigTemplate.event !== "push" ||
-          payload.ref !== `refs/heads/${app.deploymentConfigTemplate.branch}`
-        ) {
-          continue;
-        }
-
-        const octokit = await getOctokit(app.org.githubInstallationId);
-
-        delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
-        await buildAndDeploy({
-          orgId: app.orgId,
-          appId: app.id,
-          imageRepo: app.imageRepo,
-          commitSha: payload.head_commit.id,
-          commitMessage: payload.head_commit.message,
-          config: {
-            // Reuse the config from the previous deployment
-            fieldValues: app.deploymentConfigTemplate.fieldValues,
-            source: "GIT",
-            env: app.deploymentConfigTemplate.getPlaintextEnv(),
-            repositoryId: app.deploymentConfigTemplate.repositoryId,
-            branch: app.deploymentConfigTemplate.branch,
-            builder: app.deploymentConfigTemplate.builder,
-            rootDir: app.deploymentConfigTemplate.rootDir,
-            dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-            imageTag: app.deploymentConfigTemplate.imageTag,
-          },
-          createCheckRun: true,
-          octokit,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-        });
-      }
-
-      return json(200, res, {});
+      handlePush(ctx, req, res, next);
+      break;
     }
     case "workflow_run": {
-      const payload = ctx.request
-        .requestBody as components["schemas"]["webhook-workflow-run"];
-
-      const repoId = payload.repository?.id;
-      if (!repoId) {
-        throw new Error("Repository ID not specified");
-      }
-
-      if (payload.action === "in_progress") {
-        break;
-      }
-
-      // Look up the connected apps
-      const linkedApps = await db.app.findMany({
-        where: {
-          deploymentConfigTemplate: {
-            source: DeploymentSource.GIT,
-            repositoryId: repoId,
-          },
-          org: { githubInstallationId: { not: null } },
-        },
-        include: {
-          org: { select: { githubInstallationId: true } },
-          deploymentConfigTemplate: true,
-        },
-      });
-
-      if (linkedApps.length === 0) {
-        throw new Error("Linked app not found");
-      }
-
-      // Filter for apps that deploy on when this workflow runs on this branch
-      const apps = linkedApps.filter(
-        (app) =>
-          app.deploymentConfigTemplate.event === "workflow_run" &&
-          app.deploymentConfigTemplate.branch ===
-            payload.workflow_run.head_branch &&
-          app.deploymentConfigTemplate.eventId === payload.workflow.id,
-      );
-
-      if (payload.action === "requested") {
-        for (const app of apps) {
-          const octokit = await getOctokit(app.org.githubInstallationId);
-          try {
-            await createPendingWorkflowDeployment({
-              orgId: app.orgId,
-              appId: app.id,
-              imageRepo: app.imageRepo,
-              commitSha: payload.workflow_run.head_commit.id,
-              commitMessage: payload.workflow_run.head_commit.message,
-              config: {
-                // Reuse the config from the previous deployment
-                fieldValues: app.deploymentConfigTemplate.fieldValues,
-                source: "GIT",
-                env: app.deploymentConfigTemplate.getPlaintextEnv(),
-                repositoryId: app.deploymentConfigTemplate.repositoryId,
-                branch: app.deploymentConfigTemplate.branch,
-                builder: app.deploymentConfigTemplate.builder,
-                rootDir: app.deploymentConfigTemplate.rootDir,
-                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-                imageTag: app.deploymentConfigTemplate.imageTag,
-              },
-              workflowRunId: payload.workflow_run.id,
-              createCheckRun: true,
-              octokit,
-              owner: payload.repository.owner.login,
-              repo: payload.repository.name,
-            });
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      } else if (payload.action === "completed") {
-        for (const app of apps) {
-          const deployment = await db.deployment.findUnique({
-            where: { appId: app.id, workflowRunId: payload.workflow_run.id },
-            select: {
-              id: true,
-              status: true,
-              secret: true,
-              checkRunId: true,
-              appId: true,
-              commitHash: true,
-              app: { include: { org: true, appGroup: true } },
-              config: true,
-            },
-          });
-          if (!deployment || deployment.status !== "PENDING") {
-            // If the app was deleted, nothing to do
-            // If the deployment was canceled, its check run will be updated to canceled
-            continue;
-          }
-          if (payload.workflow_run.conclusion !== "success") {
-            // No need to build for unsuccessful workflow run
-            log(
-              deployment.id,
-              "BUILD",
-              "Workflow run did not complete successfully",
-            );
-            if (!deployment.checkRunId) {
-              continue;
-            }
-            const octokit = await getOctokit(app.org.githubInstallationId);
-            try {
-              await octokit.rest.checks.update({
-                check_run_id: deployment.checkRunId,
-                owner: payload.repository.owner.login,
-                repo: payload.repository.name,
-                status: "completed",
-                conclusion: "cancelled",
-              });
-              log(
-                deployment.id,
-                "BUILD",
-                "Updated GitHub check run to Completed with conclusion Cancelled",
-              );
-              await db.deployment.update({
-                where: { id: deployment.id },
-                data: { status: "STOPPED" },
-              });
-            } catch (e) {}
-            continue;
-          }
-
-          const octokit = await getOctokit(app.org.githubInstallationId);
-          await buildAndDeployFromRepo({
-            deployment,
-            opts: {
-              createCheckRun: true,
-              octokit,
-              owner: payload.repository.owner.login,
-              repo: payload.repository.name,
-            },
-          });
-        }
-      }
-      return json(200, res, {});
+      handleWorkflowRun(ctx, req, res, next);
+      break;
     }
     default: {
       return json(422, res, {});
@@ -436,7 +241,7 @@ type BuildFromRepoOptions = {
     | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
     | { createCheckRun: false };
 };
-async function buildAndDeployFromRepo({
+export async function buildAndDeployFromRepo({
   deployment,
   opts,
 }: BuildFromRepoOptions) {
@@ -523,7 +328,7 @@ async function buildAndDeployFromRepo({
   });
 }
 
-async function createPendingWorkflowDeployment({
+export async function createPendingWorkflowDeployment({
   orgId,
   appId,
   imageRepo,
