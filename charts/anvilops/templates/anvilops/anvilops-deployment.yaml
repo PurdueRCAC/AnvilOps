@@ -27,7 +27,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with "anvilops.serviceAccount.name" }}
+      {{- with include "anvilops.serviceAccountName" . }}
       serviceAccountName: {{ . }}
       {{- end }}
       {{- with .Values.anvilops.podSecurityContext }}
