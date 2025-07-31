@@ -133,6 +133,7 @@ async function createJob({
             },
           },
           spec: {
+            automountServiceAccountToken: false,
             containers: [
               {
                 name: "builder",

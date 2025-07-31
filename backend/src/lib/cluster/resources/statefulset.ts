@@ -46,6 +46,7 @@ export const createStatefulSetConfig = (
           },
         },
         spec: {
+          automountServiceAccountToken: false,
           containers: [
             {
               name: params.name,
