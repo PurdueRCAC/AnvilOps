@@ -5,7 +5,6 @@ import type {
   RefetchOptions,
 } from "@tanstack/react-query";
 import React from "react";
-import { useLocation } from "react-router-dom";
 
 export type User = components["schemas"]["User"];
 
@@ -41,7 +40,6 @@ export default function UserProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { pathname } = useLocation();
   const {
     data: user,
     isPending,
@@ -54,9 +52,6 @@ export default function UserProvider({
       retry(failureCount, error) {
         if (error.code === 401) {
           // Unauthorized
-          if (pathname !== "/") {
-            window.location.href = "/api/login";
-          }
           return false;
         }
         return failureCount < 3;

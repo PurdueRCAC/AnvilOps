@@ -2,8 +2,9 @@ import { PermissionLevel } from "../generated/prisma/enums.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
-import { json, redirect, type HandlerMap } from "../types.ts";
+import { redirect, type HandlerMap } from "../types.ts";
 import { createState, verifyState } from "./githubAppInstall.ts";
+import { githubConnectError } from "./githubOAuthCallback.ts";
 
 /**
  * This endpoint is called after the user installs the GitHub App on their user account or organization.
@@ -25,19 +26,12 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
       userId = parsed.userId;
       orgId = parsed.orgId;
     } catch (e) {
-      return json(500, res, {
-        code: 500,
-        message: "Failed to verify `state`",
-      });
+      return githubConnectError(res, "INSTALLATION_FAIL");
     }
 
     // 2) Verify the user ID hasn't changed
     if (userId !== req.user.id) {
-      return json(401, res, {
-        code: 500,
-        message:
-          "You signed in to a different account while connecting your GitHub account!",
-      });
+      return githubConnectError(res, "DIFF_ACCOUNT");
     }
 
     // 3) Save the installation ID temporarily
@@ -55,10 +49,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
     });
 
     if (org === null) {
-      return json(500, res, {
-        code: 500,
-        message: "Couldn't find the requested organization",
-      });
+      return githubConnectError(res, "");
     }
 
     // 4) Generate a new `state`

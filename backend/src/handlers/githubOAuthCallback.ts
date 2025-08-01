@@ -4,7 +4,7 @@ import { db } from "../lib/db.ts";
 import { getUserOctokit } from "../lib/octokit.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { verifyState } from "./githubAppInstall.ts";
-
+import type { Response } from "express";
 /**
  * This endpoint is called after the user signs in with GitHub.
  *
@@ -13,6 +13,20 @@ import { verifyState } from "./githubAppInstall.ts";
  *
  * In this handler, we perform that verification and then redirect back to the frontend.
  */
+
+export const githubConnectError = (
+  res: Response,
+  code:
+    | "IDP_ERROR"
+    | "STATE_FAIL"
+    | "INSTALLATION_FAIL"
+    | "DIFF_ACCOUNT"
+    | "ORG_FAIL"
+    | "",
+) => {
+  return redirect(302, res, `/error?type=github_app&code=${code}`);
+};
+
 export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   ctx,
   req: AuthenticatedRequest,
@@ -28,16 +42,12 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
     userId = parsed.userId;
     orgId = parsed.orgId;
   } catch (e) {
-    return json(500, res, { code: 500, message: "Failed to verify `state`" });
+    return githubConnectError(res, "STATE_FAIL");
   }
 
   // 2) Verify that the user ID hasn't changed
   if (userId !== req.user.id) {
-    return json(401, res, {
-      code: 401,
-      message:
-        "You signed in to a different account while connecting your GitHub account!",
-    });
+    return githubConnectError(res, "DIFF_ACCOUNT");
   }
 
   // 3) Verify that the user has access to the installation
@@ -57,17 +67,11 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   });
 
   if (!org) {
-    return json(404, res, {
-      code: 404,
-      message: "Organization not found",
-    });
+    return githubConnectError(res, "ORG_FAIL");
   }
 
   if (!org?.newInstallationId) {
-    return json(500, res, {
-      code: 500,
-      message: "Failed to look up Installation ID",
-    });
+    return githubConnectError(res, "");
   }
 
   const installations = (
@@ -83,10 +87,7 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
 
   if (!found) {
     // The user doesn't have access to the new installation
-    return json(403, res, {
-      code: 403,
-      message: "You do not have access to that GitHub App installation.",
-    });
+    return githubConnectError(res, "INSTALLATION_FAIL");
   }
 
   // Update the organization's installation ID

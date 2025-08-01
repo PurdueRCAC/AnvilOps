@@ -18,6 +18,7 @@ import { ImportRepoView } from "./pages/ImportRepoView";
 import LandingView from "./pages/LandingView";
 import NotFoundView from "./pages/NotFoundView";
 import OrgView from "./pages/OrgView";
+import ErrorView from "./pages/ErrorView";
 
 function App() {
   return (
@@ -97,7 +98,15 @@ function App() {
                   </RequireAuth>
                 }
               />
-              <Route path="/organizations" element={<OrgView />} />
+              <Route
+                path="/organizations"
+                element={
+                  <RequireAuth redirectTo="/api/login">
+                    <OrgView />
+                  </RequireAuth>
+                }
+              />
+              <Route path="/error" element={<ErrorView />} />
               <Route path="*" element={<NotFoundView />} />
             </Routes>
           </ErrorBoundary>

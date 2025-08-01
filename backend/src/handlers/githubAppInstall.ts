@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
+import { githubConnectError } from "./githubOAuthCallback.ts";
 
 /**
  * GitHub App installation & user authorization process:
@@ -51,10 +52,7 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   try {
     state = await createState(req.user.id, orgId);
   } catch (e) {
-    return json(500, res, {
-      code: 500,
-      message: "Failed to initialize `state`",
-    });
+    return githubConnectError(res, "STATE_FAIL");
   }
 
   return redirect(

@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 export default function NotFoundView() {
   const { user } = useContext(UserContext);
   return (
-    <main className="py-2 px-2 lg:py-10 lg:px-12">
+    <main className="flex flex-col items-center justify-center min-h-[80vh] space-y-2">
       <h3 className="text-black-4 text-3xl font-bold">Not Found.</h3>
       <Link to={user ? "/dashboard" : "/"} className="text-lg underline">
         <Undo2 className="inline" size={24} />
