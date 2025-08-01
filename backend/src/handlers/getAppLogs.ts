@@ -2,11 +2,11 @@ import { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
 import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
-import { k8s } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { db, subscribe } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
   ctx,
@@ -17,6 +17,9 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     where: {
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
+    },
+    include: {
+      appGroup: { select: { projectId: true } },
     },
   });
 
@@ -109,9 +112,14 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   if (!found && ctx.request.query.type === "RUNTIME") {
     // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
     isFetchingFromK8sApi = true;
+    const { CoreV1Api: core, Log: log } = await getClientsForRequest(
+      req.user.id,
+      app.appGroup.projectId,
+      ["CoreV1Api", "Log"],
+    );
     let pods: V1PodList;
     try {
-      pods = await k8s.default.listNamespacedPod({
+      pods = await core.listNamespacedPod({
         namespace: getNamespace(app.subdomain),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
       });
@@ -125,7 +133,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       podIndex++;
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
-      const abortController = await k8s.log.log(
+      const abortController = await log.log(
         getNamespace(app.subdomain),
         podName,
         pod.spec.containers[0].name,

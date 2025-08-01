@@ -15,7 +15,10 @@ import {
   type CreateJobFromDeploymentInput,
   type ImageTag,
 } from "../lib/builder.ts";
-import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import {
+  createOrUpdateApp,
+  getClientForClusterUsername,
+} from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
@@ -28,6 +31,7 @@ import { json, type HandlerMap } from "../types.ts";
 import { notifyLogStream } from "./ingestLogs.ts";
 import { handlePush } from "./webhook/push.ts";
 import { handleWorkflowRun } from "./webhook/workflow_run.ts";
+import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 
 const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
 
@@ -200,7 +204,14 @@ export async function buildAndDeploy({
     try {
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
+      console.log(namespace);
+      const api = getClientForClusterUsername(
+        deployment.app.clusterUsername,
+        "KubernetesObjectApi",
+        shouldImpersonate(deployment.app.appGroup.projectId),
+      );
       await createOrUpdateApp(
+        api,
         deployment.app.name,
         namespace,
         configs,

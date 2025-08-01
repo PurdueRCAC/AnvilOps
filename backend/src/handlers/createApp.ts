@@ -20,6 +20,7 @@ import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
+import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 
 export const createApp: HandlerMap["createApp"] = async (
   ctx,
@@ -75,6 +76,23 @@ export const createApp: HandlerMap["createApp"] = async (
 
   if (!organization) {
     return json(401, res, {});
+  }
+
+  let clusterUsername: string;
+  if (isRancherManaged()) {
+    if (!appData.projectId) {
+      return json(500, res, { code: 500, message: "Project ID is required" });
+    }
+
+    let { clusterUsername: username } = await db.user.findUnique({
+      where: { id: req.user.id },
+      select: { clusterUsername: true },
+    });
+    if (!(await canManageProject(username, appData.projectId))) {
+      return json(401, res, {});
+    }
+
+    clusterUsername = username;
   }
 
   let commitSha = "unknown",
@@ -190,6 +208,7 @@ export const createApp: HandlerMap["createApp"] = async (
         create: {
           name: `${appData.name}-${randomBytes(4).toString("hex")}`,
           org: { connect: { id: appData.orgId } },
+          projectId: appData.projectId,
           isMono: true,
         },
       };
@@ -199,6 +218,7 @@ export const createApp: HandlerMap["createApp"] = async (
         create: {
           name: appData.appGroup.name,
           org: { connect: { id: appData.orgId } },
+          projectId: appData.projectId,
         },
       };
       break;
@@ -221,6 +241,10 @@ export const createApp: HandlerMap["createApp"] = async (
             id: appData.orgId,
           },
         },
+
+        // This cluster username will be used to automatically update the app after a build job or webhook payload
+        // TODO: make this a setting in the UI
+        clusterUsername,
         logIngestSecret: randomBytes(48).toString("hex"),
         deploymentConfigTemplate: {
           create: deploymentConfig,

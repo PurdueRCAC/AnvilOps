@@ -43,8 +43,10 @@ import {
 import fs from "fs";
 import {
   deleteNamespace,
-  k8s,
+  getClientForClusterUsername,
+  getClientsForRequest,
   namespaceInUse,
+  svcK8s,
 } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
@@ -53,6 +55,10 @@ import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { createDeployment } from "./createDeployment.ts";
 import { getSettings } from "./getSettings.ts";
+import {
+  getProjectsForUser,
+  isRancherManaged,
+} from "../lib/cluster/rancher.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -84,6 +90,11 @@ export const handlers = {
         where: { id: req.user.id },
         include: { orgs: { include: { organization: true } } },
       });
+
+      const projects =
+        user.clusterUsername && isRancherManaged()
+          ? await getProjectsForUser(user.clusterUsername)
+          : undefined;
       return json(200, res, {
         id: user.id,
         email: user.email,
@@ -94,6 +105,7 @@ export const handlers = {
           permissionLevel: item.permissionLevel,
           githubConnected: item.organization.githubInstallationId !== null,
         })),
+        projects,
       });
     } catch (e) {
       console.log((e as Error).message);
@@ -334,6 +346,17 @@ export const handlers = {
         return json(401, res, {});
       }
 
+      const { clusterUsername } = await db.user.findUnique({
+        where: { id: req.user.id },
+        select: { clusterUsername: true },
+      });
+
+      const userApi = getClientForClusterUsername(
+        clusterUsername,
+        "KubernetesObjectApi",
+        true,
+      );
+
       const apps = await db.app.findMany({
         where: { orgId },
         include: {
@@ -344,12 +367,19 @@ export const handlers = {
               },
             },
           },
+          appGroup: {
+            select: { projectId: true },
+          },
         },
       });
       for (let app of apps) {
         if (app.deployments.length > 0) {
           try {
-            await deleteNamespace(getNamespace(app.subdomain));
+            const api =
+              app.appGroup.projectId === env["SANDBOX_ID"]
+                ? svcK8s["KubernetesObjectApi"]
+                : userApi;
+            await deleteNamespace(api, getNamespace(app.subdomain));
           } catch (err) {
             console.error(err);
           }
@@ -446,7 +476,12 @@ export const handlers = {
         // Fetch the current StatefulSet to read its labels
         (async () => {
           try {
-            return await k8s.apps.readNamespacedStatefulSet({
+            const { AppsV1Api: api } = await getClientsForRequest(
+              req.user.id,
+              app.appGroup.projectId,
+              ["AppsV1Api"],
+            );
+            return await api.readNamespacedStatefulSet({
               namespace: getNamespace(app.subdomain),
               name: app.name,
             });

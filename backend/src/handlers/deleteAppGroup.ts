@@ -2,7 +2,10 @@ import { type components } from "../generated/openapi.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { deleteNamespace } from "../lib/cluster/kubernetes.ts";
+import {
+  deleteNamespace,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
 
@@ -54,9 +57,17 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
     },
   });
 
+  const { KubernetesObjectApi: api } = await getClientsForRequest(
+    req.user.id,
+    appGroup.projectId,
+    ["KubernetesObjectApi"],
+  );
+
   try {
     await Promise.all(
-      appGroup.apps.map((app) => deleteNamespace(getNamespace(app.subdomain))),
+      appGroup.apps.map((app) =>
+        deleteNamespace(api, getNamespace(app.subdomain)),
+      ),
     );
   } catch (err) {
     console.error("Failed to delete namespace:", err);

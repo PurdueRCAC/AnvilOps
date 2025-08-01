@@ -2,7 +2,10 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
-import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import {
+  createOrUpdateApp,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
@@ -228,7 +231,13 @@ export const updateApp: HandlerMap["updateApp"] = async (
     try {
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
-      await createOrUpdateApp(app.name, namespace, configs, postCreate);
+
+      const { KubernetesObjectApi: api } = await getClientsForRequest(
+        req.user.id,
+        deployment.app.appGroup.projectId,
+        ["KubernetesObjectApi"],
+      );
+      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "COMPLETE" },

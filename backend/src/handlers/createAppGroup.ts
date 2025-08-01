@@ -16,6 +16,7 @@ import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState } from "./githubAppInstall.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
+import { canManageProject } from "../lib/cluster/rancher.ts";
 
 export const createAppGroup: HandlerMap["createAppGroup"] = async (
   ctx,
@@ -23,6 +24,9 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   res,
 ) => {
   const data = ctx.request.requestBody;
+
+  // TODO: validate project id
+
   {
     const groupNameIsValid =
       data.name.length <= MAX_GROUPNAME_LEN &&
@@ -99,6 +103,13 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       code: 400,
       message: `App group ${data.name} already exists`,
     });
+  }
+
+  const { clusterUsername } = await db.user.findUnique({
+    where: { id: req.user.id },
+  });
+  if (!(await canManageProject(clusterUsername, data.projectId))) {
+    return json(401, res, {});
   }
 
   let octokit: Octokit;
@@ -178,6 +189,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     data: {
       name: data.name,
       orgId: data.orgId,
+      projectId: data.projectId,
     },
   });
   const appConfigs = data.apps.map((app) => {
@@ -219,6 +231,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           id: app.orgId,
         },
       },
+      // This cluster username will be used to automatically update the app after a build job or webhook payload
+      clusterUsername,
       appGroup: {
         connect: {
           id: appGroupId,
