@@ -801,10 +801,12 @@ paths:
                 orgId:
                   type: integer
                   format: int64
+                projectId:
+                  type: string
                 apps:
                   type: array
                   items:
-                    $ref: "#/components/schemas/NewApp"
+                    $ref: "#/components/schemas/NewAppWithoutGroupInfo"
               required:
                 - name
                 - orgId
@@ -1405,6 +1407,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UserOrg"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/RancherProject"
       required:
         - id
         - email
@@ -1806,6 +1812,8 @@ components:
             orgId:
               type: integer
               format: int64
+            projectId:
+              type: string
             subdomain:
               type: string
               format: hostname
@@ -1847,6 +1855,37 @@ components:
                       type: integer
                       format: int64
                   required: [type, id]
+          required: [name, orgId, subdomain, port, env, mounts, appGroup]
+        - oneOf:
+            - $ref: "#/components/schemas/GitDeploymentOptions"
+            - $ref: "#/components/schemas/ImageDeploymentOptions"
+    NewAppWithoutGroupInfo:
+      type: object
+      allOf:
+        - type: object
+          properties:
+            name:
+              type: string
+            # Source options
+            orgId:
+              type: integer
+              format: int64
+            subdomain:
+              type: string
+              format: hostname
+            port:
+              type: integer
+              format: int64
+            env:
+              $ref: "#/components/schemas/Envs"
+            mounts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Mount"
+            postStart:
+              type: string
+            preStop:
+              type: string
           required: [name, orgId, subdomain, port, env, mounts, appGroup]
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
@@ -1982,3 +2021,13 @@ components:
               lastTimestamp:
                 type: string
                 format: date-time
+    RancherProject:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+      required: [id, name, description]

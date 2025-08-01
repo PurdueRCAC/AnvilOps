@@ -1,7 +1,10 @@
 import { type components } from "../generated/openapi.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { deleteNamespace } from "../lib/cluster/kubernetes.ts";
+import {
+  deleteNamespace,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
@@ -56,6 +59,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
           select: {
             id: true,
             _count: true,
+            projectId: true,
           },
         },
         deploymentConfigTemplateId: true,
@@ -63,7 +67,12 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     });
 
   try {
-    await deleteNamespace(getNamespace(subdomain));
+    const { KubernetesObjectApi: api } = await getClientsForRequest(
+      req.user.id,
+      appGroup.projectId,
+      ["KubernetesObjectApi"],
+    );
+    await deleteNamespace(api, getNamespace(subdomain));
   } catch (err) {
     console.error("Failed to delete namespace:", err);
   }
@@ -79,7 +88,11 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
 
   try {
     if (imageRepo) await deleteRepo(imageRepo);
+  } catch (err) {
+    console.error("Couldn't delete image repository:", err);
+  }
 
+  try {
     // cascade deletes App
     await db.deploymentConfig.delete({
       where: { id: deploymentConfigTemplateId },

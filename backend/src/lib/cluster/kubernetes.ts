@@ -1,6 +1,7 @@
 import {
   ApiException,
   AppsV1Api,
+  AuthorizationV1Api,
   BatchV1Api,
   CoreV1Api,
   KubeConfig,
@@ -12,30 +13,102 @@ import {
 } from "@kubernetes/client-node";
 import { env } from "../env.ts";
 import type { K8sObject } from "./resources.ts";
+import { shouldImpersonate } from "./rancher.ts";
+import { db } from "../db.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
 
-export const k8s = {
-  default: kc.makeApiClient(CoreV1Api),
-  apps: kc.makeApiClient(AppsV1Api),
-  batch: kc.makeApiClient(BatchV1Api),
-  full: KubernetesObjectApi.makeApiClient(kc),
-  log: new Log(kc),
-  watch: new Watch(kc),
+const APIClientFactory = {
+  CoreV1Api: (kc: KubeConfig) => kc.makeApiClient(CoreV1Api),
+  AppsV1Api: (kc: KubeConfig) => kc.makeApiClient(AppsV1Api),
+  BatchV1Api: (kc: KubeConfig) => kc.makeApiClient(BatchV1Api),
+  AuthorizationV1Api: (kc: KubeConfig) => kc.makeApiClient(AuthorizationV1Api),
+  KubernetesObjectApi: (kc: KubeConfig) =>
+    KubernetesObjectApi.makeApiClient(kc),
+  Log: (kc: KubeConfig) => new Log(kc),
+  Watch: (kc: KubeConfig) => new Watch(kc),
+};
+Object.freeze(APIClientFactory);
+
+type APIClassName = keyof typeof APIClientFactory;
+type APIClientTypes = {
+  [K in APIClassName]: ReturnType<(typeof APIClientFactory)[K]>;
 };
 
+const baseKc = new KubeConfig();
+baseKc.loadFromDefault();
+
+export const svcK8s = {} as APIClientTypes;
+for (let apiClassName in APIClientFactory) {
+  svcK8s[apiClassName] = APIClientFactory[apiClassName](baseKc);
+}
+Object.freeze(svcK8s);
+
+export function getClientForClusterUsername<T extends APIClassName>(
+  clusterUsername: string,
+  apiClassName: T,
+  shouldImpersonate: boolean,
+): APIClientTypes[T] {
+  if (!APIClientFactory.hasOwnProperty(apiClassName)) {
+    throw new Error("Invalid API class " + apiClassName);
+  }
+  if (!shouldImpersonate || !clusterUsername) {
+    return svcK8s[apiClassName] as APIClientTypes[T];
+  } else {
+    const kc = new KubeConfig();
+    kc.loadFromOptions({
+      ...baseKc,
+      users: [{ ...baseKc.users[0], impersonateUser: clusterUsername }],
+    });
+    return APIClientFactory[apiClassName](kc) as APIClientTypes[T];
+  }
+}
+
+export async function getClientsForRequest<Names extends APIClassName[]>(
+  reqUserId: number,
+  projectId: string | undefined,
+  apiClassNames: Names,
+): Promise<Pick<APIClientTypes, Names[number]>> {
+  apiClassNames.forEach((name) => {
+    if (!APIClientFactory.hasOwnProperty(name)) {
+      throw new Error("Invalid API class " + name);
+    }
+  });
+
+  const impersonate = shouldImpersonate(projectId);
+  const clusterUsername = !impersonate
+    ? null
+    : await db.user
+        .findUnique({
+          where: { id: reqUserId },
+          select: { clusterUsername: true },
+        })
+        .then((user) => user.clusterUsername);
+
+  return apiClassNames.reduce((result, apiClassName) => {
+    return {
+      ...result,
+      [apiClassName]: getClientForClusterUsername(
+        clusterUsername,
+        apiClassName,
+        impersonate,
+      ),
+    };
+  }, {}) as Pick<APIClientTypes, Names[number]>;
+}
+
 export const namespaceInUse = async (namespace: string) => {
-  return resourceExists({
+  return resourceExists(svcK8s["KubernetesObjectApi"], {
     apiVersion: "v1",
     kind: "Namespace",
     metadata: { name: namespace },
   });
 };
 
-const resourceExists = async (data: K8sObject) => {
+const resourceExists = async (api: KubernetesObjectApi, data: K8sObject) => {
   try {
-    await k8s.full.read(data);
+    await api.read(data);
     return true;
   } catch (err) {
     if (err instanceof ApiException) {
@@ -48,19 +121,17 @@ const resourceExists = async (data: K8sObject) => {
   }
 };
 
-const REQUIRED_LABELS =
-  env["PROJECT_NS"] && env["PROJECT_NAME"]
-    ? [
-        "field.cattle.io/projectId",
-        "field.cattle.io/resourceQuota",
-        "lifecycle.cattle.io/create.namespace-auth",
-      ]
-    : [];
-const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
-  await k8s.default.createNamespace({ body: namespace });
+const REQUIRED_LABELS = env["RANCHER_API_BASE"]
+  ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
+  : [];
+const ensureNamespace = async (
+  api: KubernetesObjectApi,
+  namespace: V1Namespace & K8sObject,
+) => {
+  await api.create(namespace);
   for (let i = 0; i < 20; i++) {
     try {
-      const res: V1Namespace = await k8s.full.read(namespace);
+      const res: V1Namespace = await api.read(namespace);
       if (
         res.status.phase === "Active" &&
         REQUIRED_LABELS.every((label) =>
@@ -77,26 +148,28 @@ const ensureNamespace = async (namespace: V1Namespace & K8sObject) => {
   throw new Error("Timed out waiting for namespace to create");
 };
 
-export const deleteNamespace = async (namespace: string) => {
-  await k8s.default.deleteNamespace({
-    name: namespace,
-  });
-  console.log(`Namespace ${namespace} deleted`);
+export const deleteNamespace = async (
+  api: KubernetesObjectApi,
+  name: string,
+) => {
+  await api.delete({ apiVersion: "v1", kind: "Namespace", metadata: { name } });
+  console.log(`Namespace ${name} deleted`);
 };
 
 export const createOrUpdateApp = async (
+  api: KubernetesObjectApi,
   name: string,
   namespace: V1Namespace & K8sObject,
   configs: K8sObject[],
-  postCreate?: () => void,
+  postCreate?: (api: KubernetesObjectApi) => void,
 ) => {
-  if (!(await resourceExists(namespace))) {
-    await ensureNamespace(namespace);
+  if (!(await resourceExists(api, namespace))) {
+    await ensureNamespace(api, namespace);
   }
 
   for (let config of configs) {
-    if (await resourceExists(config)) {
-      await k8s.full.patch(
+    if (await resourceExists(api, config)) {
+      await api.patch(
         config,
         undefined,
         undefined,
@@ -105,10 +178,10 @@ export const createOrUpdateApp = async (
         PatchStrategy.MergePatch, // The default is PatchStrategy.StrategicMergePatch, which can target individual array items, but it doesn't work with custom resources (we're using `flow` and `output` from the kube-logging operator).
       );
     } else {
-      await k8s.full.create(config);
+      await api.create(config);
     }
   }
 
-  postCreate?.();
+  postCreate?.(api);
   console.log(`App ${name} updated`);
 };

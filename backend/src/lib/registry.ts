@@ -6,7 +6,7 @@ export async function deleteRepo(name: string) {
   };
 
   let host = env.DELETE_REPO_HOST;
-  if (!host.startsWith("http://") || host.startsWith("https://")) {
+  if (!host.startsWith("http://") && !host.startsWith("https://")) {
     host = "https://" + host;
   }
 

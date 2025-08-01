@@ -1,8 +1,8 @@
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 
 export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
   ctx,
@@ -14,12 +14,19 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
     },
+    include: { appGroup: { select: { projectId: true } } },
   });
   if (!app) {
     return json(404, res, {});
   }
 
-  await k8s.default.deleteNamespacedPod({
+  const { CoreV1Api: api } = await getClientsForRequest(
+    req.user.id,
+    app.appGroup.projectId,
+    ["CoreV1Api"],
+  );
+
+  await api.deleteNamespacedPod({
     namespace: getNamespace(app.subdomain),
     name: ctx.request.params.podName,
   });

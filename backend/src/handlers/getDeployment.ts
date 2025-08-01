@@ -1,10 +1,9 @@
-import { V1PodList } from "@kubernetes/client-node";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
   ctx,
@@ -26,6 +25,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
           org: {
             select: { githubInstallationId: true },
           },
+          appGroup: { select: { projectId: true } },
         },
       },
     },
@@ -35,6 +35,11 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     return json(404, res, {});
   }
 
+  const { CoreV1Api: api } = await getClientsForRequest(
+    req.user.id,
+    deployment.app.appGroup.projectId,
+    ["CoreV1Api"],
+  );
   const [repositoryURL, pods] = await Promise.all([
     (async () => {
       if (deployment.config.source === "GIT") {
@@ -47,7 +52,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       return undefined;
     })(),
 
-    k8s.default
+    api
       .listNamespacedPod({
         namespace: getNamespace(deployment.app.subdomain),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,

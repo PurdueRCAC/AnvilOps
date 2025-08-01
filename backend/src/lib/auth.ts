@@ -3,6 +3,7 @@ import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
 import { db } from "./db.ts";
 import { env, parseCsv } from "./env.ts";
+import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 const clientID = env.CLIENT_ID;
@@ -59,7 +60,7 @@ router.get("/oauth_callback", async (req, res) => {
       },
     );
 
-    const { sub, email, name, idp } = tokens.claims();
+    const { sub, email, name, idp, eppn } = tokens.claims();
 
     if (allowedIdps && !allowedIdps.includes(idp.toString())) {
       return res.redirect("/error?type=login&code=IDP_ERROR");
@@ -77,11 +78,21 @@ router.get("/oauth_callback", async (req, res) => {
         email: existingUser.email,
       };
     } else {
+      let clusterUsername: string;
+      if (isRancherManaged()) {
+        try {
+          clusterUsername = await getRancherUserID(eppn as string);
+        } catch (e) {
+          console.error(e);
+          return res.redirect("/error?type=login");
+        }
+      }
       const newUser = await db.user.create({
         data: {
           email: email as string,
           name: name as string,
           ciLogonUserId: sub,
+          clusterUsername,
           orgs: {
             create: {
               permissionLevel: PermissionLevel.OWNER,
