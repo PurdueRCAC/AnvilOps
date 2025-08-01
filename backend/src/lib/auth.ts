@@ -82,6 +82,7 @@ router.get("/oauth_callback", async (req, res) => {
       if (isRancherManaged()) {
         try {
           clusterUsername = await getRancherUserID(eppn as string);
+          console.log(clusterUsername);
         } catch (e) {
           console.error(e);
           return res.redirect("/error?type=login");
