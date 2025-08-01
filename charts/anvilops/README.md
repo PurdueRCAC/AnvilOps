@@ -320,5 +320,6 @@ Follow the instructions in the Rancher section of the [backend setup guide](/bac
 
 #### Keys
 
-- `api-base`: The Rancher API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3).
+- `api-base`: The Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3).
+- `rancher-token`: Non-scoped service user token for calling the Rancher v3 API.
 - `sandbox_id`(optional): The ID of the sandbox project, something like `c-xxxxx:p-xxxxx`.

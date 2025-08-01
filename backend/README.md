@@ -88,7 +88,7 @@ docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRE
 
 For access control, AnvilOps can integrate with the Rancher API. If you are not using Rancher, leave the following values unset.
 
-In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). In production, set the `api-base` key of the `rancher-config` secret instead.
+In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). In production, set the `api-base` key of the `rancher-config` secret instead. Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of `rancher-config`.
 
 If you would like to make a sandbox project available to users, set the environment variable `SANDBOX_ID` to its project ID. In production, set the the `sandbox-id` key of the `rancher-config` secret.
 

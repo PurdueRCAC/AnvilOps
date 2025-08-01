@@ -5,9 +5,9 @@ import { env } from "../env.ts";
 const kc = new KubeConfig();
 kc.loadFromDefault();
 
-const token = kc.getUsers()[0].token;
+const token = env["RANCHER_TOKEN"];
 const headers = {
-  Authorization: `Basic ${Buffer.from(token).toString("base64")}`,
+  Authorization: `Basic ${token}`,
 };
 const API_BASE_URL = env["RANCHER_API_BASE"];
 
