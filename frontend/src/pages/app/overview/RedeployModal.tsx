@@ -227,6 +227,7 @@ export const RedeployModal = ({
                   <strong>Step 1</strong>: Choose a starting point
                 </p>
                 <RadioGroup
+                  required
                   className="mt-4"
                   value={redeployState.radioValue ?? ""}
                   onValueChange={(value) => {
@@ -311,6 +312,7 @@ export const RedeployModal = ({
                   <strong>Step 3</strong>: Apply your changes
                 </p>
                 <RadioGroup
+                  required
                   value={redeployState.persistChanges}
                   onValueChange={(value) =>
                     setRedeployState((rs) => ({
