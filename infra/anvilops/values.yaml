@@ -4,7 +4,7 @@ anvilops:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
     harborProjectName: anvilops
-    allowedIdps: https://idp.purdue.edu/idp/shibboleth
+    allowedIdps: https://access-ci.org/idp
   serviceAccount:
     create: false
     secretName: kube-auth
