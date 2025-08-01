@@ -322,11 +322,11 @@ export const RedeployModal = ({
                   <Label className="flex-col items-start">
                     <div className="flex gap-2">
                       <RadioGroupItem value="oneOff" />
-                      Run as a one-off deployment
+                      Run in preview mode
                     </div>
                     <p className="text-black-3 ml-6 text-sm mb-4">
-                      Changes you make here will not show up in the
-                      Configuration tab, and future automatic deployments
+                      Test out new app settings, but revert to your current
+                      configuration with a click. Future automatic deployments
                       triggered from Git pushes will override the changes you
                       make here.
                     </p>
