@@ -19,7 +19,11 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
     const state = ctx.request.query.state;
     const installationId = ctx.request.query.installation_id;
 
-    if (!installationId && ctx.request.query.setup_action === "install") {
+    if (
+      !installationId &&
+      (ctx.request.query.setup_action === "install" ||
+        ctx.request.query.setup_action === "update")
+    ) {
       return json(400, res, {});
     }
 

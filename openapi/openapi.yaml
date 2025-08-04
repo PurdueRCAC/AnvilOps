@@ -100,10 +100,10 @@ paths:
             format: int64
         - name: setup_action
           in: query
-          description: Should be set to "install" or "request". If set to "install", the app will be linked to an AnvilOps organization immediately. If not, the user will see a popup in their dashboard when the request is approved, which they'll use to link the installation to an AnvilOps organization.
+          description: Should be set to "install", "update", or "request". If set to "install" or "update", the app will be linked to an AnvilOps organization immediately. If not, the user will see a popup in their dashboard when the request is approved, which they'll use to link the installation to an AnvilOps organization.
           schema:
             type: string
-            enum: [install, request]
+            enum: [install, update, request]
       responses:
         "302":
           description: Success (redirecting back to GitHub for user authorization)
