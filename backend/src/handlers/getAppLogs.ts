@@ -18,9 +18,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
     },
-    include: {
-      appGroup: { select: { projectId: true } },
-    },
   });
 
   if (app === null) {
@@ -114,7 +111,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     isFetchingFromK8sApi = true;
     const { CoreV1Api: core, Log: log } = await getClientsForRequest(
       req.user.id,
-      app.appGroup.projectId,
+      app.projectId,
       ["CoreV1Api", "Log"],
     );
     let pods: V1PodList;

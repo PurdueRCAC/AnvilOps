@@ -25,7 +25,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
           org: {
             select: { githubInstallationId: true },
           },
-          appGroup: { select: { projectId: true } },
+          projectId: true,
         },
       },
     },
@@ -37,7 +37,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
   const { CoreV1Api: api } = await getClientsForRequest(
     req.user.id,
-    deployment.app.appGroup.projectId,
+    deployment.app.projectId,
     ["CoreV1Api"],
   );
   const [repositoryURL, pods] = await Promise.all([

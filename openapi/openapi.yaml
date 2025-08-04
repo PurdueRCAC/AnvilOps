@@ -752,7 +752,7 @@ paths:
           format: int64
     get:
       tags: [org]
-      description: List the ids and names of app groups belonging to the organization to which apps can be added
+      description: List the ids, names, and Rancher projects of app groups belonging to the organization to which apps can be added
       operationId: listOrgGroups
       responses:
         "200":
@@ -831,8 +831,6 @@ paths:
                 orgId:
                   type: integer
                   format: int64
-                projectId:
-                  type: string
                 apps:
                   type: array
                   items:
@@ -1565,6 +1563,8 @@ components:
         orgId:
           type: integer
           format: int64
+        projectId:
+          type: string
         appGroup:
           type: object
           properties:
@@ -1575,6 +1575,8 @@ components:
             id:
               type: integer
               format: int64
+            projectId:
+              type: string
           required: [standalone, id]
         createdAt:
           type: string
@@ -1641,6 +1643,8 @@ components:
                   type: integer
                   format: int64
               required: [type, id]
+        projectId:
+          type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
@@ -1918,6 +1922,8 @@ components:
             orgId:
               type: integer
               format: int64
+            projectId:
+              type: string
             subdomain:
               type: string
               format: hostname
@@ -1934,7 +1940,7 @@ components:
               type: string
             preStop:
               type: string
-          required: [name, orgId, subdomain, port, env, mounts, appGroup]
+          required: [name, orgId, subdomain, port, env, mounts]
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

@@ -146,19 +146,19 @@ model App {
 
   // A Rancher user id to use when updating the app during CD
   clusterUsername String?
+  // Project ID the apps are part of (used in Rancher-managed clusters)
+  projectId       String?
   enableCD        Boolean @default(true)
 }
 
 model AppGroup {
-  id        Int          @id @default(autoincrement())
-  orgId     Int
-  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  name      String
+  id     Int          @id @default(autoincrement())
+  orgId  Int
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name   String
   // Is monolith app and should be displayed to the user as a single app not part of a group.
-  isMono    Boolean      @default(false)
-  // Project ID the apps are part of (used in Rancher-managed clusters)
-  projectId String?
-  apps      App[]
+  isMono Boolean      @default(false)
+  apps   App[]
 }
 
 model Deployment {

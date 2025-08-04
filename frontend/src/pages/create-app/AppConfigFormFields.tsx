@@ -29,6 +29,7 @@ import {
   Cog,
   Component,
   Database,
+  Fence,
   Info,
   Link,
   Loader,
@@ -49,6 +50,7 @@ export type AppInfoFormData = {
   dockerfilePath?: string;
   groupOption?: string;
   groupId?: number;
+  projectId?: string;
   env: Env;
   mounts: Mounts;
   orgId?: number;
@@ -81,7 +83,16 @@ const AppConfigFormFields = ({
     config?: components["schemas"]["DeploymentConfig"];
   };
 }) => {
-  const { groupOption, groupId, source, env, mounts, orgId, subdomain } = state;
+  const {
+    groupOption,
+    groupId,
+    projectId,
+    source,
+    env,
+    mounts,
+    orgId,
+    subdomain,
+  } = state;
 
   const { user } = useContext(UserContext);
 
@@ -271,6 +282,52 @@ const AppConfigFormFields = ({
           </div>
         </>
       )}
+      <div className="space-y-2">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <Label htmlFor="selectProject" className="pb-1">
+              <Fence className="inline" size={16} />
+              Project
+            </Label>
+            <span
+              className="text-red-500 cursor-default"
+              title="This field is required."
+            >
+              *
+            </span>
+          </div>
+          <p className="text-sm text-black-3">
+            In clusters managed by Rancher, resources are organized into
+            projects for administration.
+          </p>
+        </div>
+        <Select
+          required
+          name="project"
+          value={projectId ?? ""}
+          onValueChange={(projectId) =>
+            setState((prev) => ({ ...prev, projectId }))
+          }
+        >
+          <SelectTrigger className="w-full" id="selectProject">
+            <SelectValue placeholder="Select a Project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {user?.projects?.map((project) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  <p>
+                    {project.name}{" "}
+                    <span className="text-sm text-black-2">
+                      {project.description}
+                    </span>
+                  </p>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
       <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">

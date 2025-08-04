@@ -38,6 +38,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain: true,
           deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
+          projectId: true,
           appGroup: true,
         },
       },
@@ -91,7 +92,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       where: {
         id: deployment.appId,
       },
-      include: { appGroup: { select: { projectId: true } } },
+      include: { appGroup: true },
     });
 
     const { namespace, configs, postCreate } =
@@ -114,7 +115,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       const api = getClientForClusterUsername(
         app.clusterUsername,
         "KubernetesObjectApi",
-        shouldImpersonate(app.appGroup.projectId),
+        shouldImpersonate(app.projectId),
       );
 
       await createOrUpdateApp(api, app.name, namespace, configs, postCreate);

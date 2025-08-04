@@ -373,16 +373,13 @@ export const handlers = {
               },
             },
           },
-          appGroup: {
-            select: { projectId: true },
-          },
         },
       });
       for (let app of apps) {
         if (app.deployments.length > 0) {
           try {
             const api =
-              app.appGroup.projectId === env["SANDBOX_ID"]
+              app.projectId === env["SANDBOX_ID"]
                 ? svcK8s["KubernetesObjectApi"]
                 : userApi;
             await deleteNamespace(api, getNamespace(app.subdomain));
@@ -484,7 +481,7 @@ export const handlers = {
           try {
             const { AppsV1Api: api } = await getClientsForRequest(
               req.user.id,
-              app.appGroup.projectId,
+              app.projectId,
               ["AppsV1Api"],
             );
             return await api.readNamespacedStatefulSet({
@@ -503,6 +500,7 @@ export const handlers = {
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
+        projectId: app.projectId,
         name: app.name,
         displayName: app.displayName,
         createdAt: app.createdAt.toISOString(),
@@ -611,7 +609,10 @@ export const handlers = {
     return json(
       200,
       res,
-      appGroups.map((group) => ({ id: group.id, name: group.name })),
+      appGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+      })),
     );
   },
   getTemplates: function (

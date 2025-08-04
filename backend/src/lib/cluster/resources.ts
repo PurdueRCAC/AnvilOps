@@ -125,7 +125,7 @@ export const createAppConfigsFromDeployment = (
   deployment: Pick<Deployment, "appId" | "id"> & {
     app: Pick<
       App & { appGroup: AppGroup },
-      "name" | "logIngestSecret" | "subdomain" | "appGroup"
+      "name" | "logIngestSecret" | "subdomain" | "appGroup" | "projectId"
     >;
     config: ExtendedDeploymentConfig;
   },
@@ -134,10 +134,7 @@ export const createAppConfigsFromDeployment = (
   const conf = deployment.config;
   const namespaceName = getNamespace(app.subdomain);
 
-  const namespace = createNamespaceConfig(
-    namespaceName,
-    app.appGroup.projectId,
-  );
+  const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
   const secretName = `${app.name}-secrets-${deployment.id}`;

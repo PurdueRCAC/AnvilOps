@@ -106,7 +106,17 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   const { clusterUsername } = await db.user.findUnique({
     where: { id: req.user.id },
   });
-  if (!(await canManageProject(clusterUsername, data.projectId))) {
+
+  const permissionResults = await Promise.all(
+    data.apps.map((app) => canManageProject(clusterUsername, app.projectId)),
+  );
+
+  if (
+    !permissionResults.reduce(
+      (canManageAll, canManageCur) => canManageAll && canManageCur,
+      true,
+    )
+  ) {
     return json(401, res, {});
   }
 
@@ -171,7 +181,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     data: {
       name: data.name,
       orgId: data.orgId,
-      projectId: data.projectId,
     },
   });
   const appConfigs = data.apps.map((app) => {
@@ -215,6 +224,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       },
       // This cluster username will be used to automatically update the app after a build job or webhook payload
       clusterUsername,
+      projectId: app.projectId,
       appGroup: {
         connect: {
           id: appGroupId,

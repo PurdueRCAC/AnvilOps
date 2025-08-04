@@ -191,7 +191,6 @@ export const createApp: HandlerMap["createApp"] = async (
         create: {
           name: `${appData.name}-${randomBytes(4).toString("hex")}`,
           org: { connect: { id: appData.orgId } },
-          projectId: appData.projectId,
           isMono: true,
         },
       };
@@ -201,7 +200,6 @@ export const createApp: HandlerMap["createApp"] = async (
         create: {
           name: appData.appGroup.name,
           org: { connect: { id: appData.orgId } },
-          projectId: appData.projectId,
         },
       };
       break;
@@ -228,6 +226,7 @@ export const createApp: HandlerMap["createApp"] = async (
         // This cluster username will be used to automatically update the app after a build job or webhook payload
         // TODO: make this a setting in the UI
         clusterUsername,
+        projectId: appData.projectId,
         logIngestSecret: randomBytes(48).toString("hex"),
         deploymentConfigTemplate: {
           create: deploymentConfig,
