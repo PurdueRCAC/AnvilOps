@@ -30,6 +30,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
     include: {
       deploymentConfigTemplate: true,
       org: { select: { githubInstallationId: true } },
+      appGroup: true,
     },
   });
 
@@ -83,7 +84,10 @@ export const updateApp: HandlerMap["updateApp"] = async (
         }
       }
     }
-  } else if (appData.appGroup) {
+  } else if (
+    appData.appGroup &&
+    !(appData.appGroup.type === "standalone" && app.appGroup.isMono)
+  ) {
     const originalGroupId = app.appGroupId;
     const name =
       appData.appGroup.type === "standalone"

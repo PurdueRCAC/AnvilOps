@@ -76,6 +76,7 @@ export async function createState(
 ) {
   const random = randomBytes(64).toString("base64url");
 
+  // deleteMany does not throw if there is no state for the user
   await db.gitHubOAuthState.deleteMany({ where: { userId: userId } });
 
   const affectedUser = await db.user.update({

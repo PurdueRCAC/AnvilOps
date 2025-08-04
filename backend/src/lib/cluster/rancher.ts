@@ -13,7 +13,7 @@ const API_BASE_URL = env["RANCHER_API_BASE"];
 
 const SANDBOX_ID = env["SANDBOX_ID"];
 
-export const isRancherManaged = () => !!API_BASE_URL;
+export const isRancherManaged = () => !!API_BASE_URL && !!token;
 
 const fetchRancherResource = async (endpoint: string) => {
   return fetch(`${API_BASE_URL}/${endpoint}`, { headers })
