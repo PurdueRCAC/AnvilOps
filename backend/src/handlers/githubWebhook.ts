@@ -87,8 +87,48 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
         case "created": {
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-created"];
-          // TODO
-          break;
+          // This webhook is sent when the GitHub App is installed or a request to install the GitHub App is approved. Here, we care about the latter.
+
+          // Make sure the installation wasn't already added to an AnvilOps organization
+          const count = await db.organization.count({
+            where: { githubInstallationId: payload.installation.id },
+          });
+          if (count > 0) {
+            return json(200, res, {
+              message: "Installation is already linked to organization",
+            });
+          }
+
+          // Find the person who requested the app installation and add a record linked to their account that allows them to link the installation to an organization of their choosing
+          const user = await db.user.findFirst({
+            where: { githubUserId: payload.sender.id },
+          });
+          if (user === null) {
+            return json(200, res, {
+              message:
+                "No AnvilOps user found that matches the installation request's sender",
+            });
+          }
+
+          if (payload.installation.app_id.toString() !== env.GITHUB_APP_ID) {
+            // Sanity check
+            return json(422, res, { message: "Unknown app ID" });
+          }
+
+          await db.unassignedInstallation.create({
+            data: {
+              installationId: payload.installation.id,
+              userId: user.id,
+              targetName:
+                payload.installation.account["login"] ??
+                payload.installation.account.name,
+              url: payload.installation.html_url,
+            },
+          });
+
+          return json(200, res, {
+            message: "Unassigned installation created successfully",
+          });
         }
         case "deleted": {
           const payload = ctx.request
@@ -101,6 +141,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           await db.organization.updateMany({
             where: { newInstallationId: payload.installation.id },
             data: { newInstallationId: null },
+          });
+          await db.unassignedInstallation.deleteMany({
+            where: { installationId: payload.installation.id },
           });
           return json(200, res, {});
         }

@@ -48,17 +48,18 @@ import {
   namespaceInUse,
   svcK8s,
 } from "../lib/cluster/kubernetes.ts";
+import {
+  getProjectsForUser,
+  isRancherManaged,
+} from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { claimOrg } from "./claimOrg.ts";
 import { createDeployment } from "./createDeployment.ts";
 import { getSettings } from "./getSettings.ts";
-import {
-  getProjectsForUser,
-  isRancherManaged,
-} from "../lib/cluster/rancher.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -88,13 +89,17 @@ export const handlers = {
     try {
       const user = await db.user.findUnique({
         where: { id: req.user.id },
-        include: { orgs: { include: { organization: true } } },
+        include: {
+          orgs: { include: { organization: true } },
+          unassignedInstallations: true,
+        },
       });
 
       const projects =
         user.clusterUsername && isRancherManaged()
           ? await getProjectsForUser(user.clusterUsername)
           : undefined;
+
       return json(200, res, {
         id: user.id,
         email: user.email,
@@ -106,6 +111,7 @@ export const handlers = {
           githubConnected: item.organization.githubInstallationId !== null,
         })),
         projects,
+        unassignedInstallations: user.unassignedInstallations,
       });
     } catch (e) {
       console.log((e as Error).message);
@@ -645,6 +651,7 @@ export const handlers = {
   },
   createApp,
   createAppGroup,
+  claimOrg,
   updateApp,
   deleteApp,
   deleteAppGroup,

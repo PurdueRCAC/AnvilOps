@@ -95,18 +95,20 @@ paths:
         - name: installation_id
           in: query
           description: An identifier that allows us to authenticate with the GitHub API as our GitHub App and access the repositories that the person who installed the app has granted us access to.
-          required: true
           schema:
             type: integer
             format: int64
         - name: setup_action
           in: query
-          description: Should be set to "install".
+          description: Should be set to "install" or "request". If set to "install", the app will be linked to an AnvilOps organization immediately. If not, the user will see a popup in their dashboard when the request is approved, which they'll use to link the installation to an AnvilOps organization.
           schema:
             type: string
+            enum: [install, request]
       responses:
         "302":
           description: Success (redirecting back to GitHub for user authorization)
+        "400":
+          description: Bad request
         "401":
           description: User IDs don't match (the user signed in to a new account in the middle of the installation flow)
         "500":
@@ -391,6 +393,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+
+  /org/{orgId}/claim:
+    post:
+      description: Connects an AnvilOps organization to a GitHub organization from a request that had been approved in the background.
+      operationId: claimOrg
+      parameters:
+        - name: orgId
+          description: The ID of the organization to connect the app installation to.
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unclaimedInstallationId:
+                  description: The ID of the unclaimed installation. This is the ID of the unclaimed installation record in the database, not the GitHub installation ID!
+                  type: integer
+                  format: int64
+      responses:
+        "200":
+          description: Success
+        "500":
+          description: Internal server error
 
   /org/{orgId}/install-github-app:
     get:
@@ -1362,16 +1392,14 @@ paths:
                       items:
                         $ref: "#/components/schemas/Mount"
                   required:
-                    [
-                      displayName,
-                      url,
-                      description,
-                      port,
-                      builder,
-                      subdomain,
-                      env,
-                      mounts,
-                    ]
+                    - displayName
+                    - url
+                    - description
+                    - port
+                    - builder
+                    - subdomain
+                    - env
+                    - mounts
 components:
   schemas:
     UserOrg:
@@ -1411,12 +1439,32 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RancherProject"
+        unassignedInstallations:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnassignedInstallation"
       required:
         - id
         - email
         - name
         - orgs
-
+    UnassignedInstallation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        installationId:
+          type: integer
+          format: int64
+        targetName:
+          type: string
+        url:
+          type: string
+          format: uri
     Org:
       type: object
       properties:

@@ -1,9 +1,9 @@
 import express from "express";
 import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 import { db } from "./db.ts";
 import { env, parseCsv } from "./env.ts";
-import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 const clientID = env.CLIENT_ID;
@@ -115,6 +115,7 @@ router.get("/oauth_callback", async (req, res) => {
 
     return res.redirect("/dashboard");
   } catch (err) {
+    console.error(err);
     return res.redirect("/error?type=login");
   }
 });
