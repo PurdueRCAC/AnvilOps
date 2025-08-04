@@ -10,22 +10,22 @@ FROM ubuntu:24.04 AS railpack
 # Install the Railpack CLI
 # https://railpack.com/installation
 
-RUN apt update && apt install -y wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends wget=1.21.4-1ubuntu4.1 ca-certificates=20240203 && rm -rf /var/lib/apt/lists/*
 
 ARG RAILPACK_VERSION
-RUN wget https://github.com/railwayapp/railpack/releases/download/v${RAILPACK_VERSION}/railpack-v${RAILPACK_VERSION}-x86_64-unknown-linux-musl.tar.gz && \
+RUN wget --progress=dot:giga https://github.com/railwayapp/railpack/releases/download/v${RAILPACK_VERSION}/railpack-v${RAILPACK_VERSION}-x86_64-unknown-linux-musl.tar.gz && \
   tar -xzvf railpack-v${RAILPACK_VERSION}-x86_64-unknown-linux-musl.tar.gz && \
   mv ./railpack /usr/local/bin/railpack
 
 FROM ubuntu:24.04
 
-RUN apt update && \
-    apt install -y software-properties-common && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends software-properties-common=0.99.49.2 && \
     # ^ This package includes `add-apt-repository`
     add-apt-repository ppa:git-core/ppa && \
-    apt update && \
+    apt-get update && \
     # ^ Get the latest version of Git from their PPA (we need 2.49.0 or later because we use the `git clone --revision` flag)
-    apt install -y git wget libssl3 ca-certificates && \
+    apt-get install -y --no-install-recommends git=1:2.50.1-0ppa1~ubuntu24.04.1 wget=1.21.4-1ubuntu4.1 libssl3=3.0.13-0ubuntu3.5 ca-certificates=20240203 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl

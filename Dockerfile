@@ -53,8 +53,7 @@ RUN npx tsc --noEmit
 FROM base AS swagger_build
 WORKDIR /app
 COPY swagger-ui .
-RUN npm ci
-RUN npm run build
+RUN npm ci && npm run build
 
 # Combine frontend & backend and run the app
 FROM base AS backend_run
