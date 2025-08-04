@@ -5,7 +5,8 @@ title: What is AnvilOps?
 AnvilOps is a platform-as-a-service for Kubernetes.
 
 - Platform-as-a-service: a system that allows users to deploy applications with no concern for the underlying infrastructure. A PaaS typically provides conveniences, like logging and monitoring, CI/CD, and horizontal scaling so that users do not have to manage them themselves.
-- Kubernetes: a container orchestration system that maximizes availability of applications by scaling across multiple servers.
+- [Kubernetes](https://kubernetes.io/): a container orchestration system with a powerful set of features for deploying containerized applications, scaling them across servers, and ensuring they are available.
+- Container: A lightweight unit of software containing all the code and dependencies an application needs to run. Containers are useful for running applications in different environments or at scale.
 
 ## Key Features
 
@@ -17,9 +18,13 @@ Kubernetes is extremely powerful, but its large feature set makes it quite compl
 
 ### CI/CD
 
-CI/CD stands for Continuous Intgration and Continuous Delivery/Deployment. It's the name for a set of systems that enable software developers to release updates quickly by automating the build, testing, and deployment processes.
+CI/CD stands for Continuous Integration and Continuous Delivery/Deployment. It's the name for a set of systems that enable software developers to release updates quickly by automating the build, testing, and deployment processes.
 
-When you create an App with AnvilOps, the platform gives you the option to enable automatic builds and deployments. When you push a commit to your GitHub repository, AnvilOps will rebuild your application and immediately deploy the change, allowing you to iterate quickly without writing a complex, custom CI/CD pipeline.
+AnvilOps can automatically builds your application for you. Just select one of the supported builders: the Dockerfile builder, which builds from a Dockerfile inside your GitHub repository, or [Railpack](/reference/railpack), which detects the application type and automatically builds it without extra configuration.
+
+![ Build options on the AnvilOps app creation form. Two builders are available: Dockerfile and Railpack.](./what-is-anvilops/builders.png)
+
+When you create an App with AnvilOps, the platform gives you the option to enable automatic builds and deployments. When you push a commit to your GitHub repository, AnvilOps will rebuild your application and immediately deploy the change, allowing you to iterate quickly without setting up a custom CI/CD pipeline.
 
 ### Logging and Monitoring
 
