@@ -15,7 +15,7 @@ import AppConfigFormFields, {
 } from "./AppConfigFormFields";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import { Fence, Globe, Loader, Plus, Rocket, X } from "lucide-react";
+import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -90,6 +90,7 @@ export default function CreateAppGroupView() {
               (appState): components["schemas"]["NewAppWithoutGroupInfo"] => {
                 return {
                   orgId: orgId!,
+                  projectId: appState.projectId,
                   name: getAppName(appState),
                   subdomain: appState.subdomain,
                   port: parseInt(appState.port!),
@@ -122,7 +123,6 @@ export default function CreateAppGroupView() {
               body: {
                 name: formData.get("groupName")!.toString(),
                 orgId: orgId!,
-                projectId: formData.get("project")!.toString(),
                 apps,
               },
             });
@@ -162,45 +162,6 @@ export default function CreateAppGroupView() {
                 {user?.orgs?.map((org) => (
                   <SelectItem key={org.id} value={org.id.toString()}>
                     {org.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <div>
-            <div className="flex items-baseline gap-2">
-              <Label htmlFor="selectProject" className="pb-1">
-                <Fence className="inline" size={16} />
-                Project
-              </Label>
-              <span
-                className="text-red-500 cursor-default"
-                title="This field is required."
-              >
-                *
-              </span>
-            </div>
-            <p className="text-sm text-black-3">
-              In clusters managed by Rancher, resources are organized into
-              projects for administration.
-            </p>
-          </div>
-          <Select required name="project">
-            <SelectTrigger className="w-full" id="selectProject">
-              <SelectValue placeholder="Select a Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {user?.projects?.map((project) => (
-                  <SelectItem key={project.id} value={project.id.toString()}>
-                    <p>
-                      {project.name}{" "}
-                      <span className="text-sm text-black-2">
-                        {project.description}
-                      </span>
-                    </p>
                   </SelectItem>
                 ))}
               </SelectGroup>

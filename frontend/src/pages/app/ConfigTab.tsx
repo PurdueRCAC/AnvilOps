@@ -38,6 +38,7 @@ export const ConfigTab = ({
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
     groupId: app.appGroup.id,
+    projectId: app.projectId,
     source: app.config.source,
     ...(app.config.source === "git"
       ? {
@@ -67,10 +68,12 @@ export const ConfigTab = ({
         e.preventDefault();
 
         const formData = new FormData(e.currentTarget);
-        let appGroup: components["schemas"]["NewApp"]["appGroup"];
+        let appGroup: components["schemas"]["AppUpdate"]["appGroup"];
         switch (formState.groupOption) {
           case "standalone":
-            appGroup = { type: "standalone" };
+            appGroup = {
+              type: "standalone",
+            };
             break;
           case "create-new":
             appGroup = {
@@ -87,6 +90,7 @@ export const ConfigTab = ({
           body: {
             name: formData.get("name")!.toString(),
             appGroup,
+            projectId: formState.projectId,
             config: {
               port: parseInt(formData.get("portNumber")!.toString()),
               env: formState.env.filter((it) => it.name.length > 0),

@@ -12,10 +12,9 @@ import {
 import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { Check, Fence, Globe, Loader, Rocket, X } from "lucide-react";
+import { Check, Globe, Loader, Rocket, X } from "lucide-react";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
 import AppConfigFormFields, {
   type AppInfoFormData,
 } from "./AppConfigFormFields";
@@ -108,7 +107,7 @@ export default function CreateAppView() {
             const result = await createApp({
               body: {
                 orgId: formState.orgId!,
-                projectId: formData.get("project")!.toString(),
+                projectId: formState.projectId,
                 name: appName,
                 subdomain: subdomain,
                 port: parseInt(formState.port!),
@@ -138,9 +137,7 @@ export default function CreateAppView() {
             });
 
             navigate(`/app/${result.id}`);
-          } catch (err) {
-            toast.error((err as Error).message);
-          }
+          } catch (err) {}
         }}
       >
         <h2 className="font-bold text-3xl mb-4">Create an App</h2>
@@ -173,45 +170,6 @@ export default function CreateAppView() {
                 {user?.orgs?.map((org) => (
                   <SelectItem key={org.id} value={org.id.toString()}>
                     {org.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <div>
-            <div className="flex items-baseline gap-2">
-              <Label htmlFor="selectProject" className="pb-1">
-                <Fence className="inline" size={16} />
-                Project
-              </Label>
-              <span
-                className="text-red-500 cursor-default"
-                title="This field is required."
-              >
-                *
-              </span>
-            </div>
-            <p className="text-sm text-black-3">
-              In clusters managed by Rancher, resources are organized into
-              projects for administration.
-            </p>
-          </div>
-          <Select required name="project">
-            <SelectTrigger className="w-full" id="selectProject">
-              <SelectValue placeholder="Select a Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {user?.projects?.map((project) => (
-                  <SelectItem key={project.id} value={project.id.toString()}>
-                    <p>
-                      {project.name}{" "}
-                      <span className="text-sm text-black-2">
-                        {project.description}
-                      </span>
-                    </p>
                   </SelectItem>
                 ))}
               </SelectGroup>

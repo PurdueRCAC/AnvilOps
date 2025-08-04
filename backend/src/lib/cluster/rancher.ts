@@ -1,6 +1,7 @@
 import { KubeConfig } from "@kubernetes/client-node";
 import { getClientForClusterUsername } from "./kubernetes.ts";
 import { env } from "../env.ts";
+import { getOrCreate } from "../cache.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -22,16 +23,6 @@ const fetchRancherResource = async (endpoint: string) => {
     .then((res) => (res.type === "error" ? new Error(res.message) : res));
 };
 
-export const getRancherUserID = async (eppn: string) => {
-  const users = await fetchRancherResource("users");
-  const principalId = `shibboleth_user://${eppn}`;
-  const user = users?.data?.find((user: any) =>
-    user.principalIds.some((id: string) => id === principalId),
-  );
-
-  return user?.id;
-};
-
 const getProjectById = async (id: string) => {
   const project = await fetchRancherResource(`projects/${id}`);
 
@@ -42,15 +33,7 @@ const getProjectById = async (id: string) => {
   };
 };
 
-export const getProjectsForUser = async (
-  rancherId: string,
-): Promise<
-  {
-    id: string;
-    name: string;
-    description: string;
-  }[]
-> => {
+const fetchUserProjects = async (rancherId: string) => {
   const bindings = await fetchRancherResource(
     `projectRoleTemplateBindings?userId=${rancherId}`,
   ).then((res) => res.data);
@@ -108,14 +91,13 @@ export const getProjectsForUser = async (
   );
 };
 
-export const canManageProject = async (userId: string, projectId: string) => {
+const getProjectAccessReview = async (userId: string, projectId: string) => {
   if (!projectId) {
     return false;
   }
   if (projectId === SANDBOX_ID) {
     return true;
   }
-
   const simpleProjectId = projectId.split(":")[1];
   const authClient = getClientForClusterUsername(
     userId,
@@ -142,6 +124,40 @@ export const canManageProject = async (userId: string, projectId: string) => {
         return false;
       },
     );
+};
+
+export const getRancherUserID = async (eppn: string) => {
+  const users = await fetchRancherResource("users");
+  const principalId = `shibboleth_user://${eppn}`;
+  const user = users?.data?.find((user: any) =>
+    user.principalIds.some((id: string) => id === principalId),
+  );
+
+  return user?.id;
+};
+
+export const getProjectsForUser = async (
+  rancherId: string,
+): Promise<
+  {
+    id: string;
+    name: string;
+    description: string;
+  }[]
+> => {
+  return JSON.parse(
+    await getOrCreate(`rancher-projects-${rancherId}`, 15, async () =>
+      JSON.stringify(await fetchUserProjects(rancherId)),
+    ),
+  );
+};
+
+export const canManageProject = async (userId: string, projectId: string) => {
+  return (
+    (await getOrCreate(`rancher-canmanage-${userId}-${projectId}`, 15, () =>
+      getProjectAccessReview(userId, projectId).then((res) => res.toString()),
+    )) === "true"
+  );
 };
 
 export const shouldImpersonate = (projectId: string) =>

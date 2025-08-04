@@ -31,7 +31,6 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       },
-      appGroup: { select: { projectId: true } },
     },
   });
 
@@ -116,7 +115,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
       CoreV1Api: core,
       AppsV1Api: apps,
       Watch: watch,
-    } = await getClientsForRequest(req.user.id, app.appGroup.projectId, [
+    } = await getClientsForRequest(req.user.id, app.projectId, [
       "CoreV1Api",
       "AppsV1Api",
       "Watch",

@@ -247,11 +247,10 @@ export async function buildAndDeploy({
     try {
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
-      console.log(namespace);
       const api = getClientForClusterUsername(
         deployment.app.clusterUsername,
         "KubernetesObjectApi",
-        shouldImpersonate(deployment.app.appGroup.projectId),
+        shouldImpersonate(deployment.app.projectId),
       );
       await createOrUpdateApp(
         api,

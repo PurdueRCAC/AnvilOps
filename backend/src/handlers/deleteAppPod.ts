@@ -14,7 +14,6 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
     },
-    include: { appGroup: { select: { projectId: true } } },
   });
   if (!app) {
     return json(404, res, {});
@@ -22,7 +21,7 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
 
   const { CoreV1Api: api } = await getClientsForRequest(
     req.user.id,
-    app.appGroup.projectId,
+    app.projectId,
     ["CoreV1Api"],
   );
 

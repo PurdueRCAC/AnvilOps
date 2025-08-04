@@ -182,6 +182,8 @@ const DeleteGroupDialog = ({
   appGroup: AppGroupType;
   children: ReactNode;
 }) => {
+  const { refetch } = useContext(UserContext);
+
   const [nameText, setNameText] = useState("");
 
   const { mutateAsync: deleteAppGroupAction } = api.useMutation(
@@ -199,6 +201,7 @@ const DeleteGroupDialog = ({
       return;
     }
     toast.success("Your project has been deleted.");
+    refetch?.({});
   };
 
   return (

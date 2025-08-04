@@ -163,7 +163,9 @@ export const createOrUpdateApp = async (
   configs: K8sObject[],
   postCreate?: (api: KubernetesObjectApi) => void,
 ) => {
-  if (!(await resourceExists(api, namespace))) {
+  if (await resourceExists(api, namespace)) {
+    await api.patch(namespace);
+  } else {
     await ensureNamespace(api, namespace);
   }
 

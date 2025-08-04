@@ -47,29 +47,34 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const { subdomain, imageRepo, appGroup, deploymentConfigTemplateId } =
-    await db.app.findUnique({
-      where: {
-        id: appId,
-      },
-      select: {
-        subdomain: true,
-        imageRepo: true,
-        appGroup: {
-          select: {
-            id: true,
-            _count: true,
-            projectId: true,
-          },
+  const {
+    subdomain,
+    projectId,
+    imageRepo,
+    appGroup,
+    deploymentConfigTemplateId,
+  } = await db.app.findUnique({
+    where: {
+      id: appId,
+    },
+    select: {
+      subdomain: true,
+      imageRepo: true,
+      projectId: true,
+      appGroup: {
+        select: {
+          id: true,
+          _count: true,
         },
-        deploymentConfigTemplateId: true,
       },
-    });
+      deploymentConfigTemplateId: true,
+    },
+  });
 
   try {
     const { KubernetesObjectApi: api } = await getClientsForRequest(
       req.user.id,
-      appGroup.projectId,
+      projectId,
       ["KubernetesObjectApi"],
     );
     await deleteNamespace(api, getNamespace(subdomain));
