@@ -56,6 +56,7 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   try {
     state = await createState("CREATE_INSTALLATION", req.user.id, orgId);
   } catch (e) {
+    console.error("Error creating state", e);
     return githubConnectError(res, "STATE_FAIL");
   }
 
@@ -75,7 +76,7 @@ export async function createState(
 ) {
   const random = randomBytes(64).toString("base64url");
 
-  await db.gitHubOAuthState.delete({ where: { userId: userId } });
+  await db.gitHubOAuthState.deleteMany({ where: { userId: userId } });
 
   const affectedUser = await db.user.update({
     where: { id: userId },
