@@ -267,7 +267,10 @@ export const handlers = {
             const apps = await Promise.all(
               group.apps.map(async (app) => {
                 let repoURL: string;
-                if (app.deploymentConfigTemplate.source === "GIT") {
+                if (
+                  app.deploymentConfigTemplate.source === "GIT" &&
+                  org.githubInstallationId
+                ) {
                   if (!octokit) {
                     octokit = await getOctokit(org.githubInstallationId);
                   }
@@ -449,7 +452,7 @@ export const handlers = {
   > {
     try {
       const appId = ctx.request.params.appId;
-      const [app, deploymentCount] = await db.$transaction([
+      const [app, deploymentCount] = await Promise.all([
         db.app.findUnique({
           where: {
             id: appId,
