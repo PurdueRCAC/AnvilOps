@@ -51,7 +51,7 @@ const genKey = (): Buffer => {
 };
 
 const patchEnvIfExists = (data: {
-  env?: DeploymentJson.EnvVar[];
+  env?: PrismaJson.EnvVar[];
   envKey?: string | StringFieldUpdateOperationsInput;
   [key: string]: unknown;
 }) => {

@@ -97,5 +97,13 @@ export const createDeployment: HandlerMap["createDeployment"] = async (
     commitMessage,
   });
 
+  await db.app.update({
+    where: { id: ctx.request.params.appId },
+    data: {
+      enableCD: appConfig.enableCD,
+      isPreviewing: true,
+    },
+  });
+
   return json(201, res, {});
 };

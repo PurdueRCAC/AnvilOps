@@ -508,6 +508,7 @@ export const handlers = {
         repositoryId: repoId,
         repositoryURL: repoURL,
         subdomain: app.subdomain,
+        cdEnabled: app.enableCD,
         config: {
           port: app.deploymentConfigTemplate.fieldValues.port,
           env: app.deploymentConfigTemplate.displayEnv,
@@ -536,6 +537,7 @@ export const handlers = {
                 imageTag: app.deploymentConfigTemplate.imageTag,
               }),
         },
+        configId: app.deploymentConfigTemplateId,
         appGroup: {
           standalone: app.appGroup.isMono,
           name: !app.appGroup.isMono ? app.appGroup.name : undefined,
@@ -545,6 +547,7 @@ export const handlers = {
           ? parseInt(activeDeployment)
           : undefined,
         deploymentCount,
+        isPreviewing: app.isPreviewing,
       });
     } catch (e) {
       console.error(e);

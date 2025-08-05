@@ -15,6 +15,7 @@ import {
   ExternalLink,
   GitBranch,
   GitCommit,
+  InfoIcon,
   Link2,
   Loader,
   LogsIcon,
@@ -25,6 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
+import { cn } from "@/lib/utils";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -195,6 +197,25 @@ export const OverviewTab = ({
           </>
         )}
       </div>
+      {app.isPreviewing && (
+        <InfoBox type="info" title="This app is in preview mode.">
+          <p>
+            Preview mode is for temporarily testing out an app configuration. To
+            persist these changes, save them in the Configuration tab.
+          </p>
+        </InfoBox>
+      )}
+      {app.isPreviewing && app.config.source === "git" && app.cdEnabled && (
+        <InfoBox
+          type="warning"
+          title="Warning: Continuous deployment is enabled."
+        >
+          <p>
+            The configuration changes you are previewing will be reverted if the
+            repository referenced in your app configuration template updates.
+          </p>
+        </InfoBox>
+      )}
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
         {app.config.source === "git" ? (
@@ -349,5 +370,29 @@ export const OverviewTab = ({
         </table>
       )}
     </>
+  );
+};
+
+const InfoBox = ({
+  type,
+  title,
+  children,
+}: {
+  type: "info" | "warning";
+  title: string;
+  children: React.ReactNode;
+}) => {
+  return (
+    <div
+      className={cn(
+        "rounded-md p-4 my-4 text-black-4",
+        type === "info" ? "bg-gold-1/75" : "bg-red-100",
+      )}
+    >
+      <div className="text-lg font-bold mb-2 flex items-center gap-2">
+        <InfoIcon className="inline" /> <h3>{title}</h3>
+      </div>
+      {children}
+    </div>
   );
 };

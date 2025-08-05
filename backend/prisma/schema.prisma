@@ -10,7 +10,7 @@ generator client {
 
 generator json {
   provider  = "prisma-json-types-generator"
-  namespace = "DeploymentJson"
+  namespace = "PrismaJson"
 }
 
 datasource db {
@@ -149,6 +149,7 @@ model App {
   // Project ID the apps are part of (used in Rancher-managed clusters)
   projectId       String?
   enableCD        Boolean @default(true)
+  isPreviewing    Boolean @default(false)
 }
 
 model AppGroup {

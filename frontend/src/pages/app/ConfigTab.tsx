@@ -6,12 +6,13 @@ import AppConfigFormFields, {
   type AppInfoFormData,
 } from "@/pages/create-app/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
-import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
+import { Loader, Save, Scale3D, TextCursorInput, Workflow } from "lucide-react";
 import { useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
+import { Switch } from "@/components/ui/switch";
 
 export const ConfigTab = ({
   app,
@@ -40,6 +41,7 @@ export const ConfigTab = ({
     groupId: app.appGroup.id,
     projectId: app.projectId,
     source: app.config.source,
+    enableCD: app.cdEnabled,
     ...(app.config.source === "git"
       ? {
           repositoryId: app.config.repositoryId,
@@ -91,6 +93,7 @@ export const ConfigTab = ({
             name: formData.get("name")!.toString(),
             appGroup,
             projectId: formState.projectId,
+            enableCD: formState.enableCD,
             config: {
               port: parseInt(formData.get("portNumber")!.toString()),
               env: formState.env.filter((it) => it.name.length > 0),
@@ -140,6 +143,37 @@ export const ConfigTab = ({
       className="flex flex-col gap-8"
     >
       <div>
+        {formState.source === "git" && (
+          <div className="gap-2 mb-6 space-y-2">
+            <Label className="pb-1">
+              <Workflow className="inline" size={16} /> Toggle Continuous
+              Deployment
+            </Label>
+            <Label>
+              <Switch
+                checked={formState.enableCD}
+                onCheckedChange={(checked) =>
+                  setFormState((fs) => ({ ...fs, enableCD: checked }))
+                }
+              />{" "}
+              Continuous deployment is{" "}
+              {formState.enableCD ? (
+                <strong>on.</strong>
+              ) : (
+                <strong>off.</strong>
+              )}
+              <span className="text-black-4">
+                This app{" "}
+                {formState.enableCD ? (
+                  <strong>will</strong>
+                ) : (
+                  <strong>will not</strong>
+                )}{" "}
+                be rebuilt and redeployed when the source repository updates.
+              </span>
+            </Label>
+          </div>
+        )}
         <div className="flex items-baseline gap-2 mb-2">
           <Label className="pb-1">
             <TextCursorInput className="inline" size={16} /> App Name

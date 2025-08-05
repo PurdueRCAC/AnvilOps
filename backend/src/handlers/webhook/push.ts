@@ -26,7 +26,6 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
         repositoryId: repoId,
       },
       org: { githubInstallationId: { not: null } },
-      enableCD: true,
     },
     include: {
       org: { select: { githubInstallationId: true } },

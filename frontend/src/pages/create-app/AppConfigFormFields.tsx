@@ -54,6 +54,7 @@ export type AppInfoFormData = {
   env: Env;
   mounts: Mounts;
   orgId?: number;
+  enableCD: boolean;
   repositoryId?: number;
   event?: "push" | "workflow_run";
   eventId?: string;

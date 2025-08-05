@@ -92,7 +92,7 @@ export const validateAppGroup = (
   return { valid: true };
 };
 
-export const validateEnv = (env: DeploymentJson.EnvVar[]) => {
+export const validateEnv = (env: PrismaJson.EnvVar[]) => {
   if (env?.some((it) => !it.name || it.name.length === 0)) {
     throw new Error("Some environment variable(s) are empty");
   }

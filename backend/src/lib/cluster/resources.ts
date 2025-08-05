@@ -63,7 +63,7 @@ export const createNamespaceConfig = (
 };
 
 const getEnvVars = (
-  env: DeploymentJson.EnvVar[],
+  env: PrismaJson.EnvVar[],
   secretName: string,
 ): V1EnvVar[] => {
   const envVars = [];
@@ -82,9 +82,7 @@ const getEnvVars = (
   return envVars;
 };
 
-const getEnvRecord = (
-  envVars: DeploymentJson.EnvVar[],
-): Record<string, string> => {
+const getEnvRecord = (envVars: PrismaJson.EnvVar[]): Record<string, string> => {
   if (envVars.length == 0) return null;
   return envVars.reduce((data, env) => {
     return Object.assign(data, { [env.name]: env.value });

@@ -127,14 +127,16 @@ export const updateApp: HandlerMap["updateApp"] = async (
     });
   }
 
-  if (appData.projectId !== originalApp.projectId) {
-    await db.app.update({
-      where: { id: originalApp.id },
-      data: {
-        projectId: appData.projectId,
-      },
-    });
-  }
+  await db.app.update({
+    where: { id: originalApp.id },
+    data: {
+      ...(appData.projectId &&
+        appData.projectId !== originalApp.projectId && {
+          projectId: appData.projectId,
+        }),
+      enableCD: appData.enableCD,
+    },
+  });
 
   const secret = randomBytes(32).toString("hex");
 
@@ -319,7 +321,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
 export const withSensitiveEnv = (
-  lastPlaintextEnv: DeploymentJson.EnvVar[],
+  lastPlaintextEnv: PrismaJson.EnvVar[],
   envVars: {
     name: string;
     value: string | null;

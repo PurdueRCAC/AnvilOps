@@ -1190,7 +1190,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeploymentConfig"
+              allOf:
+                - type: object
+                  properties:
+                    enableCD:
+                      type: boolean
+                  required: [enableCD]
+                - $ref: "#/components/schemas/DeploymentConfig"
       responses:
         "201":
           description: Created successfully
@@ -1565,6 +1571,8 @@ components:
           format: int64
         projectId:
           type: string
+        cdEnabled:
+          type: boolean
         appGroup:
           type: object
           properties:
@@ -1593,25 +1601,32 @@ components:
           type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
+        configId:
+          type: number
         subdomain:
           type: string
         activeDeployment:
           type: number
           format: int64
+        isPreviewing:
+          type: boolean
         deploymentCount:
           type: number
           format: int64
       required:
         - id
         - orgId
+        - cdEnabled
         - appGroup
         - createdAt
         - updatedAt
         - name
         - displayName
         - config
+        - configId
         - subdomain
         - activeDeployment
+        - isPreviewing
         - deploymentCount
     AppUpdate:
       type: object
@@ -1645,9 +1660,12 @@ components:
               required: [type, id]
         projectId:
           type: string
+        enableCD:
+          type: boolean
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
+        - enableCD
         - config
     DeploymentConfig:
       type: object

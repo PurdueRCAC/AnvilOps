@@ -3,7 +3,7 @@ import { db } from "../src/lib/db.ts";
 
 const Resources = ["cpu", "memory", "nvidia.com/gpu"] as const;
 declare global {
-  namespace DeploymentJson {
+  namespace PrismaJson {
     type EnvVar = {
       name: string;
       value: string;
@@ -22,6 +22,10 @@ declare global {
         limits?: ResourceRequests;
         requests?: ResourceRequests;
       };
+    };
+    type AppFlags = {
+      enableCD: boolean;
+      isPreviewing: boolean;
     };
   }
   type ExtendedDeploymentConfig = Prisma.Result<

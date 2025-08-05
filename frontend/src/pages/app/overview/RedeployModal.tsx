@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
 import { PagedView } from "@/components/PagedView";
+import { Switch } from "@/components/ui/switch";
 
 const defaultRedeployState = {
   radioValue: undefined,
@@ -32,6 +33,8 @@ const defaultRedeployState = {
     builder: "dockerfile" as const,
     port: "",
   },
+  enableCD: true,
+  idx: 0,
 };
 
 Object.freeze(defaultRedeployState);
@@ -64,6 +67,8 @@ export const RedeployModal = ({
     persistChanges: "oneOff" | "updateTemplate";
     configOpen: boolean;
     configState: DeploymentConfigFormData;
+    enableCD: boolean;
+    idx: number;
   }>(defaultRedeployState);
 
   const { data: pastDeployment, isPending: pastDeploymentLoading } =
@@ -200,7 +205,7 @@ export const RedeployModal = ({
                       source: "image" as const,
                       imageTag: config.imageTag!,
                     }),
-                enableCD: true,
+                enableCD: redeployState.enableCD,
               };
 
               if (redeployState.persistChanges === "oneOff") {
@@ -360,14 +365,48 @@ export const RedeployModal = ({
                         Persist changes for future deployments
                       </div>
                       <p className="text-black-3 ml-6 text-sm mb-4">
-                        Changes you make here will persist in future automatic
-                        deployments as well as in the Configuration tab. If you
-                        set the deployment source to OCI Image, automatic Git
-                        deployments will be disabled until you link your
-                        repository again.
+                        Changes you make here will update the app's
+                        configuration template. If your app has been set to
+                        deploy from a Git repository, these changes will persist
+                        in automatic redeployments.
                       </p>
                     </Label>
                   </RadioGroup>
+                  <p className="my-4">
+                    <strong>Step 4</strong>: Toggle continuous deployment
+                  </p>
+                  <Label>
+                    <Switch
+                      checked={redeployState.enableCD}
+                      onCheckedChange={(checked) =>
+                        setRedeployState((rs) => ({ ...rs, enableCD: checked }))
+                      }
+                    />
+                    Continuous deployment will be turned
+                    <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+                  </Label>
+                  <p className="text-black-4 text-sm my-2">
+                    {redeployState.enableCD ? (
+                      <>
+                        If this app is deployed from a Git repository and a
+                        commit is pushed, the app will be rebuilt and
+                        redeployed.{" "}
+                        {redeployState.persistChanges === "oneOff" && (
+                          <strong>
+                            This will revert the app to the template
+                            configuration.
+                          </strong>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        If this app is deployed from a Git repository and a
+                        commit is pushed, the app{" "}
+                        <strong>will not be updated</strong> on the cluster
+                        until continuous deployment is reenabled.
+                      </>
+                    )}
+                  </p>
                 </div>
               </PagedView>
             ) : (

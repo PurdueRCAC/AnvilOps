@@ -237,7 +237,7 @@ export async function buildAndDeploy({
     },
   });
 
-  await cancelAllOtherDeployments(deployment.id, deployment.app);
+  await cancelAllOtherDeployments(deployment.id, deployment.app, true);
 
   if (config.source === "GIT") {
     buildAndDeployFromRepo({ deployment, opts });
