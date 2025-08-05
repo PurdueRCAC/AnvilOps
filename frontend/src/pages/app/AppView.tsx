@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ConfigTab } from "./ConfigTab";
 import { DangerZoneTab } from "./DangerZoneTab";
@@ -45,6 +46,16 @@ export default function AppView() {
         return 10_000;
       },
     },
+  );
+
+  // Pre-fetch the data that's needed for the Overview tab. This helps make the page load a bit faster because, without this, the OverviewTab component could only start fetching this after the queries in this component finish.
+  useQueryClient().prefetchQuery(
+    api.queryOptions("get", "/app/{appId}/deployments", {
+      params: {
+        path: { appId: parseInt(params.id!) },
+        query: { length: 25, page: 0 },
+      },
+    }),
   );
 
   const [searchParams, setSearchParams] = useSearchParams();

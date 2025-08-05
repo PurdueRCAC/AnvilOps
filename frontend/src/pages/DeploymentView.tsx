@@ -59,9 +59,11 @@ export const DeploymentView = () => {
       >
         {title}
       </h1>
-      <p className="whitespace-pre-line text-sm opacity-50 mb-4">
-        {description}
-      </p>
+      {description.trim().length > 0 && (
+        <p className="whitespace-pre-line text-sm opacity-50 mb-4">
+          {description}
+        </p>
+      )}
       <div className="flex gap-4 sticky top-28 bg-white z-30 py-2">
         <Status status={deployment.status} />
         {deployment.config.source === "git" && deployment.commitHash ? (

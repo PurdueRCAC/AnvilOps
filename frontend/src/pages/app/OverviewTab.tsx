@@ -229,7 +229,7 @@ export const OverviewTab = ({
                     <span className="text-nowrap">
                       {format.format(new Date(d.createdAt))}
                     </span>
-                    {d.id === activeDeployment && (
+                    {d.id === activeDeployment ? (
                       <Tooltip>
                         <TooltipTrigger>
                           <span
@@ -245,6 +245,9 @@ export const OverviewTab = ({
                           are rolled out.
                         </TooltipContent>
                       </Tooltip>
+                    ) : (
+                      // Reduce layout shift when the "Current" badge loads in by reserving the space
+                      <span className="w-20" />
                     )}
                   </div>
                 </td>
