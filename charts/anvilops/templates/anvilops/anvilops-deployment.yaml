@@ -136,17 +136,23 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
-            - name: PROJECT_NAME
+            - name: RANCHER_API_BASE
               valueFrom:
                 secretKeyRef:
-                  name: app-config
-                  key: project-name
+                  name: rancher-config
+                  key: api-base
                   optional: true
-            - name: PROJECT_NS
+            - name: RANCHER_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: app-config
-                  key: project-ns
+                  name: rancher-config
+                  key: api-token
+                  optional: true
+            - name: SANDBOX_ID
+              valueFrom:
+                secretKeyRef:
+                  name: rancher-config
+                  key: sandbox-id
                   optional: true
             - name: FIELD_ENCRYPTION_KEY
               valueFrom:

@@ -122,13 +122,17 @@ const variables = {
    */
   DELETE_REPO_PASSWORD: { required: true },
   /**
-   * The Rancher project namespace to create all app namespaces in. If omitted, apps will be created outside of any Rancher project.
+   * The base URL for the Rancher v3 API, e.g. https://composable.anvil.rcac.purdue.edu/v3.
    */
-  PROJECT_NS: { required: false },
+  RANCHER_API_BASE: { required: false },
   /**
-   * The Rancher project name to create all app namespaces in. If omitted, apps will be created outside of any Rancher project.
+   * Unscoped token for making calls to the Rancher v3 API.
    */
-  PROJECT_NAME: { required: false },
+  RANCHER_TOKEN: { required: false },
+  /**
+   * The Rancher project ID that all users on a Rancher-managed cluster are allowed to create apps in. If omitted, users will only be able to create applications in their own projects.
+   */
+  SANDBOX_ID: { required: false },
   /**
    * The Kubernetes namespace that all AnvilOps jobs should run in, e.g. anvilops-dev
    */

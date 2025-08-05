@@ -2,7 +2,10 @@ import { type components } from "../generated/openapi.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { deleteNamespace } from "../lib/cluster/kubernetes.ts";
+import {
+  deleteNamespace,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
 
@@ -56,7 +59,14 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
 
   try {
     await Promise.all(
-      appGroup.apps.map((app) => deleteNamespace(getNamespace(app.subdomain))),
+      appGroup.apps.map((app) => async () => {
+        const { KubernetesObjectApi: api } = await getClientsForRequest(
+          req.user.id,
+          app.projectId,
+          ["KubernetesObjectApi"],
+        );
+        deleteNamespace(api, getNamespace(app.subdomain));
+      }),
     );
   } catch (err) {
     console.error("Failed to delete namespace:", err);
@@ -71,12 +81,15 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
         }),
       ),
     );
-
-    await Promise.all(
-      repos.map(async (repo) => {
-        if (repo) await deleteRepo(repo);
-      }),
-    );
+    try {
+      await Promise.all(
+        repos.map(async (repo) => {
+          if (repo) await deleteRepo(repo);
+        }),
+      );
+    } catch (e) {
+      console.error("Failed to delete image repository: ", e);
+    }
   } catch (err) {
     console.error(err);
     return json(500, res, {

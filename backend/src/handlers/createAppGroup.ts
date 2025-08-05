@@ -3,17 +3,16 @@ import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { canManageProject } from "../lib/cluster/rancher.ts";
 import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
-import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateDeploymentConfig,
   validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
-import { json, redirect, type HandlerMap } from "../types.ts";
-import { createState } from "./githubAppInstall.ts";
+import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -23,6 +22,9 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   res,
 ) => {
   const data = ctx.request.requestBody;
+
+  // TODO: validate project id
+
   {
     const groupNameIsValid =
       data.name.length <= MAX_GROUPNAME_LEN &&
@@ -101,30 +103,31 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     });
   }
 
+  const { clusterUsername } = await db.user.findUnique({
+    where: { id: req.user.id },
+  });
+
+  const permissionResults = await Promise.all(
+    data.apps.map((app) => canManageProject(clusterUsername, app.projectId)),
+  );
+
+  if (
+    !permissionResults.reduce(
+      (canManageAll, canManageCur) => canManageAll && canManageCur,
+      true,
+    )
+  ) {
+    return json(401, res, {});
+  }
+
   let octokit: Octokit;
   if (data.apps.some((app) => app.source === "git")) {
     if (!organization.githubInstallationId) {
-      const isOwner = !!(await db.organizationMembership.findFirst({
-        where: {
-          userId: req.user.id,
-          organizationId: data.orgId,
-          permissionLevel: "OWNER",
-        },
-      }));
-      if (isOwner) {
-        const state = await createState(req.user.id, data.orgId);
-        return redirect(
-          302,
-          res,
-          `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
-        );
-      } else {
-        return json(403, res, {
-          code: 403,
-          message:
-            "Owner needs to install GitHub App in organization in order to deploy from Git repositories",
-        });
-      }
+      return json(403, res, {
+        code: 403,
+        message:
+          "The AnvilOps GitHub App is not installed in this organization.",
+      });
     } else {
       octokit = await getOctokit(organization.githubInstallationId);
     }
@@ -219,6 +222,9 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           id: app.orgId,
         },
       },
+      // This cluster username will be used to automatically update the app after a build job or webhook payload
+      clusterUsername,
+      projectId: app.projectId,
       appGroup: {
         connect: {
           id: appGroupId,

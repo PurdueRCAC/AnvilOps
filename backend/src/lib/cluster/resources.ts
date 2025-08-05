@@ -1,11 +1,15 @@
-import type { V1EnvVar, V1Namespace, V1Secret } from "@kubernetes/client-node";
+import type {
+  KubernetesObjectApi,
+  V1EnvVar,
+  V1Namespace,
+  V1Secret,
+} from "@kubernetes/client-node";
 import type {
   App,
   AppGroup,
   Deployment,
 } from "../../generated/prisma/client.ts";
 import { env } from "../env.ts";
-import { k8s } from "./kubernetes.ts";
 import { createLogConfig } from "./resources/log.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
@@ -44,6 +48,7 @@ export interface K8sObject {
 
 export const createNamespaceConfig = (
   namespace: string,
+  projectId?: string,
 ): V1Namespace & K8sObject => {
   return {
     apiVersion: "v1",
@@ -51,7 +56,7 @@ export const createNamespaceConfig = (
     metadata: {
       name: namespace,
       annotations: {
-        "field.cattle.io/projectId": `${env.PROJECT_NS}:${env.PROJECT_NAME}`,
+        ...(!!projectId && { "field.cattle.io/projectId": `${projectId}` }),
       },
     },
   };
@@ -120,7 +125,7 @@ export const createAppConfigsFromDeployment = (
   deployment: Pick<Deployment, "appId" | "id"> & {
     app: Pick<
       App & { appGroup: AppGroup },
-      "name" | "logIngestSecret" | "subdomain" | "appGroup"
+      "name" | "logIngestSecret" | "subdomain" | "appGroup" | "projectId"
     >;
     config: ExtendedDeploymentConfig;
   },
@@ -129,7 +134,7 @@ export const createAppConfigsFromDeployment = (
   const conf = deployment.config;
   const namespaceName = getNamespace(app.subdomain);
 
-  const namespace = createNamespaceConfig(namespaceName);
+  const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
@@ -181,11 +186,21 @@ export const createAppConfigsFromDeployment = (
   for (let config of configs) {
     applyLabels(config, labels);
   }
-  const postCreate = () => {
-    k8s.default.deleteCollectionNamespacedSecret({
-      namespace: namespaceName,
-      labelSelector: `anvilops.rcac.purdue.edu/deployment-id!=${deployment.id}`,
-    });
+  const postCreate = async (api: KubernetesObjectApi) => {
+    // Clean up secrets from previous deployments of the app
+    const secrets = (await api
+      .list("v1", "Secret", namespaceName)
+      .then((data) => data.items)) as V1Secret[];
+    await Promise.all(
+      secrets
+        .filter(
+          (secret) =>
+            parseInt(
+              secret.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
+            ) !== deployment.id,
+        )
+        .map((secret) => api.delete(secret).catch((err) => console.error(err))),
+    );
   };
   return { namespace, configs, postCreate };
 };

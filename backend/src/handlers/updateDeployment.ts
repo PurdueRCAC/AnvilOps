@@ -1,5 +1,10 @@
 import { dequeueBuildJob } from "../lib/builder.ts";
-import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import {
+  createOrUpdateApp,
+  getClientForClusterUsername,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
+import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
@@ -33,6 +38,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           subdomain: true,
           deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
+          projectId: true,
           appGroup: true,
         },
       },
@@ -86,6 +92,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       where: {
         id: deployment.appId,
       },
+      include: { appGroup: true },
     });
 
     const { namespace, configs, postCreate } =
@@ -105,7 +112,13 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
         },
       });
 
-      await createOrUpdateApp(app.name, namespace, configs, postCreate);
+      const api = getClientForClusterUsername(
+        app.clusterUsername,
+        "KubernetesObjectApi",
+        shouldImpersonate(app.projectId),
+      );
+
+      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
       log(deployment.id, "BUILD", "Deployment succeeded");
 
       // Update statuses - this should be the only complete deployment

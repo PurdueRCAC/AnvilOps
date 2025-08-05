@@ -1,10 +1,14 @@
 import { randomBytes } from "node:crypto";
-import { PermissionLevel } from "../generated/prisma/enums.ts";
-import type { AuthenticatedRequest } from "./index.ts";
+import type { GitHubOAuthState } from "../generated/prisma/client.ts";
+import {
+  PermissionLevel,
+  type GitHubOAuthAction,
+} from "../generated/prisma/enums.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 /**
  * GitHub App installation & user authorization process:
@@ -50,8 +54,9 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
 
   let state: string;
   try {
-    state = await createState(req.user.id, orgId);
+    state = await createState("CREATE_INSTALLATION", req.user.id, orgId);
   } catch (e) {
+    console.error("Error creating state", e);
     return githubConnectError(res, "STATE_FAIL");
   }
 
@@ -64,43 +69,43 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   // When GitHub redirects back, we handle it in githubInstallCallback.ts
 };
 
-export async function createState(userId: number, orgId: number) {
-  const random = randomBytes(48).toString("base64url");
+export async function createState(
+  action: GitHubOAuthAction,
+  userId: number,
+  orgId: number,
+) {
+  const random = randomBytes(64).toString("base64url");
+
+  // deleteMany does not throw if there is no state for the user
+  await db.gitHubOAuthState.deleteMany({ where: { userId: userId } });
 
   const affectedUser = await db.user.update({
     where: { id: userId },
-    data: { githubOAuthState: random },
+    data: {
+      githubOAuthState: {
+        create: { action, orgId, random },
+      },
+    },
   });
 
   if (affectedUser == null) {
     throw new Error("User not found");
   }
 
-  return `${userId}.${orgId}.${random}`;
+  return random;
 }
 
-export async function verifyState(
-  state: string,
-): Promise<{ userId: number; orgId: number }> {
-  const [userId, orgId, random] = state.split(".");
-
-  const user = await db.user.update({
+export async function verifyState(random: string): Promise<GitHubOAuthState> {
+  const state = await db.gitHubOAuthState.delete({
     where: {
-      id: parseInt(userId),
-      orgs: { some: { organizationId: parseInt(orgId) } },
-      githubOAuthState: random,
+      random: random,
     },
-    data: {
-      githubOAuthState: null, // Reset the user's OAuth state so that it can't be reused in subsequent requests
-    },
+    include: { user: true },
   });
 
-  if (user === null) {
+  if (state === null) {
     throw new Error("No matching user found");
   }
 
-  return {
-    userId: parseInt(userId),
-    orgId: parseInt(orgId),
-  };
+  return state;
 }

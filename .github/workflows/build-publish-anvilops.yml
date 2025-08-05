@@ -7,6 +7,7 @@ on:
       - "infra/**"
       - "charts/**"
       - "builders/**"
+      - "docs/**" # The docs are hosted on AnvilOps!
   workflow_dispatch:
 
 jobs:

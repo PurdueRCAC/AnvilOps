@@ -1,7 +1,7 @@
 import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import { k8s } from "./cluster/kubernetes.ts";
+import { svcK8s } from "./cluster/kubernetes.ts";
 import { env } from "./env.ts";
 
 export async function forwardRequest(
@@ -26,7 +26,7 @@ async function getFileBrowserAddress(
 ) {
   const jobName = `anvilops-file-browser-${crypto.createHash("md5").update(volumeClaimName).digest("hex")}`;
 
-  const volume = await k8s.default.readNamespacedPersistentVolumeClaim({
+  const volume = await svcK8s["CoreV1Api"].readNamespacedPersistentVolumeClaim({
     namespace,
     name: volumeClaimName,
   });
@@ -38,7 +38,7 @@ async function getFileBrowserAddress(
   }
 
   try {
-    const pods = await k8s.default.listNamespacedPod({
+    const pods = await svcK8s["CoreV1Api"].listNamespacedPod({
       namespace,
       labelSelector: `batch.kubernetes.io/job-name=${jobName}`,
     });
@@ -59,7 +59,7 @@ async function getFileBrowserAddress(
 
   let job: V1Job;
   try {
-    job = await k8s.batch.createNamespacedJob({
+    job = await svcK8s["BatchV1Api"].createNamespacedJob({
       namespace,
       body: {
         metadata: {
@@ -115,7 +115,7 @@ async function getFileBrowserAddress(
 
   for (let i = 0; i < 30; i++) {
     try {
-      const pods = await k8s.default.listNamespacedPod({
+      const pods = await svcK8s["CoreV1Api"].listNamespacedPod({
         namespace,
         labelSelector: `batch.kubernetes.io/job-name=${jobName}`,
       });

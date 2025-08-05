@@ -7,7 +7,7 @@ import type {
 } from "../generated/prisma/client.ts";
 import { DeploymentConfigScalarFieldEnum } from "../generated/prisma/internal/prismaNamespace.ts";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
-import { k8s } from "./cluster/kubernetes.ts";
+import { svcK8s } from "./cluster/kubernetes.ts";
 import { db } from "./db.ts";
 import { env } from "./env.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
@@ -95,7 +95,7 @@ async function createJob({
     for (const { name, value } of envVars) {
       map[name] = value;
     }
-    await k8s.default.createNamespacedSecret({
+    await svcK8s["CoreV1Api"].createNamespacedSecret({
       namespace: "anvilops-dev",
       body: {
         apiVersion: "v1",
@@ -110,7 +110,7 @@ async function createJob({
     .update(JSON.stringify(envVars))
     .digest("hex");
 
-  const job = await k8s.batch.createNamespacedJob({
+  const job = await svcK8s["BatchV1Api"].createNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
     body: {
       metadata: {
@@ -245,7 +245,7 @@ async function createJob({
 
   if (envVars.length > 0) {
     try {
-      await k8s.default.patchNamespacedSecret(
+      await svcK8s["CoreV1Api"].patchNamespacedSecret(
         {
           name: secretName,
           namespace: "anvilops-dev",
@@ -269,7 +269,7 @@ async function createJob({
       try {
         // The secret won't get cleaned up automatically when the build job does.
         // Remove it manually now and throw an error.
-        await k8s.default.deleteNamespacedSecret({
+        await svcK8s["CoreV1Api"].deleteNamespacedSecret({
           name: secretName,
           namespace: "anvilops-dev",
         });
@@ -308,14 +308,14 @@ export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
 }
 
 export async function cancelBuildJobsForApp(appId: number) {
-  await k8s.batch.deleteCollectionNamespacedJob({
+  await svcK8s["BatchV1Api"].deleteCollectionNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
   });
 }
 
 async function countActiveBuildJobs() {
-  const jobs = await k8s.batch.listNamespacedJob({
+  const jobs = await svcK8s["BatchV1Api"].listNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
   });
 

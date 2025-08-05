@@ -87,9 +87,10 @@ export default function CreateAppGroupView() {
           const formData = new FormData(e.currentTarget);
           try {
             const apps = appStates.map(
-              (appState): components["schemas"]["NewApp"] => {
+              (appState): components["schemas"]["NewAppWithoutGroupInfo"] => {
                 return {
                   orgId: orgId!,
+                  projectId: appState.projectId,
                   name: getAppName(appState),
                   subdomain: appState.subdomain,
                   port: parseInt(appState.port!),
@@ -97,10 +98,6 @@ export default function CreateAppGroupView() {
                   mounts: appState.mounts.filter((m) => m.path.length > 0),
                   postStart: appState.postStart,
                   preStop: appState.preStop,
-                  appGroup: {
-                    type: "add-to" as "add-to",
-                    id: -1,
-                  },
                   ...(appState.source === "git"
                     ? {
                         source: "git",

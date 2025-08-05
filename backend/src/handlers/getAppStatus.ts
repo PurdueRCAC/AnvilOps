@@ -1,5 +1,6 @@
 import {
   AbortError,
+  Watch,
   type CoreV1EventList,
   type KubernetesListObject,
   type KubernetesObject,
@@ -10,9 +11,9 @@ import {
 import { once } from "node:events";
 import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { k8s } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 
 export const getAppStatus: HandlerMap["getAppStatus"] = async (
   ctx,
@@ -110,10 +111,20 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
   };
 
   try {
+    const {
+      CoreV1Api: core,
+      AppsV1Api: apps,
+      Watch: watch,
+    } = await getClientsForRequest(req.user.id, app.projectId, [
+      "CoreV1Api",
+      "AppsV1Api",
+      "Watch",
+    ]);
     const podWatcher = await watchList(
+      watch,
       `/api/v1/namespaces/${ns}/pods`,
       async () =>
-        await k8s.default.listNamespacedPod({
+        await core.listNamespacedPod({
           namespace: ns,
           labelSelector: "anvilops.rcac.purdue.edu/deployment-id",
         }),
@@ -126,9 +137,10 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
     );
 
     const statefulSetWatcher = await watchList(
+      watch,
       `/apis/apps/v1/namespaces/${ns}/statefulsets`,
       async () =>
-        await k8s.apps.listNamespacedStatefulSet({
+        await apps.listNamespacedStatefulSet({
           namespace: ns,
         }),
       {},
@@ -144,9 +156,10 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
     const fieldSelector = `involvedObject.kind=StatefulSet,involvedObject.name=${app.name},type=Warning`;
 
     const eventsWatcher = await watchList(
+      watch,
       `/api/v1/namespaces/${ns}/events`,
       async () =>
-        await k8s.default.listNamespacedEvent({
+        await core.listNamespacedEvent({
           namespace: ns,
           fieldSelector,
           limit: 15,
@@ -181,6 +194,7 @@ function getCondition(conditions: V1PodCondition[], condition: string) {
 }
 
 async function watchList<T extends KubernetesListObject<KubernetesObject>>(
+  watch: Watch,
   path: string,
   getInitialValue: () => Promise<T>,
   queryParams: Record<string, any>,
@@ -197,7 +211,7 @@ async function watchList<T extends KubernetesListObject<KubernetesObject>>(
     return;
   }
 
-  return await k8s.watch.watch(
+  return await watch.watch(
     path,
     queryParams,
     (phase, object: KubernetesObject, watch) => {

@@ -2,7 +2,10 @@ import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
-import { createOrUpdateApp } from "../lib/cluster/kubernetes.ts";
+import {
+  createOrUpdateApp,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
@@ -10,6 +13,7 @@ import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
 import { buildAndDeploy, cancelAllOtherDeployments } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
+import { canManageProject } from "../lib/cluster/rancher.ts";
 
 export const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -19,7 +23,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   const appData = ctx.request.requestBody;
   const appConfig = appData.config;
 
-  const app = await db.app.findUnique({
+  const originalApp = await db.app.findUnique({
     where: {
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
@@ -27,43 +31,50 @@ export const updateApp: HandlerMap["updateApp"] = async (
     include: {
       deploymentConfigTemplate: true,
       org: { select: { githubInstallationId: true } },
+      appGroup: true,
     },
   });
 
-  if (!app) {
+  if (!originalApp) {
     return json(401, res, {});
   }
 
-  const currentConfig = app.deploymentConfigTemplate;
+  const currentConfig = originalApp.deploymentConfigTemplate;
   const validation = validateDeploymentConfig(appData.config);
   if (!validation.valid) {
     return json(400, res, { code: 400, message: validation.message });
   }
 
-  if (appData.appGroup) {
-    const appGroupValidation = validateAppGroup(appData.appGroup);
+  const appGroupValidation = validateAppGroup(appData.appGroup);
 
-    if (!appGroupValidation.valid) {
-      return json(400, res, {
-        code: 400,
-        message: appGroupValidation.message,
-      });
+  if (!appGroupValidation.valid) {
+    return json(400, res, {
+      code: 400,
+      message: appGroupValidation.message,
+    });
+  }
+
+  if (appData.projectId) {
+    const { clusterUsername } = await db.user.findUnique({
+      where: { id: req.user.id },
+    });
+    if (!(await canManageProject(clusterUsername, appData.projectId))) {
+      return json(401, res, {});
     }
   }
 
   if (appData.appGroup?.type === "add-to") {
-    if (appData.appGroup.id !== app.appGroupId) {
-      const originalGroupId = app.appGroupId;
+    if (appData.appGroup.id !== originalApp.appGroupId) {
+      const originalGroupId = originalApp.appGroupId;
       try {
         await db.app.update({
-          where: { id: app.id },
+          where: { id: originalApp.id },
           data: {
             appGroup: {
               connect: { id: appData.appGroup.id },
             },
           },
         });
-
         const remainingApps = await db.app.count({
           where: { appGroupId: originalGroupId },
         });
@@ -81,18 +92,18 @@ export const updateApp: HandlerMap["updateApp"] = async (
       }
     }
   } else if (appData.appGroup) {
-    const originalGroupId = app.appGroupId;
+    const originalGroupId = originalApp.appGroupId;
     const name =
       appData.appGroup.type === "standalone"
         ? `${appData.name}-${randomBytes(4).toString("hex")}`
         : appData.appGroup.name;
     await db.app.update({
-      where: { id: app.id },
+      where: { id: originalApp.id },
       data: {
         appGroup: {
           create: {
             name: name,
-            org: { connect: { id: app.orgId } },
+            org: { connect: { id: originalApp.orgId } },
             isMono: appData.appGroup.type === "standalone",
           },
         },
@@ -109,9 +120,18 @@ export const updateApp: HandlerMap["updateApp"] = async (
 
   if (appData.name) {
     await db.app.update({
-      where: { id: app.id },
+      where: { id: originalApp.id },
       data: {
         displayName: appData.name,
+      },
+    });
+  }
+
+  if (appData.projectId !== originalApp.projectId) {
+    await db.app.update({
+      where: { id: originalApp.id },
+      data: {
+        projectId: appData.projectId,
       },
     });
   }
@@ -121,7 +141,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   const updatedConfig: DeploymentConfigCreateInput = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(
-      app.deploymentConfigTemplate.getPlaintextEnv(),
+      originalApp.deploymentConfigTemplate.getPlaintextEnv(),
       appConfig.env,
     ),
     fieldValues: {
@@ -162,7 +182,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
-    const octokit = await getOctokit(app.org.githubInstallationId);
+    const octokit = await getOctokit(originalApp.org.githubInstallationId);
     const repo = await getRepoById(octokit, updatedConfig.repositoryId);
     try {
       const latestCommit = (
@@ -175,9 +195,9 @@ export const updateApp: HandlerMap["updateApp"] = async (
       ).data[0];
 
       await buildAndDeploy({
-        appId: app.id,
-        orgId: app.orgId,
-        imageRepo: app.imageRepo,
+        appId: originalApp.id,
+        orgId: originalApp.orgId,
+        imageRepo: originalApp.imageRepo,
         commitSha: latestCommit.sha,
         commitMessage: latestCommit.commit.message,
         config: updatedConfig,
@@ -202,11 +222,12 @@ export const updateApp: HandlerMap["updateApp"] = async (
             imageTag:
               // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
               // Use the one that the user specified or the most recent successful one.
-              updatedConfig.imageTag ?? app.deploymentConfigTemplate.imageTag,
+              updatedConfig.imageTag ??
+              originalApp.deploymentConfigTemplate.imageTag,
           },
         },
         status: "DEPLOYING",
-        app: { connect: { id: app.id } },
+        app: { connect: { id: originalApp.id } },
         commitMessage: "Update to deployment configuration",
         secret,
       },
@@ -228,7 +249,19 @@ export const updateApp: HandlerMap["updateApp"] = async (
     try {
       const { namespace, configs, postCreate } =
         createAppConfigsFromDeployment(deployment);
-      await createOrUpdateApp(app.name, namespace, configs, postCreate);
+
+      const { KubernetesObjectApi: api } = await getClientsForRequest(
+        req.user.id,
+        deployment.app.projectId,
+        ["KubernetesObjectApi"],
+      );
+      await createOrUpdateApp(
+        api,
+        originalApp.name,
+        namespace,
+        configs,
+        postCreate,
+      );
       await db.deployment.update({
         where: { id: deployment.id },
         data: { status: "COMPLETE" },
@@ -267,7 +300,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
       },
     });
     await tx.app.update({
-      where: { id: app.id },
+      where: { id: originalApp.id },
       data: {
         deploymentConfigTemplate: {
           connect: {

@@ -3,7 +3,7 @@
     "displayName": "AnvilOps Demo",
     "url": "https://github.rcac.purdue.edu/swans150/anvilops-demo",
     "description": "Astro project that showcases the features of AnvilOps.",
-    "port": "3000",
+    "port": "80",
     "builder": "railpack",
     "subdomain": "anvilops-demo",
     "env": [],

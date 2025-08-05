@@ -1,7 +1,10 @@
 import { type components } from "../generated/openapi.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { deleteNamespace } from "../lib/cluster/kubernetes.ts";
+import {
+  deleteNamespace,
+  getClientsForRequest,
+} from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
@@ -44,26 +47,37 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const { subdomain, imageRepo, appGroup, deploymentConfigTemplateId } =
-    await db.app.findUnique({
-      where: {
-        id: appId,
-      },
-      select: {
-        subdomain: true,
-        imageRepo: true,
-        appGroup: {
-          select: {
-            id: true,
-            _count: true,
-          },
+  const {
+    subdomain,
+    projectId,
+    imageRepo,
+    appGroup,
+    deploymentConfigTemplateId,
+  } = await db.app.findUnique({
+    where: {
+      id: appId,
+    },
+    select: {
+      subdomain: true,
+      imageRepo: true,
+      projectId: true,
+      appGroup: {
+        select: {
+          id: true,
+          _count: true,
         },
-        deploymentConfigTemplateId: true,
       },
-    });
+      deploymentConfigTemplateId: true,
+    },
+  });
 
   try {
-    await deleteNamespace(getNamespace(subdomain));
+    const { KubernetesObjectApi: api } = await getClientsForRequest(
+      req.user.id,
+      projectId,
+      ["KubernetesObjectApi"],
+    );
+    await deleteNamespace(api, getNamespace(subdomain));
   } catch (err) {
     console.error("Failed to delete namespace:", err);
   }
@@ -79,7 +93,11 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
 
   try {
     if (imageRepo) await deleteRepo(imageRepo);
+  } catch (err) {
+    console.error("Couldn't delete image repository:", err);
+  }
 
+  try {
     // cascade deletes App
     await db.deploymentConfig.delete({
       where: { id: deploymentConfigTemplateId },

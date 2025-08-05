@@ -1,10 +1,13 @@
-import { PermissionLevel } from "../generated/prisma/enums.ts";
-import type { AuthenticatedRequest } from "./index.ts";
+import type { Response } from "express";
+import {
+  PermissionLevel,
+  type GitHubOAuthAction,
+} from "../generated/prisma/enums.ts";
 import { db } from "../lib/db.ts";
 import { getUserOctokit } from "../lib/octokit.ts";
-import { json, redirect, type HandlerMap } from "../types.ts";
+import { redirect, type HandlerMap } from "../types.ts";
 import { verifyState } from "./githubAppInstall.ts";
-import type { Response } from "express";
+import type { AuthenticatedRequest } from "./index.ts";
 /**
  * This endpoint is called after the user signs in with GitHub.
  *
@@ -36,9 +39,10 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   const code = ctx.request.query.code;
 
   // 1) Verify the `state` and extract the user and org IDs
-  let userId: number, orgId: number;
+  let action: GitHubOAuthAction, userId: number, orgId: number;
   try {
     const parsed = await verifyState(state);
+    action = parsed.action;
     userId = parsed.userId;
     orgId = parsed.orgId;
   } catch (e) {
@@ -51,54 +55,75 @@ export const githubOAuthCallback: HandlerMap["githubOAuthCallback"] = async (
   }
 
   // 3) Verify that the user has access to the installation
-  const octokit = getUserOctokit(code);
+  if (action === "VERIFY_INSTALLATION_ACCESS") {
+    const octokit = getUserOctokit(code);
 
-  const org = await db.organization.findFirst({
-    select: { id: true, newInstallationId: true },
-    where: {
-      id: orgId,
-      users: {
-        some: {
-          userId: userId,
-          permissionLevel: { in: [PermissionLevel.OWNER] },
+    const org = await db.organization.findFirst({
+      select: { id: true, newInstallationId: true },
+      where: {
+        id: orgId,
+        users: {
+          some: {
+            userId: userId,
+            permissionLevel: { in: [PermissionLevel.OWNER] },
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!org) {
-    return githubConnectError(res, "ORG_FAIL");
-  }
-
-  if (!org?.newInstallationId) {
-    return githubConnectError(res, "");
-  }
-
-  const installations = (
-    await octokit.rest.apps.listInstallationsForAuthenticatedUser()
-  ).data.installations;
-  let found = false;
-  for (const install of installations) {
-    if (install.id === org.newInstallationId) {
-      found = true;
-      break;
+    if (!org) {
+      return githubConnectError(res, "ORG_FAIL");
     }
+
+    if (!org?.newInstallationId) {
+      return githubConnectError(res, "");
+    }
+
+    const installations = (
+      await octokit.rest.apps.listInstallationsForAuthenticatedUser()
+    ).data.installations;
+    let found = false;
+    for (const install of installations) {
+      if (install.id === org.newInstallationId) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      // The user doesn't have access to the new installation
+      return githubConnectError(res, "INSTALLATION_FAIL");
+    }
+
+    // Update the organization's installation ID
+    await db.organization.update({
+      where: { id: orgId },
+      data: {
+        newInstallationId: null,
+        githubInstallationId: org.newInstallationId,
+      },
+    });
+
+    // We're finally done! Redirect the user back to the frontend.
+    return redirect(302, res, "/dashboard");
+  } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
+    const octokit = getUserOctokit(code);
+    const user = await octokit.rest.users.getAuthenticated();
+    await db.user.updateMany({
+      // Remove the association to this GitHub user ID for any other AnvilOps users - this is OK to do because we're only using the user ID as a way to temporarily
+      // link the installation webhook payloads to the AnvilOps user account. If a user creates multiple AnvilOps accounts and signs in with GitHub on all of them,
+      // it's fine that the installation request is only associated with their most recently connected account.
+      where: { githubUserId: user.data.id, id: { not: userId } },
+      data: { githubUserId: null },
+    });
+    await db.user.update({
+      where: { id: userId },
+      data: { githubUserId: user.data.id },
+    });
+
+    // Redirect the user to a page that says the app approval is pending and that they can link the installation to an organization when the request is approved.
+    return redirect(302, res, "/github-approval-pending");
+  } else {
+    return githubConnectError(res, "STATE_FAIL");
   }
-
-  if (!found) {
-    // The user doesn't have access to the new installation
-    return githubConnectError(res, "INSTALLATION_FAIL");
-  }
-
-  // Update the organization's installation ID
-  await db.organization.update({
-    where: { id: orgId },
-    data: {
-      newInstallationId: null,
-      githubInstallationId: org.newInstallationId,
-    },
-  });
-
-  // We're finally done! Redirect the user back to the frontend.
-  return redirect(302, res, "/dashboard");
 };

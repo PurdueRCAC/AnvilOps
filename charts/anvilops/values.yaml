@@ -11,7 +11,7 @@ anvilops:
     baseURL: http://anvilops.minikube.local
     appDomain: http://minikube.local
     harborProjectName: anvilops
-    allowedIdps: https://access-ci.org/idp
+    allowedIdps: https://idp.purdue.edu/idp/shibboleth
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []

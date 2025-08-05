@@ -1,10 +1,10 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-340-4e0a29dbcd9ce761e0281334215a77c92672c873 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-356-d4e86a043ce67525d4c984e58c3d4582dc8577ef # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
   env:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
     harborProjectName: anvilops
-    allowedIdps: https://idp.purdue.edu/idp/shibboleth
+    allowedIdps: https://access-ci.org/idp
   serviceAccount:
     create: false
     secretName: kube-auth

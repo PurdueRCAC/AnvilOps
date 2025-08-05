@@ -15,7 +15,6 @@ import { api } from "@/lib/api";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
 import { createContext, useContext, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
 import AppConfigFormFields, {
   type AppInfoFormData,
 } from "./AppConfigFormFields";
@@ -108,6 +107,7 @@ export default function CreateAppView() {
             const result = await createApp({
               body: {
                 orgId: formState.orgId!,
+                projectId: formState.projectId,
                 name: appName,
                 subdomain: subdomain,
                 port: parseInt(formState.port!),
@@ -137,9 +137,7 @@ export default function CreateAppView() {
             });
 
             navigate(`/app/${result.id}`);
-          } catch (err) {
-            toast.error((err as Error).message);
-          }
+          } catch (err) {}
         }}
       >
         <h2 className="font-bold text-3xl mb-4">Create an App</h2>
@@ -178,7 +176,6 @@ export default function CreateAppView() {
             </SelectContent>
           </Select>
         </div>
-
         <FormContext value="CreateApp">
           <AppConfigFormFields state={formState} setState={setFormState} />
         </FormContext>

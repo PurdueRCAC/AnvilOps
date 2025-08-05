@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { Octokit } from "octokit";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
-import { k8s } from "./cluster/kubernetes.ts";
+import { svcK8s } from "./cluster/kubernetes.ts";
 
 import { env } from "./env.ts";
 import { getOctokit, getUserOctokit } from "./octokit.ts";
@@ -143,7 +143,7 @@ async function copyRepoManually(
     username: `${env.GITHUB_APP_NAME}[bot]`, // e.g. "anvilops[bot]"
   });
 
-  const job = await k8s.batch.createNamespacedJob({
+  const job = await svcK8s["BatchV1Api"].createNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
     body: {
       metadata: {
@@ -213,7 +213,7 @@ git push -u origin main`,
 
 async function awaitJobCompletion(jobName: string) {
   for (let i = 0; i < 120; i++) {
-    const result = await k8s.batch.readNamespacedJobStatus({
+    const result = await svcK8s["BatchV1Api"].readNamespacedJobStatus({
       namespace: env.CURRENT_NAMESPACE,
       name: jobName,
     });

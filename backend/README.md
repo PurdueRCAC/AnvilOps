@@ -84,13 +84,43 @@ If you need a temporary Postgres database, create one with Docker:
 docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRES_USER=anvilops -e POSTGRES_PASSWORD=password postgres
 ```
 
-### Rancher Configuration
+### Rancher
 
-Set the environment variables `PROJECT_NAME` and `PROJECT_NS` to the name and namespace of a Rancher project so that apps will be created inside it. These values can be found in the manifest of the project under `metadata`. Note: the project name may be different from its display name.
+For access control, AnvilOps can integrate with the Rancher API. If you are not using Rancher, leave the following values unset.
+
+In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). In production, set the `api-base` key of the `rancher-config` secret instead. Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of `rancher-config`.
+
+If you would like to make a sandbox project available to users, set the environment variable `SANDBOX_ID` to its project ID. In production, set the the `sandbox-id` key of the `rancher-config` secret.
+
+To obtain the ID of a Rancher project, first create a namespace inside it.
+
+Then, run this command, substituting `$NAMESPACE` with the name of the namespace you just created:
+
+```sh
+kubectl get ns $NAMESPACE -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}'
+```
+
+The project ID should look something like this:
+
+```
+c-xxxxx:p-xxxxx
+```
+
+Copy this value into your configuration.
+
+Ensure that the user associated with the kubeconfig file has permissions to view Users, Projects, and ProjectRoleTemplateBindings, as well as to manage namespaces within the sandbox project.
 
 ### Kubernetes API
 
 A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+
+---
+
+**Note for Rancher-managed clusters**
+
+If your cluster uses a Rancher version < v2.10, the kubeconfig file must be configured to use an [Authorized Cluster Endpoint](https://ranchermanager.docs.rancher.com/reference-guides/rancher-manager-architecture/communicating-with-downstream-user-clusters#4-authorized-cluster-endpoint). This is to avoid a [bug](https://github.com/rancher/rancher/issues/41988) related to user impersonation. See the documentation for your Rancher version on configuring an Authorized Cluster Endpoint and using its context in your kubeconfig.
+
+---
 
 ### Registry API
 

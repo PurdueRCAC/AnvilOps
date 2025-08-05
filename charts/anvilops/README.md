@@ -306,33 +306,20 @@ Each key here is documented in further detail in the guide linked above in the "
 
   All K8s secret values are encoded as Base64, but this one is encoded twice because it contains newlines, so the application expects to receive it in Base64 format.
 
-### `app-config`
+### `rancher-config`
 
 #### What is this?
 
-AnvilOps uses the values in this secret to associate end users' app namespaces with a Rancher project.
+AnvilOps uses the values in this secret to integrate with [Rancher](https://www.rancher.com/).
 
-If you aren't using Rancher or if you want namespaces to be created outside of any Rancher project, you may omit this secret.
+If you aren't using Rancher, you may omit this secret.
 
 #### How to obtain
 
-Create a namespace in the Rancher project that you want your users' apps to be deployed into.
-
-Then, run this command, substituting `$NAMESPACE` with the name of the namespace you just created:
-
-```sh
-kubectl get ns $NAMESPACE -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}'
-```
-
-The output should look something like this:
-
-```
-c-xxxxx:p-xxxxx
-```
-
-The identifier before the colon (`c-xxxxx`) is your cluster ID, and after the colon (`p-xxxxx`) is your project ID.
+Follow the instructions in the Rancher section of the [backend setup guide](/backend/README.md#rancher).
 
 #### Keys
 
-- `project-ns`: The cluster ID (the `c-xxxxx` part of the string above)
-- `project-name`: The project ID (the `p-xxxxx` part of the string above)
+- `api-base`: The Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3).
+- `rancher-token`: Non-scoped service user token for calling the Rancher v3 API.
+- `sandbox_id`(optional): The ID of the sandbox project, something like `c-xxxxx:p-xxxxx`.

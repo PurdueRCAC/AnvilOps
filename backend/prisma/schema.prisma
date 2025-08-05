@@ -19,13 +19,14 @@ datasource db {
 }
 
 model User {
-  id            Int                      @id @default(autoincrement())
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-  email         String?                  @unique
-  name          String?
-  ciLogonUserId String?                  @unique
-  orgs          OrganizationMembership[]
+  id              Int                      @id @default(autoincrement())
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  email           String?                  @unique
+  name            String?
+  ciLogonUserId   String?                  @unique
+  clusterUsername String?                  @unique
+  orgs            OrganizationMembership[]
 
   /**
    * A temporary random value that we store to ensure OAuth URLs were created by us (CSRF prevention).
@@ -33,10 +34,49 @@ model User {
    * with the copy in the DB. If they match, the authorization request was initiated by us. Note that
    * this doesn't mean the URL wasn't tampered with; we have to verify other parameters separately.
    */
-  githubOAuthState String?
+  githubOAuthState GitHubOAuthState?
+
+  /**
+   * These fields are used to save GitHub App installations that have been approved in the background by an organization owner.
+   * When a user requests an app to be installed, GitHub redirects back to us with no information about an installation ID, so
+   * we need to wait for a webhook payload that's triggered when the installation is complete. Then, we need to give the user the
+   * ability to choose which organization the installation should be added to, because GitHub doesn't give us any way to save some
+   * state in the request.
+   */
+  githubUserId            Int?
+  unassignedInstallations UnassignedInstallation[]
 
   // (ignore this - reverse relation is never used)
   repoImportState RepoImportState[]
+}
+
+model GitHubOAuthState {
+  id     Int               @id @default(autoincrement())
+  random String            @unique
+  user   User              @relation(fields: [userId], references: [id])
+  userId Int               @unique
+  orgId  Int
+  action GitHubOAuthAction
+}
+
+enum GitHubOAuthAction {
+  // Used when the user starts installing the Github App (on the initial redirect to github.com/.../installations/new)
+  CREATE_INSTALLATION
+  // Used when the user requested approval to install the GitHub App and we need to get their username to associate the request with them
+  GET_UID_FOR_LATER_INSTALLATION
+  // Used when the user supplies an installation ID in a URL parameter and we need to verify that the user has access to it 
+  VERIFY_INSTALLATION_ACCESS
+}
+
+model UnassignedInstallation {
+  id             Int    @id @default(autoincrement())
+  user           User   @relation(fields: [userId], references: [id])
+  userId         Int
+  installationId Int
+  // The user name or organization name
+  targetName     String
+  // The URL to view the installation & allowed repositories
+  url            String
 }
 
 model OrganizationMembership {
@@ -104,7 +144,11 @@ model App {
   deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id], onDelete: Cascade)
   deploymentConfigTemplateId Int              @unique
 
-  enableCD Boolean @default(true)
+  // A Rancher user id to use when updating the app during CD
+  clusterUsername String?
+  // Project ID the apps are part of (used in Rancher-managed clusters)
+  projectId       String?
+  enableCD        Boolean @default(true)
 }
 
 model AppGroup {

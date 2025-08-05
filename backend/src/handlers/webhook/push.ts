@@ -60,6 +60,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
         // Reuse the config from the previous deployment
         fieldValues: app.deploymentConfigTemplate.fieldValues,
         source: "GIT",
+        event: app.deploymentConfigTemplate.event,
         env: app.deploymentConfigTemplate.getPlaintextEnv(),
         repositoryId: app.deploymentConfigTemplate.repositoryId,
         branch: app.deploymentConfigTemplate.branch,

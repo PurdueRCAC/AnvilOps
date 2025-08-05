@@ -7,8 +7,8 @@ import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
 } from "../generated/prisma/models.ts";
+import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { db } from "../lib/db.ts";
-import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
@@ -16,8 +16,7 @@ import {
   validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
-import { json, redirect, type HandlerMap } from "../types.ts";
-import { createState } from "./githubAppInstall.ts";
+import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
@@ -77,31 +76,33 @@ export const createApp: HandlerMap["createApp"] = async (
     return json(401, res, {});
   }
 
+  let clusterUsername: string;
+  if (isRancherManaged()) {
+    if (!appData.projectId) {
+      return json(500, res, { code: 500, message: "Project ID is required" });
+    }
+
+    let { clusterUsername: username } = await db.user.findUnique({
+      where: { id: req.user.id },
+      select: { clusterUsername: true },
+    });
+    if (!(await canManageProject(username, appData.projectId))) {
+      return json(401, res, {});
+    }
+
+    clusterUsername = username;
+  }
+
   let commitSha = "unknown",
     commitMessage = "Initial deployment";
 
   if (appData.source === "git") {
     if (!organization.githubInstallationId) {
-      const isOwner = !!(await db.organizationMembership.findFirst({
-        where: {
-          userId: req.user.id,
-          organizationId: appData.orgId,
-          permissionLevel: "OWNER",
-        },
-      }));
-      if (isOwner) {
-        const state = await createState(req.user.id, appData.orgId);
-        return redirect(
-          302,
-          res,
-          `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
-        );
-      } else {
-        return json(403, res, {
-          code: 403,
-          message: "Owner needs to install GitHub App in organization.",
-        });
-      }
+      return json(403, res, {
+        code: 403,
+        message:
+          "The AnvilOps GitHub App is not installed in this organization.",
+      });
     }
 
     let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
@@ -221,6 +222,11 @@ export const createApp: HandlerMap["createApp"] = async (
             id: appData.orgId,
           },
         },
+
+        // This cluster username will be used to automatically update the app after a build job or webhook payload
+        // TODO: make this a setting in the UI
+        clusterUsername,
+        projectId: appData.projectId,
         logIngestSecret: randomBytes(48).toString("hex"),
         deploymentConfigTemplate: {
           create: deploymentConfig,
