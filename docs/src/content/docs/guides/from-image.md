@@ -7,7 +7,7 @@ AnvilOps can deploy apps from publicly accessible container images.
 ### Getting started
 
 1. Click the Create App button on the AnvilOps dashboard.
-   ![Create App buttons](./create-app-buttons.png)
+   ![Create App buttons](./tutorial/create-app-buttons.png)
 
 2. Select `OCI Image` as the deployment source, then enter a container image. The image reference should look like `REGISTRY/NAMESPACE/REPOSITORY:TAG`.
 
