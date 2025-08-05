@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Container, GitCommit, Loader } from "lucide-react";
+import { Container, GitCommit, Loader, Rocket } from "lucide-react";
 import { useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
+import { PagedView } from "@/components/PagedView";
 
 const defaultRedeployState = {
   radioValue: undefined,
@@ -199,6 +200,7 @@ export const RedeployModal = ({
                       source: "image" as const,
                       imageTag: config.imageTag!,
                     }),
+                enableCD: true,
               };
 
               if (redeployState.persistChanges === "oneOff") {
@@ -222,142 +224,152 @@ export const RedeployModal = ({
             }}
           >
             {!redeployState.configOpen ? (
-              <>
-                <p className="mt-2">
-                  <strong>Step 1</strong>: Choose a starting point
-                </p>
-                <RadioGroup
-                  required
-                  className="mt-4"
-                  value={redeployState.radioValue ?? ""}
-                  onValueChange={(value) => {
-                    setRadioValue(value);
-                  }}
-                >
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem
-                        value="useBuild"
-                        className="whitespace-nowrap"
-                      />
-                      Redeploy from this{" "}
-                      {pastDeployment.config.source === "git"
-                        ? "commit"
-                        : "image"}{" "}
-                      with your current configuration:
-                    </div>
-                    <div className="mt-2 mb-2 ml-6">
-                      {pastDeployment.config.source === "git" ? (
-                        <a
-                          href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
-                          className="flex items-start gap-2"
-                          target="_blank"
-                        >
-                          <span className="text-black-2 flex items-center gap-1 -mt-1">
-                            <GitCommit className="shrink-0" />
-                            {pastDeployment.commitHash?.substring(0, 7) ??
-                              "Unknown"}
-                          </span>
-                          {pastDeployment.commitMessage}
-                        </a>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <p className="flex items-center gap-2">
-                              <Container className="text-black-2" />{" "}
-                              <span className="max-w-96 whitespace-nowrap text-ellipsis overflow-x-clip">
-                                {pastDeployment.config.imageTag}
-                              </span>
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {pastDeployment.config.imageTag}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      AnvilOps will combine this version of your application
-                      with your latest configuration, so that you roll back your
-                      application while keeping your new settings.
-                    </p>
-                  </Label>
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem value="useConfig" />
-                      Reuse this deployment's configuration
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      AnvilOps will create a new deployment using this
-                      deployment's configuration as a template, plus any edits
-                      you decide to make.
-                    </p>
-                  </Label>
-                </RadioGroup>
-                <p className="my-4">
-                  <strong>Step 2</strong>: Make changes to the template as
-                  needed
-                </p>
-                <Button
-                  variant="outline"
-                  className="w-full mb-2"
-                  type="button"
-                  onClick={() =>
-                    setRedeployState((s) => ({ ...s, configOpen: true }))
-                  }
-                >
-                  Review deployment configuration
-                </Button>
-                <p className="my-4">
-                  <strong>Step 3</strong>: Apply your changes
-                </p>
-                <RadioGroup
-                  required
-                  value={redeployState.persistChanges}
-                  onValueChange={(value) =>
-                    setRedeployState((rs) => ({
-                      ...rs,
-                      persistChanges: value as "oneOff" | "updateTemplate",
-                    }))
-                  }
-                >
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem value="oneOff" />
-                      Run in preview mode
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      Test out new app settings, but revert to your current
-                      configuration with a click. Future automatic deployments
-                      triggered from Git pushes will override the changes you
-                      make here.
-                    </p>
-                  </Label>
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem value="updateTemplate" />
-                      Persist changes for future deployments
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      Changes you make here will persist in future automatic
-                      deployments as well as in the Configuration tab. If you
-                      set the deployment source to OCI Image, automatic Git
-                      deployments will be disabled until you link your
-                      repository again.
-                    </p>
-                  </Label>
-                </RadioGroup>
-                <Button className="w-full mt-2" type="submit">
-                  {isDeploying ? (
-                    <>
-                      <Loader className="animate-spin" />
-                      Deploying...
-                    </>
-                  ) : (
-                    "Deploy"
-                  )}
-                </Button>
-              </>
+              <PagedView
+                submitButton={
+                  <Button type="submit">
+                    {isDeploying ? (
+                      <>
+                        <Loader className="animate-spin" />
+                        Deploying...
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="inline" />
+                        Deploy
+                      </>
+                    )}
+                  </Button>
+                }
+              >
+                <div>
+                  <p className="mt-2">
+                    <strong>Step 1</strong>: Choose a starting point
+                  </p>
+                  <RadioGroup
+                    required
+                    className="mt-4"
+                    value={redeployState.radioValue ?? ""}
+                    onValueChange={(value) => {
+                      setRadioValue(value);
+                    }}
+                  >
+                    <Label className="flex-col items-start">
+                      <div className="flex gap-2">
+                        <RadioGroupItem
+                          value="useBuild"
+                          className="whitespace-nowrap"
+                        />
+                        Redeploy from this{" "}
+                        {pastDeployment.config.source === "git"
+                          ? "commit"
+                          : "image"}{" "}
+                        with your current configuration:
+                      </div>
+                      <div className="mt-2 mb-2 ml-6">
+                        {pastDeployment.config.source === "git" ? (
+                          <a
+                            href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
+                            className="flex items-start gap-2"
+                            target="_blank"
+                          >
+                            <span className="text-black-2 flex items-center gap-1 -mt-1">
+                              <GitCommit className="shrink-0" />
+                              {pastDeployment.commitHash?.substring(0, 7) ??
+                                "Unknown"}
+                            </span>
+                            {pastDeployment.commitMessage}
+                          </a>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <p className="flex items-center gap-2">
+                                <Container className="text-black-2" />{" "}
+                                <span className="max-w-96 whitespace-nowrap text-ellipsis overflow-x-clip">
+                                  {pastDeployment.config.imageTag}
+                                </span>
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {pastDeployment.config.imageTag}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                      <p className="text-black-3 ml-6 text-sm mb-4">
+                        AnvilOps will combine this version of your application
+                        with your latest configuration, so that you roll back
+                        your application while keeping your new settings.
+                      </p>
+                    </Label>
+                    <Label className="flex-col items-start">
+                      <div className="flex gap-2">
+                        <RadioGroupItem value="useConfig" />
+                        Reuse this deployment's configuration
+                      </div>
+                      <p className="text-black-3 ml-6 text-sm mb-4">
+                        AnvilOps will create a new deployment using this
+                        deployment's configuration as a template, plus any edits
+                        you decide to make.
+                      </p>
+                    </Label>
+                  </RadioGroup>
+                  <p className="my-4">
+                    <strong>Step 2</strong>: Make changes to the template as
+                    needed
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full mb-2"
+                    type="button"
+                    onClick={() =>
+                      setRedeployState((s) => ({ ...s, configOpen: true }))
+                    }
+                  >
+                    Review deployment configuration
+                  </Button>
+                </div>
+                <div>
+                  <p className="my-4">
+                    <strong>Step 3</strong>: Apply your changes
+                  </p>
+                  <RadioGroup
+                    required
+                    value={redeployState.persistChanges}
+                    onValueChange={(value) =>
+                      setRedeployState((rs) => ({
+                        ...rs,
+                        persistChanges: value as "oneOff" | "updateTemplate",
+                      }))
+                    }
+                  >
+                    <Label className="flex-col items-start">
+                      <div className="flex gap-2">
+                        <RadioGroupItem value="oneOff" />
+                        Run in preview mode
+                      </div>
+                      <p className="text-black-3 ml-6 text-sm mb-4">
+                        Test out new app settings, but revert to your current
+                        configuration with a click. Future automatic deployments
+                        triggered from Git pushes will override the changes you
+                        make here.
+                      </p>
+                    </Label>
+                    <Label className="flex-col items-start">
+                      <div className="flex gap-2">
+                        <RadioGroupItem value="updateTemplate" />
+                        Persist changes for future deployments
+                      </div>
+                      <p className="text-black-3 ml-6 text-sm mb-4">
+                        Changes you make here will persist in future automatic
+                        deployments as well as in the Configuration tab. If you
+                        set the deployment source to OCI Image, automatic Git
+                        deployments will be disabled until you link your
+                        repository again.
+                      </p>
+                    </Label>
+                  </RadioGroup>
+                </div>
+              </PagedView>
             ) : (
               <>
                 <AppConfigDiff
