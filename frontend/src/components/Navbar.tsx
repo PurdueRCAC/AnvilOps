@@ -26,10 +26,19 @@ export default function Navbar() {
       </p>
       <div className="flex gap-8 justify-end items-center">
         {user && (
+          <Link to="/" className="sm:text-white">
+            Home
+          </Link>
+        )}
+        <a
+          href="https://docs.anvilops.rcac.purdue.edu"
+          className="sm:text-white"
+          target="_blank"
+        >
+          Docs
+        </a>
+        {user && (
           <>
-            <Link to="/" className="sm:text-white">
-              Home
-            </Link>
             <Link to="/dashboard" className="sm:text-white">
               Dashboard
             </Link>
