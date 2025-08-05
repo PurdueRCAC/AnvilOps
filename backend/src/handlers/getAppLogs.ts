@@ -2,11 +2,11 @@ import { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
 import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { db, subscribe } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
-import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 
 export const getAppLogs: HandlerMap["getAppLogs"] = async (
   ctx,
@@ -138,19 +138,25 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         { follow: true, tailLines: 500, timestamps: true },
       );
       let i = 0;
+      let current = "";
       logStream.on("data", async (chunk: Buffer) => {
-        const lines = chunk.toString().split("\n");
-        for (const line of lines) {
-          if (line.trim().length === 0) continue;
-          const [date, ...text] = line.split(" ");
-          await sendLog({
-            type: "RUNTIME",
-            log: text.join(" "),
-            pod: podName,
-            time: date,
-            id: podIndex * 100_000_000 + i,
-          });
-          i++;
+        const str = chunk.toString();
+        current += str;
+        if (str.endsWith("\n") || str.endsWith("\r")) {
+          const lines = current.split("\n");
+          current = "";
+          for (const line of lines) {
+            if (line.trim().length === 0) continue;
+            const [date, ...text] = line.split(" ");
+            await sendLog({
+              type: "RUNTIME",
+              log: text.join(" "),
+              pod: podName,
+              time: date,
+              id: podIndex * 100_000_000 + i,
+            });
+            i++;
+          }
         }
       });
 
