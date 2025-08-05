@@ -89,7 +89,7 @@ router.get("/oauth_callback", async (req, res) => {
       }
       const newUser = await db.user.create({
         data: {
-          email: email as string,
+          email: (email as string).toLowerCase(),
           name: name as string,
           ciLogonUserId: sub,
           clusterUsername,

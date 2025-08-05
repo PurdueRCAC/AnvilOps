@@ -1,46 +1,11 @@
-import { createApp } from "./createApp.ts";
-import { createAppGroup } from "./createAppGroup.ts";
-import { deleteApp } from "./deleteApp.ts";
-import { deleteAppGroup } from "./deleteAppGroup.ts";
-import { deleteAppPod } from "./deleteAppPod.ts";
-import {
-  deleteAppFile,
-  downloadAppFile,
-  getAppFile,
-  writeAppFile,
-} from "./files.ts";
-import { getAppLogs } from "./getAppLogs.ts";
-import { getAppStatus } from "./getAppStatus.ts";
-import { getDeployment } from "./getDeployment.ts";
-import { getInstallation } from "./getInstallation.ts";
-import { githubAppInstall } from "./githubAppInstall.ts";
-import { githubInstallCallback } from "./githubInstallCallback.ts";
-import { githubOAuthCallback } from "./githubOAuthCallback.ts";
-import { githubWebhook } from "./githubWebhook.ts";
-import { importGitRepo, importGitRepoCreateState } from "./importGitRepo.ts";
-import { ingestLogs } from "./ingestLogs.ts";
-import { listDeployments } from "./listDeployments.ts";
-import { listOrgRepos } from "./listOrgRepos.ts";
-import { listRepoBranches } from "./listRepoBranches.ts";
-import { listRepoWorkflows } from "./listRepoWorkflows.ts";
-import { updateApp } from "./updateApp.ts";
-import { updateDeployment } from "./updateDeployment.ts";
-
 import {
   type Request as ExpressRequest,
   type Response as ExpressResponse,
 } from "express";
+import fs from "fs";
 import type { Octokit } from "octokit";
 import type { Context } from "openapi-backend";
 import type { components } from "../generated/openapi.ts";
-import {
-  json,
-  type HandlerMap,
-  type HandlerResponse,
-  type OptionalPromise,
-} from "../types.ts";
-
-import fs from "fs";
 import {
   deleteNamespace,
   getClientForClusterUsername,
@@ -57,9 +22,46 @@ import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import {
+  json,
+  type HandlerMap,
+  type HandlerResponse,
+  type OptionalPromise,
+} from "../types.ts";
+import { acceptInvitation } from "./acceptInvitation.ts";
 import { claimOrg } from "./claimOrg.ts";
+import { createApp } from "./createApp.ts";
+import { createAppGroup } from "./createAppGroup.ts";
 import { createDeployment } from "./createDeployment.ts";
+import { deleteApp } from "./deleteApp.ts";
+import { deleteAppGroup } from "./deleteAppGroup.ts";
+import { deleteAppPod } from "./deleteAppPod.ts";
+import {
+  deleteAppFile,
+  downloadAppFile,
+  getAppFile,
+  writeAppFile,
+} from "./files.ts";
+import { getAppLogs } from "./getAppLogs.ts";
+import { getAppStatus } from "./getAppStatus.ts";
+import { getDeployment } from "./getDeployment.ts";
+import { getInstallation } from "./getInstallation.ts";
 import { getSettings } from "./getSettings.ts";
+import { githubAppInstall } from "./githubAppInstall.ts";
+import { githubInstallCallback } from "./githubInstallCallback.ts";
+import { githubOAuthCallback } from "./githubOAuthCallback.ts";
+import { githubWebhook } from "./githubWebhook.ts";
+import { importGitRepo, importGitRepoCreateState } from "./importGitRepo.ts";
+import { ingestLogs } from "./ingestLogs.ts";
+import { inviteUser } from "./inviteUser.ts";
+import { listDeployments } from "./listDeployments.ts";
+import { listOrgRepos } from "./listOrgRepos.ts";
+import { listRepoBranches } from "./listRepoBranches.ts";
+import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { removeUserFromOrg } from "./removeUserFromOrg.ts";
+import { revokeInvitation } from "./revokeInvitation.ts";
+import { updateApp } from "./updateApp.ts";
+import { updateDeployment } from "./updateDeployment.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -92,11 +94,18 @@ export const handlers = {
         include: {
           orgs: { include: { organization: true } },
           unassignedInstallations: true,
+          receivedInvitations: {
+            include: {
+              inviter: { select: { name: true } },
+              invitee: { select: { name: true } },
+              org: { select: { name: true } },
+            },
+          },
         },
       });
 
       const projects =
-        user.clusterUsername && isRancherManaged()
+        user?.clusterUsername && isRancherManaged()
           ? await getProjectsForUser(user.clusterUsername)
           : undefined;
 
@@ -112,9 +121,15 @@ export const handlers = {
         })),
         projects,
         unassignedInstallations: user.unassignedInstallations,
+        receivedInvitations: user.receivedInvitations.map((inv) => ({
+          id: inv.id,
+          inviter: { name: inv.inviter.name },
+          invitee: { name: inv.invitee.name },
+          org: { id: inv.orgId, name: inv.org.name },
+        })),
       });
     } catch (e) {
-      console.log((e as Error).message);
+      console.error(e);
       json(500, res, { code: 500, message: "Something went wrong." });
     }
   },
@@ -138,25 +153,6 @@ export const handlers = {
       console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
-  },
-  joinOrg: async function (
-    ctx,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["UserOrg"] };
-      };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
   },
   createOrg: async function (
     ctx,
@@ -243,6 +239,13 @@ export const handlers = {
               },
             },
           },
+          outgoingInvitations: {
+            include: {
+              invitee: { select: { name: true } },
+              inviter: { select: { name: true } },
+              org: { select: { name: true } },
+            },
+          },
           users: {
             select: {
               user: { select: { id: true, name: true, email: true } },
@@ -314,6 +317,12 @@ export const handlers = {
         })),
         githubInstallationId: org.githubInstallationId,
         appGroups: appGroupRes,
+        outgoingInvitations: org.outgoingInvitations.map((inv) => ({
+          id: inv.id,
+          inviter: { name: inv.inviter.name },
+          invitee: { name: inv.invitee.name },
+          org: { id: inv.orgId, name: inv.org.name },
+        })),
       });
     } catch (e) {
       console.error(e);
@@ -681,5 +690,9 @@ export const handlers = {
   deleteAppFile,
   createDeployment,
   getSettings,
+  acceptInvitation,
+  inviteUser,
+  removeUserFromOrg,
+  revokeInvitation,
 } satisfies HandlerMap;
 Object.freeze(handlers);

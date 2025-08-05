@@ -28,12 +28,14 @@ type UserContextType = {
         >
       >)
     | undefined;
+  error: { code?: number; message?: string } | null;
 };
 
 export const UserContext = React.createContext<UserContextType>({
   user: undefined,
   loading: false,
   refetch: undefined,
+  error: null,
 });
 
 const ALLOWED_UNAUTHENTICATED = ["/", "/error"];
@@ -48,6 +50,7 @@ export default function UserProvider({
     data: user,
     isPending,
     refetch,
+    error,
   } = api.useQuery(
     "get",
     "/user/me",
@@ -72,6 +75,7 @@ export default function UserProvider({
         user,
         loading: isPending,
         refetch,
+        error,
       }}
     >
       {children}

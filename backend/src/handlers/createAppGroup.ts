@@ -1,7 +1,7 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
 import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";

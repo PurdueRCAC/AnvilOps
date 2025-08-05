@@ -20,10 +20,10 @@ const onError = (error: DefaultError) => {
     ("code" in error && error?.code === 401) ||
     error?.message === "Unauthorized"
   ) {
-    return;
+    window.location.href = "/api/login";
   }
   toast.error(
-    `Something went wrong: ${error.message ?? error.toString() ?? error}`,
+    `Something went wrong: ${error.message ?? JSON.stringify(error)}`,
   );
 };
 
