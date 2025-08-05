@@ -26,7 +26,7 @@ A Deployment is a collection of all the configuration needed to build and run an
 
 A new Deployment is created for an App each time its configuration is updated, or if it is linked to a Git repository, each time you push a commit. Then, the changes are applied to the cluster so that the latest version of your application is running, with the latest configuration.
 
-When you push a commit, AnvilOps starts from the [Deployment Config Template](#deployment-config-template) and then replaces the commit hash and message with their new values.
+When you push a commit, AnvilOps starts from the [Deployment Configuration Template](#configuration-template) and then replaces the commit hash and message with their new values.
 
 Deployments have statuses:
 
