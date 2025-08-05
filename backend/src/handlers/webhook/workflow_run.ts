@@ -93,11 +93,12 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
         where: { appId: app.id, workflowRunId: payload.workflow_run.id },
         select: {
           id: true,
+          commitHash: true,
+          commitMessage: true,
           status: true,
           secret: true,
           checkRunId: true,
           appId: true,
-          commitHash: true,
           app: { include: { org: true, appGroup: true } },
           config: true,
         },

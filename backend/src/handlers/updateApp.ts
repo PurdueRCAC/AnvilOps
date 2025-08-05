@@ -236,6 +236,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
         secret,
       },
       select: {
+        commitHash: true,
+        commitMessage: true,
         id: true,
         appId: true,
         app: {
@@ -252,7 +254,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
 
     try {
       const { namespace, configs, postCreate } =
-        createAppConfigsFromDeployment(deployment);
+        await createAppConfigsFromDeployment(deployment);
 
       const { KubernetesObjectApi: api } = await getClientsForRequest(
         req.user.id,

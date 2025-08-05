@@ -2,7 +2,6 @@ import { dequeueBuildJob } from "../lib/builder.ts";
 import {
   createOrUpdateApp,
   getClientForClusterUsername,
-  getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
@@ -33,7 +32,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       config: true,
       app: {
         select: {
+          id: true,
           name: true,
+          displayName: true,
           logIngestSecret: true,
           subdomain: true,
           deploymentConfigTemplate: true,
@@ -96,7 +97,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     });
 
     const { namespace, configs, postCreate } =
-      createAppConfigsFromDeployment(deployment);
+      await createAppConfigsFromDeployment(deployment);
+
     try {
       await db.app.update({
         where: {

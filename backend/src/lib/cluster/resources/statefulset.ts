@@ -1,7 +1,14 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import jsonpatch from "fast-json-patch";
 import crypto from "node:crypto";
+import type { Octokit } from "octokit";
+import type {
+  App,
+  Deployment,
+  DeploymentConfig,
+} from "../../../generated/prisma/client.ts";
 import { env } from "../../env.ts";
+import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
 
 export type DeploymentParams = {
@@ -11,6 +18,88 @@ export type DeploymentParams = {
   image: string;
   env: V1EnvVar[];
 } & DeploymentJson.ConfigFields;
+
+export const generateAutomaticEnvVars = async (
+  octokit: Octokit,
+  deployment: Pick<Deployment, "id" | "commitHash" | "commitMessage"> & {
+    config: Pick<
+      DeploymentConfig,
+      "source" | "branch" | "imageTag" | "repositoryId" | "fieldValues"
+    >;
+    app: Pick<App, "id" | "subdomain" | "displayName">;
+  },
+): Promise<{ name: string; value: string }[]> => {
+  const app = deployment.app;
+  const appDomain = URL.parse(env.APP_DOMAIN);
+  const list = [
+    {
+      name: "PORT",
+      value: deployment.config.fieldValues.port.toString(),
+      isSensitive: false,
+    },
+    {
+      name: "ANVILOPS_CLUSTER_HOSTNAME",
+      value: `anvilops-${app.subdomain}.anvilops-${app.subdomain}.svc.cluster.local`,
+    },
+    {
+      name: "ANVILOPS_APP_NAME",
+      value: app.displayName,
+    },
+    {
+      name: "ANVILOPS_SUBDOMAIN",
+      value: app.subdomain,
+    },
+    {
+      name: "ANVILOPS_APP_ID",
+      value: app.id.toString(),
+    },
+    {
+      name: "ANVILOPS_DEPLOYMENT_ID",
+      value: deployment.id.toString(),
+    },
+    {
+      name: "ANVILOPS_DEPLOYMENT_SOURCE",
+      value: deployment.config.source,
+    },
+    {
+      name: "ANVILOPS_IMAGE_TAG",
+      value: deployment.config.imageTag,
+    },
+  ];
+
+  if (deployment.config.source === "GIT") {
+    const repo = await getRepoById(octokit, deployment.config.repositoryId);
+    list.push({
+      name: "ANVILOPS_REPOSITORY_ID",
+      value: deployment.config.repositoryId.toString(),
+    });
+    list.push({ name: "ANVILOPS_REPOSITORY_OWNER", value: repo.owner.login });
+    list.push({ name: "ANVILOPS_REPOSITORY_NAME", value: repo.name });
+    list.push({
+      name: "ANVILOPS_REPOSITORY_SLUG",
+      value: `${repo.owner.login}/${repo.name}`,
+    });
+    list.push({ name: "ANVILOPS_COMMIT_HASH", value: deployment.commitHash });
+    list.push({
+      name: "ANVILOPS_COMMIT_MESSAGE",
+      value: deployment.commitMessage,
+    });
+  }
+
+  if (appDomain !== null) {
+    const hostname = `${app.subdomain}.${appDomain.host}`;
+    list.push({
+      name: "ANVILOPS_HOSTNAME",
+      value: hostname,
+    });
+    list.push({
+      name: "ANVILOPS_URL",
+      value: new URL(`${appDomain.protocol}//${hostname}`).toString(),
+    });
+  }
+
+  return list;
+};
 
 export const generateVolumeName = (mountPath: string) => {
   // Volume names must be valid DNS labels (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names)
