@@ -184,6 +184,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     },
   });
   const appConfigs = data.apps.map((app) => {
+    const cpu = Math.round(app.cpuCores * 1000) + "m",
+      memory = app.memoryInMiB + "Mi";
     const deploymentConfig: DeploymentConfigCreateInput = {
       env: app.env,
       fieldValues: {
@@ -194,6 +196,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
         extra: {
           postStart: app.postStart,
           preStop: app.preStop,
+          requests: { cpu, memory, "nvidia.com/gpu": undefined },
+          limits: { cpu, memory, "nvidia.com/gpu": undefined },
         },
       },
       ...(app.source === "git"

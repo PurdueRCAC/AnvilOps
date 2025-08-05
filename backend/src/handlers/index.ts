@@ -519,6 +519,8 @@ export const handlers = {
               volumeClaimName: generateVolumeName(mount.path),
             }),
           ),
+          requests: app.deploymentConfigTemplate.fieldValues.extra.requests,
+          limits: app.deploymentConfigTemplate.fieldValues.extra.limits,
           ...app.deploymentConfigTemplate.fieldValues.extra,
           ...(app.deploymentConfigTemplate.source === "GIT"
             ? {

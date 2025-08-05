@@ -30,6 +30,8 @@ paths:
                     format: uri
                   storageEnabled:
                     type: boolean
+                  isRancherManaged:
+                    type: boolean
   /login:
     get:
       tags:
@@ -1882,6 +1884,10 @@ components:
               type: string
             preStop:
               type: string
+            cpuCores:
+              type: number
+            memoryInMiB:
+              type: integer
             appGroup:
               oneOf:
                 - type: object
@@ -1907,7 +1913,16 @@ components:
                       type: integer
                       format: int64
                   required: [type, id]
-          required: [name, orgId, subdomain, port, env, mounts, appGroup]
+          required:
+            - name
+            - orgId
+            - subdomain
+            - port
+            - env
+            - mounts
+            - appGroup
+            - cpuCores
+            - memoryInMiB
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"
@@ -1940,7 +1955,12 @@ components:
               type: string
             preStop:
               type: string
-          required: [name, orgId, subdomain, port, env, mounts]
+            cpuCores:
+              type: number
+            memoryInMiB:
+              type: integer
+          required:
+            [name, orgId, subdomain, port, env, mounts, cpuCores, memoryInMiB]
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

@@ -42,6 +42,10 @@ export const createDeployment: HandlerMap["createDeployment"] = async (
       extra: {
         postStart: appConfig.postStart,
         preStop: appConfig.preStop,
+        requests:
+          appConfig.requests as DeploymentConfigCreateInput["fieldValues"]["extra"]["requests"],
+        limits:
+          appConfig.limits as DeploymentConfigCreateInput["fieldValues"]["extra"]["limits"],
       },
     },
     ...(appConfig.source === "git"

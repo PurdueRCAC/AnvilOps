@@ -10,7 +10,10 @@ declare global {
       isSensitive: boolean;
     };
 
-    type ResourceRequests = Record<(typeof Resources)[number], string>;
+    type ResourceRequests = Record<
+      (typeof Resources)[number],
+      string | undefined
+    >;
     type ConfigFields = {
       replicas: number;
       port: number;
@@ -19,8 +22,8 @@ declare global {
       extra: {
         postStart?: string;
         preStop?: string;
-        limits?: ResourceRequests;
-        requests?: ResourceRequests;
+        limits: ResourceRequests;
+        requests: ResourceRequests;
       };
     };
   }
