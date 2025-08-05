@@ -30,6 +30,7 @@ export const GitDeploymentFields = ({
   orgId,
   state,
   setState,
+  disabled = false,
 }: {
   orgId?: number;
   state: Pick<
@@ -44,6 +45,7 @@ export const GitDeploymentFields = ({
     | "dockerfilePath"
   >;
   setState: React.Dispatch<React.SetStateAction<AppInfoFormData>>;
+  disabled: boolean;
 }) => {
   const { builder, repositoryId, event, eventId, source } = state;
 
@@ -154,7 +156,7 @@ export const GitDeploymentFields = ({
         <Select
           required
           name="repo"
-          disabled={orgId === undefined || reposLoading}
+          disabled={disabled || orgId === undefined || reposLoading}
           onValueChange={(repo) => {
             if (repo === "$import-repo") {
               setImportDialogShown(true);
@@ -225,7 +227,7 @@ export const GitDeploymentFields = ({
         <Select
           required
           name="branch"
-          disabled={repositoryId === undefined || branchesLoading}
+          disabled={disabled || repositoryId === undefined || branchesLoading}
           value={state.branch ?? ""}
           onValueChange={(branch) => {
             setState((prev) => ({ ...prev, branch }));
@@ -269,6 +271,7 @@ export const GitDeploymentFields = ({
         </div>
         <Select
           required
+          disabled={disabled}
           name="branch"
           value={state.event ?? ""}
           onValueChange={(event) => {
@@ -316,6 +319,7 @@ export const GitDeploymentFields = ({
             required
             name="workflow"
             disabled={
+              disabled ||
               repositoryId === undefined ||
               branchesLoading ||
               workflows?.workflows?.length === 0
@@ -366,6 +370,7 @@ export const GitDeploymentFields = ({
           </span>
         </div>
         <Input
+          disabled={disabled}
           value={state.rootDir}
           onChange={(e) => {
             const rootDir = e.currentTarget.value;
@@ -396,6 +401,7 @@ export const GitDeploymentFields = ({
           </span>
         </div>
         <RadioGroup
+          disabled={disabled}
           name="builder"
           id="builder"
           value={builder}
@@ -441,6 +447,7 @@ export const GitDeploymentFields = ({
             </span>
           </Label>
           <Input
+            disabled={disabled}
             name="dockerfilePath"
             id="dockerfilePath"
             placeholder="Dockerfile"

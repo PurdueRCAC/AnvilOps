@@ -148,6 +148,44 @@ export const OverviewTab = ({
           refetchDeployments();
         }}
       />
+      {app.isPreviewing && (
+        <InfoBox type="info" title="This app is in preview mode.">
+          <p>
+            Preview mode is for temporarily testing out an app configuration. To
+            persist these changes, save them in the Configuration tab.
+          </p>
+        </InfoBox>
+      )}
+      {app.isPreviewing && app.config.source === "git" && app.cdEnabled && (
+        <InfoBox
+          type="warning"
+          title="Warning: Continuous deployment is enabled."
+        >
+          <p>
+            Because your app configuration template references a Git repository
+            and continuous deployment is currently enabled, the configuration
+            changes you are previewing may be reverted if that repository is
+            updated.
+          </p>
+          <p>
+            To prevent this, disable continuous deployment in the Configuration
+            tab.
+          </p>
+        </InfoBox>
+      )}
+
+      {app.config.source === "git" && !app.cdEnabled && !app.isPreviewing && (
+        <InfoBox type="info" title="Continuous deployment is disabled.">
+          <p>
+            This app will not automatically redeploy when the linked Git
+            repository is updated.
+          </p>
+          <p>
+            To change this, enable continuous deployment in the Configuration
+            tab.
+          </p>
+        </InfoBox>
+      )}
       <h3 className="text-xl font-medium mb-4">General</h3>
       <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
         {app.config.source === "git" ? (
@@ -197,25 +235,6 @@ export const OverviewTab = ({
           </>
         )}
       </div>
-      {app.isPreviewing && (
-        <InfoBox type="info" title="This app is in preview mode.">
-          <p>
-            Preview mode is for temporarily testing out an app configuration. To
-            persist these changes, save them in the Configuration tab.
-          </p>
-        </InfoBox>
-      )}
-      {app.isPreviewing && app.config.source === "git" && app.cdEnabled && (
-        <InfoBox
-          type="warning"
-          title="Warning: Continuous deployment is enabled."
-        >
-          <p>
-            The configuration changes you are previewing will be reverted if the
-            repository referenced in your app configuration template updates.
-          </p>
-        </InfoBox>
-      )}
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
         {app.config.source === "git" ? (
@@ -373,21 +392,18 @@ export const OverviewTab = ({
   );
 };
 
-const InfoBox = ({
+export const InfoBox = ({
   type,
   title,
   children,
 }: {
-  type: "info" | "warning";
+  type: "info" | "warning" | "neutral";
   title: string;
   children: React.ReactNode;
 }) => {
   return (
     <div
-      className={cn(
-        "rounded-md p-4 my-4 text-black-4",
-        type === "info" ? "bg-gold-1/75" : "bg-red-100",
-      )}
+      className={cn("rounded-md p-4 my-4 text-black-4", getBoxClasses(type))}
     >
       <div className="text-lg font-bold mb-2 flex items-center gap-2">
         <InfoIcon className="inline" /> <h3>{title}</h3>
@@ -395,4 +411,14 @@ const InfoBox = ({
       {children}
     </div>
   );
+};
+
+const getBoxClasses = (type: "info" | "warning" | "neutral") => {
+  if (type === "info") {
+    return "bg-gold-1/75";
+  } else if (type === "warning") {
+    return "bg-red-100";
+  } else if (type === "neutral") {
+    return "border border-black-2";
+  }
 };

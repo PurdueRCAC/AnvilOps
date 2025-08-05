@@ -205,14 +205,13 @@ export const RedeployModal = ({
                       source: "image" as const,
                       imageTag: config.imageTag!,
                     }),
-                enableCD: redeployState.enableCD,
               };
 
               if (redeployState.persistChanges === "oneOff") {
                 // Create a new deployment without updating the deployment config template
                 await createDeployment({
                   params: { path: { appId: app.id } },
-                  body: res,
+                  body: { ...res, enableCD: redeployState.enableCD },
                 });
               } else {
                 // Persist changes across future deployments by updating the template and creating a new deployment from it
@@ -220,6 +219,7 @@ export const RedeployModal = ({
                   params: { path: { appId: app.id } },
                   body: {
                     config: res,
+                    enableCD: redeployState.enableCD,
                   },
                 });
               }

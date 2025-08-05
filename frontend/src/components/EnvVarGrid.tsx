@@ -12,10 +12,12 @@ export const EnvVarGrid = ({
   value: envVars,
   setValue: setEnvironmentVariables,
   fixedSensitiveNames,
+  disabled = false,
 }: {
   value: EnvVars;
   setValue: Dispatch<React.SetStateAction<EnvVars>>;
   fixedSensitiveNames: Set<string>;
+  disabled: boolean;
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
@@ -62,12 +64,14 @@ export const EnvVarGrid = ({
               placeholder="NODE_ENV"
               required={index !== envVars.length - 1}
               className="w-full"
-              disabled={isFixedSensitive}
+              disabled={disabled || isFixedSensitive}
               disabledTooltip={
-                <p>
-                  The name of a sensitive environment variable cannot be
-                  changed.
-                </p>
+                !disabled && (
+                  <p>
+                    The name of a sensitive environment variable cannot be
+                    changed.
+                  </p>
+                )
               }
               value={name}
               onChange={(e) => {
@@ -87,6 +91,7 @@ export const EnvVarGrid = ({
             <span className="text-xl align-middle w-fit">=</span>
             <label>
               <Input
+                disabled={disabled}
                 placeholder={isFixedSensitive ? "Hidden value" : "production"}
                 className="w-full"
                 value={value ?? ""}
@@ -103,7 +108,7 @@ export const EnvVarGrid = ({
             <div className="text-center">
               <Checkbox
                 className="size-6"
-                disabled={isFixedSensitive}
+                disabled={disabled || isFixedSensitive}
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
                   const newList = structuredClone(envVars);
@@ -114,6 +119,7 @@ export const EnvVarGrid = ({
               />
             </div>
             <Button
+              disabled={disabled}
               variant="secondary"
               type="button"
               onClick={() => {

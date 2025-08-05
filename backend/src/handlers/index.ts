@@ -60,6 +60,10 @@ import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { claimOrg } from "./claimOrg.ts";
 import { createDeployment } from "./createDeployment.ts";
 import { getSettings } from "./getSettings.ts";
+import { updateAppConfigTemplate } from "./updateAppConfigTemplate.ts";
+import { getAppConfigTemplate } from "./getAppConfigTemplate.ts";
+import { randomBytes } from "node:crypto";
+import { revertToAppConfigTemplate } from "./revertToAppConfigTemplate.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -462,41 +466,45 @@ export const handlers = {
 
       if (!app) return json(404, res, {});
 
-      const [{ repoId, repoURL }, k8sDeployment] = await Promise.all([
-        // Fetch repository info if this app is deployed from a Git repository
-        (async () => {
-          if (app.deploymentConfigTemplate.source === "GIT") {
-            const octokit = await getOctokit(app.org.githubInstallationId);
-            const repo = await getRepoById(
-              octokit,
-              app.deploymentConfigTemplate.repositoryId,
-            );
-            return { repoId: repo.id, repoURL: repo.html_url };
-          } else {
-            return { repoId: undefined, repoURL: undefined };
-          }
-        })(),
-        // Fetch the current StatefulSet to read its labels
-        (async () => {
-          try {
-            const { AppsV1Api: api } = await getClientsForRequest(
-              req.user.id,
-              app.projectId,
-              ["AppsV1Api"],
-            );
-            return await api.readNamespacedStatefulSet({
-              namespace: getNamespace(app.subdomain),
-              name: app.name,
-            });
-          } catch {}
-        })(),
-      ]);
+      // Fetch repository info if this app is deployed from a Git repository
+      // Fetch the current StatefulSet to read its labels
+      const k8sDeployment = await (async () => {
+        try {
+          const { AppsV1Api: api } = await getClientsForRequest(
+            req.user.id,
+            app.projectId,
+            ["AppsV1Api"],
+          );
+          return await api.readNamespacedStatefulSet({
+            namespace: getNamespace(app.subdomain),
+            name: app.name,
+          });
+        } catch {}
+      })();
 
       const activeDeployment =
         k8sDeployment?.spec?.template?.metadata?.labels?.[
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
+      const currentConfig = activeDeployment
+        ? app.deployments.find(
+            (deploy) => deploy.id === parseInt(activeDeployment),
+          ).config
+        : app.deploymentConfigTemplate;
+
+      // Fetch repository info if this app is deployed from a Git repository
+      const { repoId, repoURL } = await (async () => {
+        if (currentConfig.source === "GIT") {
+          const octokit = await getOctokit(app.org.githubInstallationId);
+          const repo = await getRepoById(octokit, currentConfig.repositoryId);
+          return { repoId: repo.id, repoURL: repo.html_url };
+        } else {
+          return { repoId: undefined, repoURL: undefined };
+        }
+      })();
+
+      // TODO: Separate this into several API calls
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -510,34 +518,31 @@ export const handlers = {
         subdomain: app.subdomain,
         cdEnabled: app.enableCD,
         config: {
-          port: app.deploymentConfigTemplate.fieldValues.port,
-          env: app.deploymentConfigTemplate.displayEnv,
-          replicas: app.deploymentConfigTemplate.fieldValues.replicas,
-          mounts: app.deploymentConfigTemplate.fieldValues.mounts.map(
-            (mount) => ({
-              amountInMiB: mount.amountInMiB,
-              path: mount.path,
-              volumeClaimName: generateVolumeName(mount.path),
-            }),
-          ),
-          ...app.deploymentConfigTemplate.fieldValues.extra,
-          ...(app.deploymentConfigTemplate.source === "GIT"
+          port: currentConfig.fieldValues.port,
+          env: currentConfig.displayEnv,
+          replicas: currentConfig.fieldValues.replicas,
+          mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+            amountInMiB: mount.amountInMiB,
+            path: mount.path,
+            volumeClaimName: generateVolumeName(mount.path),
+          })),
+          ...currentConfig.fieldValues.extra,
+          ...(currentConfig.source === "GIT"
             ? {
                 source: "git",
-                branch: app.deploymentConfigTemplate.branch,
-                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-                rootDir: app.deploymentConfigTemplate.rootDir,
-                builder: app.deploymentConfigTemplate.builder,
-                repositoryId: app.deploymentConfigTemplate.repositoryId,
-                event: app.deploymentConfigTemplate.event,
-                eventId: app.deploymentConfigTemplate.eventId,
+                branch: currentConfig.branch,
+                dockerfilePath: currentConfig.dockerfilePath,
+                rootDir: currentConfig.rootDir,
+                builder: currentConfig.builder,
+                repositoryId: currentConfig.repositoryId,
+                event: currentConfig.event,
+                eventId: currentConfig.eventId,
               }
             : {
                 source: "image",
-                imageTag: app.deploymentConfigTemplate.imageTag,
+                imageTag: currentConfig.imageTag,
               }),
         },
-        configId: app.deploymentConfigTemplateId,
         appGroup: {
           standalone: app.appGroup.isMono,
           name: !app.appGroup.isMono ? app.appGroup.name : undefined,
@@ -653,10 +658,13 @@ export const handlers = {
     };
     return json(200, res, data);
   },
+  revertToAppConfigTemplate,
+  getAppConfigTemplate,
   createApp,
   createAppGroup,
   claimOrg,
   updateApp,
+  updateAppConfigTemplate,
   deleteApp,
   deleteAppGroup,
   githubWebhook,

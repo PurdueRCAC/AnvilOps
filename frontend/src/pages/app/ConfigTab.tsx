@@ -7,12 +7,23 @@ import AppConfigFormFields, {
 } from "@/pages/create-app/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput, Workflow } from "lucide-react";
-import { useState, type Dispatch } from "react";
+import { useEffect, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
 import { Switch } from "@/components/ui/switch";
+import { InfoBox } from "./OverviewTab";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AppConfigDiff,
+  type DeploymentConfigFormData,
+} from "./overview/AppConfigDiff";
 
 export const ConfigTab = ({
   app,
@@ -25,6 +36,7 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
+  const [enableCD, setEnableCD] = useState(app.cdEnabled);
   const [formState, setFormState] = useState<AppInfoFormData>({
     port: app.config.port.toString(),
     env: app.config.env,
@@ -41,7 +53,6 @@ export const ConfigTab = ({
     groupId: app.appGroup.id,
     projectId: app.projectId,
     source: app.config.source,
-    enableCD: app.cdEnabled,
     ...(app.config.source === "git"
       ? {
           repositoryId: app.config.repositoryId,
@@ -64,168 +75,357 @@ export const ConfigTab = ({
     "/app/{appId}",
   );
 
+  const {
+    mutateAsync: updateAppConfigTemplate,
+    isPending: updateConfigPending,
+  } = api.useMutation("put", "/app/{appId}/template");
+
+  const [revertOpen, setRevertOpen] = useState(false);
   return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
+    <>
+      {app.isPreviewing && (
+        <>
+          <RevertDialog
+            open={revertOpen}
+            setOpen={setRevertOpen}
+            app={app}
+            onRevert={() => {
+              if (tab === "configuration") {
+                setTab("overview");
+              }
+              refetch({});
+            }}
+          />
+          <InfoBox type="neutral" title="This app is in preview mode.">
+            <div className="space-y-2">
+              <p>
+                Preview mode allows you to try out a deployment configuration
+                while maintaining your app's configuration template for
+                convenient reverting.
+              </p>
+              <p>
+                The configuration being previewed is shown below. To persist it,
+                you can save it as the configuration template after reviewing
+                the values.
+              </p>
+              <Button onClick={() => setRevertOpen(true)}>
+                Revert to Configuration Template
+              </Button>
+            </div>
+          </InfoBox>
+        </>
+      )}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
 
-        const formData = new FormData(e.currentTarget);
-        let appGroup: components["schemas"]["AppUpdate"]["appGroup"];
-        switch (formState.groupOption) {
-          case "standalone":
-            appGroup = {
-              type: "standalone",
-            };
-            break;
-          case "create-new":
-            appGroup = {
-              type: "create-new",
-              name: formData.get("groupName")!.toString(),
-            };
-            break;
-          default:
-            appGroup = { type: "add-to", id: formState.groupId! };
-            break;
-        }
-        await updateApp({
-          params: { path: { appId: app.id } },
-          body: {
-            name: formData.get("name")!.toString(),
-            appGroup,
-            projectId: formState.projectId,
-            enableCD: formState.enableCD,
-            config: {
-              port: parseInt(formData.get("portNumber")!.toString()),
-              env: formState.env.filter((it) => it.name.length > 0),
-              mounts: formState.mounts.filter((it) => it.path.length > 0),
-              postStart: formState.postStart,
-              preStop: formState.preStop,
-              replicas: parseInt(formData.get("replicas")!.toString()),
-              ...(formState.source === "git"
-                ? {
-                    source: "git",
-                    repositoryId: formState.repositoryId!,
-                    branch: formState.branch!,
-                    rootDir: formState.rootDir!,
-                    ...(formState.builder === "dockerfile"
-                      ? {
-                          builder: formState.builder,
-                          dockerfilePath: formState.dockerfilePath!,
-                        }
-                      : {
-                          builder: formState.builder,
-                          dockerfilePath: null,
-                        }),
-                    ...(formState.event === "push"
-                      ? {
-                          event: "push",
-                          eventId: null,
-                        }
-                      : {
-                          event: formState.event!,
-                          eventId: parseInt(formState.eventId!),
-                        }),
-                  }
-                : {
-                    source: "image",
-                    imageTag: formState.imageTag!,
-                  }),
+          const formData = new FormData(e.currentTarget);
+          let appGroup: components["schemas"]["AppUpdate"]["appGroup"];
+          switch (formState.groupOption) {
+            case "standalone":
+              appGroup = {
+                type: "standalone",
+              };
+              break;
+            case "create-new":
+              appGroup = {
+                type: "create-new",
+                name: formData.get("groupName")!.toString(),
+              };
+              break;
+            default:
+              appGroup = { type: "add-to", id: formState.groupId! };
+              break;
+          }
+          await updateApp({
+            params: { path: { appId: app.id } },
+            body: {
+              name: formData.get("name")!.toString(),
+              appGroup,
+              projectId: formState.projectId,
+              enableCD,
+              config: {
+                port: parseInt(formData.get("portNumber")!.toString()),
+                env: formState.env.filter((it) => it.name.length > 0),
+                mounts: formState.mounts.filter((it) => it.path.length > 0),
+                postStart: formState.postStart,
+                preStop: formState.preStop,
+                replicas: parseInt(formData.get("replicas")!.toString()),
+                ...(formState.source === "git"
+                  ? {
+                      source: "git",
+                      repositoryId: formState.repositoryId!,
+                      branch: formState.branch!,
+                      rootDir: formState.rootDir!,
+                      ...(formState.builder === "dockerfile"
+                        ? {
+                            builder: formState.builder,
+                            dockerfilePath: formState.dockerfilePath!,
+                          }
+                        : {
+                            builder: formState.builder,
+                            dockerfilePath: null,
+                          }),
+                      ...(formState.event === "push"
+                        ? {
+                            event: "push",
+                            eventId: null,
+                          }
+                        : {
+                            event: formState.event!,
+                            eventId: parseInt(formState.eventId!),
+                          }),
+                    }
+                  : {
+                      source: "image",
+                      imageTag: formState.imageTag!,
+                    }),
+              },
             },
-          },
-        });
+          });
 
-        toast.success("App updated successfully!");
-        if (tab === "configuration") {
-          setTab("overview");
-        }
-        refetch({});
-      }}
-      className="flex flex-col gap-8"
-    >
-      <div>
-        {formState.source === "git" && (
-          <div className="gap-2 mb-6 space-y-2">
+          toast.success("App updated successfully!");
+          if (tab === "configuration") {
+            setTab("overview");
+          }
+          refetch({});
+        }}
+        className="flex flex-col gap-8"
+      >
+        <div>
+          {formState.source === "git" && (
+            <div className="gap-2 mb-6 space-y-2">
+              <Label className="pb-1">
+                <Workflow className="inline" size={16} /> Toggle Continuous
+                Deployment
+              </Label>
+              <Label>
+                <Switch checked={enableCD} onCheckedChange={setEnableCD} />{" "}
+                Continuous deployment is{" "}
+                {enableCD ? <strong>on.</strong> : <strong>off.</strong>}
+                <span className="text-black-4">
+                  This app {enableCD ? "will" : "will not"} be rebuilt and
+                  redeployed if the source repository updates.
+                </span>
+              </Label>
+            </div>
+          )}
+          <div className="flex items-baseline gap-2 mb-2">
             <Label className="pb-1">
-              <Workflow className="inline" size={16} /> Toggle Continuous
-              Deployment
+              <TextCursorInput className="inline" size={16} /> App Name
             </Label>
-            <Label>
-              <Switch
-                checked={formState.enableCD}
-                onCheckedChange={(checked) =>
-                  setFormState((fs) => ({ ...fs, enableCD: checked }))
-                }
-              />{" "}
-              Continuous deployment is{" "}
-              {formState.enableCD ? (
-                <strong>on.</strong>
-              ) : (
-                <strong>off.</strong>
-              )}
-              <span className="text-black-4">
-                This app{" "}
-                {formState.enableCD ? (
-                  <strong>will</strong>
-                ) : (
-                  <strong>will not</strong>
-                )}{" "}
-                be rebuilt and redeployed when the source repository updates.
-              </span>
-            </Label>
+            <span
+              className="text-red-500 cursor-default"
+              title="This field is required."
+            >
+              *
+            </span>
           </div>
+          <Input
+            name="name"
+            required
+            defaultValue={app.displayName}
+            disabled={app.isPreviewing}
+          />
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2 mb-2">
+            <Label className="pb-1">
+              <Scale3D className="inline" size={16} /> Replicas
+            </Label>
+            <span
+              className="text-red-500 cursor-default"
+              title="This field is required."
+            >
+              *
+            </span>
+          </div>
+          <Input
+            name="replicas"
+            placeholder="1"
+            type="number"
+            required
+            defaultValue={app.config.replicas}
+            disabled={app.isPreviewing}
+          />
+        </div>
+        <FormContext value="UpdateApp">
+          <AppConfigFormFields
+            state={formState}
+            setState={setFormState}
+            defaults={{ config: app.config }}
+            isExistingApp
+            disabled={app.isPreviewing}
+          />
+        </FormContext>
+        {!app.isPreviewing && (
+          <Button className="mt-8 max-w-max" disabled={updatePending}>
+            {updatePending ? (
+              <>
+                <Loader className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save /> Save
+              </>
+            )}
+          </Button>
         )}
-        <div className="flex items-baseline gap-2 mb-2">
-          <Label className="pb-1">
-            <TextCursorInput className="inline" size={16} /> App Name
-          </Label>
-          <span
-            className="text-red-500 cursor-default"
-            title="This field is required."
-          >
-            *
-          </span>
-        </div>
-        <Input name="name" required defaultValue={app.displayName} />
-      </div>
-      <div>
-        <div className="flex items-baseline gap-2 mb-2">
-          <Label className="pb-1">
-            <Scale3D className="inline" size={16} /> Replicas
-          </Label>
-          <span
-            className="text-red-500 cursor-default"
-            title="This field is required."
-          >
-            *
-          </span>
-        </div>
-        <Input
-          name="replicas"
-          placeholder="1"
-          type="number"
-          required
-          defaultValue={app.config.replicas}
-        />
-      </div>
-      <FormContext value="UpdateApp">
-        <AppConfigFormFields
-          state={formState}
-          setState={setFormState}
-          defaults={{ config: app.config }}
-          isExistingApp
-        />
-      </FormContext>
-      <Button className="mt-8 max-w-max" disabled={updatePending}>
-        {updatePending ? (
-          <>
-            <Loader className="animate-spin" /> Saving...
-          </>
+      </form>
+      {app.isPreviewing && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+
+            await updateAppConfigTemplate({
+              params: { path: { appId: app.id } },
+              body: {
+                ...app.config,
+              },
+            });
+
+            toast.success("App config template updated.");
+
+            if (tab === "configuration") {
+              setTab("overview");
+            }
+            refetch({});
+          }}
+        >
+          <Button className="mt-8 max-w-max">
+            {updateConfigPending ? (
+              <>
+                <Loader className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save /> Save as Configuration Template
+              </>
+            )}
+          </Button>
+        </form>
+      )}
+    </>
+  );
+};
+
+const RevertDialog = ({
+  open,
+  setOpen,
+  app,
+  onRevert,
+}: {
+  open: boolean;
+  setOpen: Dispatch<boolean>;
+  app: App;
+  onRevert: () => void;
+}) => {
+  const { data, isPending } = api.useSuspenseQuery(
+    "get",
+    "/app/{appId}/template",
+    { params: { path: { appId: app.id } } },
+  );
+
+  const { mutateAsync: revert, isPending: reverting } = api.useMutation(
+    "post",
+    "/app/{appId}/template/revert",
+  );
+
+  const [configState, setConfigState] = useState<DeploymentConfigFormData>({
+    replicas: "",
+    env: [],
+    source: "git" as const,
+    builder: "dockerfile" as const,
+    port: "",
+  });
+
+  useEffect(() => {
+    const template = data?.config;
+    if (!isPending && template) {
+      setConfigState({
+        orgId: app.orgId,
+        port: template.port.toString(),
+        replicas: template.replicas.toString(),
+        env: template.env,
+        ...(template.source === "git"
+          ? {
+              source: "git",
+              builder: template.builder,
+              event: template.event,
+              eventId: template.eventId?.toString() ?? undefined,
+              dockerfilePath: template.dockerfilePath ?? undefined,
+              rootDir: template.rootDir ?? undefined,
+              repositoryId: template.repositoryId,
+              branch: template.branch,
+            }
+          : {
+              source: "image",
+              imageTag: template.imageTag,
+            }),
+      });
+    }
+  }, [data, isPending]);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Revert to Template Configuration</DialogTitle>
+        </DialogHeader>
+        {isPending || data?.config === undefined ? (
+          <div className="flex gap-2 items-center">
+            <Loader className="animate-spin" /> Setting up...
+          </div>
         ) : (
-          <>
-            <Save /> Save
-          </>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+
+              await revert({
+                params: { path: { appId: app.id } },
+              });
+
+              toast.success("App configuration reverted to template.");
+              onRevert();
+            }}
+          >
+            <AppConfigDiff
+              orgId={app.orgId}
+              base={{
+                ...app.config,
+                replicas: app.config.replicas.toString(),
+                port: app.config.port.toString(),
+                ...(app.config.source === "git"
+                  ? {
+                      builder: app.config.builder,
+                      eventId: app.config.eventId?.toString() ?? undefined,
+                      dockerfilePath: app.config.dockerfilePath ?? undefined,
+                      rootDir: app.config.rootDir ?? undefined,
+                    }
+                  : {
+                      builder: "dockerfile",
+                      eventId: undefined,
+                      dockerfilePath: undefined,
+                      rootDir: undefined,
+                    }),
+              }}
+              state={configState}
+              setState={() => {}}
+              defaults={{ config: data?.config }}
+            />
+            <Button className="mt-4 float-right">
+              {reverting ? (
+                <>
+                  <Loader className="animate-spin" /> Reverting...
+                </>
+              ) : (
+                <>
+                  <Save /> Revert
+                </>
+              )}
+            </Button>
+          </form>
         )}
-      </Button>
-    </form>
+      </DialogContent>
+    </Dialog>
   );
 };

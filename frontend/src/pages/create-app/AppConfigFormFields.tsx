@@ -54,7 +54,6 @@ export type AppInfoFormData = {
   env: Env;
   mounts: Mounts;
   orgId?: number;
-  enableCD: boolean;
   repositoryId?: number;
   event?: "push" | "workflow_run";
   eventId?: string;
@@ -75,6 +74,7 @@ const AppConfigFormFields = ({
   isExistingApp,
   hideGroupSelect,
   defaults,
+  disabled = false,
 }: {
   state: AppInfoFormData;
   setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
@@ -83,6 +83,7 @@ const AppConfigFormFields = ({
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
   };
+  disabled?: boolean;
 }) => {
   const {
     groupOption,
@@ -197,7 +198,7 @@ const AppConfigFormFields = ({
             </div>
             <Select
               required
-              disabled={orgId === undefined || groupsLoading}
+              disabled={disabled || orgId === undefined || groupsLoading}
               onValueChange={(groupOption) => {
                 const groupId = parseInt(groupOption);
                 if (isNaN(groupId)) {
@@ -257,6 +258,7 @@ const AppConfigFormFields = ({
                 </div>
                 <Input
                   required
+                  disabled={disabled}
                   placeholder="Group name"
                   name="groupName"
                   value={groupName}
@@ -304,6 +306,7 @@ const AppConfigFormFields = ({
         </div>
         <Select
           required
+          disabled={disabled}
           name="project"
           value={projectId ?? ""}
           onValueChange={(projectId) =>
@@ -345,6 +348,7 @@ const AppConfigFormFields = ({
         </div>
         <Select
           required
+          disabled={disabled}
           value={source}
           onValueChange={(source) =>
             setState((prev) => ({ ...prev, source: source as "git" | "image" }))
@@ -363,7 +367,12 @@ const AppConfigFormFields = ({
         </Select>
       </div>
       {source === "git" ? (
-        <GitDeploymentFields orgId={orgId} state={state} setState={setState} />
+        <GitDeploymentFields
+          orgId={orgId}
+          state={state}
+          setState={setState}
+          disabled={disabled}
+        />
       ) : source === "image" ? (
         <>
           <div className="space-y-2">
@@ -379,6 +388,7 @@ const AppConfigFormFields = ({
               </span>
             </div>
             <Input
+              disabled={disabled}
               value={state.imageTag ?? ""}
               onChange={(e) => {
                 const imageTag = e.currentTarget.value;
@@ -417,6 +427,7 @@ const AppConfigFormFields = ({
               {appDomain?.protocol}//
             </span>
             <Input
+              disabled={disabled}
               name="subdomain"
               id="subdomain"
               placeholder="my-app"
@@ -491,6 +502,7 @@ const AppConfigFormFields = ({
           </span>
         </div>
         <Input
+          disabled={disabled}
           name="portNumber"
           id="portNumber"
           placeholder="3000"
@@ -533,6 +545,7 @@ const AppConfigFormFields = ({
                     )
                   : new Set()
               }
+              disabled={disabled}
             />
           </AccordionContent>
         </AccordionItem>
@@ -555,7 +568,7 @@ const AppConfigFormFields = ({
                 separate volume.
               </p>
               <MountsGrid
-                readonly={isExistingApp} // If we're in the Config tab of an existing application, mounts should not be editable. Kubernetes doesn't allow editing volumes after creating a StatefulSet, and we haven't implemented a workaround yet.
+                readonly={disabled || isExistingApp} // If we're in the Config tab of an existing application, mounts should not be editable. Kubernetes doesn't allow editing volumes after creating a StatefulSet, and we haven't implemented a workaround yet.
                 value={mounts}
                 setValue={(mounts) =>
                   setState((prev) => ({
@@ -588,6 +601,7 @@ const AppConfigFormFields = ({
                 </p>
               </div>
               <Input
+                disabled={disabled}
                 name="postStart"
                 id="postStart"
                 placeholder="echo Hello World"
@@ -610,6 +624,7 @@ const AppConfigFormFields = ({
                 </p>
               </div>
               <Input
+                disabled={disabled}
                 name="preStop"
                 id="preStop"
                 placeholder="echo Goodbye"
