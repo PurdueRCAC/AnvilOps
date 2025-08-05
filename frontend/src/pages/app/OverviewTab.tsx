@@ -259,7 +259,9 @@ export const OverviewTab = ({
                         <GitCommit className="shrink-0" />
                         {d.commitHash?.substring(0, 7) ?? "Unknown"}
                       </span>
-                      {d.commitMessage}
+                      <span className="line-clamp-1" title={d.commitMessage}>
+                        {d.commitMessage}
+                      </span>
                     </a>
                   ) : (
                     <Tooltip>
