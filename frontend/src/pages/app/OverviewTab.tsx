@@ -147,6 +147,7 @@ export const OverviewTab = ({
         app={app}
         onSubmitted={() => {
           refetchDeployments();
+          refetchApp();
         }}
       />
       <ConfigurationAlerts app={app} />
@@ -419,10 +420,7 @@ const ConfigurationAlerts = ({ app }: { app: App }) => {
               configuration changes you are previewing may be reverted if that
               repository is updated.
             </p>
-            <p>
-              To prevent this, disable continuous deployment in the
-              Configuration tab.
-            </p>
+            <p>To prevent this, disable continuous deployment.</p>
           </InfoBox>
         )}
     </>

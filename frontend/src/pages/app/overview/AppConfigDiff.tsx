@@ -58,6 +58,7 @@ export const AppConfigDiff = ({
   state,
   setState,
   defaults,
+  disabled = false,
 }: {
   orgId: number;
   base: DeploymentConfigFormData;
@@ -68,6 +69,7 @@ export const AppConfigDiff = ({
   defaults?: {
     config?: components["schemas"]["DeploymentConfig"];
   };
+  disabled?: boolean;
 }) => {
   const { user } = useContext(UserContext);
 
@@ -123,6 +125,7 @@ export const AppConfigDiff = ({
         </div>
         <div className="flex items-center gap-8">
           <DiffInput
+            disabled={disabled}
             left={base.source}
             right={state.source}
             placeholder="Select deployment source"
@@ -133,7 +136,7 @@ export const AppConfigDiff = ({
               }))
             }
             select={(props) => (
-              <Select {...props}>
+              <Select disabled={disabled} {...props}>
                 <SelectTrigger
                   {...props}
                   id={props.side === "after" ? "deploymentSource" : undefined}
@@ -153,6 +156,7 @@ export const AppConfigDiff = ({
       </div>
       {state.source === "git" ? (
         <GitConfigDiff
+          disabled={disabled}
           orgId={orgId}
           base={base}
           state={state}
@@ -174,6 +178,7 @@ export const AppConfigDiff = ({
             </div>
             <div className="flex items-center justify-around gap-8">
               <DiffInput
+                disabled={disabled}
                 left={base.imageTag ?? "(None)"}
                 right={state.imageTag ?? ""}
                 setRight={(imageTag) => {
@@ -207,6 +212,7 @@ export const AppConfigDiff = ({
         </div>
         <div className="flex items-center justify-around gap-8">
           <DiffInput
+            disabled={disabled}
             name="portNumber"
             id="portNumber"
             placeholder="3000"
@@ -236,6 +242,7 @@ export const AppConfigDiff = ({
         </div>
         <div className="flex items-center gap-8">
           <DiffInput
+            disabled={disabled}
             name="replicas"
             type="number"
             required
@@ -256,6 +263,7 @@ export const AppConfigDiff = ({
           </AccordionTrigger>
           <AccordionContent className="px-4">
             <EnvsWithDiffs
+              disabled={disabled}
               base={base.env}
               value={state.env}
               setValue={(env) => {
@@ -297,6 +305,7 @@ export const AppConfigDiff = ({
               </div>
               <div className="flex items-center justify-around gap-8">
                 <DiffInput
+                  disabled={disabled}
                   name="postStart"
                   id="postStart"
                   placeholder="(No command)"
@@ -320,6 +329,7 @@ export const AppConfigDiff = ({
               </div>
               <div className="flex items-center justify-around gap-8">
                 <DiffInput
+                  disabled={disabled}
                   name="preStop"
                   id="preStop"
                   placeholder="(No command)"

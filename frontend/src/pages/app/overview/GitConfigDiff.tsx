@@ -30,6 +30,7 @@ export const GitConfigDiff = ({
   base,
   state,
   setState,
+  disabled = false,
 }: {
   orgId: number;
   base: DeploymentConfigFormData;
@@ -37,6 +38,7 @@ export const GitConfigDiff = ({
   setState: (
     callback: (s: DeploymentConfigFormData) => DeploymentConfigFormData,
   ) => void;
+  disabled?: boolean;
 }) => {
   const { user } = useContext(UserContext);
 
@@ -116,7 +118,7 @@ export const GitConfigDiff = ({
           <DiffInput
             required
             name="repo"
-            disabled={orgId === undefined || reposLoading}
+            disabled={disabled || orgId === undefined || reposLoading}
             left={base.repositoryId?.toString() ?? ""}
             setRight={(repo) => {
               setState((prev) => ({
@@ -127,7 +129,7 @@ export const GitConfigDiff = ({
             }}
             right={state.repositoryId?.toString() ?? ""}
             select={(props) => (
-              <Select {...props}>
+              <Select disabled={disabled} {...props}>
                 <SelectTrigger
                   {...props}
                   id={props.side === "after" ? "selectRepo" : undefined}
@@ -184,14 +186,16 @@ export const GitConfigDiff = ({
           <DiffInput
             required
             name="branch"
-            disabled={state.repositoryId === undefined || branchesLoading}
+            disabled={
+              disabled || state.repositoryId === undefined || branchesLoading
+            }
             left={base.branch ?? ""}
             right={state.branch ?? ""}
             setRight={(branch) => {
               setState((prev) => ({ ...prev, branch }));
             }}
             select={(props) => (
-              <Select {...props}>
+              <Select disabled={disabled} {...props}>
                 <SelectTrigger
                   {...props}
                   id={props.side === "after" ? "selectBranch" : undefined}
@@ -241,6 +245,7 @@ export const GitConfigDiff = ({
         <div className="flex items-center gap-8">
           <DiffInput
             required
+            disabled={disabled}
             name="deployOnEvent"
             left={base.event}
             right={state.event ?? ""}
@@ -251,7 +256,7 @@ export const GitConfigDiff = ({
               }));
             }}
             select={(props) => (
-              <Select {...props}>
+              <Select disabled={disabled} {...props}>
                 <SelectTrigger
                   {...props}
                   id={props.side === "after" ? "deployOnEvent" : undefined}
@@ -299,6 +304,7 @@ export const GitConfigDiff = ({
               required
               name="workflow"
               disabled={
+                disabled ||
                 state.repositoryId === undefined ||
                 branchesLoading ||
                 workflows?.workflows?.length === 0
@@ -309,7 +315,7 @@ export const GitConfigDiff = ({
                 setState((prev) => ({ ...prev, eventId }));
               }}
               select={(props) => (
-                <Select {...props}>
+                <Select disabled={disabled} {...props}>
                   <SelectTrigger
                     {...props}
                     id={props.side === "after" ? "selectWorkflow" : undefined}
@@ -361,6 +367,7 @@ export const GitConfigDiff = ({
         </div>
         <div className="flex items-center gap-8 mb-1">
           <DiffInput
+            disabled={disabled}
             left={base.rootDir}
             right={state.rootDir}
             setRight={(rootDir) => {
@@ -391,6 +398,7 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <RadioGroup
+          disabled={disabled}
           name="builder"
           id="builder"
           value={state.builder}
@@ -451,6 +459,7 @@ export const GitConfigDiff = ({
           </Label>
           <div className="flex items-center gap-8">
             <DiffInput
+              disabled={disabled}
               name="dockerfilePath"
               id="dockerfilePath"
               placeholder="Dockerfile"

@@ -104,8 +104,9 @@ export const ConfigTab = ({
               <p>
                 The preview configuration is shown below. To persist it, you can
                 save it as the configuration template after reviewing the
-                values, or revert this configuration.
+                values.
               </p>
+              <p>You can also revert to the template instead.</p>
               <Button onClick={() => setRevertOpen(true)}>
                 Revert to Template
               </Button>
@@ -390,6 +391,7 @@ const RevertDialog = ({
               }}
               state={configState}
               setState={() => {}}
+              disabled
               defaults={{ config: data?.config }}
             />
             <Button className="mt-4 float-right">

@@ -384,30 +384,28 @@ export const RedeployModal = ({
                     Continuous deployment will be turned
                     <strong>{redeployState.enableCD ? "on." : "off."}</strong>
                   </Label>
-                  {redeployState.persistChanges === "oneOff" && (
-                    <p className="text-black-4 text-sm my-2">
-                      {redeployState.enableCD ? (
-                        <>
-                          If this app's template references a Git repository and
-                          a commit is pushed, the app will be rebuilt and
-                          redeployed.{" "}
-                          {redeployState.persistChanges === "oneOff" && (
-                            <strong>
-                              This will revert the app to the template
-                              configuration.
-                            </strong>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          If this app's template references a Git repository and
-                          a commit is pushed, the app{" "}
-                          <strong>will not be updated</strong> on the cluster
-                          until continuous deployment is reenabled.
-                        </>
-                      )}
-                    </p>
-                  )}
+                  <p className="text-black-4 text-sm my-2">
+                    {redeployState.enableCD ? (
+                      <>
+                        If this app's template references a Git repository and a
+                        commit is pushed, the app will be rebuilt and
+                        redeployed.{" "}
+                        {redeployState.persistChanges === "oneOff" && (
+                          <strong>
+                            This will revert the app to the template
+                            configuration.
+                          </strong>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        If this app's template references a Git repository and a
+                        commit is pushed, the app{" "}
+                        <strong>will not be updated</strong> on the cluster
+                        until continuous deployment is reenabled.
+                      </>
+                    )}
+                  </p>
                 </div>
               </PagedView>
             ) : (
