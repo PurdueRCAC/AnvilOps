@@ -202,6 +202,7 @@ export const RedeployModal = ({
               await updateApp({
                 params: { path: { appId: app.id } },
                 body: {
+                  enableCD: redeployState.enableCD,
                   config: res,
                 },
               });

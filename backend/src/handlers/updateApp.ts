@@ -118,13 +118,21 @@ export const updateApp: HandlerMap["updateApp"] = async (
     }
   }
 
-  if (appData.name) {
-    await db.app.update({
-      where: { id: originalApp.id },
-      data: {
-        displayName: appData.name,
-      },
-    });
+  const data = {} as Record<string, any>;
+  if (appData.name !== undefined) {
+    data.displayName = appData.name;
+  }
+
+  if (appData.projectId !== undefined) {
+    data.projectId = appData.projectId;
+  }
+
+  if (appData.enableCD !== undefined) {
+    data.enableCD = appData.enableCD;
+  }
+
+  if (Object.keys(data).length > 0) {
+    await db.app.update({ where: { id: originalApp.id }, data });
   }
 
   await db.app.update({

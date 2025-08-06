@@ -1667,6 +1667,8 @@ components:
               required: [type, id]
         projectId:
           type: string
+        enableCD:
+          type: boolean
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
