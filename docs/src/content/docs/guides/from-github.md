@@ -1,5 +1,7 @@
 ---
 title: First Git Deployment
+sidebar:
+  order: 1
 ---
 
 If you have already installed the AnvilOps GitHub App for your organization, you can deploy applications from GitHub repositories that you have given the GitHub App access to.

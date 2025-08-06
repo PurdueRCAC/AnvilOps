@@ -1,5 +1,7 @@
 ---
 title: Deploying an App from a Container Image
+sidebar:
+  order: 2
 ---
 
 AnvilOps can deploy apps from publicly accessible container images.

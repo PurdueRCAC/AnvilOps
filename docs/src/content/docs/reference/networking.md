@@ -6,7 +6,7 @@ title: Networking
 
 When you create an app, you must select a unique public subdomain. This cannot be changed after the app is created. This allows AnvilOps to make your app accessible at `<your subdomain>.anvilops.rcac.purdue.edu`.
 
-Your public subdomain only supports HTTP. Services like databases which rely on other protocols
+Your public subdomain only supports HTTP. Services like databases which rely on other protocols won't be accessible.
 
 When a user visits `https://<your subdomain>.anvilops.rcac.purdue.edu`, AnvilOps routes the traffic to the corresponding app over the port number specified in the app's configuration.
 
