@@ -19,12 +19,10 @@ import { useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
-import { PagedView } from "@/components/PagedView";
 import { Switch } from "@/components/ui/switch";
 
 const defaultRedeployState = {
   radioValue: undefined,
-  persistChanges: "oneOff" as const,
   configOpen: false,
   configState: {
     replicas: "",
@@ -57,14 +55,8 @@ export const RedeployModal = ({
     "/app/{appId}",
   );
 
-  const { mutateAsync: createDeployment, isPending: isCreatingDeployment } =
-    api.useMutation("post", "/app/{appId}/deployments");
-
-  const isDeploying = isUpdatingApp || isCreatingDeployment;
-
   const [redeployState, setRedeployState] = useState<{
     radioValue: "useBuild" | "useConfig" | undefined;
-    persistChanges: "oneOff" | "updateTemplate";
     configOpen: boolean;
     configState: DeploymentConfigFormData;
     enableCD: boolean;
@@ -207,207 +199,147 @@ export const RedeployModal = ({
                     }),
               };
 
-              if (redeployState.persistChanges === "oneOff") {
-                // Create a new deployment without updating the deployment config template
-                await createDeployment({
-                  params: { path: { appId: app.id } },
-                  body: { ...res, enableCD: redeployState.enableCD },
-                });
-              } else {
-                // Persist changes across future deployments by updating the template and creating a new deployment from it
-                await updateApp({
-                  params: { path: { appId: app.id } },
-                  body: {
-                    config: res,
-                  },
-                });
-              }
+              await updateApp({
+                params: { path: { appId: app.id } },
+                body: {
+                  config: res,
+                },
+              });
               toast.success("App updated successfully!");
               onSubmitted();
               setOpen(false);
             }}
           >
             {!redeployState.configOpen ? (
-              <PagedView
-                submitButton={
-                  <Button type="submit">
-                    {isDeploying ? (
-                      <>
-                        <Loader className="animate-spin" />
-                        Deploying...
-                      </>
-                    ) : (
-                      <>
-                        <Rocket className="inline" />
-                        Deploy
-                      </>
-                    )}
-                  </Button>
-                }
-              >
-                <div>
-                  <p className="mt-2">
-                    <strong>Step 1</strong>: Choose a starting point
-                  </p>
-                  <RadioGroup
-                    required
-                    className="mt-4"
-                    value={redeployState.radioValue ?? ""}
-                    onValueChange={(value) => {
-                      setRadioValue(value);
-                    }}
-                  >
-                    <Label className="flex-col items-start">
-                      <div className="flex gap-2">
-                        <RadioGroupItem
-                          value="useBuild"
-                          className="whitespace-nowrap"
-                        />
-                        Redeploy from this{" "}
-                        {pastDeployment.config.source === "git"
-                          ? "commit"
-                          : "image"}{" "}
-                        with your current configuration:
-                      </div>
-                      <div className="mt-2 mb-2 ml-6">
-                        {pastDeployment.config.source === "git" ? (
-                          <a
-                            href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
-                            className="flex items-start gap-2"
-                            target="_blank"
-                          >
-                            <span className="text-black-2 flex items-center gap-1 -mt-1">
-                              <GitCommit className="shrink-0" />
-                              {pastDeployment.commitHash?.substring(0, 7) ??
-                                "Unknown"}
-                            </span>
-                            {pastDeployment.commitMessage}
-                          </a>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <p className="flex items-center gap-2">
-                                <Container className="text-black-2" />{" "}
-                                <span className="max-w-96 whitespace-nowrap text-ellipsis overflow-x-clip">
-                                  {pastDeployment.config.imageTag}
-                                </span>
-                              </p>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {pastDeployment.config.imageTag}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                      <p className="text-black-3 ml-6 text-sm mb-4">
-                        AnvilOps will combine this version of your application
-                        with your latest configuration, so that you roll back
-                        your application while keeping your new settings.
-                      </p>
-                    </Label>
-                    <Label className="flex-col items-start">
-                      <div className="flex gap-2">
-                        <RadioGroupItem value="useConfig" />
-                        Reuse this deployment's configuration
-                      </div>
-                      <p className="text-black-3 ml-6 text-sm mb-4">
-                        AnvilOps will create a new deployment using this
-                        deployment's configuration as a template, plus any edits
-                        you decide to make.
-                      </p>
-                    </Label>
-                  </RadioGroup>
-                  <p className="my-4">
-                    <strong>Step 2</strong>: Make changes to the template as
-                    needed
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="w-full mb-2"
-                    type="button"
-                    onClick={() =>
-                      setRedeployState((s) => ({ ...s, configOpen: true }))
-                    }
-                  >
-                    Review deployment configuration
-                  </Button>
-                </div>
-                <div>
-                  <p className="my-4">
-                    <strong>Step 3</strong>: Apply your changes
-                  </p>
-                  <RadioGroup
-                    required
-                    value={redeployState.persistChanges}
-                    onValueChange={(value) =>
-                      setRedeployState((rs) => ({
-                        ...rs,
-                        persistChanges: value as "oneOff" | "updateTemplate",
-                      }))
-                    }
-                  >
-                    <Label className="flex-col items-start">
-                      <div className="flex gap-2">
-                        <RadioGroupItem value="oneOff" />
-                        Run in preview mode
-                      </div>
-                      <p className="text-black-3 ml-6 text-sm mb-4">
-                        Test out new app settings, but revert to your current
-                        configuration with a click. Future automatic deployments
-                        triggered from Git pushes will override the changes you
-                        make here.
-                      </p>
-                    </Label>
-                    <Label className="flex-col items-start">
-                      <div className="flex gap-2">
-                        <RadioGroupItem value="updateTemplate" />
-                        Persist changes for future deployments
-                      </div>
-                      <p className="text-black-3 ml-6 text-sm mb-4">
-                        Changes you make here will update the app's
-                        configuration template. If your app has been set to
-                        deploy from a Git repository, these changes will persist
-                        in automatic redeployments.
-                      </p>
-                    </Label>
-                  </RadioGroup>
-                  <p className="my-4">
-                    <strong>Step 4</strong>: Toggle continuous deployment
-                  </p>
-                  <Label>
-                    <Switch
-                      checked={redeployState.enableCD}
-                      onCheckedChange={(checked) =>
-                        setRedeployState((rs) => ({ ...rs, enableCD: checked }))
-                      }
-                    />
-                    Continuous deployment will be turned
-                    <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+              <>
+                <p className="mt-2">
+                  <strong>Step 1</strong>: Choose a starting point
+                </p>
+                <RadioGroup
+                  required
+                  className="mt-4"
+                  value={redeployState.radioValue ?? ""}
+                  onValueChange={(value) => {
+                    setRadioValue(value);
+                  }}
+                >
+                  <Label className="flex-col items-start">
+                    <div className="flex gap-2">
+                      <RadioGroupItem
+                        value="useBuild"
+                        className="whitespace-nowrap"
+                      />
+                      Redeploy from this{" "}
+                      {pastDeployment.config.source === "git"
+                        ? "commit"
+                        : "image"}{" "}
+                      with your current configuration:
+                    </div>
+                    <div className="mt-2 mb-2 ml-6">
+                      {pastDeployment.config.source === "git" ? (
+                        <a
+                          href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
+                          className="flex items-start gap-2"
+                          target="_blank"
+                        >
+                          <span className="text-black-2 flex items-center gap-1 -mt-1">
+                            <GitCommit className="shrink-0" />
+                            {pastDeployment.commitHash?.substring(0, 7) ??
+                              "Unknown"}
+                          </span>
+                          {pastDeployment.commitMessage}
+                        </a>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <p className="flex items-center gap-2">
+                              <Container className="text-black-2" />{" "}
+                              <span className="max-w-96 whitespace-nowrap text-ellipsis overflow-x-clip">
+                                {pastDeployment.config.imageTag}
+                              </span>
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {pastDeployment.config.imageTag}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <p className="text-black-3 ml-6 text-sm mb-4">
+                      AnvilOps will combine this version of your application
+                      with your latest configuration, so that you roll back your
+                      application while keeping your new settings.
+                    </p>
                   </Label>
-                  <p className="text-black-4 text-sm my-2">
-                    {redeployState.enableCD ? (
-                      <>
-                        If this app's template references a Git repository and a
-                        commit is pushed, the app will be rebuilt and
-                        redeployed.{" "}
-                        {redeployState.persistChanges === "oneOff" && (
-                          <strong>
-                            This will revert the app to the template
-                            configuration.
-                          </strong>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        If this app's template references a Git repository and a
-                        commit is pushed, the app{" "}
-                        <strong>will not be updated</strong> on the cluster
-                        until continuous deployment is reenabled.
-                      </>
-                    )}
-                  </p>
-                </div>
-              </PagedView>
+                  <Label className="flex-col items-start">
+                    <div className="flex gap-2">
+                      <RadioGroupItem value="useConfig" />
+                      Reuse this deployment's configuration
+                    </div>
+                    <p className="text-black-3 ml-6 text-sm mb-4">
+                      AnvilOps will create a new deployment using this
+                      deployment's configuration as a template, plus any edits
+                      you decide to make.
+                    </p>
+                  </Label>
+                </RadioGroup>
+                <p className="my-4">
+                  <strong>Step 2</strong>: Make changes to the template as
+                  needed
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full mb-2"
+                  type="button"
+                  onClick={() =>
+                    setRedeployState((s) => ({ ...s, configOpen: true }))
+                  }
+                >
+                  Review deployment configuration
+                </Button>
+                <p className="my-4">
+                  <strong>Step 3</strong>: Toggle continuous deployment
+                </p>
+                <Label>
+                  <Switch
+                    checked={redeployState.enableCD}
+                    onCheckedChange={(checked) =>
+                      setRedeployState((rs) => ({ ...rs, enableCD: checked }))
+                    }
+                  />
+                  Continuous deployment will be turned
+                  <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+                </Label>
+                <p className="text-black-4 text-sm my-2">
+                  {redeployState.enableCD ? (
+                    <>
+                      If this app's template references a Git repository and a
+                      commit is pushed, the app will be rebuilt and
+                      redeployed.{" "}
+                    </>
+                  ) : (
+                    <>
+                      If this app's template references a Git repository and a
+                      commit is pushed, the app{" "}
+                      <strong>will not be updated</strong> on the cluster until
+                      continuous deployment is reenabled.
+                    </>
+                  )}
+                </p>
+                <Button type="submit" className="w-full mt-4">
+                  {isUpdatingApp ? (
+                    <>
+                      <Loader className="animate-spin" />
+                      Deploying...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="inline" />
+                      Deploy
+                    </>
+                  )}
+                </Button>
+              </>
             ) : (
               <>
                 <AppConfigDiff

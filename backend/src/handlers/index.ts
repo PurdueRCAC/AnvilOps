@@ -58,12 +58,8 @@ import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { claimOrg } from "./claimOrg.ts";
-import { createDeployment } from "./createDeployment.ts";
 import { getSettings } from "./getSettings.ts";
-import { updateAppConfigTemplate } from "./updateAppConfigTemplate.ts";
-import { getAppConfigTemplate } from "./getAppConfigTemplate.ts";
 import { randomBytes } from "node:crypto";
-import { revertToAppConfigTemplate } from "./revertToAppConfigTemplate.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -487,12 +483,7 @@ export const handlers = {
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
-      const currentConfig =
-        app.isPreviewing && activeDeployment
-          ? (app.deployments.find(
-              (deploy) => deploy.id === parseInt(activeDeployment),
-            )?.config ?? app.deploymentConfigTemplate)
-          : app.deploymentConfigTemplate;
+      const currentConfig = app.deploymentConfigTemplate;
 
       // Fetch repository info if this app is deployed from a Git repository
       const { repoId, repoURL } = await (async () => {
@@ -553,7 +544,6 @@ export const handlers = {
           ? parseInt(activeDeployment)
           : undefined,
         deploymentCount,
-        isPreviewing: app.isPreviewing,
       });
     } catch (e) {
       console.error(e);
@@ -692,13 +682,10 @@ export const handlers = {
     };
     return json(200, res, data);
   },
-  revertToAppConfigTemplate,
-  getAppConfigTemplate,
   createApp,
   createAppGroup,
   claimOrg,
   updateApp,
-  updateAppConfigTemplate,
   deleteApp,
   deleteAppGroup,
   githubWebhook,
@@ -722,7 +709,6 @@ export const handlers = {
   downloadAppFile,
   writeAppFile,
   deleteAppFile,
-  createDeployment,
   getSettings,
 } satisfies HandlerMap;
 Object.freeze(handlers);

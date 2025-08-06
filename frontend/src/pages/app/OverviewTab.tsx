@@ -150,7 +150,6 @@ export const OverviewTab = ({
           refetchApp();
         }}
       />
-      <ConfigurationAlerts app={app} />
       <h3 className="text-xl font-medium mb-4">General</h3>
       <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
         {app.config.source === "git" ? (
@@ -387,44 +386,6 @@ const getBoxClasses = (type: "info" | "warning" | "neutral") => {
   } else if (type === "neutral") {
     return "border border-black-2";
   }
-};
-
-const ConfigurationAlerts = ({ app }: { app: App }) => {
-  const { data: template, isPending: isTemplatePending } = api.useQuery(
-    "get",
-    "/app/{appId}/template",
-    { params: { path: { appId: app.id } } },
-    { enabled: app.isPreviewing },
-  );
-  return (
-    <>
-      {app.isPreviewing && (
-        <InfoBox type="info" title="This app is in preview mode.">
-          <p>
-            Preview mode is for temporarily testing out an app configuration. To
-            persist these changes, save them in the Configuration tab.
-          </p>
-        </InfoBox>
-      )}
-      {app.isPreviewing &&
-        app.cdEnabled &&
-        !isTemplatePending &&
-        template?.config.source === "git" && (
-          <InfoBox
-            type="warning"
-            title="Warning: Continuous deployment is enabled."
-          >
-            <p>
-              Because your app configuration template references a Git
-              repository and continuous deployment is currently enabled, the
-              configuration changes you are previewing may be reverted if that
-              repository is updated.
-            </p>
-            <p>To prevent this, disable continuous deployment.</p>
-          </InfoBox>
-        )}
-    </>
-  );
 };
 
 const ToggleCDForm = ({
