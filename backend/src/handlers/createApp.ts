@@ -232,9 +232,6 @@ export const createApp: HandlerMap["createApp"] = async (
         clusterUsername,
         projectId: appData.projectId,
         logIngestSecret: randomBytes(48).toString("hex"),
-        deploymentConfigTemplate: {
-          create: deploymentConfig,
-        },
         appGroup,
       },
     });

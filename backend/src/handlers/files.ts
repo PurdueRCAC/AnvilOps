@@ -88,11 +88,11 @@ async function forward(
       id: appId,
       org: { users: { some: { userId } } },
     },
-    include: { deploymentConfigTemplate: true },
+    include: { config: true },
   });
 
   if (
-    !app.deploymentConfigTemplate.fieldValues.mounts.some((mount) =>
+    !app.config.fieldValues.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
     )
   ) {

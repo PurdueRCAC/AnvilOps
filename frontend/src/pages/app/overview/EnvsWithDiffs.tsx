@@ -13,11 +13,13 @@ export const EnvsWithDiffs = ({
   value: envVars,
   setValue: setEnvironmentVariables,
   fixedSensitiveNames,
+  disabled = false,
 }: {
   base: EnvVars;
   value: EnvVars;
   setValue: Dispatch<React.SetStateAction<EnvVars>>;
   fixedSensitiveNames: Set<string>;
+  disabled?: boolean;
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
@@ -81,12 +83,14 @@ export const EnvsWithDiffs = ({
               placeholder="NODE_ENV"
               required={index !== envVars.length - 1}
               className="w-full"
-              disabled={isFixedSensitive}
+              disabled={disabled || isFixedSensitive}
               disabledTooltip={
-                <p>
-                  The name of a sensitive environment variable cannot be
-                  changed.
-                </p>
+                !disabled && (
+                  <p>
+                    The name of a sensitive environment variable cannot be
+                    changed.
+                  </p>
+                )
               }
               value={name}
               onChange={(e) => {
@@ -106,6 +110,7 @@ export const EnvsWithDiffs = ({
             <span className="text-xl align-middle w-fit">=</span>
             <label>
               <Input
+                disabled={disabled}
                 placeholder={isFixedSensitive ? "Hidden value" : "production"}
                 className="w-full"
                 value={value ?? ""}
@@ -122,7 +127,7 @@ export const EnvsWithDiffs = ({
             <div className="text-center">
               <Checkbox
                 className="size-6"
-                disabled={isFixedSensitive}
+                disabled={disabled || isFixedSensitive}
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
                   const newList = structuredClone(envVars);
@@ -133,6 +138,7 @@ export const EnvsWithDiffs = ({
               />
             </div>
             <Button
+              disabled={disabled}
               variant="secondary"
               type="button"
               onClick={() => {

@@ -29,7 +29,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
       org: { users: { some: { userId: req.user.id } } },
     },
     include: {
-      deploymentConfigTemplate: true,
+      config: true,
       org: { select: { githubInstallationId: true } },
       appGroup: true,
     },
@@ -39,19 +39,19 @@ export const updateApp: HandlerMap["updateApp"] = async (
     return json(401, res, {});
   }
 
-  const currentConfig = originalApp.deploymentConfigTemplate;
   const validation = validateDeploymentConfig(appData.config);
   if (!validation.valid) {
     return json(400, res, { code: 400, message: validation.message });
   }
+  if (appData.appGroup) {
+    const appGroupValidation = validateAppGroup(appData.appGroup);
 
-  const appGroupValidation = validateAppGroup(appData.appGroup);
-
-  if (!appGroupValidation.valid) {
-    return json(400, res, {
-      code: 400,
-      message: appGroupValidation.message,
-    });
+    if (!appGroupValidation.valid) {
+      return json(400, res, {
+        code: 400,
+        message: appGroupValidation.message,
+      });
+    }
   }
 
   if (appData.projectId) {
@@ -118,32 +118,39 @@ export const updateApp: HandlerMap["updateApp"] = async (
     }
   }
 
-  if (appData.name) {
-    await db.app.update({
-      where: { id: originalApp.id },
-      data: {
-        displayName: appData.name,
-      },
-    });
+  const data = {} as Record<string, any>;
+  if (appData.name !== undefined) {
+    data.displayName = appData.name;
   }
 
-  if (appData.projectId !== originalApp.projectId) {
-    await db.app.update({
-      where: { id: originalApp.id },
-      data: {
-        projectId: appData.projectId,
-      },
-    });
+  if (appData.projectId !== undefined) {
+    data.projectId = appData.projectId;
   }
+
+  if (appData.enableCD !== undefined) {
+    data.enableCD = appData.enableCD;
+  }
+
+  if (Object.keys(data).length > 0) {
+    await db.app.update({ where: { id: originalApp.id }, data });
+  }
+
+  await db.app.update({
+    where: { id: originalApp.id },
+    data: {
+      ...(appData.projectId &&
+        appData.projectId !== originalApp.projectId && {
+          projectId: appData.projectId,
+        }),
+    },
+  });
 
   const secret = randomBytes(32).toString("hex");
 
+  const currentConfig = originalApp.config;
   const updatedConfig: DeploymentConfigCreateInput = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
-    env: withSensitiveEnv(
-      originalApp.deploymentConfigTemplate.getPlaintextEnv(),
-      appConfig.env,
-    ),
+    env: withSensitiveEnv(currentConfig.getPlaintextEnv(), appConfig.env),
     fieldValues: {
       replicas: appConfig.replicas,
       port: appConfig.port,
@@ -226,8 +233,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
             imageTag:
               // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
               // Use the one that the user specified or the most recent successful one.
-              updatedConfig.imageTag ??
-              originalApp.deploymentConfigTemplate.imageTag,
+              updatedConfig.imageTag ?? currentConfig.imageTag,
           },
         },
         status: "DEPLOYING",
@@ -268,10 +274,17 @@ export const updateApp: HandlerMap["updateApp"] = async (
         configs,
         postCreate,
       );
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: { status: "COMPLETE" },
-      });
+
+      await Promise.all([
+        db.deployment.update({
+          where: { id: deployment.id },
+          data: { status: "COMPLETE" },
+        }),
+        db.app.update({
+          where: { id: ctx.request.params.appId },
+          data: { config: { connect: { id: deployment.config.id } } },
+        }),
+      ]);
     } catch (err) {
       console.error(err);
       await db.deployment.update({
@@ -285,47 +298,12 @@ export const updateApp: HandlerMap["updateApp"] = async (
       return json(200, res, {});
     }
   }
-
-  // Now that the deployment succeeded, we know that the deployment config applies correctly.
-  // Update the template config so that new deployments are based on this updated configuration.
-
-  // Note: if the user is using the Git image source, the imageTag will be filled in later once the image is built.
-  //       For now, we'll use the previous image tag because the new one won't be pushed if the build fails,
-  //       which would make a new deployment fail if it were created from the template during this time.
-  await db.$transaction(async (tx) => {
-    const config = await tx.deploymentConfig.create({
-      data: {
-        ...updatedConfig,
-        imageTag:
-          appConfig.source === "image"
-            ? updatedConfig.imageTag
-            : currentConfig.imageTag,
-      },
-      select: {
-        id: true,
-      },
-    });
-    await tx.app.update({
-      where: { id: originalApp.id },
-      data: {
-        deploymentConfigTemplate: {
-          connect: {
-            id: config.id,
-          },
-        },
-      },
-    });
-    await tx.deploymentConfig.delete({
-      where: { id: currentConfig.id },
-    });
-  });
-
   return json(200, res, {});
 };
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
 export const withSensitiveEnv = (
-  lastPlaintextEnv: DeploymentJson.EnvVar[],
+  lastPlaintextEnv: PrismaJson.EnvVar[],
   envVars: {
     name: string;
     value: string | null;

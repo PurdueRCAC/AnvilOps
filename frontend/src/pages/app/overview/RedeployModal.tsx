@@ -14,15 +14,15 @@ import {
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Container, GitCommit, Loader } from "lucide-react";
+import { Container, GitCommit, Loader, Rocket } from "lucide-react";
 import { useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
+import { Switch } from "@/components/ui/switch";
 
 const defaultRedeployState = {
   radioValue: undefined,
-  persistChanges: "oneOff" as const,
   configOpen: false,
   configState: {
     replicas: "",
@@ -33,6 +33,8 @@ const defaultRedeployState = {
     cpuCores: "1",
     memoryInMiB: 1024,
   },
+  enableCD: true,
+  idx: 0,
 };
 
 Object.freeze(defaultRedeployState);
@@ -55,16 +57,12 @@ export const RedeployModal = ({
     "/app/{appId}",
   );
 
-  const { mutateAsync: createDeployment, isPending: isCreatingDeployment } =
-    api.useMutation("post", "/app/{appId}/deployments");
-
-  const isDeploying = isUpdatingApp || isCreatingDeployment;
-
   const [redeployState, setRedeployState] = useState<{
     radioValue: "useBuild" | "useConfig" | undefined;
-    persistChanges: "oneOff" | "updateTemplate";
     configOpen: boolean;
     configState: DeploymentConfigFormData;
+    enableCD: boolean;
+    idx: number;
   }>(defaultRedeployState);
 
   const resourceConfig = {
@@ -221,21 +219,13 @@ export const RedeployModal = ({
                     }),
               };
 
-              if (redeployState.persistChanges === "oneOff") {
-                // Create a new deployment without updating the deployment config template
-                await createDeployment({
-                  params: { path: { appId: app.id } },
-                  body: res,
-                });
-              } else {
-                // Persist changes across future deployments by updating the template and creating a new deployment from it
-                await updateApp({
-                  params: { path: { appId: app.id } },
-                  body: {
-                    config: res,
-                  },
-                });
-              }
+              await updateApp({
+                params: { path: { appId: app.id } },
+                body: {
+                  enableCD: redeployState.enableCD,
+                  config: res,
+                },
+              });
               toast.success("App updated successfully!");
               onSubmitted();
               setOpen(false);
@@ -329,52 +319,45 @@ export const RedeployModal = ({
                   Review deployment configuration
                 </Button>
                 <p className="my-4">
-                  <strong>Step 3</strong>: Apply your changes
+                  <strong>Step 3</strong>: Toggle continuous deployment
                 </p>
-                <RadioGroup
-                  required
-                  value={redeployState.persistChanges}
-                  onValueChange={(value) =>
-                    setRedeployState((rs) => ({
-                      ...rs,
-                      persistChanges: value as "oneOff" | "updateTemplate",
-                    }))
-                  }
-                >
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem value="oneOff" />
-                      Run as a one-off deployment
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      Changes you make here will not show up in the
-                      Configuration tab, and future automatic deployments
-                      triggered from Git pushes will override the changes you
-                      make here.
-                    </p>
-                  </Label>
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem value="updateTemplate" />
-                      Persist changes for future deployments
-                    </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
-                      Changes you make here will persist in future automatic
-                      deployments as well as in the Configuration tab. If you
-                      set the deployment source to OCI Image, automatic Git
-                      deployments will be disabled until you link your
-                      repository again.
-                    </p>
-                  </Label>
-                </RadioGroup>
-                <Button className="w-full mt-2" type="submit">
-                  {isDeploying ? (
+                <Label>
+                  <Switch
+                    checked={redeployState.enableCD}
+                    onCheckedChange={(checked) =>
+                      setRedeployState((rs) => ({ ...rs, enableCD: checked }))
+                    }
+                  />
+                  Continuous deployment will be turned
+                  <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+                </Label>
+                <p className="text-black-4 text-sm my-2">
+                  {redeployState.enableCD ? (
+                    <>
+                      If this app's template references a Git repository and a
+                      commit is pushed, the app will be rebuilt and
+                      redeployed.{" "}
+                    </>
+                  ) : (
+                    <>
+                      If this app's template references a Git repository and a
+                      commit is pushed, the app{" "}
+                      <strong>will not be updated</strong> on the cluster until
+                      continuous deployment is reenabled.
+                    </>
+                  )}
+                </p>
+                <Button type="submit" className="w-full mt-4">
+                  {isUpdatingApp ? (
                     <>
                       <Loader className="animate-spin" />
                       Deploying...
                     </>
                   ) : (
-                    "Deploy"
+                    <>
+                      <Rocket className="inline" />
+                      Deploy
+                    </>
                   )}
                 </Button>
               </>

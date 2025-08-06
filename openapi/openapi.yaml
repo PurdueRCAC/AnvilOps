@@ -1024,6 +1024,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /app/{appId}/cd:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app
+        required: true
+        schema:
+          type: integer
+          format: int64
+    put:
+      tags:
+        - app
+      description: Enable or disable continuous deployment for an app.
+      operationId: setAppCD
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enable:
+                  type: boolean
+              required: [enable]
+      responses:
+        "404":
+          description: Not found
+        "200":
+          description: Success
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /app/{appId}/status:
     parameters:
       - name: appId
@@ -1245,23 +1281,6 @@ paths:
           description: Invalid parameters
         "401":
           description: Unauthorized
-    post:
-      description: Create a deployment
-      operationId: createDeployment
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeploymentConfig"
-      responses:
-        "201":
-          description: Created successfully
-        "400":
-          description: Bad request
-        "404":
-          description: App not found or not accessible to user
-        "500":
-          description: Internal server error
 
   /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
@@ -1663,6 +1682,8 @@ components:
           format: int64
         projectId:
           type: string
+        cdEnabled:
+          type: boolean
         appGroup:
           type: object
           properties:
@@ -1702,6 +1723,7 @@ components:
       required:
         - id
         - orgId
+        - cdEnabled
         - appGroup
         - createdAt
         - updatedAt
@@ -1743,6 +1765,8 @@ components:
               required: [type, id]
         projectId:
           type: string
+        enableCD:
+          type: boolean
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:

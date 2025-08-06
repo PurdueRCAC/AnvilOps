@@ -17,7 +17,7 @@ export type DeploymentParams = {
   serviceName: string;
   image: string;
   env: V1EnvVar[];
-} & DeploymentJson.ConfigFields;
+} & PrismaJson.ConfigFields;
 
 export const generateAutomaticEnvVars = async (
   octokit: Octokit,
@@ -179,7 +179,7 @@ export const createStatefulSetConfig = (
 };
 
 const StsExtraPatchPaths: Record<
-  keyof DeploymentJson.ConfigFields["extra"],
+  keyof PrismaJson.ConfigFields["extra"],
   string[]
 > = {
   postStart: ["/spec/template/spec/containers/0/lifecycle/postStart"],
@@ -189,13 +189,13 @@ const StsExtraPatchPaths: Record<
 };
 
 const getExtraStsPatches = (
-  fields: DeploymentJson.ConfigFields["extra"],
+  fields: PrismaJson.ConfigFields["extra"],
 ): jsonpatch.Operation[] => {
   const patches = [] as jsonpatch.Operation[];
   for (const [key, value] of Object.entries(fields)) {
     if (!fields[key]) continue;
 
-    const field = key as keyof DeploymentJson.ConfigFields["extra"];
+    const field = key as keyof PrismaJson.ConfigFields["extra"];
     switch (field) {
       case "postStart":
       case "preStop": {

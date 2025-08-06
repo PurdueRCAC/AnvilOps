@@ -238,7 +238,19 @@ export async function buildAndDeploy({
     },
   });
 
-  await cancelAllOtherDeployments(deployment.id, deployment.app);
+  if (!deployment.app.configId) {
+    // Only set the app's config reference if we are creating the app.
+    // If updating, first wait for the build to complete successfully
+    // and set this in updateDeployment.
+    await db.app.update({
+      where: { id: appId },
+      data: {
+        config: { connect: { id: deployment.config.id } },
+      },
+    });
+  }
+
+  await cancelAllOtherDeployments(deployment.id, deployment.app, true);
 
   if (config.source === "GIT") {
     buildAndDeployFromRepo({ deployment, opts });

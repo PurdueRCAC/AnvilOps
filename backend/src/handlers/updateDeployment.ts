@@ -37,7 +37,6 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           displayName: true,
           logIngestSecret: true,
           subdomain: true,
-          deploymentConfigTemplate: true,
           org: { select: { githubInstallationId: true } },
           projectId: true,
           appGroup: true,
@@ -65,10 +64,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       const octokit = await getOctokit(deployment.app.org.githubInstallationId);
 
       // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
-      const repo = await getRepoById(
-        octokit,
-        deployment.app.deploymentConfigTemplate.repositoryId,
-      );
+      const repo = await getRepoById(octokit, deployment.config.repositoryId);
 
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,
@@ -100,20 +96,6 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       await createAppConfigsFromDeployment(deployment);
 
     try {
-      await db.app.update({
-        where: {
-          id: app.id,
-        },
-        data: {
-          // Make future redeploys use this image tag since it's the most recent successful build
-          deploymentConfigTemplate: {
-            update: {
-              imageTag: deployment.config.imageTag,
-            },
-          },
-        },
-      });
-
       const api = getClientForClusterUsername(
         app.clusterUsername,
         "KubernetesObjectApi",
@@ -136,6 +118,11 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
             status: "COMPLETE",
           },
           data: { status: "STOPPED" },
+        }),
+        // The update was successful. Update App with the reference to the latest successful config.
+        db.app.update({
+          where: { id: deployment.appId },
+          data: { configId: deployment.configId },
         }),
       ]);
 

@@ -32,7 +32,6 @@ import { acceptInvitation } from "./acceptInvitation.ts";
 import { claimOrg } from "./claimOrg.ts";
 import { createApp } from "./createApp.ts";
 import { createAppGroup } from "./createAppGroup.ts";
-import { createDeployment } from "./createDeployment.ts";
 import { deleteApp } from "./deleteApp.ts";
 import { deleteAppGroup } from "./deleteAppGroup.ts";
 import { deleteAppPod } from "./deleteAppPod.ts";
@@ -228,7 +227,7 @@ export const handlers = {
             include: {
               apps: {
                 include: {
-                  deploymentConfigTemplate: true,
+                  config: true,
                   deployments: {
                     include: {
                       config: true,
@@ -267,16 +266,13 @@ export const handlers = {
             const apps = await Promise.all(
               group.apps.map(async (app) => {
                 let repoURL: string;
-                if (
-                  app.deploymentConfigTemplate.source === "GIT" &&
-                  org.githubInstallationId
-                ) {
+                if (app.config.source === "GIT" && org.githubInstallationId) {
                   if (!octokit) {
                     octokit = await getOctokit(org.githubInstallationId);
                   }
                   const repo = await getRepoById(
                     octokit,
-                    app.deploymentConfigTemplate.repositoryId,
+                    app.config.repositoryId,
                   );
                   repoURL = repo.html_url;
                 }
@@ -296,7 +292,7 @@ export const handlers = {
                   source: selectedDeployment?.config.source,
                   imageTag: selectedDeployment?.config?.imageTag,
                   repositoryURL: repoURL,
-                  branch: app.deploymentConfigTemplate.branch,
+                  branch: app.config.branch,
                   commitHash: selectedDeployment?.commitHash,
                   link:
                     selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
@@ -465,7 +461,7 @@ export const handlers = {
               include: { config: true },
             },
             appGroup: true,
-            deploymentConfigTemplate: true,
+            config: true,
             org: true,
           },
         }),
@@ -474,41 +470,41 @@ export const handlers = {
 
       if (!app) return json(404, res, {});
 
-      const [{ repoId, repoURL }, k8sDeployment] = await Promise.all([
-        // Fetch repository info if this app is deployed from a Git repository
-        (async () => {
-          if (app.deploymentConfigTemplate.source === "GIT") {
-            const octokit = await getOctokit(app.org.githubInstallationId);
-            const repo = await getRepoById(
-              octokit,
-              app.deploymentConfigTemplate.repositoryId,
-            );
-            return { repoId: repo.id, repoURL: repo.html_url };
-          } else {
-            return { repoId: undefined, repoURL: undefined };
-          }
-        })(),
-        // Fetch the current StatefulSet to read its labels
-        (async () => {
-          try {
-            const { AppsV1Api: api } = await getClientsForRequest(
-              req.user.id,
-              app.projectId,
-              ["AppsV1Api"],
-            );
-            return await api.readNamespacedStatefulSet({
-              namespace: getNamespace(app.subdomain),
-              name: app.name,
-            });
-          } catch {}
-        })(),
-      ]);
+      // Fetch repository info if this app is deployed from a Git repository
+      // Fetch the current StatefulSet to read its labels
+      const k8sDeployment = await (async () => {
+        try {
+          const { AppsV1Api: api } = await getClientsForRequest(
+            req.user.id,
+            app.projectId,
+            ["AppsV1Api"],
+          );
+          return await api.readNamespacedStatefulSet({
+            namespace: getNamespace(app.subdomain),
+            name: app.name,
+          });
+        } catch {}
+      })();
 
       const activeDeployment =
         k8sDeployment?.spec?.template?.metadata?.labels?.[
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
+      const currentConfig = app.config;
+
+      // Fetch repository info if this app is deployed from a Git repository
+      const { repoId, repoURL } = await (async () => {
+        if (currentConfig.source === "GIT") {
+          const octokit = await getOctokit(app.org.githubInstallationId);
+          const repo = await getRepoById(octokit, currentConfig.repositoryId);
+          return { repoId: repo.id, repoURL: repo.html_url };
+        } else {
+          return { repoId: undefined, repoURL: undefined };
+        }
+      })();
+
+      // TODO: Separate this into several API calls
       return json(200, res, {
         id: app.id,
         orgId: app.orgId,
@@ -520,34 +516,33 @@ export const handlers = {
         repositoryId: repoId,
         repositoryURL: repoURL,
         subdomain: app.subdomain,
+        cdEnabled: app.enableCD,
         config: {
-          port: app.deploymentConfigTemplate.fieldValues.port,
-          env: app.deploymentConfigTemplate.displayEnv,
-          replicas: app.deploymentConfigTemplate.fieldValues.replicas,
-          mounts: app.deploymentConfigTemplate.fieldValues.mounts.map(
-            (mount) => ({
-              amountInMiB: mount.amountInMiB,
-              path: mount.path,
-              volumeClaimName: generateVolumeName(mount.path),
-            }),
-          ),
-          requests: app.deploymentConfigTemplate.fieldValues.extra.requests,
-          limits: app.deploymentConfigTemplate.fieldValues.extra.limits,
-          ...app.deploymentConfigTemplate.fieldValues.extra,
-          ...(app.deploymentConfigTemplate.source === "GIT"
+          port: currentConfig.fieldValues.port,
+          env: currentConfig.displayEnv,
+          replicas: currentConfig.fieldValues.replicas,
+          mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+            amountInMiB: mount.amountInMiB,
+            path: mount.path,
+            volumeClaimName: generateVolumeName(mount.path),
+          })),
+          requests: currentConfig.fieldValues.extra.requests,
+          limits: currentConfig.fieldValues.extra.limits,
+          ...currentConfig.fieldValues.extra,
+          ...(currentConfig.source === "GIT"
             ? {
                 source: "git",
-                branch: app.deploymentConfigTemplate.branch,
-                dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-                rootDir: app.deploymentConfigTemplate.rootDir,
-                builder: app.deploymentConfigTemplate.builder,
-                repositoryId: app.deploymentConfigTemplate.repositoryId,
-                event: app.deploymentConfigTemplate.event,
-                eventId: app.deploymentConfigTemplate.eventId,
+                branch: currentConfig.branch,
+                dockerfilePath: currentConfig.dockerfilePath,
+                rootDir: currentConfig.rootDir,
+                builder: currentConfig.builder,
+                repositoryId: currentConfig.repositoryId,
+                event: currentConfig.event,
+                eventId: currentConfig.eventId,
               }
             : {
                 source: "image",
-                imageTag: app.deploymentConfigTemplate.imageTag,
+                imageTag: currentConfig.imageTag,
               }),
         },
         appGroup: {
@@ -564,6 +559,39 @@ export const handlers = {
       console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
+  },
+
+  setAppCD: async function (
+    ctx: Context<{ enable: boolean }, { appId: number }>,
+    req: AuthenticatedRequest,
+    res: ExpressResponse,
+  ): Promise<
+    HandlerResponse<{
+      200: { headers: { [name: string]: unknown }; content?: never };
+      404: { headers: { [name: string]: unknown }; content?: never };
+      500: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["ApiError"] };
+      };
+    }>
+  > {
+    const app = await db.app.findUnique({
+      where: {
+        id: ctx.request.params.appId,
+        org: { users: { some: { userId: req.user.id } } },
+      },
+    });
+
+    if (!app) {
+      return json(404, res, {});
+    }
+
+    await db.app.update({
+      where: { id: ctx.request.params.appId },
+      data: { enableCD: ctx.request.requestBody.enable },
+    });
+
+    return json(200, res, {});
   },
 
   isSubdomainAvailable: async function (
@@ -691,7 +719,6 @@ export const handlers = {
   downloadAppFile,
   writeAppFile,
   deleteAppFile,
-  createDeployment,
   getSettings,
   acceptInvitation,
   inviteUser,

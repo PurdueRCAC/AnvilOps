@@ -15,6 +15,7 @@ import {
   ExternalLink,
   GitBranch,
   GitCommit,
+  InfoIcon,
   Link2,
   Loader,
   LogsIcon,
@@ -25,6 +26,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -144,6 +147,7 @@ export const OverviewTab = ({
         app={app}
         onSubmitted={() => {
           refetchDeployments();
+          refetchApp();
         }}
       />
       <h3 className="text-xl font-medium mb-4">General</h3>
@@ -195,6 +199,7 @@ export const OverviewTab = ({
           </>
         )}
       </div>
+      <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
         {app.config.source === "git" ? (
@@ -354,5 +359,89 @@ export const OverviewTab = ({
         </table>
       )}
     </>
+  );
+};
+
+export const InfoBox = ({
+  type,
+  title,
+  children,
+}: {
+  type: "info" | "warning" | "neutral";
+  title: string;
+  children: React.ReactNode;
+}) => {
+  return (
+    <div
+      className={cn("rounded-md p-4 my-4 text-black-4", getBoxClasses(type))}
+    >
+      <div className="text-lg font-bold mb-2 flex items-center gap-2">
+        <InfoIcon className="inline" /> <h3>{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+};
+
+const getBoxClasses = (type: "info" | "warning" | "neutral") => {
+  if (type === "info") {
+    return "bg-gold-1/75";
+  } else if (type === "warning") {
+    return "bg-red-200";
+  } else if (type === "neutral") {
+    return "border border-black-2";
+  }
+};
+
+const ToggleCDForm = ({
+  app,
+  refetchApp,
+  className,
+}: {
+  app: App;
+  refetchApp: () => void;
+  className?: string;
+}) => {
+  const { mutateAsync: setAppCD, isPending } = api.useMutation(
+    "put",
+    "/app/{appId}/cd",
+  );
+
+  return (
+    <form
+      className={cn(className, "space-y-1")}
+      onSubmit={async (e) => {
+        e.preventDefault();
+
+        await setAppCD({
+          params: {
+            path: { appId: app.id },
+          },
+          body: { enable: !app.cdEnabled },
+        });
+
+        toast.success("Updated app successfully.");
+        refetchApp();
+      }}
+    >
+      <p>
+        Continuous deployment is{" "}
+        {app.cdEnabled ? <strong>on.</strong> : <strong>off.</strong>}{" "}
+      </p>
+      <p className="text-black-3">
+        If this app's template is linked to a Git repository, the app{" "}
+        {app.cdEnabled ? "will" : "will not"} be rebuilt and redeployed if the
+        source repository updates.
+      </p>
+      <Button>
+        {isPending ? (
+          <>
+            <Loader className="animate-spin" /> Saving...
+          </>
+        ) : (
+          <>{app.cdEnabled ? "Stop" : "Start"} continuous deployment</>
+        )}
+      </Button>
+    </form>
   );
 };

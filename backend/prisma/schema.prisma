@@ -10,7 +10,7 @@ generator client {
 
 generator json {
   provider  = "prisma-json-types-generator"
-  namespace = "DeploymentJson"
+  namespace = "PrismaJson"
 }
 
 datasource db {
@@ -145,22 +145,22 @@ enum DeploymentSource {
 }
 
 model App {
-  id                         Int              @id @default(autoincrement())
-  orgId                      Int
-  org                        Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  appGroupId                 Int
-  appGroup                   AppGroup         @relation(fields: [appGroupId], references: [id], onDelete: Cascade)
-  createdAt                  DateTime         @default(now())
-  updatedAt                  DateTime         @updatedAt
-  name                       String
-  displayName                String
-  subdomain                  String           @unique
-  imageRepo                  String           @default("")
-  deployments                Deployment[]
-  logIngestSecret            String           @unique
+  id              Int               @id @default(autoincrement())
+  orgId           Int
+  org             Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  appGroupId      Int
+  appGroup        AppGroup          @relation(fields: [appGroupId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  name            String
+  displayName     String
+  subdomain       String            @unique
+  imageRepo       String            @default("")
+  deployments     Deployment[]
+  logIngestSecret String            @unique
   // The config to use when creating a new deployment
-  deploymentConfigTemplate   DeploymentConfig @relation(fields: [deploymentConfigTemplateId], references: [id], onDelete: Cascade)
-  deploymentConfigTemplateId Int              @unique
+  config          DeploymentConfig? @relation(fields: [configId], references: [id])
+  configId        Int?              @unique
 
   // A Rancher user id to use when updating the app during CD
   clusterUsername String?
