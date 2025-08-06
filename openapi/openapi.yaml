@@ -30,6 +30,8 @@ paths:
                     format: uri
                   storageEnabled:
                     type: boolean
+                  isRancherManaged:
+                    type: boolean
   /login:
     get:
       tags:
@@ -281,38 +283,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
-  /user/joinOrg:
-    post:
-      tags:
-        - user
-      description: Adds the current user to an organization
-      operationId: joinOrg
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                inviteCode:
-                  type: string
-              required:
-                - inviteCode
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserOrg"
-        "401":
-          description: Unauthorized
-        "500":
-          description: Unexpected Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
   /org:
     post:
       tags:
@@ -421,6 +391,98 @@ paths:
           description: Success
         "500":
           description: Internal server error
+
+  /org/{orgId}/invitation:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      description: Invites a user to the organization
+      operationId: inviteUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+              required: [email]
+      responses:
+        "201":
+          description: Success (invitation created)
+        "400":
+          description: Bad request
+        "404":
+          description: Other user or target organization not found
+
+  /org/{orgId}/invitation/{invId}:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: invId
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      description: Revokes an invitation
+      operationId: revokeInvitation
+      responses:
+        "204":
+          description: Success (invitation revoked/deleted)
+        "404":
+          description: Organization not found
+
+  /org/{orgId}/invitation/{invId}/accept:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: invId
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      description: Accepts an invitation
+      operationId: acceptInvitation
+      responses:
+        "200":
+          description: Success (invitation accepted)
+        "404":
+          description: Organization not found
+
+  /org/{orgId}/user/{userId}:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      description: Removes a user from an organization
+      operationId: removeUserFromOrg
+      responses:
+        "204":
+          description: Success (user removed)
+        "403":
+          description: Forbidden (caller is a member of the organization but doesn't have permission to remove members)
+        "404":
+          description: Organization not found
 
   /org/{orgId}/install-github-app:
     get:
@@ -1460,6 +1522,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UnassignedInstallation"
+        receivedInvitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgInvitation"
       required:
         - id
         - email
@@ -1527,12 +1593,44 @@ components:
         githubInstallationId:
           type: integer
           format: int64
+        outgoingInvitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgInvitation"
       required:
         - id
         - name
         - members
         - appGroups
-
+        - outgoingInvitations
+    OrgInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        inviter:
+          type: object
+          properties:
+            name:
+              type: string
+          required: [name]
+        invitee:
+          type: object
+          properties:
+            name:
+              type: string
+          required: [name]
+        org:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+          required: [id, name]
+      required: [id, inviter, invitee, org]
     AppSummary:
       type: object
       properties:
@@ -1906,6 +2004,10 @@ components:
               type: string
             preStop:
               type: string
+            cpuCores:
+              type: number
+            memoryInMiB:
+              type: integer
             appGroup:
               oneOf:
                 - type: object
@@ -1931,7 +2033,16 @@ components:
                       type: integer
                       format: int64
                   required: [type, id]
-          required: [name, orgId, subdomain, port, env, mounts, appGroup]
+          required:
+            - name
+            - orgId
+            - subdomain
+            - port
+            - env
+            - mounts
+            - appGroup
+            - cpuCores
+            - memoryInMiB
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"
@@ -1964,7 +2075,12 @@ components:
               type: string
             preStop:
               type: string
-          required: [name, orgId, subdomain, port, env, mounts]
+            cpuCores:
+              type: number
+            memoryInMiB:
+              type: integer
+          required:
+            [name, orgId, subdomain, port, env, mounts, cpuCores, memoryInMiB]
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

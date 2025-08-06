@@ -78,7 +78,7 @@ export async function getRepoById(octokit: Octokit, repoId: number) {
   return JSON.parse(
     await getOrCreate(
       `github-repo-${octokit[installationIdSymbol]}-${repoId}`,
-      15,
+      30,
       async () => {
         const repoResponse = await octokit.request({
           // This API is undocumented but will likely stick around(?) - https://github.com/piotrmurach/github/issues/283#issuecomment-249092851

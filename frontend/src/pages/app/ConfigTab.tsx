@@ -40,6 +40,8 @@ export const ConfigTab = ({
     groupId: app.appGroup.id,
     projectId: app.projectId,
     source: app.config.source,
+    cpuCores: parseInt(app.config.limits?.cpu ?? "1000m") / 1000, // parseInt ignores the "m" which means millicore - we need to divide by 1000 to get the number of full cores
+    memoryInMiB: parseInt(app.config.limits?.memory ?? "1024"), // parseInt ignores the "Mi" which means mebibyte
     ...(app.config.source === "git"
       ? {
           repositoryId: app.config.repositoryId,
@@ -85,6 +87,12 @@ export const ConfigTab = ({
             appGroup = { type: "add-to", id: formState.groupId! };
             break;
         }
+
+        const resources = {
+          cpu: Math.round(formState.cpuCores * 1000) + "m",
+          memory: formState.memoryInMiB + "Mi",
+        };
+
         await updateApp({
           params: { path: { appId: app.id } },
           body: {
@@ -98,6 +106,8 @@ export const ConfigTab = ({
               postStart: formState.postStart,
               preStop: formState.preStop,
               replicas: parseInt(formData.get("replicas")!.toString()),
+              requests: resources,
+              limits: resources,
               ...(formState.source === "git"
                 ? {
                     source: "git",

@@ -6,6 +6,7 @@ import {
   createOrUpdateApp,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
+import { canManageProject } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
@@ -13,7 +14,6 @@ import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
 import { buildAndDeploy, cancelAllOtherDeployments } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
-import { canManageProject } from "../lib/cluster/rancher.ts";
 
 export const updateApp: HandlerMap["updateApp"] = async (
   ctx,
@@ -159,6 +159,10 @@ export const updateApp: HandlerMap["updateApp"] = async (
       extra: {
         postStart: appConfig.postStart,
         preStop: appConfig.preStop,
+        requests:
+          appConfig.requests as DeploymentConfigCreateInput["fieldValues"]["extra"]["requests"],
+        limits:
+          appConfig.limits as DeploymentConfigCreateInput["fieldValues"]["extra"]["limits"],
       },
     },
     ...(appConfig.source === "git"
@@ -238,6 +242,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
         secret,
       },
       select: {
+        commitHash: true,
+        commitMessage: true,
         id: true,
         appId: true,
         app: {
@@ -254,7 +260,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
 
     try {
       const { namespace, configs, postCreate } =
-        createAppConfigsFromDeployment(deployment);
+        await createAppConfigsFromDeployment(deployment);
 
       const { KubernetesObjectApi: api } = await getClientsForRequest(
         req.user.id,

@@ -1,7 +1,7 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
 import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
@@ -227,6 +227,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
             commitMessage = "Initial deployment";
 
           const configParams = data.apps[idx];
+          const cpu = Math.round(configParams.cpuCores * 1000) + "m",
+            memory = configParams.memoryInMiB + "Mi";
           const deploymentConfig: DeploymentConfigCreateInput = {
             env: configParams.env,
             fieldValues: {
@@ -237,6 +239,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
               extra: {
                 postStart: configParams.postStart,
                 preStop: configParams.preStop,
+                limits: { cpu, memory, "nvidia.com/gpu": undefined },
+                requests: { cpu, memory, "nvidia.com/gpu": undefined },
               },
             },
             ...(configParams.source === "git"

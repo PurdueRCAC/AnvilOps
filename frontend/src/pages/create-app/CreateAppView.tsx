@@ -45,6 +45,8 @@ export default function CreateAppView() {
     dockerfilePath: "Dockerfile",
     rootDir: "./",
     subdomain: "",
+    cpuCores: 1,
+    memoryInMiB: 1024,
   });
 
   const navigate = useNavigate();
@@ -115,6 +117,8 @@ export default function CreateAppView() {
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
                 postStart: formState.postStart,
                 preStop: formState.preStop,
+                cpuCores: formState.cpuCores,
+                memoryInMiB: formState.memoryInMiB,
                 appGroup,
                 ...(formState.source === "git"
                   ? {

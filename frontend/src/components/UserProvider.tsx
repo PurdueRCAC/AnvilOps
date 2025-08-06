@@ -5,7 +5,6 @@ import type {
   RefetchOptions,
 } from "@tanstack/react-query";
 import React from "react";
-import { useLocation } from "react-router-dom";
 
 export type User = components["schemas"]["User"];
 
@@ -28,26 +27,26 @@ type UserContextType = {
         >
       >)
     | undefined;
+  error: { code?: number; message?: string } | null;
 };
 
 export const UserContext = React.createContext<UserContextType>({
   user: undefined,
   loading: false,
   refetch: undefined,
+  error: null,
 });
-
-const ALLOWED_UNAUTHENTICATED = ["/", "/error"];
 
 export default function UserProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { pathname } = useLocation();
   const {
     data: user,
     isPending,
     refetch,
+    error,
   } = api.useQuery(
     "get",
     "/user/me",
@@ -55,10 +54,7 @@ export default function UserProvider({
     {
       retry(failureCount, error) {
         if (error.code === 401) {
-          // Unauthorized
-          if (!ALLOWED_UNAUTHENTICATED.includes(pathname)) {
-            window.location.href = "/api/login";
-          }
+          // Unauthorized - in lib/api.ts, we redirect the user to the login page.
           return false;
         }
         return failureCount < 3;
@@ -72,6 +68,7 @@ export default function UserProvider({
         user,
         loading: isPending,
         refetch,
+        error,
       }}
     >
       {children}

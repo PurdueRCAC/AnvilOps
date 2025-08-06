@@ -234,7 +234,7 @@ export const OverviewTab = ({
                     <span className="text-nowrap">
                       {format.format(new Date(d.createdAt))}
                     </span>
-                    {d.id === activeDeployment && (
+                    {d.id === activeDeployment ? (
                       <Tooltip>
                         <TooltipTrigger>
                           <span
@@ -250,6 +250,9 @@ export const OverviewTab = ({
                           are rolled out.
                         </TooltipContent>
                       </Tooltip>
+                    ) : (
+                      // Reduce layout shift when the "Current" badge loads in by reserving the space
+                      <span className="w-20" />
                     )}
                   </div>
                 </td>
@@ -264,7 +267,9 @@ export const OverviewTab = ({
                         <GitCommit className="shrink-0" />
                         {d.commitHash?.substring(0, 7) ?? "Unknown"}
                       </span>
-                      {d.commitMessage}
+                      <span className="line-clamp-1" title={d.commitMessage}>
+                        {d.commitMessage}
+                      </span>
                     </a>
                   ) : (
                     <Tooltip>

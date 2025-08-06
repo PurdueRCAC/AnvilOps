@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useContext } from "react";
+import { Loader } from "lucide-react";
+import { Suspense, useContext } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Route, Routes } from "react-router-dom";
 import { toast } from "sonner";
@@ -29,121 +30,128 @@ import LandingView from "./pages/LandingView";
 import NotFoundView from "./pages/NotFoundView";
 import OrgView from "./pages/OrgView";
 
+const SuspenseFallback = (
+  <div className="w-full h-full min-h-[calc(100vh-4rem)] flex items-center justify-center">
+    <Loader className="animate-spin" size="2.5rem" />
+  </div>
+);
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppConfigProvider>
-        <UserProvider>
+    <ErrorBoundary
+      fallbackRender={(props) => (
+        <>
           <Navbar />
-          <ErrorBoundary
-            fallbackRender={(props) => (
-              <main className="flex flex-col items-center justify-center min-h-[80vh]">
-                <h1 className="font-bold text-4xl mb-2">
-                  Something went wrong.
-                </h1>
-                <p className="mb-8">
-                  There was a problem displaying this page.
-                </p>
-                <pre className="whitespace-pre-line max-w-lg text-sm bg-gray-100 rounded-md border-input border p-2 mb-4 max-h-40 overflow-y-auto">
-                  <code>
-                    Additional information:{" "}
-                    {props?.error?.message?.toString() ??
-                      JSON.stringify(props?.error)}
-                  </code>
-                </pre>
-                <Button onClick={() => window.location.reload()}>
-                  Refresh
-                </Button>
-              </main>
-            )}
-          >
+          <main className="flex flex-col items-center justify-center min-h-[80vh]">
+            <h1 className="font-bold text-4xl mb-2">Something went wrong.</h1>
+            <p className="mb-8">There was a problem displaying this page.</p>
+            <pre className="whitespace-pre-line max-w-lg text-sm bg-gray-100 rounded-md border-input border p-2 mb-4 max-h-40 overflow-y-auto">
+              <code>
+                Additional information:{" "}
+                {props?.error?.message?.toString() ??
+                  JSON.stringify(props?.error)}
+              </code>
+            </pre>
+            <Button onClick={() => window.location.reload()}>Refresh</Button>
+          </main>
+        </>
+      )}
+    >
+      <QueryClientProvider client={queryClient}>
+        <AppConfigProvider>
+          <UserProvider>
+            <Navbar />
             <UnclaimedInstallations />
-            <Routes>
-              <Route path="/" element={<LandingView />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <DashboardView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/app/:id"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <AppView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/app/:appId/deployment/:deploymentId"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <DeploymentView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/create-app"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <CreateAppView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/create-group"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <CreateAppGroupView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/import-repo"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <ImportRepoView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/organizations"
-                element={
-                  <RequireAuth redirectTo="/api/login">
-                    <OrgView />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/github-approval-pending"
-                element={<GitHubApprovalPendingView />}
-              />
-              <Route path="/error" element={<ErrorView />} />
-              <Route path="*" element={<NotFoundView />} />
-            </Routes>
-          </ErrorBoundary>
-        </UserProvider>
-      </AppConfigProvider>
-      <Toaster />
-      <ReactQueryDevtools />
-    </QueryClientProvider>
+            <Suspense fallback={SuspenseFallback}>
+              <Routes>
+                <Route path="/" element={<LandingView />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <RequireAuth>
+                      <DashboardView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/:id"
+                  element={
+                    <RequireAuth>
+                      <AppView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/:appId/deployment/:deploymentId"
+                  element={
+                    <RequireAuth>
+                      <DeploymentView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/create-app"
+                  element={
+                    <RequireAuth>
+                      <CreateAppView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/create-group"
+                  element={
+                    <RequireAuth>
+                      <CreateAppGroupView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/import-repo"
+                  element={
+                    <RequireAuth>
+                      <ImportRepoView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/organizations"
+                  element={
+                    <RequireAuth>
+                      <OrgView />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/github-approval-pending"
+                  element={<GitHubApprovalPendingView />}
+                />
+                <Route path="/error" element={<ErrorView />} />
+                <Route path="*" element={<NotFoundView />} />
+              </Routes>
+            </Suspense>
+          </UserProvider>
+        </AppConfigProvider>
+        <Toaster />
+        <ReactQueryDevtools />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
-function RequireAuth({
-  children,
-  redirectTo,
-}: {
-  children: React.ReactNode;
-  redirectTo: string;
-}) {
-  const { user, loading } = useContext(UserContext);
-  if (loading) return null;
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, loading, error } = useContext(UserContext);
+  if (loading) return SuspenseFallback;
   if (!user) {
-    window.location.href = redirectTo;
+    if (error && error?.code !== 401) {
+      // ^ 401 is Unauthorized; the user needs to sign in again
+      throw new Error(
+        "Failed to fetch your account information: " + JSON.stringify(error),
+      );
+    } else {
+      window.location.href = "/api/login";
+    }
   }
+
   return children;
 }
 

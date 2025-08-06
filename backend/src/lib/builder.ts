@@ -5,9 +5,9 @@ import type {
   Deployment,
   Organization,
 } from "../generated/prisma/client.ts";
-import { DeploymentConfigScalarFieldEnum } from "../generated/prisma/internal/prismaNamespace.ts";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
+import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
 import { db } from "./db.ts";
 import { env } from "./env.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
@@ -21,9 +21,16 @@ export type CreateJobFromDeploymentInput = Parameters<
 >[0];
 
 async function createJobFromDeployment(
-  deployment: Pick<Deployment, "id" | "commitHash" | "appId" | "secret"> & {
+  deployment: Pick<
+    Deployment,
+    "id" | "commitHash" | "commitMessage" | "appId" | "secret"
+  > & {
     config: Pick<
       ExtendedDeploymentConfig,
+      | "source"
+      | "repositoryId"
+      | "branch"
+      | "imageTag"
       | "builder"
       | "dockerfilePath"
       | "imageTag"
@@ -32,63 +39,34 @@ async function createJobFromDeployment(
       | "env"
       | "envKey"
       | "getPlaintextEnv"
+      | "fieldValues"
     >;
-    app: Pick<App, "imageRepo"> & {
+    app: Pick<App, "id" | "displayName" | "subdomain" | "imageRepo"> & {
       org: Pick<Organization, "githubInstallationId">;
     };
   },
 ) {
-  const octokit = await getOctokit(deployment.app.org.githubInstallationId);
+  const { app, config } = deployment;
+  const octokit = await getOctokit(app.org.githubInstallationId);
   const repo = await getRepoById(octokit, deployment.config.repositoryId);
+  const cloneURL = await generateCloneURLWithCredentials(
+    octokit,
+    repo.html_url,
+  );
 
-  return await createJob({
-    tag: deployment.app.imageRepo,
-    ref: deployment.commitHash,
-    gitRepoURL: await generateCloneURLWithCredentials(octokit, repo.html_url),
-    imageTag: deployment.config.imageTag as ImageTag,
-    imageCacheTag: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${deployment.app.imageRepo}:build-cache`,
-    deploymentSecret: deployment.secret,
-    appId: deployment.appId,
-    deploymentId: deployment.id,
-    config: deployment.config,
-  });
-}
-
-async function createJob({
-  tag,
-  gitRepoURL,
-  imageTag,
-  imageCacheTag,
-  deploymentSecret,
-  ref,
-  appId,
-  deploymentId,
-  config,
-}: {
-  tag: string;
-  gitRepoURL: string;
-  imageTag: ImageTag;
-  imageCacheTag: ImageTag;
-  deploymentSecret: string;
-  ref: string;
-  appId: number;
-  deploymentId: number;
-  config: Pick<
-    ExtendedDeploymentConfig,
-    | "builder"
-    | "dockerfilePath"
-    | "rootDir"
-    | "env"
-    | "envKey"
-    | "getPlaintextEnv"
-  >;
-}) {
-  DeploymentConfigScalarFieldEnum;
   const label = randomBytes(4).toString("hex");
-  const secretName = `anvilops-temp-build-secrets-${appId}-${deploymentId}`;
-  const jobName = `build-image-${tag}-${label}`;
+  const secretName = `anvilops-temp-build-secrets-${app.id}-${deployment.id}`;
+  const jobName = `build-image-${app.imageRepo}-${label}`;
 
-  const envVars = config.getPlaintextEnv();
+  const envVars = deployment.config.getPlaintextEnv();
+
+  const extraEnv = await generateAutomaticEnvVars(octokit, deployment);
+  extraEnv.push({ name: "CI", value: "1" });
+  for (const envVar of extraEnv) {
+    if (!envVars.some((it) => it.name === envVar.name)) {
+      envVars.push({ ...envVar, isSensitive: false });
+    }
+  }
 
   if (envVars.length > 0) {
     const map: Record<string, string> = {};
@@ -116,8 +94,8 @@ async function createJob({
       metadata: {
         name: jobName,
         labels: {
-          "anvilops.rcac.purdue.edu/app-id": appId.toString(),
-          "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+          "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
+          "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
         },
       },
       spec: {
@@ -127,8 +105,9 @@ async function createJob({
         template: {
           metadata: {
             labels: {
-              "anvilops.rcac.purdue.edu/app-id": appId.toString(),
-              "anvilops.rcac.purdue.edu/deployment-id": deploymentId.toString(),
+              "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
+              "anvilops.rcac.purdue.edu/deployment-id":
+                deployment.id.toString(),
               "anvilops.rcac.purdue.edu/collect-logs": "true",
             },
           },
@@ -142,11 +121,17 @@ async function createJob({
                     ? env.DOCKERFILE_BUILDER_IMAGE
                     : env.RAILPACK_BUILDER_IMAGE,
                 env: [
-                  { name: "CLONE_URL", value: gitRepoURL },
-                  { name: "REF", value: ref },
-                  { name: "IMAGE_TAG", value: imageTag },
-                  { name: "CACHE_TAG", value: imageCacheTag },
-                  { name: "DEPLOYMENT_API_SECRET", value: deploymentSecret },
+                  { name: "CLONE_URL", value: cloneURL },
+                  { name: "REF", value: deployment.commitHash },
+                  {
+                    name: "IMAGE_TAG",
+                    value: deployment.config.imageTag as ImageTag,
+                  },
+                  {
+                    name: "CACHE_TAG",
+                    value: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:build-cache`,
+                  },
+                  { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
                   {
                     name: "DEPLOYMENT_API_URL",
                     value: `${env.BASE_URL}/api`,
@@ -351,9 +336,13 @@ export async function dequeueBuildJob(): Promise<string> {
         appId: true,
         secret: true,
         config: true,
+        commitMessage: true,
         commitHash: true,
         app: {
           select: {
+            id: true,
+            displayName: true,
+            subdomain: true,
             imageRepo: true,
             org: { select: { githubInstallationId: true } },
           },

@@ -30,6 +30,8 @@ const defaultRedeployState = {
     source: "git" as const,
     builder: "dockerfile" as const,
     port: "",
+    cpuCores: "1",
+    memoryInMiB: 1024,
   },
   enableCD: true,
   idx: 0,
@@ -63,6 +65,12 @@ export const RedeployModal = ({
     idx: number;
   }>(defaultRedeployState);
 
+  const resourceConfig = {
+    cpu:
+      Math.round(parseFloat(redeployState.configState.cpuCores) * 1000) + "m",
+    memory: redeployState.configState.memoryInMiB + "Mi",
+  };
+
   const { data: pastDeployment, isPending: pastDeploymentLoading } =
     api.useQuery(
       "get",
@@ -89,6 +97,10 @@ export const RedeployModal = ({
           preStop: app.config.preStop,
           source: "image",
           imageTag: pastDeployment.config.imageTag!,
+          cpuCores: (
+            parseInt(app.config.limits?.cpu ?? "1000m") / 1000
+          ).toString(), // convert millicores ("m") to cores,
+          memoryInMiB: parseInt(app.config.limits?.memory ?? "1024Mi"),
         },
       }));
     } else {
@@ -101,6 +113,12 @@ export const RedeployModal = ({
           port: pastDeployment.config.port.toString(),
           replicas: pastDeployment.config.replicas.toString(),
           env: pastDeployment.config.env,
+          cpuCores: (
+            parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
+          ).toString(), // convert millicores ("m") to cores,
+          memoryInMiB: parseInt(
+            pastDeployment.config.limits?.memory ?? "1024Mi",
+          ),
           ...(pastDeployment.config.source === "git"
             ? {
                 source: "git",
@@ -182,6 +200,8 @@ export const RedeployModal = ({
                 mounts: app.config.mounts,
                 postStart: config.postStart,
                 preStop: config.preStop,
+                limits: resourceConfig,
+                requests: resourceConfig,
                 ...(config.source === "git"
                   ? {
                       source: "git" as const,
@@ -349,6 +369,12 @@ export const RedeployModal = ({
                     ...app.config,
                     replicas: app.config.replicas.toString(),
                     port: app.config.port.toString(),
+                    cpuCores: (
+                      parseInt(app.config.limits?.cpu ?? "1000m") / 1000
+                    ).toString(), // convert millicores ("m") to cores,
+                    memoryInMiB: parseInt(
+                      app.config.limits?.memory ?? "1024Mi",
+                    ),
                     ...(app.config.source === "git"
                       ? {
                           builder: app.config.builder,

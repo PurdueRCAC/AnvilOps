@@ -28,11 +28,13 @@ import {
   Code2,
   Cog,
   Component,
+  Cpu,
   Database,
   Fence,
   Info,
   Link,
   Loader,
+  MemoryStick,
   Minimize,
   Server,
   Tag,
@@ -65,7 +67,10 @@ export type AppInfoFormData = {
   builder: "dockerfile" | "railpack";
   postStart?: string;
   preStop?: string;
+  cpuCores: number;
+  memoryInMiB: number;
 };
+
 type Env = { name: string; value: string | null; isSensitive: boolean }[];
 
 const AppConfigFormFields = ({
@@ -285,53 +290,54 @@ const AppConfigFormFields = ({
           </div>
         </>
       )}
-      <div className="space-y-2">
-        <div>
-          <div className="flex items-baseline gap-2">
-            <Label htmlFor="selectProject" className="pb-1">
-              <Fence className="inline" size={16} />
-              Project
-            </Label>
-            <span
-              className="text-red-500 cursor-default"
-              title="This field is required."
-            >
-              *
-            </span>
+      {appConfig.isRancherManaged && (
+        <div className="space-y-2">
+          <div>
+            <div className="flex items-baseline gap-2">
+              <Label htmlFor="selectProject" className="pb-1">
+                <Fence className="inline" size={16} />
+                Project
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <p className="text-sm text-black-3">
+              In clusters managed by Rancher, resources are organized into
+              projects for administration.
+            </p>
           </div>
-          <p className="text-sm text-black-3">
-            In clusters managed by Rancher, resources are organized into
-            projects for administration.
-          </p>
+          <Select
+            required
+            name="project"
+            value={projectId ?? ""}
+            onValueChange={(projectId) =>
+              setState((prev) => ({ ...prev, projectId }))
+            }
+          >
+            <SelectTrigger className="w-full" id="selectProject">
+              <SelectValue placeholder="Select a Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {user?.projects?.map((project) => (
+                  <SelectItem key={project.id} value={project.id.toString()}>
+                    <p>
+                      {project.name}{" "}
+                      <span className="text-sm text-black-2">
+                        {project.description}
+                      </span>
+                    </p>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          required
-          disabled={disabled}
-          name="project"
-          value={projectId ?? ""}
-          onValueChange={(projectId) =>
-            setState((prev) => ({ ...prev, projectId }))
-          }
-        >
-          <SelectTrigger className="w-full" id="selectProject">
-            <SelectValue placeholder="Select a Project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {user?.projects?.map((project) => (
-                <SelectItem key={project.id} value={project.id.toString()}>
-                  <p>
-                    {project.name}{" "}
-                    <span className="text-sm text-black-2">
-                      {project.description}
-                    </span>
-                  </p>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
+      )}
       <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
@@ -517,6 +523,62 @@ const AppConfigFormFields = ({
             setState((state) => ({ ...state, port }));
           }}
         />
+      </div>
+      <div className="grid grid-cols-2 gap-y-2 gap-x-8">
+        <div className="flex items-baseline gap-2">
+          <Label className="pb-1" htmlFor="cpuCores">
+            <Cpu className="inline" size={16} /> CPU Cores
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <Label className="pb-1" htmlFor="memory">
+            <MemoryStick className="inline" size={16} /> Memory
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <Input
+          name="cpuCores"
+          id="cpuCores"
+          placeholder="0.5"
+          className="w-full"
+          type="number"
+          required
+          step=".001"
+          min="0"
+          value={state.cpuCores ?? 1}
+          onChange={(e) => {
+            const cpuCores = e.currentTarget.valueAsNumber;
+            setState((state) => ({ ...state, cpuCores }));
+          }}
+        />
+        <div className="flex items-center gap-2">
+          <Input
+            name="memory"
+            id="memory"
+            placeholder="1024"
+            className="w-full"
+            type="number"
+            required
+            min="1"
+            value={state.memoryInMiB ?? 1024}
+            onChange={(e) => {
+              const memoryInMiB = e.currentTarget.valueAsNumber;
+              setState((state) => ({ ...state, memoryInMiB }));
+            }}
+          />
+          MiB
+        </div>
       </div>
       <Accordion type="single" collapsible>
         <AccordionItem value="env">

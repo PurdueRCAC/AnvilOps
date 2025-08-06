@@ -8,12 +8,14 @@ import type {
   App,
   AppGroup,
   Deployment,
+  Organization,
 } from "../../generated/prisma/client.ts";
-import { env } from "../env.ts";
+import { getOctokit } from "../octokit.ts";
 import { createLogConfig } from "./resources/log.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
+  generateAutomaticEnvVars,
   type DeploymentParams,
 } from "./resources/statefulset.ts";
 
@@ -62,10 +64,11 @@ export const createNamespaceConfig = (
   };
 };
 
-const getEnvVars = (
+const getEnvVars = async (
   env: PrismaJson.EnvVar[],
   secretName: string,
-): V1EnvVar[] => {
+  ...autoEnvParams: Parameters<typeof generateAutomaticEnvVars>
+): Promise<V1EnvVar[]> => {
   const envVars = [];
   for (let envVar of env) {
     envVars.push({
@@ -77,6 +80,13 @@ const getEnvVars = (
         },
       },
     });
+  }
+
+  const extraEnv = await generateAutomaticEnvVars(...autoEnvParams);
+  for (const envVar of extraEnv) {
+    if (!envVars.some((it) => it.name === envVar.name)) {
+      envVars.push({ name: envVar.name, value: envVar.value });
+    }
   }
 
   return envVars;
@@ -119,12 +129,20 @@ const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
   }
 };
 
-export const createAppConfigsFromDeployment = (
-  deployment: Pick<Deployment, "appId" | "id"> & {
+export const createAppConfigsFromDeployment = async (
+  deployment: Pick<
+    Deployment,
+    "appId" | "id" | "commitHash" | "commitMessage"
+  > & {
     app: Pick<
-      App & { appGroup: AppGroup },
-      "name" | "logIngestSecret" | "subdomain" | "appGroup" | "projectId"
-    >;
+      App,
+      | "id"
+      | "name"
+      | "displayName"
+      | "logIngestSecret"
+      | "subdomain"
+      | "projectId"
+    > & { appGroup: AppGroup; org: Pick<Organization, "githubInstallationId"> };
     config: ExtendedDeploymentConfig;
   },
 ) => {
@@ -135,8 +153,15 @@ export const createAppConfigsFromDeployment = (
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
+  const octokit = await getOctokit(app.org.githubInstallationId);
+
   const secretName = `${app.name}-secrets-${deployment.id}`;
-  const envVars = getEnvVars(conf.getPlaintextEnv(), secretName);
+  const envVars = await getEnvVars(
+    conf.getPlaintextEnv(),
+    secretName,
+    octokit,
+    deployment,
+  );
   const secretData = getEnvRecord(conf.getPlaintextEnv());
   if (secretData !== null) {
     const secretConfig = createSecretConfig(

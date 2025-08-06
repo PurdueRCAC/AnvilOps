@@ -21,6 +21,8 @@ import {
   Cable,
   Code2,
   Cog,
+  Cpu,
+  MemoryStick,
   Minimize,
   Scale3D,
   Server,
@@ -29,9 +31,9 @@ import {
 } from "lucide-react";
 import { useContext } from "react";
 import { GitHubIcon } from "../../create-app/CreateAppView";
+import { DiffInput } from "./DiffInput";
 import { EnvsWithDiffs } from "./EnvsWithDiffs";
 import { GitConfigDiff } from "./GitConfigDiff";
-import { DiffInput } from "./DiffInput";
 
 export type DeploymentConfigFormData = {
   port: string;
@@ -49,7 +51,10 @@ export type DeploymentConfigFormData = {
   builder?: "dockerfile" | "railpack";
   postStart?: string;
   preStop?: string;
+  cpuCores: string;
+  memoryInMiB: number;
 };
+
 type Env = { name: string; value: string | null; isSensitive: boolean }[];
 
 export const AppConfigDiff = ({
@@ -230,7 +235,7 @@ export const AppConfigDiff = ({
       </div>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2 mb-2">
-          <Label className="pb-1">
+          <Label className="pb-1" htmlFor="replicas">
             <Scale3D className="inline" size={16} /> Replicas
           </Label>
           <span
@@ -243,6 +248,7 @@ export const AppConfigDiff = ({
         <div className="flex items-center gap-8">
           <DiffInput
             disabled={disabled}
+            id="replicas"
             name="replicas"
             type="number"
             required
@@ -250,6 +256,66 @@ export const AppConfigDiff = ({
             right={state.replicas}
             setRight={(replicas) => {
               setState((s) => ({ ...s, replicas }));
+            }}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <Label className="pb-1" htmlFor="cpuCores">
+            <Cpu className="inline" size={16} /> CPU Cores
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <div className="flex items-center justify-around gap-8">
+          <DiffInput
+            name="cpuCores"
+            id="cpuCores"
+            placeholder="0.5"
+            type="number"
+            required
+            step=".001"
+            min="0"
+            left={base.cpuCores?.toString() ?? "1"}
+            right={state.cpuCores ?? "1"}
+            setRight={(cpuCores) => {
+              setState((state) => ({ ...state, cpuCores }));
+            }}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <Label className="pb-1" htmlFor="memoryInMiB">
+            <MemoryStick className="inline" size={16} /> Memory (MiB)
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <div className="flex items-center justify-around gap-8">
+          <DiffInput
+            name="memoryInMiB"
+            id="memoryInMiB"
+            placeholder="1024"
+            type="number"
+            required
+            min="1"
+            left={base.memoryInMiB?.toString() ?? "1024"}
+            right={state.memoryInMiB?.toString() ?? "1024"}
+            setRight={(memoryInMiB) => {
+              setState((state) => ({
+                ...state,
+                memoryInMiB: parseInt(memoryInMiB),
+              }));
             }}
           />
         </div>

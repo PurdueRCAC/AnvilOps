@@ -1,5 +1,19 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserContext } from "@/components/UserProvider";
+import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
 import {
   Fragment,
   useContext,
@@ -9,24 +23,10 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import AppConfigFormFields, {
   type AppInfoFormData,
 } from "./AppConfigFormFields";
-import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
-import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { components } from "@/generated/openapi";
 import { FormContext } from "./CreateAppView";
 
 export default function CreateAppGroupView() {
@@ -46,7 +46,10 @@ export default function CreateAppGroupView() {
     subdomain: "",
     rootDir: "./",
     dockerfilePath: "Dockerfile",
-  };
+    cpuCores: 1,
+    memoryInMiB: 1024,
+  } satisfies AppInfoFormData;
+
   const [appStates, setAppStates] = useState<AppInfoFormData[]>([
     { ...defaultState },
   ]);
@@ -98,6 +101,8 @@ export default function CreateAppGroupView() {
                   mounts: appState.mounts.filter((m) => m.path.length > 0),
                   postStart: appState.postStart,
                   preStop: appState.preStop,
+                  cpuCores: appState.cpuCores,
+                  memoryInMiB: appState.memoryInMiB,
                   ...(appState.source === "git"
                     ? {
                         source: "git",

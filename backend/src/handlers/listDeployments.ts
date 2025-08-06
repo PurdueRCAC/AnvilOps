@@ -1,7 +1,7 @@
-import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
-import { json, type HandlerMap } from "../types.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const listDeployments: HandlerMap["listDeployments"] = async (
   ctx,
@@ -43,32 +43,33 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
 
   const octokit = await getOctokit(githubInstallationId);
 
+  const distinctRepoIDs = [
+    ...new Set(deployments.map((it) => it.config.repositoryId).filter(Boolean)),
+  ];
+  const repos = await Promise.all(
+    distinctRepoIDs.map(async (id) =>
+      id ? await getRepoById(octokit, id) : undefined,
+    ),
+  );
+
   return json(
     200,
     res,
     await Promise.all(
-      deployments.map(async (d) => {
-        const repositoryURL =
-          d.config.source === "GIT"
-            ? await getRepoById(octokit, d.config.repositoryId).then(
-                (repo) => repo.html_url,
-                (err) => {
-                  console.error(err);
-                  return undefined;
-                },
-              )
-            : undefined;
+      deployments.map(async (deployment, index) => {
         return {
-          id: d.id,
-          appId: d.appId,
-          repositoryURL,
-          commitHash: d.commitHash,
-          commitMessage: d.commitMessage,
-          status: d.status,
-          createdAt: d.createdAt.toISOString(),
-          updatedAt: d.updatedAt.toISOString(),
-          source: d.config.source,
-          imageTag: d.config.imageTag,
+          id: deployment.id,
+          appId: deployment.appId,
+          repositoryURL:
+            repos[distinctRepoIDs.indexOf(deployment.config.repositoryId)]
+              ?.html_url,
+          commitHash: deployment.commitHash,
+          commitMessage: deployment.commitMessage,
+          status: deployment.status,
+          createdAt: deployment.createdAt.toISOString(),
+          updatedAt: deployment.updatedAt.toISOString(),
+          source: deployment.config.source,
+          imageTag: deployment.config.imageTag,
         };
       }),
     ),

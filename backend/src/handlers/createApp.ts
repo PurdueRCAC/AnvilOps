@@ -1,8 +1,8 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import { type App } from "../generated/prisma/client.ts";
 import { DeploymentSource } from "../generated/prisma/enums.ts";
+import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
@@ -156,6 +156,8 @@ export const createApp: HandlerMap["createApp"] = async (
 
   let app: App;
 
+  const cpu = Math.round(appData.cpuCores * 1000) + "m",
+    memory = appData.memoryInMiB + "Mi";
   const deploymentConfig: DeploymentConfigCreateInput = {
     env: appData.env,
     fieldValues: {
@@ -166,6 +168,8 @@ export const createApp: HandlerMap["createApp"] = async (
       extra: {
         postStart: appData.postStart,
         preStop: appData.preStop,
+        requests: { cpu, memory, "nvidia.com/gpu": undefined },
+        limits: { cpu, memory, "nvidia.com/gpu": undefined },
       },
     },
     ...(appData.source === "git"
