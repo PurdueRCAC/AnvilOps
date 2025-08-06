@@ -5,6 +5,7 @@ import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 import { withSensitiveEnv } from "./updateApp.ts";
 
+// Update the app config template without creating a new deployment
 export const updateAppConfigTemplate: HandlerMap["updateAppConfigTemplate"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     const appConfig = ctx.request.requestBody;

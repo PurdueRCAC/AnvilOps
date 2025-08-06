@@ -30,10 +30,13 @@ export const revertToAppConfigTemplate: HandlerMap["revertToAppConfigTemplate"] 
 
     const secret = randomBytes(32).toString("hex");
 
-    const config = { ...app.deploymentConfigTemplate };
-    delete config.id;
-    delete config.getPlaintextEnv;
-    delete config.displayEnv;
+    const config = {
+      ...app.deploymentConfigTemplate,
+      id: undefined,
+      getPlaintextEnv: undefined,
+      displayEnv: undefined,
+    };
+
     if (app.deploymentConfigTemplate.source === "GIT") {
       // If source is git, start a new build if the app was not successfully built in the past,
       // or if branches or repositories or any build settings were changed.
@@ -58,7 +61,7 @@ export const revertToAppConfigTemplate: HandlerMap["revertToAppConfigTemplate"] 
           imageRepo: app.imageRepo,
           commitSha: latestCommit.sha,
           commitMessage: latestCommit.commit.message,
-          config: app.deploymentConfigTemplate,
+          config,
           createCheckRun: false,
         });
 

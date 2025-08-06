@@ -487,11 +487,12 @@ export const handlers = {
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
-      const currentConfig = activeDeployment
-        ? app.deployments.find(
-            (deploy) => deploy.id === parseInt(activeDeployment),
-          ).config
-        : app.deploymentConfigTemplate;
+      const currentConfig =
+        app.isPreviewing && activeDeployment
+          ? (app.deployments.find(
+              (deploy) => deploy.id === parseInt(activeDeployment),
+            )?.config ?? app.deploymentConfigTemplate)
+          : app.deploymentConfigTemplate;
 
       // Fetch repository info if this app is deployed from a Git repository
       const { repoId, repoURL } = await (async () => {
@@ -558,6 +559,39 @@ export const handlers = {
       console.error(e);
       return json(500, res, { code: 500, message: "Something went wrong." });
     }
+  },
+
+  setAppCD: async function (
+    ctx: Context<{ enable: boolean }, { appId: number }>,
+    req: AuthenticatedRequest,
+    res: ExpressResponse,
+  ): Promise<
+    HandlerResponse<{
+      200: { headers: { [name: string]: unknown }; content?: never };
+      404: { headers: { [name: string]: unknown }; content?: never };
+      500: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["ApiError"] };
+      };
+    }>
+  > {
+    const app = await db.app.findUnique({
+      where: {
+        id: ctx.request.params.appId,
+        org: { users: { some: { userId: req.user.id } } },
+      },
+    });
+
+    if (!app) {
+      return json(404, res, {});
+    }
+
+    await db.app.update({
+      where: { id: ctx.request.params.appId },
+      data: { enableCD: ctx.request.requestBody.enable },
+    });
+
+    return json(200, res, {});
   },
 
   isSubdomainAvailable: async function (

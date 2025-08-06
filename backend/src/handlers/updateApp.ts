@@ -44,14 +44,15 @@ export const updateApp: HandlerMap["updateApp"] = async (
   if (!validation.valid) {
     return json(400, res, { code: 400, message: validation.message });
   }
+  if (appData.appGroup) {
+    const appGroupValidation = validateAppGroup(appData.appGroup);
 
-  const appGroupValidation = validateAppGroup(appData.appGroup);
-
-  if (!appGroupValidation.valid) {
-    return json(400, res, {
-      code: 400,
-      message: appGroupValidation.message,
-    });
+    if (!appGroupValidation.valid) {
+      return json(400, res, {
+        code: 400,
+        message: appGroupValidation.message,
+      });
+    }
   }
 
   if (appData.projectId) {
@@ -134,7 +135,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
         appData.projectId !== originalApp.projectId && {
           projectId: appData.projectId,
         }),
-      enableCD: appData.enableCD,
     },
   });
 

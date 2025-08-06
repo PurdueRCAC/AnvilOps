@@ -6,13 +6,12 @@ import AppConfigFormFields, {
   type AppInfoFormData,
 } from "@/pages/create-app/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
-import { Loader, Save, Scale3D, TextCursorInput, Workflow } from "lucide-react";
+import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useEffect, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
-import { Switch } from "@/components/ui/switch";
 import { InfoBox } from "./OverviewTab";
 import {
   Dialog,
@@ -36,7 +35,6 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
-  const [enableCD, setEnableCD] = useState(app.cdEnabled);
   const [formState, setFormState] = useState<AppInfoFormData>({
     port: app.config.port.toString(),
     env: app.config.env,
@@ -104,12 +102,12 @@ export const ConfigTab = ({
                 convenient reverting.
               </p>
               <p>
-                The configuration being previewed is shown below. To persist it,
-                you can save it as the configuration template after reviewing
-                the values.
+                The preview configuration is shown below. To persist it, you can
+                save it as the configuration template after reviewing the
+                values, or revert this configuration.
               </p>
               <Button onClick={() => setRevertOpen(true)}>
-                Revert to Configuration Template
+                Revert to Template
               </Button>
             </div>
           </InfoBox>
@@ -143,7 +141,6 @@ export const ConfigTab = ({
               name: formData.get("name")!.toString(),
               appGroup,
               projectId: formState.projectId,
-              enableCD,
               config: {
                 port: parseInt(formData.get("portNumber")!.toString()),
                 env: formState.env.filter((it) => it.name.length > 0),
@@ -193,23 +190,6 @@ export const ConfigTab = ({
         className="flex flex-col gap-8"
       >
         <div>
-          {formState.source === "git" && (
-            <div className="gap-2 mb-6 space-y-2">
-              <Label className="pb-1">
-                <Workflow className="inline" size={16} /> Toggle Continuous
-                Deployment
-              </Label>
-              <Label>
-                <Switch checked={enableCD} onCheckedChange={setEnableCD} />{" "}
-                Continuous deployment is{" "}
-                {enableCD ? <strong>on.</strong> : <strong>off.</strong>}
-                <span className="text-black-4">
-                  This app {enableCD ? "will" : "will not"} be rebuilt and
-                  redeployed if the source repository updates.
-                </span>
-              </Label>
-            </div>
-          )}
           <div className="flex items-baseline gap-2 mb-2">
             <Label className="pb-1">
               <TextCursorInput className="inline" size={16} /> App Name
@@ -367,7 +347,7 @@ const RevertDialog = ({
   }, [data, isPending]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+      <DialogContent className="duration-300 h-fit max-h-5/6 2xl:max-h-2/3 flex flex-col overflow-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Revert to Template Configuration</DialogTitle>
         </DialogHeader>

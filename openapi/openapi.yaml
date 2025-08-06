@@ -962,6 +962,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /app/{appId}/cd:
+    parameters:
+      - name: appId
+        in: path
+        description: Id of app
+        required: true
+        schema:
+          type: integer
+          format: int64
+    put:
+      tags:
+        - app
+      description: Enable or disable continuous deployment for an app.
+      operationId: setAppCD
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enable:
+                  type: boolean
+              required: [enable]
+      responses:
+        "404":
+          description: Not found
+        "200":
+          description: Success
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /app/{appId}/template:
     parameters:
       - name: appId
@@ -1744,12 +1780,9 @@ components:
               required: [type, id]
         projectId:
           type: string
-        enableCD:
-          type: boolean
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
-        - enableCD
         - config
     DeploymentConfig:
       type: object
