@@ -51,7 +51,7 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
     include: {
       apps: {
         include: {
-          deploymentConfigTemplate: true,
+          deployments: true,
         },
       },
     },
@@ -73,14 +73,31 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
   }
   try {
     const repos = appGroup.apps.map((app) => app.imageRepo);
-    // cascade deletes App, Logs, Mounts
-    await db.$transaction(
-      appGroup.apps.map((app) =>
-        db.deploymentConfig.delete({
-          where: { id: app.deploymentConfigTemplateId },
-        }),
-      ),
-    );
+    const appIds = appGroup.apps.map((app) => app.id);
+    await db.$transaction(async (tx) => {
+      await tx.log.deleteMany({
+        where: {
+          deployment: {
+            appId: { in: appIds },
+          },
+        },
+      });
+
+      // Cascade delete deployments
+      await tx.deploymentConfig.deleteMany({
+        where: {
+          deployment: {
+            appId: { in: appIds },
+          },
+        },
+      });
+
+      await tx.app.deleteMany({
+        where: { id: { in: appIds } },
+      });
+
+      await tx.appGroup.delete({ where: { id: appGroupId } });
+    });
     try {
       await Promise.all(
         repos.map(async (repo) => {
@@ -97,12 +114,5 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
       message: "There was a problem deleting your apps",
     });
   }
-  try {
-    await db.appGroup.delete({ where: { id: appGroupId } });
-  } catch (err) {
-    console.error(err);
-    return json(500, res, { code: 500, message: "Failed to delete app group" });
-  }
-
   return json(200, res, {});
 };

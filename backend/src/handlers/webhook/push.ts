@@ -18,18 +18,23 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
     return json(400, res, { message: "Repository ID not specified" });
   }
 
+  const updatedBranch = payload.ref.match(/^refs\/heads\/(?<branch>.+)/).groups
+    .branch;
+
   // Look up the connected app and create a deployment job
   const apps = await db.app.findMany({
     where: {
-      deploymentConfigTemplate: {
+      config: {
         source: DeploymentSource.GIT,
+        event: "push",
+        branch: updatedBranch,
         repositoryId: repoId,
       },
       org: { githubInstallationId: { not: null } },
     },
     include: {
       org: { select: { githubInstallationId: true } },
-      deploymentConfigTemplate: true,
+      config: true,
     },
   });
 
@@ -38,17 +43,8 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
   }
 
   for (const app of apps) {
-    // Require that the app deploys on push and the push was made to the right branch
-    if (
-      app.deploymentConfigTemplate.event !== "push" ||
-      payload.ref !== `refs/heads/${app.deploymentConfigTemplate.branch}`
-    ) {
-      continue;
-    }
-
     const octokit = await getOctokit(app.org.githubInstallationId);
 
-    delete app.deploymentConfigTemplate.id; // When creating a new Deployment, we also want to create a new DeploymentConfig that isn't related at all to the template
     await buildAndDeploy({
       orgId: app.orgId,
       appId: app.id,
@@ -57,16 +53,16 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
       commitMessage: payload.head_commit.message,
       config: {
         // Reuse the config from the previous deployment
-        fieldValues: app.deploymentConfigTemplate.fieldValues,
+        fieldValues: app.config.fieldValues,
         source: "GIT",
-        event: app.deploymentConfigTemplate.event,
-        env: app.deploymentConfigTemplate.getPlaintextEnv(),
-        repositoryId: app.deploymentConfigTemplate.repositoryId,
-        branch: app.deploymentConfigTemplate.branch,
-        builder: app.deploymentConfigTemplate.builder,
-        rootDir: app.deploymentConfigTemplate.rootDir,
-        dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-        imageTag: app.deploymentConfigTemplate.imageTag,
+        event: app.config.event,
+        env: app.config.getPlaintextEnv(),
+        repositoryId: app.config.repositoryId,
+        branch: app.config.branch,
+        builder: app.config.builder,
+        rootDir: app.config.rootDir,
+        dockerfilePath: app.config.dockerfilePath,
+        imageTag: app.config.imageTag,
       },
       createCheckRun: true,
       octokit,

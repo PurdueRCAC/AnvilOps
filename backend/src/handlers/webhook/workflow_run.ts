@@ -27,33 +27,27 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
   }
 
   // Look up the connected apps
-  const linkedApps = await db.app.findMany({
+  const apps = await db.app.findMany({
     where: {
-      deploymentConfigTemplate: {
+      config: {
         source: DeploymentSource.GIT,
         repositoryId: repoId,
+        branch: payload.workflow_run.head_branch,
+        event: "workflow_run",
+        eventId: payload.workflow.id,
       },
       org: { githubInstallationId: { not: null } },
       enableCD: true,
     },
     include: {
       org: { select: { githubInstallationId: true } },
-      deploymentConfigTemplate: true,
+      config: true,
     },
   });
 
-  if (linkedApps.length === 0) {
+  if (apps.length === 0) {
     return json(200, res, { message: "No matching apps found" });
   }
-
-  // Filter for apps that deploy on when this workflow runs on this branch
-  const apps = linkedApps.filter(
-    (app) =>
-      app.deploymentConfigTemplate.event === "workflow_run" &&
-      app.deploymentConfigTemplate.branch ===
-        payload.workflow_run.head_branch &&
-      app.deploymentConfigTemplate.eventId === payload.workflow.id,
-  );
 
   if (payload.action === "requested") {
     for (const app of apps) {
@@ -67,15 +61,15 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
           commitMessage: payload.workflow_run.head_commit.message,
           config: {
             // Reuse the config from the previous deployment
-            fieldValues: app.deploymentConfigTemplate.fieldValues,
+            fieldValues: app.config.fieldValues,
             source: "GIT",
-            env: app.deploymentConfigTemplate.getPlaintextEnv(),
-            repositoryId: app.deploymentConfigTemplate.repositoryId,
-            branch: app.deploymentConfigTemplate.branch,
-            builder: app.deploymentConfigTemplate.builder,
-            rootDir: app.deploymentConfigTemplate.rootDir,
-            dockerfilePath: app.deploymentConfigTemplate.dockerfilePath,
-            imageTag: app.deploymentConfigTemplate.imageTag,
+            env: app.config.getPlaintextEnv(),
+            repositoryId: app.config.repositoryId,
+            branch: app.config.branch,
+            builder: app.config.builder,
+            rootDir: app.config.rootDir,
+            dockerfilePath: app.config.dockerfilePath,
+            imageTag: app.config.imageTag,
           },
           workflowRunId: payload.workflow_run.id,
           createCheckRun: true,

@@ -47,29 +47,24 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(401, res, {});
   }
-  const {
-    subdomain,
-    projectId,
-    imageRepo,
-    appGroup,
-    deploymentConfigTemplateId,
-  } = await db.app.findUnique({
-    where: {
-      id: appId,
-    },
-    select: {
-      subdomain: true,
-      imageRepo: true,
-      projectId: true,
-      appGroup: {
-        select: {
-          id: true,
-          _count: true,
+  const { subdomain, projectId, imageRepo, appGroup } = await db.app.findUnique(
+    {
+      where: {
+        id: appId,
+      },
+      select: {
+        subdomain: true,
+        imageRepo: true,
+        projectId: true,
+        appGroup: {
+          select: {
+            id: true,
+            _count: true,
+          },
         },
       },
-      deploymentConfigTemplateId: true,
     },
-  });
+  );
 
   try {
     const { KubernetesObjectApi: api } = await getClientsForRequest(
@@ -98,10 +93,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   }
 
   try {
-    // cascade deletes App
-    await db.deploymentConfig.delete({
-      where: { id: deploymentConfigTemplateId },
-    });
+    await db.app.delete({ where: { id: appId } });
     if (appGroup._count.apps === 1) {
       // If this was the last app in the group, delete the group as well
       await db.appGroup.delete({ where: { id: appGroup.id } });

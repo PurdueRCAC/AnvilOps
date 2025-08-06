@@ -169,16 +169,15 @@ export const db = client
     query: {
       app: {
         create({ args, query }) {
-          if (!args.data.deploymentConfigTemplate) {
+          if (!args.data.config) {
             return query(args);
           }
 
-          const createConfig = args.data.deploymentConfigTemplate.create;
+          const createConfig = args.data.config.create;
           if (createConfig) {
             patchEnvIfExists(createConfig);
           }
-          const connectConfig =
-            args.data.deploymentConfigTemplate.connectOrCreate;
+          const connectConfig = args.data.config.connectOrCreate;
           if (connectConfig) {
             patchEnvIfExists(connectConfig.create);
           }
@@ -186,25 +185,25 @@ export const db = client
         },
 
         update({ args, query }) {
-          if (!args.data.deploymentConfigTemplate) {
+          if (!args.data.config) {
             return query(args);
           }
 
-          const template = args.data.deploymentConfigTemplate;
-          if (template.create) {
-            patchEnvIfExists(template.create);
+          const config = args.data.config;
+          if (config.create) {
+            patchEnvIfExists(config.create);
           }
 
-          if (template.connectOrCreate) {
-            patchEnvIfExists(template.connectOrCreate.create);
+          if (config.connectOrCreate) {
+            patchEnvIfExists(config.connectOrCreate.create);
           }
 
-          if (template.upsert) {
-            patchEnvIfExists(template.upsert.update);
+          if (config.upsert) {
+            patchEnvIfExists(config.upsert.update);
           }
 
-          if (template.update) {
-            patchEnvIfExists(template.update);
+          if (config.update) {
+            patchEnvIfExists(config.update);
           }
 
           return query(args);

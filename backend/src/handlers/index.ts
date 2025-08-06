@@ -232,7 +232,7 @@ export const handlers = {
             include: {
               apps: {
                 include: {
-                  deploymentConfigTemplate: true,
+                  config: true,
                   deployments: {
                     include: {
                       config: true,
@@ -264,13 +264,13 @@ export const handlers = {
             const apps = await Promise.all(
               group.apps.map(async (app) => {
                 let repoURL: string;
-                if (app.deploymentConfigTemplate.source === "GIT") {
+                if (app.config.source === "GIT") {
                   if (!octokit) {
                     octokit = await getOctokit(org.githubInstallationId);
                   }
                   const repo = await getRepoById(
                     octokit,
-                    app.deploymentConfigTemplate.repositoryId,
+                    app.config.repositoryId,
                   );
                   repoURL = repo.html_url;
                 }
@@ -290,7 +290,7 @@ export const handlers = {
                   source: selectedDeployment?.config.source,
                   imageTag: selectedDeployment?.config?.imageTag,
                   repositoryURL: repoURL,
-                  branch: app.deploymentConfigTemplate.branch,
+                  branch: app.config.branch,
                   commitHash: selectedDeployment?.commitHash,
                   link:
                     selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
@@ -453,7 +453,7 @@ export const handlers = {
               include: { config: true },
             },
             appGroup: true,
-            deploymentConfigTemplate: true,
+            config: true,
             org: true,
           },
         }),
@@ -483,7 +483,7 @@ export const handlers = {
           "anvilops.rcac.purdue.edu/deployment-id"
         ];
 
-      const currentConfig = app.deploymentConfigTemplate;
+      const currentConfig = app.config;
 
       // Fetch repository info if this app is deployed from a Git repository
       const { repoId, repoURL } = await (async () => {

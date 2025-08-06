@@ -184,79 +184,26 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     },
   });
   const appConfigs = data.apps.map((app) => {
-    const deploymentConfig: DeploymentConfigCreateInput = {
-      env: app.env,
-      fieldValues: {
-        replicas: 1,
-        port: app.port,
-        servicePort: 80,
-        mounts: app.mounts,
-        extra: {
-          postStart: app.postStart,
-          preStop: app.preStop,
-        },
-      },
-      ...(app.source === "git"
-        ? {
-            source: "GIT",
-            repositoryId: app.repositoryId,
-            event: app.event,
-            eventId: app.eventId,
-            branch: app.branch,
-            builder: app.builder,
-            dockerfilePath: app.dockerfilePath,
-            rootDir: app.rootDir,
-          }
-        : {
-            source: "IMAGE",
-            imageTag: app.imageTag,
-          }),
-    };
-
     return {
       name: app.name,
       displayName: app.name,
       subdomain: app.subdomain,
-      org: {
-        connect: {
-          id: app.orgId,
-        },
-      },
+      orgId: app.orgId,
       // This cluster username will be used to automatically update the app after a build job or webhook payload
       clusterUsername,
       projectId: app.projectId,
-      appGroup: {
-        connect: {
-          id: appGroupId,
-        },
-      },
+      appGroupId,
       logIngestSecret: randomBytes(48).toString("hex"),
-      deploymentConfigTemplate: {
-        create: deploymentConfig,
-      },
     };
   });
 
-  let apps: (App & { deploymentConfigTemplate: DeploymentConfig })[];
+  let apps: App[];
   try {
-    apps = await db.$transaction(
-      appConfigs.map((app) =>
-        db.app.create({
-          data: app,
-          include: { deploymentConfigTemplate: true },
-        }),
-      ),
-    );
-
-    apps = await db.$transaction(
-      apps.map((app) =>
-        db.app.update({
-          where: { id: app.id },
-          data: { imageRepo: `app-${app.orgId}-${app.id}` },
-          include: { deploymentConfigTemplate: true },
-        }),
-      ),
-    );
+    apps = await db.$transaction(async (tx) => {
+      return await tx.app.createManyAndReturn({
+        data: appConfigs,
+      });
+    });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
       // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
@@ -279,10 +226,39 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           let commitSha = "unknown",
             commitMessage = "Initial deployment";
 
-          if (app.deploymentConfigTemplate.source === "GIT") {
+          const configParams = data.apps[idx];
+          const deploymentConfig: DeploymentConfigCreateInput = {
+            env: configParams.env,
+            fieldValues: {
+              replicas: 1,
+              port: configParams.port,
+              servicePort: 80,
+              mounts: configParams.mounts,
+              extra: {
+                postStart: configParams.postStart,
+                preStop: configParams.preStop,
+              },
+            },
+            ...(configParams.source === "git"
+              ? {
+                  source: "GIT",
+                  repositoryId: configParams.repositoryId,
+                  event: configParams.event,
+                  eventId: configParams.eventId,
+                  branch: configParams.branch,
+                  builder: configParams.builder,
+                  dockerfilePath: configParams.dockerfilePath,
+                  rootDir: configParams.rootDir,
+                }
+              : {
+                  source: "IMAGE",
+                  imageTag: configParams.imageTag,
+                }),
+          };
+          if (deploymentConfig.source === "GIT") {
             const repo = await getRepoById(
               octokit,
-              app.deploymentConfigTemplate.repositoryId,
+              deploymentConfig.repositoryId,
             );
             const latestCommit = (
               await octokit.rest.repos.listCommits({
@@ -301,7 +277,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
             imageRepo: app.imageRepo,
             commitSha: commitSha,
             commitMessage: commitMessage,
-            config: appConfigs[idx].deploymentConfigTemplate.create,
+            config: deploymentConfig,
             createCheckRun: false,
           });
         })(),
