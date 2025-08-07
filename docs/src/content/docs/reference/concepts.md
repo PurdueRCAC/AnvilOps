@@ -18,6 +18,10 @@ Your App has a subdomain that allows external users to access your application a
 
 An app may be standalone, or it may belong to an [app group](/reference/app-groups). Within the cluster, an app is accessible to other apps in the same app group at `anvilops-<subdomain>.anvilops-<subdomain>`.
 
+## App Group
+
+[Apps](/reference/concepts#app) that belong to the same Organization can be organized into App Groups. This is useful for applications that are built as many [microservices](https://aws.amazon.com/microservices/), or many independent components that communicate to handle requests from users. For instance, a web app and a database. AnvilOps ensures that apps in the same App Group can communicate within the cluster.
+
 ## Deployment
 
 _Not to be confused with [the Kubernetes concept](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) with the same name._
@@ -25,8 +29,6 @@ _Not to be confused with [the Kubernetes concept](https://kubernetes.io/docs/con
 A Deployment is a collection of all the configuration needed to build and run an application on the cluster. It includes information like a linked Git repository or image tag, commit hash and message, environment variables, and port numbers.
 
 A new Deployment is created for an App each time its configuration is updated, or if it is linked to a Git repository, each time you push a commit. Then, the changes are applied to the cluster so that the latest version of your application is running, with the latest configuration.
-
-When you push a commit, AnvilOps starts from the [Deployment Configuration Template](#configuration-template) and then replaces the commit hash and message with their new values.
 
 Deployments have statuses:
 
@@ -40,14 +42,3 @@ Deployments have statuses:
 
 On the Overview tab of the App page, you will see one Deployment with the "✓ Current" tag. The Current Deployment is the one that's currently receiving web traffic.
 When a new Deployment's status is set to Success, it may take a minute for it to become the Current Deployment. You can monitor this progress in the Status tab.
-
-## Configuration Template
-
-Your App's configuration template is used to generate new Deployments when they need to be created automatically, like on a Git push.
-You can modify your template from the Configuration tab in the App page.
-
-You can create a Deployment without updating the template by clicking the "↺ Rollback" button and selecting the "Run as a preview deployment" option.
-
-## App Group
-
-[Apps](/reference/concepts#app) that belong to the same Organization can be organized into App Groups. This is useful for applications that are built as many [microservices](https://aws.amazon.com/microservices/), or many independent components that communicate to handle requests from users. AnvilOps ensures that app that are part of the same App Group can communicate within the cluster.

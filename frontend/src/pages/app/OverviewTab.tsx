@@ -199,7 +199,9 @@ export const OverviewTab = ({
           </>
         )}
       </div>
-      <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
+      {app.config.source === "git" && (
+        <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
+      )}
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
         {app.config.source === "git" ? (

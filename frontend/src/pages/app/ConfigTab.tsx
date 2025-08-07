@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
+import HelpTooltip from "@/components/HelpTooltip";
 
 export const ConfigTab = ({
   app,
@@ -168,6 +169,13 @@ export const ConfigTab = ({
           <Label className="pb-1">
             <Scale3D className="inline" size={16} /> Replicas
           </Label>
+          <HelpTooltip size={16}>
+            <p>
+              The number of instances of your application running at once.
+              Having multiple replicas improves fault tolerance and improves
+              performance by distributing traffic.
+            </p>
+          </HelpTooltip>
           <span
             className="text-red-500 cursor-default"
             title="This field is required."
