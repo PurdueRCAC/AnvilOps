@@ -296,6 +296,7 @@ export async function cancelBuildJobsForApp(appId: number) {
   await svcK8s["BatchV1Api"].deleteCollectionNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
     labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
+    propagationPolicy: "Background", // Delete dependent resources (pods and secrets) in the background. Without this option, they would not be deleted at all.
   });
 }
 
