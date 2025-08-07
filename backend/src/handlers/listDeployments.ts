@@ -47,9 +47,20 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     ...new Set(deployments.map((it) => it.config.repositoryId).filter(Boolean)),
   ];
   const repos = await Promise.all(
-    distinctRepoIDs.map(async (id) =>
-      id ? await getRepoById(octokit, id) : undefined,
-    ),
+    distinctRepoIDs.map(async (id) => {
+      if (id) {
+        try {
+          return await getRepoById(octokit, id);
+        } catch (error) {
+          if (error?.status === 404) {
+            // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
+            return undefined;
+          }
+          throw error; // Rethrow any other kind of error
+        }
+      }
+      return undefined;
+    }),
   );
 
   return json(

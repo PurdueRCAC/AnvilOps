@@ -260,6 +260,14 @@ export const handlers = {
 
       let octokit: Octokit;
 
+      if (
+        org.appGroups.some((it) =>
+          it.apps.some((app) => app.config.source === "GIT"),
+        )
+      ) {
+        octokit = await getOctokit(org.githubInstallationId);
+      }
+
       const appGroupRes: components["schemas"]["Org"]["appGroups"] =
         await Promise.all(
           org.appGroups.map(async (group) => {
@@ -267,14 +275,19 @@ export const handlers = {
               group.apps.map(async (app) => {
                 let repoURL: string;
                 if (app.config.source === "GIT" && org.githubInstallationId) {
-                  if (!octokit) {
-                    octokit = await getOctokit(org.githubInstallationId);
+                  try {
+                    const repo = await getRepoById(
+                      octokit,
+                      app.config.repositoryId,
+                    );
+                    repoURL = repo.html_url;
+                  } catch (error: any) {
+                    if (error?.status === 404) {
+                      // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
+                      return;
+                    }
+                    throw error; // Rethrow all other kinds of errors
                   }
-                  const repo = await getRepoById(
-                    octokit,
-                    app.config.repositoryId,
-                  );
-                  repoURL = repo.html_url;
                 }
 
                 const latestCompleteDeployment = app.deployments.find(
