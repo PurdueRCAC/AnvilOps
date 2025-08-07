@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -19,7 +20,6 @@ import { useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
-import { Switch } from "@/components/ui/switch";
 
 const defaultRedeployState = {
   radioValue: undefined,
@@ -328,22 +328,23 @@ export const RedeployModal = ({
                       setRedeployState((rs) => ({ ...rs, enableCD: checked }))
                     }
                   />
-                  Continuous deployment will be turned
-                  <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+                  <span>
+                    Continuous deployment will be turned{" "}
+                    <strong>{redeployState.enableCD ? "on." : "off."}</strong>
+                  </span>
                 </Label>
                 <p className="text-black-4 text-sm my-2">
                   {redeployState.enableCD ? (
                     <>
-                      If this app's template references a Git repository and a
-                      commit is pushed, the app will be rebuilt and
-                      redeployed.{" "}
+                      If this app is linked to a Git repository and a commit is
+                      pushed, the app will be rebuilt and redeployed
+                      automatically.{" "}
                     </>
                   ) : (
                     <>
-                      If this app's template references a Git repository and a
-                      commit is pushed, the app{" "}
-                      <strong>will not be updated</strong> on the cluster until
-                      continuous deployment is reenabled.
+                      If this app is linked to a Git repository and a commit is
+                      pushed, the app <strong>will not be updated</strong> on
+                      the cluster until continuous deployment is re-enabled.
                     </>
                   )}
                 </p>

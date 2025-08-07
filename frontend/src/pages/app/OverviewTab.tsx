@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
@@ -15,7 +16,6 @@ import {
   ExternalLink,
   GitBranch,
   GitCommit,
-  InfoIcon,
   Link2,
   Loader,
   LogsIcon,
@@ -24,10 +24,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
@@ -199,12 +198,10 @@ export const OverviewTab = ({
           </>
         )}
       </div>
-      {app.config.source === "git" && (
-        <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
-      )}
+      <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
       <p className="opacity-50 mb-2">
-        {app.config.source === "git" ? (
+        {app.config.source === "git" && app.cdEnabled ? (
           <>
             Automatically triggered by {deployTrigger}
             <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
@@ -364,37 +361,6 @@ export const OverviewTab = ({
   );
 };
 
-export const InfoBox = ({
-  type,
-  title,
-  children,
-}: {
-  type: "info" | "warning" | "neutral";
-  title: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div
-      className={cn("rounded-md p-4 my-4 text-black-4", getBoxClasses(type))}
-    >
-      <div className="text-lg font-bold mb-2 flex items-center gap-2">
-        <InfoIcon className="inline" /> <h3>{title}</h3>
-      </div>
-      {children}
-    </div>
-  );
-};
-
-const getBoxClasses = (type: "info" | "warning" | "neutral") => {
-  if (type === "info") {
-    return "bg-gold-1/75";
-  } else if (type === "warning") {
-    return "bg-red-200";
-  } else if (type === "neutral") {
-    return "border border-black-2";
-  }
-};
-
 const ToggleCDForm = ({
   app,
   refetchApp,
@@ -408,6 +374,10 @@ const ToggleCDForm = ({
     "put",
     "/app/{appId}/cd",
   );
+
+  if (app.config.source !== "git") {
+    return null;
+  }
 
   return (
     <form
@@ -431,9 +401,9 @@ const ToggleCDForm = ({
         {app.cdEnabled ? <strong>on.</strong> : <strong>off.</strong>}{" "}
       </p>
       <p className="text-black-3">
-        If this app's template is linked to a Git repository, the app{" "}
-        {app.cdEnabled ? "will" : "will not"} be rebuilt and redeployed if the
-        source repository updates.
+        This app {app.cdEnabled ? "will" : "will not"} be rebuilt and redeployed
+        when new changes are pushed to the {app.config.branch} branch of the
+        connected repository.
       </p>
       <Button>
         {isPending ? (
