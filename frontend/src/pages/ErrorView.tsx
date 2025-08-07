@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 type ErrorType = "login" | "github_app";
 type ErrorCode =
   | "IDP_FAIL"
+  | "RANCHER_ID_MISSING"
   | "STATE_FAIL"
   | "INSTALLATION_FAIL"
   | "DIFF_ACCOUNT"
@@ -33,6 +34,9 @@ export default function ErrorView() {
           switch (search.get("code") as ErrorCode | null) {
             case "IDP_FAIL": {
               return "Cannot sign in with that identity provider.";
+            }
+            case "RANCHER_ID_MISSING": {
+              return "Could not find your account on Rancher. Please contact your administrator.";
             }
             case "STATE_FAIL": {
               return "Failed to verify state.";

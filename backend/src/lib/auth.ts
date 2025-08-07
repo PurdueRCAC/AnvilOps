@@ -82,9 +82,11 @@ router.get("/oauth_callback", async (req, res) => {
       if (isRancherManaged()) {
         try {
           clusterUsername = await getRancherUserID(eppn as string);
+          if (!clusterUsername) {
+            throw new Error();
+          }
         } catch (e) {
-          console.error(e);
-          return res.redirect("/error?type=login");
+          return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
         }
       }
       const newUser = await db.user.create({
