@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "astro-build.astro-vscode",
+    "github.vscode-github-actions",
+    "unifiedjs.vscode-mdx",
+    "Prisma.prisma",
+    "redhat.vscode-yaml"
+  ]
+}

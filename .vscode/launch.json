@@ -1,0 +1,26 @@
+{
+  "configurations": [
+    {
+      "name": "Backend",
+      "type": "node-terminal",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/backend",
+      "request": "launch",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
+      "name": "Frontend",
+      "type": "node-terminal",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend",
+      "request": "launch"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch All",
+      "stopAll": true,
+      "configurations": ["Backend", "Frontend"]
+    }
+  ]
+}

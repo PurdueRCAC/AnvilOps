@@ -1,0 +1,9 @@
+{
+  // Indent all files with 2 spaces
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  // Automatically sort imports when saving a file
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  }
+}
