@@ -16,7 +16,7 @@ This represents the application you would like to run on the Kubernetes cluster.
 
 Your App has a subdomain that allows external users to access your application at `<subdomain>.anvilops.rcac.purdue.edu`.
 
-An app may be standalone, or it may belong to an [app group](/reference/app-groups). Within the cluster, an app is accessible to other apps in the same app group at `anvilops-<subdomain>.anvilops-<subdomain>`.
+An app may be standalone, or it may belong to an app group. Within the cluster, an app is accessible to other apps in the same app group at `anvilops-<subdomain>.anvilops-<subdomain>`.
 
 ## App Group
 
@@ -41,4 +41,4 @@ Deployments have statuses:
 - Error: Something went wrong during the build or deployment process. Check the deployment logs for more information.
 
 On the Overview tab of the App page, you will see one Deployment with the "✓ Current" tag. The Current Deployment is the one that's currently receiving web traffic.
-When a new Deployment's status is set to Success, it may take a minute for it to become the Current Deployment. You can monitor this progress in the Status tab. 
+When a new Deployment's status is set to Success, it may take a minute for it to become the Current Deployment. You can monitor this progress in the Status tab.
