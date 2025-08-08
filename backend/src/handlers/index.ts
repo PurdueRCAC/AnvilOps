@@ -263,7 +263,8 @@ export const handlers = {
       if (
         org.appGroups.some((it) =>
           it.apps.some((app) => app.config.source === "GIT"),
-        )
+        ) &&
+        org.githubInstallationId
       ) {
         octokit = await getOctokit(org.githubInstallationId);
       }
@@ -508,7 +509,7 @@ export const handlers = {
 
       // Fetch repository info if this app is deployed from a Git repository
       const { repoId, repoURL } = await (async () => {
-        if (currentConfig.source === "GIT") {
+        if (currentConfig.source === "GIT" && app.org.githubInstallationId) {
           const octokit = await getOctokit(app.org.githubInstallationId);
           const repo = await getRepoById(octokit, currentConfig.repositoryId);
           return { repoId: repo.id, repoURL: repo.html_url };
