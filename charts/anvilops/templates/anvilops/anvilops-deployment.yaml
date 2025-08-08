@@ -199,6 +199,12 @@ spec:
               value: {{ .Values.anvilops.env.harborProjectName }}
             - name: BUILDKITD_ADDRESS
               value: {{ .Values.buildkitd.address }}
+            - name: FILE_BROWSER_IMAGE
+              value: {{ .Values.anvilops.env.fileBrowserImage }}
+            - name: DOCKERFILE_BUILDER_IMAGE
+              value: {{ .Values.anvilops.env.dockerfileBuilderImage }}
+            - name: RAILPACK_BUILDER_IMAGE
+              value: {{ .Values.anvilops.env.railpackBuilderImage }}
       volumes:
         - name: ca-cert
           secret:
