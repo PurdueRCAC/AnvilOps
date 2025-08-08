@@ -407,11 +407,13 @@ export async function createPendingWorkflowDeployment({
       ? (config.imageTag as ImageTag)
       : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${commitSha}` as const);
 
+  const secret = randomBytes(32).toString("hex");
   const deployment = await db.deployment.create({
     data: {
       app: { connect: { id: appId } },
       commitHash: commitSha,
       commitMessage: commitMessage,
+      secret,
       config: {
         create: { ...config, imageTag },
       },
@@ -420,9 +422,7 @@ export async function createPendingWorkflowDeployment({
     select: {
       id: true,
       appId: true,
-      secret: true,
       commitHash: true,
-      config: true,
       app: {
         include: {
           appGroup: true,

@@ -70,6 +70,8 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
             rootDir: app.config.rootDir,
             dockerfilePath: app.config.dockerfilePath,
             imageTag: app.config.imageTag,
+            event: app.config.event,
+            eventId: app.config.eventId,
           },
           workflowRunId: payload.workflow_run.id,
           createCheckRun: true,
