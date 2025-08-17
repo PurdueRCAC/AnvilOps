@@ -12,10 +12,10 @@ import { Steps } from "@astrojs/starlight/components";
 
 1. [Sign in to AnvilOps](https://anvilops.rcac.purdue.edu/api/login) with your ACCESS account.
 
-   This will create an AnvilOps account and organization for you.
+   This will create an AnvilOps account for you.
 
 2. Navigate to the [dashboard](https://anvilops.rcac.purdue.edu/dashboard) page.
-3. Link your GitHub organization or personal account with your AnvilOps organization.
+3. Link your GitHub organization or personal account.
 
    This will allow you to deploy applications from GitHub repositories.
    Make sure you grant the AnvilOps GitHub App permission to access the repositories you want to deploy!
@@ -24,114 +24,16 @@ import { Steps } from "@astrojs/starlight/components";
 
 ## Creating an App
 
-### Prerequisites:
+### Prerequisites
 
-- A GitHub repository or publicly available OCI-compliant container image you would like to deploy.
+- A **GitHub repository** or publicly available OCI-compliant **container image** (e.g. Docker image) you would like to deploy.
   - Singularity images are not currently supported.
 - A **Rancher Project** to deploy your project inside.
   - On Rancher, a Project is a group of namespaces which can be configured with access controls and resource quotas. Consult your administrator to gain access to one.
   - Alternatively, you can deploy your application in the `anvilops_sandbox` Project.
 
-Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page in order to launch your application. Configurable parameters are described below.
+### Deploying an App
 
-### Organization
+Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page in order to configure and launch your app.
 
-- **Organization**: All apps and belong to an organization. Organizations connect apps to GitHub organizations and to the people who can access them on the AnvilOps dashboard. **An App cannot be moved to a different organization later.**
-
-### Grouping Options
-
-- **Group**: An AnvilOps App can be deployed on its own as a standalone app, or it can be part of an [app group](/reference/concepts#app-group).
-
-### Source Options
-
-- **Deployment Source**: Choose to deloy your app from a Git repository with automatic builds or directly from a OCI-compliant container image.
-
-  - **Git**: If you deploy from a Git repository, AnvilOps will watch for new commits and automatically rebuild and redeploy your application when a specified event occurs. Read the [Git Integration guide](/reference/git-integration) for more information.
-  - **OCI image**: If you deploy from an OCI image, AnvilOps will bypass the build process and directly use the image you specify. Here are some [guidelines](https://kubernetes.io/docs/concepts/containers/images/#image-names) for allowed image names.
-
-{/_
-{/_ TODO: Move this section to the Git integration reference page to shorten the Getting Started \*/}
-
-- **Repository**: If you selected Git Repository as your Deployment Source, the Repository menu will be populated with a list of all the repositories AnvilOps can access.
-  If you can't see your repository:
-
-  - For personal accounts, go to GitHub, click on your profile picture in the top right > Settings > Applications > "Configure" next to AnvilOps
-  - For organizations, go to GitHub, click on your profile picture in the top right > Your organizations > "Settings" next to the organization you installed the app on > GitHub Apps > "Configure" next to AnvilOps
-
-  Then, make your changes in the Repository Access section and click Save.
-
-- **Branch**: The Git branch to deploy from. When you select a repository, this field will be populated with a list of branches in your repository.
-
-  Only pushes to this branch will be considered for automatic deployments.
-
-- **Event**: Set this to "Push" to deploy as soon as a commit is pushed or "Successful workflow run" to wait until a certain GitHub Actions workflow has finished successfully before deploying.
-
-  This setting is especially useful if you want to run automated tests before deploying a new version of your app to your users. If the workflow run fails, the deployment will be skipped.
-  \*/}
-
-### Build Options
-
-- **Root directory**: A path in your repository to consider as the root. If you are using the Dockerfile builder, your root directory should directly or indirectly contain your Dockerfile.
-
-  Your root directory must start with `./` to denote the original root of the repository. For example, if you want AnvilOps to build and deploy the `app` directory in your repository, your root directory would be `./app`.
-
-  This setting is useful if you have multiple deployable applications in one repository, like a web frontend and backend. For each one, create an App on AnvilOps with a different root directory.
-
-- **Builder**:
-
-  - **If you have written a Dockerfile**, you probably want to use the Dockerfile builder. It will look for a Dockerfile at the path you specify a build it with BuildKit.
-
-    Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
-
-  - **If you do not have a Dockerfile**, you should try the Railpack builder. It will attempt to detect the language and framework you are using and generate some instructions to build it. See the [Railpack reference](/reference/railpack) for a list of supported technologies.
-
-### Deployment Options
-
-- **Public URL**: This is the address that your users can visit to access your app. It will be publicly accessible to anyone without any authentication. **This setting cannot be changed later.**
-
-- **Port Number**: Set this to the port that your app runs on. Depending on your web framework, this will likely be one of these common default ports: 80, 3000, 4321, 5173, 8000, or 8080.
-
-  If this setting is not set correctly, you will see a "This app is not available" page when you try to visit your app at its Public URL.
-
-  If you are unsure, consult the documentation of the framework or web server you are using, or try to find it in the console output when the app starts up.
-
-- **Environment Variables**: If your app needs certain environment variables to run, add them here.
-
-  - Values are interpreted literally, so there is no need to quote or escape special characters.
-  - Mark an environment variable as Sensitive to hide its value in the dashboard. You will not be able to view it or change its name, but you can update its value. The application will still receive the variable as usual.
-  - Environment variables are provided at build time and at runtime.
-
-    - If you are using the Railpack builder, your build commands have access to all of your environment variables.
-    - If you are using the Dockerfile builder, you will need to mount them as a secret and read them to retrieve their values:
-
-      ```dockerfile
-      RUN --mount=type=secret,id=VARIABLE_NAME cat /run/secrets/VARIABLE_NAME
-      ```
-
-      If you want to use it as an environment variable, you can do something like this:
-
-      ```dockerfile
-      RUN --mount=type=secret,id=VARIABLE_NAME export VARIABLE_NAME=$(cat /run/secrets/VARIABLE_NAME) && npm run build # <-- Your build command here
-      ```
-
-      Read more about secret mounts [here](https://docs.docker.com/build/building/secrets/#using-build-secrets). Each environment variable is given a secret with the same name.
-
-- **Volume Mounts**: AnvilOps runs your application in a container. Containers have a type of file system that allows programs to write files, but changes are only temporary unless they are written in a directory that's mounted as a persistent volume.
-
-  - All files outside of a persistent volume should be considered temporary and may be deleted at any time.
-  - All files inside a persistent volume (directly and recursively) will be saved.
-
-  **This setting cannot be changed later.** Make sure to allocate enough storage when you create your app! You cannot resize a persistent volume after creating it.
-
-- **CPU Cores**: The amount of CPU, in millicores, to allocate to your application.
-
-- **Memory**: The amount of memory, in MiB, to allocate to your application.
-
-### Advanced Options
-
-The Advanced section contains two fields, both of which match [the Kubernetes options with the same names](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/).
-
-- **Post-Start Command**: A command to run after the application has started and is ready to receive requests.
-- **Pre-Stop Command**: A command to run before the application is terminated. This only applies when AnvilOps is gracefully terminating your application. If your application terminates itself, this command is not run.
-
-Note that post-start and pre-stop commands [may run more than once](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#hook-delivery-guarantees) in rare cases.
+Applications on AnvilOps can be configured in a number of ways. For more information on available parameters, see the [configuration guide](/reference/configuration).
