@@ -24,22 +24,33 @@ import { Steps } from "@astrojs/starlight/components";
 
 ## Creating an App
 
-Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page.
+### Prerequisites:
+
+- A GitHub repository or publicly available OCI-compliant container image you would like to deploy.
+  - Singularity images are not currently supported.
+- A **Rancher Project** to deploy your project inside.
+  - On Rancher, a Project is a group of namespaces which can be configured with access controls and resource quotas. Consult your administrator to gain access to one.
+  - Alternatively, you can deploy your application in the `anvilops_sandbox` Project.
+
+Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page in order to launch your application. Configurable parameters are described below.
 
 ### Organization
 
-- **Organization**: All apps belong to an organization. Organizations connect apps to GitHub organizations and to the people who can access them on the AnvilOps dashboard. **This setting cannot be changed later.**
+- **Organization**: All apps and belong to an organization. Organizations connect apps to GitHub organizations and to the people who can access them on the AnvilOps dashboard. **An App cannot be moved to a different organization later.**
 
 ### Grouping Options
 
-- **Group**: The name of a new or existing app group.
+- **Group**: An AnvilOps App can be deployed on its own as a standalone app, or it can be part of an [app group](/reference/concepts#app-group).
 
 ### Source Options
 
 - **Deployment Source**: Choose to deloy your app from a Git repository with automatic builds or directly from a OCI-compliant container image.
 
-  - If you deploy from a Git repository, AnvilOps will watch for new commits and automatically rebuild and redeploy your application every time a new commit is pushed to the configured branch.
-  - If you deploy from an OCI image, AnvilOps will bypass the build process and directly use the image you specify. Here are some [guidelines](https://kubernetes.io/docs/concepts/containers/images/#image-names) for allowed image names.
+  - **Git**: If you deploy from a Git repository, AnvilOps will watch for new commits and automatically rebuild and redeploy your application when a specified event occurs. Read the [Git Integration guide](/reference/git-integration) for more information.
+  - **OCI image**: If you deploy from an OCI image, AnvilOps will bypass the build process and directly use the image you specify. Here are some [guidelines](https://kubernetes.io/docs/concepts/containers/images/#image-names) for allowed image names.
+
+{/_
+{/_ TODO: Move this section to the Git integration reference page to shorten the Getting Started \*/}
 
 - **Repository**: If you selected Git Repository as your Deployment Source, the Repository menu will be populated with a list of all the repositories AnvilOps can access.
   If you can't see your repository:
@@ -56,14 +67,15 @@ Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page.
 - **Event**: Set this to "Push" to deploy as soon as a commit is pushed or "Successful workflow run" to wait until a certain GitHub Actions workflow has finished successfully before deploying.
 
   This setting is especially useful if you want to run automated tests before deploying a new version of your app to your users. If the workflow run fails, the deployment will be skipped.
+  \*/}
 
 ### Build Options
 
 - **Root directory**: A path in your repository to consider as the root. If you are using the Dockerfile builder, your root directory should directly or indirectly contain your Dockerfile.
 
-  This setting is useful if you have multiple deployable applications in one repository, like a web frontend and backend. For each one, create an App on AnvilOps with a different root directory.
-
   Your root directory must start with `./` to denote the original root of the repository. For example, if you want AnvilOps to build and deploy the `app` directory in your repository, your root directory would be `./app`.
+
+  This setting is useful if you have multiple deployable applications in one repository, like a web frontend and backend. For each one, create an App on AnvilOps with a different root directory.
 
 - **Builder**:
 
@@ -110,6 +122,10 @@ Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page.
   - All files inside a persistent volume (directly and recursively) will be saved.
 
   **This setting cannot be changed later.** Make sure to allocate enough storage when you create your app! You cannot resize a persistent volume after creating it.
+
+- **CPU Cores**: The amount of CPU, in millicores, to allocate to your application.
+
+- **Memory**: The amount of memory, in MiB, to allocate to your application.
 
 ### Advanced Options
 
