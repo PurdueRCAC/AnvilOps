@@ -57,7 +57,6 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
           orgId: app.orgId,
           appId: app.id,
           imageRepo: app.imageRepo,
-          commitSha: payload.workflow_run.head_commit.id,
           commitMessage: payload.workflow_run.head_commit.message,
           config: {
             // Reuse the config from the previous deployment
@@ -66,6 +65,7 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
             env: app.config.getPlaintextEnv(),
             repositoryId: app.config.repositoryId,
             branch: app.config.branch,
+            commitHash: payload.workflow_run.head_commit.id,
             builder: app.config.builder,
             rootDir: app.config.rootDir,
             dockerfilePath: app.config.dockerfilePath,
@@ -89,7 +89,7 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
         where: { appId: app.id, workflowRunId: payload.workflow_run.id },
         select: {
           id: true,
-          commitHash: true,
+          // commitHash: true,
           commitMessage: true,
           status: true,
           secret: true,

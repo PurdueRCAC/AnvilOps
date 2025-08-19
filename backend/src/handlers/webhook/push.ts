@@ -50,7 +50,6 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
       orgId: app.orgId,
       appId: app.id,
       imageRepo: app.imageRepo,
-      commitSha: payload.head_commit.id,
       commitMessage: payload.head_commit.message,
       config: {
         // Reuse the config from the previous deployment
@@ -60,6 +59,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
         env: app.config.getPlaintextEnv(),
         repositoryId: app.config.repositoryId,
         branch: app.config.branch,
+        commitHash: payload.head_commit.id,
         builder: app.config.builder,
         rootDir: app.config.rootDir,
         dockerfilePath: app.config.dockerfilePath,

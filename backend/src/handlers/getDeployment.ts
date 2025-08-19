@@ -1,9 +1,9 @@
-import type { AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { json, type HandlerMap } from "../types.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
+import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const getDeployment: HandlerMap["getDeployment"] = async (
   ctx,
@@ -90,7 +90,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
   return json(200, res, {
     repositoryURL,
-    commitHash: deployment.commitHash,
+    commitHash: deployment.config.commitHash,
     commitMessage: deployment.commitMessage,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
