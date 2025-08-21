@@ -185,7 +185,6 @@ model Deployment {
   app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  commitHash    String?
   commitMessage String?
   builderJobId  String?
   checkRunId    Int?
