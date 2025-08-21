@@ -114,6 +114,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       repositoryId: deployment.config.repositoryId,
       event: deployment.config.event,
       eventId: deployment.config.eventId,
+      commitHash: deployment.config.commitHash,
       builder: deployment.config.builder,
       dockerfilePath: deployment.config.dockerfilePath,
       env: deployment.config.displayEnv,

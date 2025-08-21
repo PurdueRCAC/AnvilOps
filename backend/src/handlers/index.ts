@@ -553,6 +553,7 @@ export const handlers = {
                 repositoryId: currentConfig.repositoryId,
                 event: currentConfig.event,
                 eventId: currentConfig.eventId,
+                commitHash: currentConfig.commitHash,
               }
             : {
                 source: "image",

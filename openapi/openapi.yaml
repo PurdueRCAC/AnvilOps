@@ -1833,6 +1833,8 @@ components:
               description: Required when event == "workflow_run"
             branch:
               type: string
+            commitHash:
+              type: string
             builder:
               type: string
               enum: [dockerfile, railpack]

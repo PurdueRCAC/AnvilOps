@@ -198,7 +198,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
       updatedConfig.dockerfilePath !== currentConfig.dockerfilePath ||
-      updatedConfig.rootDir !== currentConfig.rootDir)
+      updatedConfig.rootDir !== currentConfig.rootDir ||
+      updatedConfig.commitHash !== currentConfig.commitHash)
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
