@@ -74,7 +74,7 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
           repositoryURL:
             repos[distinctRepoIDs.indexOf(deployment.config.repositoryId)]
               ?.html_url,
-          commitHash: deployment.commitHash,
+          commitHash: deployment.config.commitHash,
           commitMessage: deployment.commitMessage,
           status: deployment.status,
           createdAt: deployment.createdAt.toISOString(),

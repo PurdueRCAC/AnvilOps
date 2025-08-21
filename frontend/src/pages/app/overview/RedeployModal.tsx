@@ -82,62 +82,39 @@ export const RedeployModal = ({
   const setRadioValue = (value: string) => {
     if (pastDeployment === undefined) return; // Should never happen; sanity check to satisfy type checker
 
-    if (value === "useBuild") {
-      // Populate the new deployment config based on the current deployment + the old deployment's source information
-      setRedeployState((rs) => ({
-        ...rs,
-        radioValue: "useBuild",
-        configState: {
-          orgId: app.orgId,
-          replicas: app.config.replicas.toString(),
-          port: app.config.port.toString(),
-          env: app.config.env,
-          mounts: app.config.mounts,
-          postStart: app.config.postStart,
-          preStop: app.config.preStop,
-          source: "image",
-          imageTag: pastDeployment.config.imageTag!,
-          cpuCores: (
-            parseInt(app.config.limits?.cpu ?? "1000m") / 1000
-          ).toString(), // convert millicores ("m") to cores,
-          memoryInMiB: parseInt(app.config.limits?.memory ?? "1024Mi"),
-        },
-      }));
-    } else {
-      // Populate the new deployment config based on the previous deployment
-      setRedeployState((rs) => ({
-        ...rs,
-        radioValue: "useConfig",
-        configState: {
-          orgId: app.orgId,
-          port: pastDeployment.config.port.toString(),
-          replicas: pastDeployment.config.replicas.toString(),
-          env: pastDeployment.config.env,
-          cpuCores: (
-            parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
-          ).toString(), // convert millicores ("m") to cores,
-          memoryInMiB: parseInt(
-            pastDeployment.config.limits?.memory ?? "1024Mi",
-          ),
-          ...(pastDeployment.config.source === "git"
-            ? {
-                source: "git",
-                builder: pastDeployment.config.builder,
-                event: pastDeployment.config.event,
-                eventId: pastDeployment.config.eventId?.toString() ?? undefined,
-                dockerfilePath:
-                  pastDeployment.config.dockerfilePath ?? undefined,
-                rootDir: pastDeployment.config.rootDir ?? undefined,
-                repositoryId: pastDeployment.config.repositoryId,
-                branch: pastDeployment.config.branch,
-              }
-            : {
-                source: "image",
-                imageTag: pastDeployment.config.imageTag,
-              }),
-        },
-      }));
-    }
+    // Populate the new deployment config based on the previous deployment
+    setRedeployState((rs) => ({
+      ...rs,
+      radioValue: value as "useBuild" | "useConfig",
+      configState: {
+        orgId: app.orgId,
+        port: pastDeployment.config.port.toString(),
+        replicas: pastDeployment.config.replicas.toString(),
+        env: pastDeployment.config.env,
+        cpuCores: (
+          parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
+        ).toString(), // convert millicores ("m") to cores,
+        memoryInMiB: parseInt(pastDeployment.config.limits?.memory ?? "1024Mi"),
+        ...(pastDeployment.config.source === "git"
+          ? {
+              source: "git",
+              builder: pastDeployment.config.builder,
+              event: pastDeployment.config.event,
+              eventId: pastDeployment.config.eventId?.toString() ?? undefined,
+              commitHash:
+                value === "useBuild" ? pastDeployment.commitHash : undefined,
+              dockerfilePath: pastDeployment.config.dockerfilePath ?? undefined,
+              rootDir: pastDeployment.config.rootDir ?? undefined,
+              repositoryId: pastDeployment.config.repositoryId,
+              branch: pastDeployment.config.branch,
+            }
+          : {
+              source: "image",
+              imageTag: pastDeployment.config.imageTag,
+            }),
+      },
+    }));
+    console.log(redeployState);
   };
 
   useEffect(() => {
@@ -210,6 +187,7 @@ export const RedeployModal = ({
                       branch: config.branch,
                       event: config.event!,
                       eventId: config.eventId ? parseInt(config.eventId) : null,
+                      commitHash: config.commitHash,
                       builder: config.builder!,
                       dockerfilePath: config.dockerfilePath! ?? "",
                     }
@@ -337,14 +315,23 @@ export const RedeployModal = ({
                   {redeployState.enableCD ? (
                     <>
                       If this app is linked to a Git repository and a commit is
-                      pushed, the app will be rebuilt and redeployed
+                      pushed, the app may be rebuilt and redeployed
                       automatically.{" "}
+                      {redeployState.radioValue === "useBuild" &&
+                        redeployState.configState.source === "git" && (
+                          <>
+                            AnvilOps will{" "}
+                            <strong>run this newer version of your app,</strong>{" "}
+                            instead of the selected commit.
+                          </>
+                        )}
                     </>
                   ) : (
                     <>
-                      If this app is linked to a Git repository and a commit is
-                      pushed, the app <strong>will not be updated</strong> on
-                      the cluster until continuous deployment is re-enabled.
+                      If this app is linked to a Git repository this app{" "}
+                      <strong>will not be updated</strong> on the cluster in
+                      response to repository events until continuous deployment
+                      is re-enabled.
                     </>
                   )}
                 </p>

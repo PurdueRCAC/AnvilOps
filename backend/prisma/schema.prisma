@@ -216,6 +216,7 @@ model DeploymentConfig {
   event          WebhookEvent?
   // e.g. workflow ID
   eventId        Int?
+  commitHash     String?
   builder        ImageBuilder?
   rootDir        String?
   dockerfilePath String?

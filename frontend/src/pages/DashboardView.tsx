@@ -25,6 +25,7 @@ import {
   EllipsisVertical,
   ExternalLink,
   GitBranch,
+  Loader,
   Plus,
 } from "lucide-react";
 import { Fragment, useContext, useState, type ReactNode } from "react";
@@ -61,6 +62,7 @@ export default function DashboardView() {
         {user?.orgs?.map((org) => (
           <OrgApps
             orgId={org.id}
+            name={org.name}
             key={org.id}
             permissionLevel={org.permissionLevel}
           />
@@ -72,12 +74,14 @@ export default function DashboardView() {
 
 const OrgApps = ({
   orgId,
+  name,
   permissionLevel,
 }: {
   orgId: number;
+  name: string;
   permissionLevel: "OWNER" | "USER";
 }) => {
-  const { data: org } = api.useSuspenseQuery("get", "/org/{orgId}", {
+  const { data: org, isPending } = api.useQuery("get", "/org/{orgId}", {
     params: {
       path: {
         orgId: orgId,
@@ -85,24 +89,25 @@ const OrgApps = ({
     },
   });
 
-  const monoGroups = org.appGroups.filter((group) => group.isMono);
-  const multiGroups = org.appGroups.filter((group) => !group.isMono);
+  const monoGroups = org?.appGroups.filter((group) => group.isMono);
+  const multiGroups = org?.appGroups.filter((group) => !group.isMono);
 
   const appGroups =
-    org.appGroups.length == 0 ? (
+    org?.appGroups.length == 0 ? (
       <p className="opacity-50">No apps found in this organization.</p>
     ) : (
       <>
-        {multiGroups.map((group) => (
+        {multiGroups?.map((group) => (
           <AppGroup appGroup={group} key={group.id} />
         ))}
 
-        {monoGroups.length > 0 &&
-          monoGroups.some((it) => it.apps.length > 0) && (
+        {monoGroups &&
+          monoGroups.length > 0 &&
+          monoGroups?.some((it) => it.apps.length > 0) && (
             <h3 className="my-4">Ungrouped</h3>
           )}
         <section className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {monoGroups.map((group) => (
+          {monoGroups?.map((group) => (
             <Fragment key={group.id}>
               {group.apps.map((app) => (
                 <AppCard key={app.id} app={app} />
@@ -116,14 +121,19 @@ const OrgApps = ({
   return (
     <div>
       <h3 className="text-xl font-medium mb-4 border-b-gold border-b-2">
-        {org?.name}
+        {name}
       </h3>
-      {org.githubInstallationId ? (
+      {isPending ? (
+        <p className="text-lg flex items-center space-x-1">
+          <Loader className="animate-spin inline" />
+          <span>Loading apps...</span>
+        </p>
+      ) : org?.githubInstallationId ? (
         appGroups
       ) : permissionLevel === "OWNER" ? (
         <div className="w-fit">
           <p className="mt-4">
-            <strong>{org.name}</strong> has not been connected to GitHub.
+            <strong>{org?.name}</strong> has not been connected to GitHub.
           </p>
           <p className="mb-4">
             AnvilOps integrates with GitHub to deploy your app as soon as you
@@ -131,7 +141,7 @@ const OrgApps = ({
           </p>
           <a
             className="flex w-full"
-            href={`/api/org/${org.id}/install-github-app`}
+            href={`/api/org/${org?.id}/install-github-app`}
           >
             <Button className="w-full" type="button">
               <GitHubIcon />
@@ -142,7 +152,7 @@ const OrgApps = ({
       ) : (
         <>
           <p className="my-4">
-            <strong>{org.name}</strong> has not been connected to GitHub. Ask
+            <strong>{org?.name}</strong> has not been connected to GitHub. Ask
             the owner of your organization to install the AnvilOps GitHub App.
           </p>
         </>

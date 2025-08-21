@@ -188,7 +188,6 @@ type BuildAndDeployOptions = {
   orgId: number;
   appId: number;
   imageRepo: string;
-  commitSha: string;
   commitMessage: string;
   config: DeploymentConfigCreateWithoutDeploymentInput;
 } & (
@@ -200,7 +199,6 @@ export async function buildAndDeploy({
   orgId,
   appId,
   imageRepo,
-  commitSha,
   commitMessage,
   config,
   ...opts
@@ -208,13 +206,12 @@ export async function buildAndDeploy({
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
-      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${commitSha}` as const);
+      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
   const secret = randomBytes(32).toString("hex");
 
   const deployment = await db.deployment.create({
     data: {
       app: { connect: { id: appId } },
-      commitHash: commitSha,
       commitMessage: commitMessage,
       secret: secret,
       config: {
@@ -224,7 +221,6 @@ export async function buildAndDeploy({
     select: {
       id: true,
       appId: true,
-      commitHash: true,
       commitMessage: true,
       secret: true,
       checkRunId: true,
@@ -333,7 +329,7 @@ export async function buildAndDeployFromRepo({
       } else {
         // Create a check on their commit that says the build is "in progress"
         checkRun = await opts.octokit.rest.checks.create({
-          head_sha: deployment.commitHash,
+          head_sha: deployment.config.commitHash,
           name: "AnvilOps",
           status: "in_progress",
           details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
@@ -396,7 +392,6 @@ export async function createPendingWorkflowDeployment({
   orgId,
   appId,
   imageRepo,
-  commitSha,
   commitMessage,
   config,
   workflowRunId,
@@ -405,13 +400,12 @@ export async function createPendingWorkflowDeployment({
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
-      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${commitSha}` as const);
+      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
 
   const secret = randomBytes(32).toString("hex");
   const deployment = await db.deployment.create({
     data: {
       app: { connect: { id: appId } },
-      commitHash: commitSha,
       commitMessage: commitMessage,
       secret,
       config: {
@@ -422,7 +416,6 @@ export async function createPendingWorkflowDeployment({
     select: {
       id: true,
       appId: true,
-      commitHash: true,
       app: {
         include: {
           appGroup: true,
@@ -440,7 +433,7 @@ export async function createPendingWorkflowDeployment({
   if (opts.createCheckRun) {
     try {
       checkRun = await opts.octokit.rest.checks.create({
-        head_sha: deployment.commitHash,
+        head_sha: config.commitHash,
         name: "AnvilOps",
         status: "queued",
         details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,

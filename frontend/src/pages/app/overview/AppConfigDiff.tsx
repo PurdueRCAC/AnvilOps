@@ -44,6 +44,7 @@ export type DeploymentConfigFormData = {
   repositoryId?: number;
   event?: "push" | "workflow_run";
   eventId?: string;
+  commitHash?: string;
   imageTag?: string;
   branch?: string;
   rootDir?: string;

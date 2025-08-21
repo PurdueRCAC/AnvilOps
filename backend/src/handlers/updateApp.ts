@@ -29,7 +29,15 @@ export const updateApp: HandlerMap["updateApp"] = async (
       org: { users: { some: { userId: req.user.id } } },
     },
     include: {
-      config: true,
+      config: {
+        include: {
+          deployment: {
+            select: {
+              commitMessage: true,
+            },
+          },
+        },
+      },
       org: { select: { githubInstallationId: true } },
       appGroup: true,
     },
@@ -170,6 +178,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
           source: "GIT",
           branch: appConfig.branch,
           repositoryId: appConfig.repositoryId,
+          commitHash: appConfig.commitHash ?? originalApp.config.commitHash,
           builder: appConfig.builder,
           rootDir: appConfig.rootDir,
           dockerfilePath: appConfig.dockerfilePath,
@@ -189,7 +198,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
       updatedConfig.dockerfilePath !== currentConfig.dockerfilePath ||
-      updatedConfig.rootDir !== currentConfig.rootDir)
+      updatedConfig.rootDir !== currentConfig.rootDir ||
+      updatedConfig.commitHash !== currentConfig.commitHash)
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
@@ -209,7 +219,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
         appId: originalApp.id,
         orgId: originalApp.orgId,
         imageRepo: originalApp.imageRepo,
-        commitSha: latestCommit.sha,
         commitMessage: latestCommit.commit.message,
         config: updatedConfig,
         createCheckRun: false,
@@ -238,11 +247,10 @@ export const updateApp: HandlerMap["updateApp"] = async (
         },
         status: "DEPLOYING",
         app: { connect: { id: originalApp.id } },
-        commitMessage: "Update to deployment configuration",
+        commitMessage: currentConfig.deployment.commitMessage,
         secret,
       },
       select: {
-        commitHash: true,
         commitMessage: true,
         id: true,
         appId: true,

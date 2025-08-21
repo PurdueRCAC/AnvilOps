@@ -21,15 +21,13 @@ export type CreateJobFromDeploymentInput = Parameters<
 >[0];
 
 async function createJobFromDeployment(
-  deployment: Pick<
-    Deployment,
-    "id" | "commitHash" | "commitMessage" | "appId" | "secret"
-  > & {
+  deployment: Pick<Deployment, "id" | "commitMessage" | "appId" | "secret"> & {
     config: Pick<
       ExtendedDeploymentConfig,
       | "source"
       | "repositoryId"
       | "branch"
+      | "commitHash"
       | "imageTag"
       | "builder"
       | "dockerfilePath"
@@ -122,7 +120,7 @@ async function createJobFromDeployment(
                     : env.RAILPACK_BUILDER_IMAGE,
                 env: [
                   { name: "CLONE_URL", value: cloneURL },
-                  { name: "REF", value: deployment.commitHash },
+                  { name: "REF", value: config.commitHash },
                   {
                     name: "IMAGE_TAG",
                     value: deployment.config.imageTag as ImageTag,
@@ -338,7 +336,7 @@ export async function dequeueBuildJob(): Promise<string> {
         secret: true,
         config: true,
         commitMessage: true,
-        commitHash: true,
+        // commitHash: true,
         app: {
           select: {
             id: true,

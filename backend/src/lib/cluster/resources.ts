@@ -130,10 +130,7 @@ const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
 };
 
 export const createAppConfigsFromDeployment = async (
-  deployment: Pick<
-    Deployment,
-    "appId" | "id" | "commitHash" | "commitMessage"
-  > & {
+  deployment: Pick<Deployment, "appId" | "id" | "commitMessage"> & {
     app: Pick<
       App,
       | "id"

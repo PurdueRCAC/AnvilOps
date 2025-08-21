@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
-import type { App, DeploymentConfig } from "../generated/prisma/client.ts";
+import type { App } from "../generated/prisma/client.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
@@ -229,6 +229,20 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           const configParams = data.apps[idx];
           const cpu = Math.round(configParams.cpuCores * 1000) + "m",
             memory = configParams.memoryInMiB + "Mi";
+          if (configParams.source === "git") {
+            const repo = await getRepoById(octokit, configParams.repositoryId);
+            const latestCommit = (
+              await octokit.rest.repos.listCommits({
+                per_page: 1,
+                owner: repo.owner.login,
+                repo: repo.name,
+              })
+            ).data[0];
+
+            commitSha = latestCommit.sha;
+            commitMessage = latestCommit.commit.message;
+          }
+
           const deploymentConfig: DeploymentConfigCreateInput = {
             env: configParams.env,
             fieldValues: {
@@ -250,6 +264,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
                   event: configParams.event,
                   eventId: configParams.eventId,
                   branch: configParams.branch,
+                  commitHash: commitSha,
                   builder: configParams.builder,
                   dockerfilePath: configParams.dockerfilePath,
                   rootDir: configParams.rootDir,
@@ -259,27 +274,11 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
                   imageTag: configParams.imageTag,
                 }),
           };
-          if (deploymentConfig.source === "GIT") {
-            const repo = await getRepoById(
-              octokit,
-              deploymentConfig.repositoryId,
-            );
-            const latestCommit = (
-              await octokit.rest.repos.listCommits({
-                per_page: 1,
-                owner: repo.owner.login,
-                repo: repo.name,
-              })
-            ).data[0];
 
-            commitSha = latestCommit.sha;
-            commitMessage = latestCommit.commit.message;
-          }
           await buildAndDeploy({
             orgId: app.orgId,
             appId: app.id,
             imageRepo: app.imageRepo,
-            commitSha: commitSha,
             commitMessage: commitMessage,
             config: deploymentConfig,
             createCheckRun: false,

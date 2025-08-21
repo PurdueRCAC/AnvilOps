@@ -304,10 +304,10 @@ export const handlers = {
                   displayName: app.displayName,
                   status: selectedDeployment?.status,
                   source: selectedDeployment?.config.source,
-                  imageTag: selectedDeployment?.config?.imageTag,
+                  imageTag: selectedDeployment?.config.imageTag,
                   repositoryURL: repoURL,
                   branch: app.config.branch,
-                  commitHash: selectedDeployment?.commitHash,
+                  commitHash: selectedDeployment?.config.commitHash,
                   link:
                     selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
                       ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
@@ -553,6 +553,7 @@ export const handlers = {
                 repositoryId: currentConfig.repositoryId,
                 event: currentConfig.event,
                 eventId: currentConfig.eventId,
+                commitHash: currentConfig.commitHash,
               }
             : {
                 source: "image",

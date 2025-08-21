@@ -21,10 +21,15 @@ export type DeploymentParams = {
 
 export const generateAutomaticEnvVars = async (
   octokit: Octokit,
-  deployment: Pick<Deployment, "id" | "commitHash" | "commitMessage"> & {
+  deployment: Pick<Deployment, "id" | "commitMessage"> & {
     config: Pick<
       DeploymentConfig,
-      "source" | "branch" | "imageTag" | "repositoryId" | "fieldValues"
+      | "source"
+      | "branch"
+      | "imageTag"
+      | "repositoryId"
+      | "commitHash"
+      | "fieldValues"
     >;
     app: Pick<App, "id" | "subdomain" | "displayName">;
   },
@@ -79,7 +84,10 @@ export const generateAutomaticEnvVars = async (
       name: "ANVILOPS_REPOSITORY_SLUG",
       value: `${repo.owner.login}/${repo.name}`,
     });
-    list.push({ name: "ANVILOPS_COMMIT_HASH", value: deployment.commitHash });
+    list.push({
+      name: "ANVILOPS_COMMIT_HASH",
+      value: deployment.config.commitHash,
+    });
     list.push({
       name: "ANVILOPS_COMMIT_MESSAGE",
       value: deployment.commitMessage,
