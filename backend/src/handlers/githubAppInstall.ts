@@ -49,7 +49,7 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   });
 
   if (org === null) {
-    return json(404, res, {});
+    return json(404, res, { code: 404, message: "Organization not found." });
   }
 
   let state: string;

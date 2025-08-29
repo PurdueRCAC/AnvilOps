@@ -9,11 +9,11 @@ import {
   type V1StatefulSet,
 } from "@kubernetes/client-node";
 import { once } from "node:events";
-import type { AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { json, type HandlerMap } from "../types.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
+import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const getAppStatus: HandlerMap["getAppStatus"] = async (
   ctx,
@@ -35,7 +35,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
   });
 
   if (!app) {
-    return json(404, res, {});
+    return json(404, res, { code: 404, message: "App not found." });
   }
 
   res.set({

@@ -22,12 +22,7 @@ import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import {
-  json,
-  type HandlerMap,
-  type HandlerResponse,
-  type OptionalPromise,
-} from "../types.ts";
+import { json, type HandlerMap } from "../types.ts";
 import { acceptInvitation } from "./acceptInvitation.ts";
 import { claimOrg } from "./claimOrg.ts";
 import { createApp } from "./createApp.ts";
@@ -75,521 +70,399 @@ export const handlers = {
     ctx: Context,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["User"] };
-      };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      const user = await db.user.findUnique({
-        where: { id: req.user.id },
-        include: {
-          orgs: { include: { organization: true } },
-          unassignedInstallations: true,
-          receivedInvitations: {
-            include: {
-              inviter: { select: { name: true } },
-              invitee: { select: { name: true } },
-              org: { select: { name: true } },
-            },
+  ) {
+    const user = await db.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        orgs: { include: { organization: true } },
+        unassignedInstallations: true,
+        receivedInvitations: {
+          include: {
+            inviter: { select: { name: true } },
+            invitee: { select: { name: true } },
+            org: { select: { name: true } },
           },
         },
-      });
+      },
+    });
 
-      const projects =
-        user?.clusterUsername && isRancherManaged()
-          ? await getProjectsForUser(user.clusterUsername)
-          : undefined;
+    const projects =
+      user?.clusterUsername && isRancherManaged()
+        ? await getProjectsForUser(user.clusterUsername)
+        : undefined;
 
-      return json(200, res, {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        orgs: user.orgs.map((item) => ({
-          id: item.organization.id,
-          name: item.organization.name,
-          permissionLevel: item.permissionLevel,
-          githubConnected: item.organization.githubInstallationId !== null,
-        })),
-        projects,
-        unassignedInstallations: user.unassignedInstallations,
-        receivedInvitations: user.receivedInvitations.map((inv) => ({
-          id: inv.id,
-          inviter: { name: inv.inviter.name },
-          invitee: { name: inv.invitee.name },
-          org: { id: inv.orgId, name: inv.org.name },
-        })),
-      });
-    } catch (e) {
-      console.error(e);
-      json(500, res, { code: 500, message: "Something went wrong." });
-    }
+    return json(200, res, {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      orgs: user.orgs.map((item) => ({
+        id: item.organization.id,
+        name: item.organization.name,
+        permissionLevel: item.permissionLevel,
+        githubConnected: item.organization.githubInstallationId !== null,
+      })),
+      projects,
+      unassignedInstallations: user.unassignedInstallations,
+      receivedInvitations: user.receivedInvitations.map((inv) => ({
+        id: inv.id,
+        inviter: { name: inv.inviter.name },
+        invitee: { name: inv.invitee.name },
+        org: { id: inv.orgId, name: inv.org.name },
+      })),
+    });
   },
-  deleteUser: async function (
-    ctx: Context,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      await db.user.delete({ where: { id: req.user.id } });
-      return res.status(200);
-    } catch (e) {
-      console.error(e);
-      return json(500, res, { code: 500, message: "Something went wrong." });
-    }
-  },
+
   createOrg: async function (
     ctx,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["Org"] };
-      };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
+  ) {
     const orgName = ctx.request.requestBody.name;
-    try {
-      const result = await db.organization.create({
-        data: {
-          name: orgName,
-          users: {
-            create: {
-              permissionLevel: "OWNER",
-              user: {
-                connect: { id: req.user.id },
-              },
+    const result = await db.organization.create({
+      data: {
+        name: orgName,
+        users: {
+          create: {
+            permissionLevel: "OWNER",
+            user: {
+              connect: { id: req.user.id },
             },
           },
         },
-      });
-      return res.status(200).json({
-        id: result.id,
-        name: result.name,
-        isOwner: true,
-      });
-    } catch (e) {
-      console.error(e);
-      return json(500, res, { code: 500, message: "Something went wrong." });
-    }
+      },
+    });
+    return res.status(200).json({
+      id: result.id,
+      name: result.name,
+      isOwner: true,
+    });
   },
   getOrgByID: async function (
     ctx: Context<{ orgId: number }>,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["Org"] };
-      };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      const orgId: number = ctx.request.params.orgId;
-      const org = await db.organization.findFirst({
-        where: {
-          id: orgId,
-          users: {
-            some: {
-              userId: req.user.id,
-            },
+  ) {
+    const orgId: number = ctx.request.params.orgId;
+    const org = await db.organization.findFirst({
+      where: {
+        id: orgId,
+        users: {
+          some: {
+            userId: req.user.id,
           },
         },
-        include: {
-          appGroups: {
-            include: {
-              apps: {
-                include: {
-                  config: true,
-                  deployments: {
-                    include: {
-                      config: true,
-                    },
-                    orderBy: { createdAt: "desc" },
+      },
+      include: {
+        appGroups: {
+          include: {
+            apps: {
+              include: {
+                config: true,
+                deployments: {
+                  include: {
+                    config: true,
                   },
+                  orderBy: { createdAt: "desc" },
                 },
               },
             },
           },
-          outgoingInvitations: {
-            include: {
-              invitee: { select: { name: true } },
-              inviter: { select: { name: true } },
-              org: { select: { name: true } },
-            },
-          },
-          users: {
-            select: {
-              user: { select: { id: true, name: true, email: true } },
-              permissionLevel: true,
-            },
+        },
+        outgoingInvitations: {
+          include: {
+            invitee: { select: { name: true } },
+            inviter: { select: { name: true } },
+            org: { select: { name: true } },
           },
         },
+        users: {
+          select: {
+            user: { select: { id: true, name: true, email: true } },
+            permissionLevel: true,
+          },
+        },
+      },
+    });
+
+    if (!org) {
+      return json(404, res, {
+        code: 404,
+        message: "Organization not found.",
       });
-
-      if (!org) {
-        return json(401, res, {});
-      }
-
-      let octokit: Octokit;
-
-      if (
-        org.appGroups.some((it) =>
-          it.apps.some((app) => app.config.source === "GIT"),
-        ) &&
-        org.githubInstallationId
-      ) {
-        octokit = await getOctokit(org.githubInstallationId);
-      }
-
-      const appGroupRes: components["schemas"]["Org"]["appGroups"] =
-        await Promise.all(
-          org.appGroups.map(async (group) => {
-            const apps = await Promise.all(
-              group.apps.map(async (app) => {
-                let repoURL: string;
-                if (app.config.source === "GIT" && org.githubInstallationId) {
-                  try {
-                    const repo = await getRepoById(
-                      octokit,
-                      app.config.repositoryId,
-                    );
-                    repoURL = repo.html_url;
-                  } catch (error: any) {
-                    if (error?.status === 404) {
-                      // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
-                      return;
-                    }
-                    throw error; // Rethrow all other kinds of errors
-                  }
-                }
-
-                const latestCompleteDeployment = app.deployments.find(
-                  (deploy) => deploy.status === "COMPLETE",
-                );
-                const selectedDeployment =
-                  latestCompleteDeployment ?? app.deployments[0];
-
-                const appDomain = URL.parse(env.APP_DOMAIN);
-
-                return {
-                  id: app.id,
-                  displayName: app.displayName,
-                  status: selectedDeployment?.status,
-                  source: selectedDeployment?.config.source,
-                  imageTag: selectedDeployment?.config.imageTag,
-                  repositoryURL: repoURL,
-                  branch: app.config.branch,
-                  commitHash: selectedDeployment?.config.commitHash,
-                  link:
-                    selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
-                      ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
-                      : undefined,
-                };
-              }),
-            );
-            return { ...group, apps };
-          }),
-        );
-
-      return json(200, res, {
-        id: org.id,
-        name: org.name,
-        members: org.users.map((membership) => ({
-          id: membership.user.id,
-          name: membership.user.name,
-          email: membership.user.email,
-          permissionLevel: membership.permissionLevel,
-        })),
-        githubInstallationId: org.githubInstallationId,
-        appGroups: appGroupRes,
-        outgoingInvitations: org.outgoingInvitations.map((inv) => ({
-          id: inv.id,
-          inviter: { name: inv.inviter.name },
-          invitee: { name: inv.invitee.name },
-          org: { id: inv.orgId, name: inv.org.name },
-        })),
-      });
-    } catch (e) {
-      console.error(e);
-      return json(500, res, { code: 500, message: "Something went wrong." });
     }
+
+    let octokit: Octokit;
+
+    if (
+      org.appGroups.some((it) =>
+        it.apps.some((app) => app.config.source === "GIT"),
+      ) &&
+      org.githubInstallationId
+    ) {
+      octokit = await getOctokit(org.githubInstallationId);
+    }
+
+    const appGroupRes: components["schemas"]["Org"]["appGroups"] =
+      await Promise.all(
+        org.appGroups.map(async (group) => {
+          const apps = await Promise.all(
+            group.apps.map(async (app) => {
+              let repoURL: string;
+              if (app.config.source === "GIT" && org.githubInstallationId) {
+                try {
+                  const repo = await getRepoById(
+                    octokit,
+                    app.config.repositoryId,
+                  );
+                  repoURL = repo.html_url;
+                } catch (error: any) {
+                  if (error?.status === 404) {
+                    // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
+                    return;
+                  }
+                  throw error; // Rethrow all other kinds of errors
+                }
+              }
+
+              const latestCompleteDeployment = app.deployments.find(
+                (deploy) => deploy.status === "COMPLETE",
+              );
+              const selectedDeployment =
+                latestCompleteDeployment ?? app.deployments[0];
+
+              const appDomain = URL.parse(env.APP_DOMAIN);
+
+              return {
+                id: app.id,
+                displayName: app.displayName,
+                status: selectedDeployment?.status,
+                source: selectedDeployment?.config.source,
+                imageTag: selectedDeployment?.config.imageTag,
+                repositoryURL: repoURL,
+                branch: app.config.branch,
+                commitHash: selectedDeployment?.config.commitHash,
+                link:
+                  selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
+                    ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
+                    : undefined,
+              };
+            }),
+          );
+          return { ...group, apps };
+        }),
+      );
+
+    return json(200, res, {
+      id: org.id,
+      name: org.name,
+      members: org.users.map((membership) => ({
+        id: membership.user.id,
+        name: membership.user.name,
+        email: membership.user.email,
+        permissionLevel: membership.permissionLevel,
+      })),
+      githubInstallationId: org.githubInstallationId,
+      appGroups: appGroupRes,
+      outgoingInvitations: org.outgoingInvitations.map((inv) => ({
+        id: inv.id,
+        inviter: { name: inv.inviter.name },
+        invitee: { name: inv.invitee.name },
+        org: { id: inv.orgId, name: inv.org.name },
+      })),
+    });
   },
   deleteOrgByID: async function (
     ctx: Context<{ orgId: number }>,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      const orgId = ctx.request.params.orgId;
-      const result = await db.organization.findFirst({
-        where: {
-          id: orgId,
-          users: {
-            some: {
-              userId: req.user.id,
-              permissionLevel: "OWNER",
-            },
+  ) {
+    const orgId = ctx.request.params.orgId;
+    const result = await db.organization.findFirst({
+      where: {
+        id: orgId,
+        users: {
+          some: {
+            userId: req.user.id,
+            permissionLevel: "OWNER",
           },
         },
-      });
+      },
+    });
 
-      if (!result) {
-        return json(401, res, {});
-      }
-
-      const { clusterUsername } = await db.user.findUnique({
-        where: { id: req.user.id },
-        select: { clusterUsername: true },
-      });
-
-      const userApi = getClientForClusterUsername(
-        clusterUsername,
-        "KubernetesObjectApi",
-        true,
-      );
-
-      const apps = await db.app.findMany({
-        where: { orgId },
-        include: {
-          deployments: {
-            where: {
-              status: {
-                in: ["DEPLOYING", "COMPLETE", "ERROR"],
-              },
-            },
-          },
-        },
-      });
-      for (let app of apps) {
-        if (app.deployments.length > 0) {
-          try {
-            const api =
-              app.projectId === env["SANDBOX_ID"]
-                ? svcK8s["KubernetesObjectApi"]
-                : userApi;
-            await deleteNamespace(api, getNamespace(app.subdomain));
-          } catch (err) {
-            console.error(err);
-          }
-          await db.deployment.updateMany({
-            where: {
-              id: {
-                in: app.deployments.map((deploy) => deploy.id),
-              },
-            },
-            data: { status: "STOPPED" },
-          });
-        }
-
-        await db.deployment.deleteMany({ where: { appId: app.id } });
-      }
-      await db.organization.delete({ where: { id: orgId } });
-      return json(200, res, {});
-    } catch (e) {
-      console.error(e);
-      return json(500, res, { code: 500, message: "Something went wrong." });
+    if (!result) {
+      return json(404, res, { code: 404, message: "Organization not found." });
     }
-  },
-  getInviteCodeByID: function (
-    ctx: Context<{ orgId: number }>,
-    req: AuthenticatedRequest,
-    res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      401: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    throw new Error("Function not implemented.");
+
+    const { clusterUsername } = await db.user.findUnique({
+      where: { id: req.user.id },
+      select: { clusterUsername: true },
+    });
+
+    const userApi = getClientForClusterUsername(
+      clusterUsername,
+      "KubernetesObjectApi",
+      true,
+    );
+
+    const apps = await db.app.findMany({
+      where: { orgId },
+      include: {
+        deployments: {
+          where: {
+            status: {
+              in: ["DEPLOYING", "COMPLETE", "ERROR"],
+            },
+          },
+        },
+      },
+    });
+    for (let app of apps) {
+      if (app.deployments.length > 0) {
+        try {
+          const api =
+            app.projectId === env["SANDBOX_ID"]
+              ? svcK8s["KubernetesObjectApi"]
+              : userApi;
+          await deleteNamespace(api, getNamespace(app.subdomain));
+        } catch (err) {
+          console.error(err);
+        }
+        await db.deployment.updateMany({
+          where: {
+            id: {
+              in: app.deployments.map((deploy) => deploy.id),
+            },
+          },
+          data: { status: "STOPPED" },
+        });
+      }
+
+      await db.deployment.deleteMany({ where: { appId: app.id } });
+    }
+    await db.organization.delete({ where: { id: orgId } });
+    return json(200, res, {});
   },
   getAppByID: async function (
     ctx: Context<{ appId: number }>,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["App"] };
-      };
-      404: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
-    try {
-      const appId = ctx.request.params.appId;
-      const [app, deploymentCount] = await Promise.all([
-        db.app.findUnique({
-          where: {
-            id: appId,
-            org: { users: { some: { userId: req.user.id } } },
-          },
-          include: {
-            deployments: {
-              take: 1,
-              orderBy: { createdAt: "desc" },
-              include: { config: true },
-            },
-            appGroup: true,
-            config: true,
-            org: true,
-          },
-        }),
-        db.deployment.count({ where: { appId } }),
-      ]);
-
-      if (!app) return json(404, res, {});
-
-      // Fetch repository info if this app is deployed from a Git repository
-      // Fetch the current StatefulSet to read its labels
-      const k8sDeployment = await (async () => {
-        try {
-          const { AppsV1Api: api } = await getClientsForRequest(
-            req.user.id,
-            app.projectId,
-            ["AppsV1Api"],
-          );
-          return await api.readNamespacedStatefulSet({
-            namespace: getNamespace(app.subdomain),
-            name: app.name,
-          });
-        } catch {}
-      })();
-
-      const activeDeployment =
-        k8sDeployment?.spec?.template?.metadata?.labels?.[
-          "anvilops.rcac.purdue.edu/deployment-id"
-        ];
-
-      const currentConfig = app.config;
-
-      // Fetch repository info if this app is deployed from a Git repository
-      const { repoId, repoURL } = await (async () => {
-        if (currentConfig.source === "GIT" && app.org.githubInstallationId) {
-          const octokit = await getOctokit(app.org.githubInstallationId);
-          const repo = await getRepoById(octokit, currentConfig.repositoryId);
-          return { repoId: repo.id, repoURL: repo.html_url };
-        } else {
-          return { repoId: undefined, repoURL: undefined };
-        }
-      })();
-
-      // TODO: Separate this into several API calls
-      return json(200, res, {
-        id: app.id,
-        orgId: app.orgId,
-        projectId: app.projectId,
-        name: app.name,
-        displayName: app.displayName,
-        createdAt: app.createdAt.toISOString(),
-        updatedAt: app.updatedAt.toISOString(),
-        repositoryId: repoId,
-        repositoryURL: repoURL,
-        subdomain: app.subdomain,
-        cdEnabled: app.enableCD,
-        config: {
-          port: currentConfig.fieldValues.port,
-          env: currentConfig.displayEnv,
-          replicas: currentConfig.fieldValues.replicas,
-          mounts: currentConfig.fieldValues.mounts.map((mount) => ({
-            amountInMiB: mount.amountInMiB,
-            path: mount.path,
-            volumeClaimName: generateVolumeName(mount.path),
-          })),
-          requests: currentConfig.fieldValues.extra.requests,
-          limits: currentConfig.fieldValues.extra.limits,
-          ...currentConfig.fieldValues.extra,
-          ...(currentConfig.source === "GIT"
-            ? {
-                source: "git",
-                branch: currentConfig.branch,
-                dockerfilePath: currentConfig.dockerfilePath,
-                rootDir: currentConfig.rootDir,
-                builder: currentConfig.builder,
-                repositoryId: currentConfig.repositoryId,
-                event: currentConfig.event,
-                eventId: currentConfig.eventId,
-                commitHash: currentConfig.commitHash,
-              }
-            : {
-                source: "image",
-                imageTag: currentConfig.imageTag,
-              }),
+  ) {
+    const appId = ctx.request.params.appId;
+    const [app, deploymentCount] = await Promise.all([
+      db.app.findUnique({
+        where: {
+          id: appId,
+          org: { users: { some: { userId: req.user.id } } },
         },
-        appGroup: {
-          standalone: app.appGroup.isMono,
-          name: !app.appGroup.isMono ? app.appGroup.name : undefined,
-          id: app.appGroupId,
+        include: {
+          deployments: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { config: true },
+          },
+          appGroup: true,
+          config: true,
+          org: true,
         },
-        activeDeployment: activeDeployment
-          ? parseInt(activeDeployment)
-          : undefined,
-        deploymentCount,
-      });
-    } catch (e) {
-      console.error(e);
-      return json(500, res, { code: 500, message: "Something went wrong." });
-    }
+      }),
+      db.deployment.count({ where: { appId } }),
+    ]);
+
+    if (!app) return json(404, res, { code: 404, message: "App not found." });
+
+    // Fetch repository info if this app is deployed from a Git repository
+    // Fetch the current StatefulSet to read its labels
+    const k8sDeployment = await (async () => {
+      try {
+        const { AppsV1Api: api } = await getClientsForRequest(
+          req.user.id,
+          app.projectId,
+          ["AppsV1Api"],
+        );
+        return await api.readNamespacedStatefulSet({
+          namespace: getNamespace(app.subdomain),
+          name: app.name,
+        });
+      } catch {}
+    })();
+
+    const activeDeployment =
+      k8sDeployment?.spec?.template?.metadata?.labels?.[
+        "anvilops.rcac.purdue.edu/deployment-id"
+      ];
+
+    const currentConfig = app.config;
+
+    // Fetch repository info if this app is deployed from a Git repository
+    const { repoId, repoURL } = await (async () => {
+      if (currentConfig.source === "GIT" && app.org.githubInstallationId) {
+        const octokit = await getOctokit(app.org.githubInstallationId);
+        const repo = await getRepoById(octokit, currentConfig.repositoryId);
+        return { repoId: repo.id, repoURL: repo.html_url };
+      } else {
+        return { repoId: undefined, repoURL: undefined };
+      }
+    })();
+
+    // TODO: Separate this into several API calls
+    return json(200, res, {
+      id: app.id,
+      orgId: app.orgId,
+      projectId: app.projectId,
+      name: app.name,
+      displayName: app.displayName,
+      createdAt: app.createdAt.toISOString(),
+      updatedAt: app.updatedAt.toISOString(),
+      repositoryId: repoId,
+      repositoryURL: repoURL,
+      subdomain: app.subdomain,
+      cdEnabled: app.enableCD,
+      config: {
+        port: currentConfig.fieldValues.port,
+        env: currentConfig.displayEnv,
+        replicas: currentConfig.fieldValues.replicas,
+        mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+          amountInMiB: mount.amountInMiB,
+          path: mount.path,
+          volumeClaimName: generateVolumeName(mount.path),
+        })),
+        requests: currentConfig.fieldValues.extra.requests,
+        limits: currentConfig.fieldValues.extra.limits,
+        ...currentConfig.fieldValues.extra,
+        ...(currentConfig.source === "GIT"
+          ? {
+              source: "git",
+              branch: currentConfig.branch,
+              dockerfilePath: currentConfig.dockerfilePath,
+              rootDir: currentConfig.rootDir,
+              builder: currentConfig.builder,
+              repositoryId: currentConfig.repositoryId,
+              event: currentConfig.event,
+              eventId: currentConfig.eventId,
+              commitHash: currentConfig.commitHash,
+            }
+          : {
+              source: "image",
+              imageTag: currentConfig.imageTag,
+            }),
+      },
+      appGroup: {
+        standalone: app.appGroup.isMono,
+        name: !app.appGroup.isMono ? app.appGroup.name : undefined,
+        id: app.appGroupId,
+      },
+      activeDeployment: activeDeployment
+        ? parseInt(activeDeployment)
+        : undefined,
+      deploymentCount,
+    });
   },
 
   setAppCD: async function (
     ctx: Context<{ enable: boolean }, { appId: number }>,
     req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: { headers: { [name: string]: unknown }; content?: never };
-      404: { headers: { [name: string]: unknown }; content?: never };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
+  ) {
     const app = await db.app.findUnique({
       where: {
         id: ctx.request.params.appId,
@@ -598,7 +471,7 @@ export const handlers = {
     });
 
     if (!app) {
-      return json(404, res, {});
+      return json(404, res, { code: 404, message: "App not found." });
     }
 
     await db.app.update({
@@ -613,49 +486,41 @@ export const handlers = {
     ctx: Context<never, never, { subdomain: string }>,
     req: ExpressRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": { available: boolean } };
-      };
-      500: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["ApiError"] };
-      };
-    }>
-  > {
+  ) {
     const subdomain = ctx.request.query.subdomain;
-    try {
-      const namespaceExists = namespaceInUse(getNamespace(subdomain));
-      const subdomainUsedByApp = db.app.count({
-        where: { subdomain },
-      });
-      // Check database in addition to resources in case the namespace is taken but not finished creating
-      const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
-        .map((value) => !!value)
-        .reduce((prev, cur) => prev && !cur, true);
-      return json(200, res, { available: canUse });
-    } catch (err) {
-      console.error(err);
-      return json(500, res, { code: 500, message: "Something went wrong." });
+
+    if (
+      subdomain.length > 54 ||
+      subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null
+    ) {
+      return json(400, res, { code: 400, message: "Invalid subdomain." });
     }
+
+    const namespaceExists = namespaceInUse(getNamespace(subdomain));
+    const subdomainUsedByApp = db.app.count({
+      where: { subdomain },
+    });
+    // Check database in addition to resources in case the namespace is taken but not finished creating
+    const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
+      .map((value) => !!value)
+      .reduce((prev, cur) => prev && !cur, true);
+    return json(200, res, { available: canUse });
   },
   listOrgGroups: async function (
     ctx: Context<never, { orgId: number }>,
-    req: ExpressRequest,
+    req: AuthenticatedRequest,
     res: ExpressResponse,
-  ): Promise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": { id: number; name: string }[] };
-      };
-    }>
-  > {
+  ) {
     const orgId = ctx.request.params.orgId;
-    const { appGroups } = await db.organization.findUnique({
-      where: { id: orgId },
+    const org = await db.organization.findUnique({
+      where: {
+        id: orgId,
+        users: {
+          some: {
+            userId: req.user.id,
+          },
+        },
+      },
       select: {
         appGroups: {
           select: { id: true, name: true },
@@ -663,10 +528,15 @@ export const handlers = {
         },
       },
     });
+
+    if (org === null) {
+      return json(404, res, { code: 404, message: "Organization not found." });
+    }
+
     return json(
       200,
       res,
-      appGroups.map((group) => ({
+      org.appGroups.map((group) => ({
         id: group.id,
         name: group.name,
       })),
@@ -676,35 +546,12 @@ export const handlers = {
     ctx: Context,
     req: ExpressRequest,
     res: ExpressResponse,
-  ): OptionalPromise<
-    HandlerResponse<{
-      200: {
-        headers: { [name: string]: unknown };
-        content: {
-          "application/json": {
-            [key: string]: {
-              displayName: string;
-              url: string;
-              description: string;
-              port: number;
-            };
-          };
-        };
-      };
-    }>
-  > {
+  ) {
     const path =
       process.env.NODE_ENV === "development"
         ? "../templates/templates.json"
         : "./templates.json";
-    const data = JSON.parse(fs.readFileSync(path, "utf8")) as {
-      [key: string]: {
-        displayName: string;
-        url: string;
-        description: string;
-        port: number;
-      };
-    };
+    const data = JSON.parse(fs.readFileSync(path, "utf8"));
     return json(200, res, data);
   },
   createApp,

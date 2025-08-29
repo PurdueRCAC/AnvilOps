@@ -20,8 +20,17 @@ import {
 } from "./resources/statefulset.ts";
 
 const NAMESPACE_PREFIX = "anvilops-";
+
+// Namespace must pass RFC 1123 (and service must pass RFC 1035)
 export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
-export const MAX_GROUPNAME_LEN = 56;
+
+// app.kubernetes.io/part-of label must pass RFC 1123
+// `-{groupId}-{organizationId}` is appended to group name to create the label value
+export const MAX_GROUPNAME_LEN = 50;
+
+// StatefulSet name must pass RFC 1123
+// The names of its pods, which are `{statefulset name}-{pod #}` also must pass RFC 1123
+export const MAX_STS_NAME_LEN = 60;
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 

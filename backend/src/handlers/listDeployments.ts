@@ -17,7 +17,10 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     !Number.isInteger(page) ||
     !Number.isInteger(pageLength)
   ) {
-    return json(400, res, {});
+    return json(400, res, {
+      code: 400,
+      message: "Invalid page or page length.",
+    });
   }
 
   const deployments = await db.deployment.findMany({

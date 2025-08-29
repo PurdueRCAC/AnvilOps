@@ -8,6 +8,20 @@ export const removeUserFromOrg: HandlerMap["removeUserFromOrg"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
+  const membership = await db.organizationMembership.findUnique({
+    where: {
+      userId_organizationId: {
+        userId: req.user.id,
+        organizationId: ctx.request.params.orgId,
+      },
+      permissionLevel: "OWNER",
+    },
+  });
+
+  if (!membership) {
+    return json(403, res, {});
+  }
+
   try {
     await db.organizationMembership.delete({
       where: {
@@ -15,20 +29,14 @@ export const removeUserFromOrg: HandlerMap["removeUserFromOrg"] = async (
           userId: ctx.request.params.userId,
           organizationId: ctx.request.params.orgId,
         },
-        organization: {
-          users: {
-            some: {
-              userId: req.user.id,
-              permissionLevel: "OWNER",
-            },
-          },
-        },
       },
     });
   } catch (e: any) {
     if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
-      return json(404, res, { message: "User not found." });
+      return json(404, res, { code: 404, message: "Not found." });
     }
+
+    throw e;
   }
 
   return json(204, res, {});

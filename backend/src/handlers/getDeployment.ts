@@ -32,7 +32,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   });
 
   if (!deployment) {
-    return json(404, res, {});
+    return json(404, res, { code: 404, message: "Deployment not found." });
   }
 
   const { CoreV1Api: api } = await getClientsForRequest(

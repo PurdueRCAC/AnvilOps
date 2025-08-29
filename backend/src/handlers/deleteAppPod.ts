@@ -1,8 +1,8 @@
-import type { AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { json, type HandlerMap } from "../types.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
+import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
   ctx,
@@ -16,7 +16,7 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
     },
   });
   if (!app) {
-    return json(404, res, {});
+    return json(404, res, { code: 404, message: "App not found." });
   }
 
   const { CoreV1Api: api } = await getClientsForRequest(

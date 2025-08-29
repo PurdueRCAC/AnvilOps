@@ -24,7 +24,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
       (ctx.request.query.setup_action === "install" ||
         ctx.request.query.setup_action === "update")
     ) {
-      return json(400, res, {});
+      return json(400, res, { code: 400, message: "Missing installation ID." });
     }
 
     // 1) Verify the `state`

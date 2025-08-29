@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import AppConfigFormFields, {
   type AppInfoFormData,
 } from "./AppConfigFormFields";
-import { FormContext } from "./CreateAppView";
+import { FormContext, getCleanedAppName } from "./CreateAppView";
 
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
@@ -307,12 +307,12 @@ const getAppName = (state: AppInfoFormData) => {
   let appName = "Untitled";
   if (state.source === "git") {
     if (state.repoName) {
-      appName = state.repoName.toLowerCase().substring(0, 64);
+      appName = getCleanedAppName(state.repoName);
     }
   } else if (state.source === "image") {
     if (state.imageTag) {
       const tag = state.imageTag!.toString().split("/");
-      appName = tag[tag.length - 1].split(":")[0];
+      appName = getCleanedAppName(tag[tag.length - 1].split(":")[0]);
     }
   }
   return appName;

@@ -29,7 +29,7 @@ export const revokeInvitation: HandlerMap["revokeInvitation"] = async (
     });
   } catch (e: any) {
     if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
-      return json(404, res, { message: "Invitation not found." });
+      return json(404, res, { code: 404, message: "Invitation not found." });
     }
     throw e;
   }

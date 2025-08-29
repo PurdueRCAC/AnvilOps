@@ -44,22 +44,19 @@ export const updateApp: HandlerMap["updateApp"] = async (
   });
 
   if (!originalApp) {
-    return json(401, res, {});
+    return json(404, res, { code: 404, message: "App not found" });
   }
 
-  const validation = validateDeploymentConfig(appData.config);
-  if (!validation.valid) {
-    return json(400, res, { code: 400, message: validation.message });
-  }
-  if (appData.appGroup) {
-    const appGroupValidation = validateAppGroup(appData.appGroup);
-
-    if (!appGroupValidation.valid) {
-      return json(400, res, {
-        code: 400,
-        message: appGroupValidation.message,
-      });
+  try {
+    validateDeploymentConfig(appData.config);
+    if (appData.appGroup) {
+      validateAppGroup(appData.appGroup);
     }
+  } catch (e) {
+    return json(400, res, {
+      code: 400,
+      message: e.message,
+    });
   }
 
   if (appData.projectId) {
@@ -67,7 +64,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
       where: { id: req.user.id },
     });
     if (!(await canManageProject(clusterUsername, appData.projectId))) {
-      return json(401, res, {});
+      return json(404, res, { code: 404, message: "Project not found" });
     }
   }
 
@@ -95,7 +92,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
         ) {
           // https://www.prisma.io/docs/orm/reference/error-reference#p2025
           // "An operation failed because it depends on one or more records that were required but not found. {cause}"
-          return json(500, res, { code: 500, message: "App group not found" });
+          return json(404, res, { code: 404, message: "App group not found" });
         }
       }
     }
@@ -294,13 +291,25 @@ export const updateApp: HandlerMap["updateApp"] = async (
         }),
       ]);
     } catch (err) {
-      console.error(err);
+      console.error(
+        `Failed to update Kubernetes resources for deployment ${deployment.id}`,
+        err,
+      );
       await db.deployment.update({
         where: {
           id: deployment.id,
         },
         data: {
           status: "ERROR",
+          logs: {
+            create: {
+              timestamp: new Date(),
+              content: {
+                log: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+              },
+              type: "SYSTEM",
+            },
+          },
         },
       });
       return json(200, res, {});

@@ -2587,7 +2587,7 @@ components:
           "$ref": "#/components/schemas/repository-webhooks"
         requester:
           nullable: true
-          type: ["null", "object"]
+          type: object
         sender:
           "$ref": "#/components/schemas/simple-user"
       required:
@@ -2891,19 +2891,18 @@ components:
             id:
               type: integer
             conclusion:
-              oneOf:
-                - type: string
-                  enum:
-                    - action_required
-                    - cancelled
-                    - failure
-                    - neutral
-                    - skipped
-                    - stale
-                    - success
-                    - timed_out
-                    - startup_failure
-                - type: "null"
+              nullable: true
+              type: string
+              enum:
+                - action_required
+                - cancelled
+                - failure
+                - neutral
+                - skipped
+                - stale
+                - success
+                - timed_out
+                - startup_failure
             head_branch:
               type: string
               nullable: true
