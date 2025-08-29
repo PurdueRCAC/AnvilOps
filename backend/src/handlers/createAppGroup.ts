@@ -4,12 +4,12 @@ import type { App } from "../generated/prisma/client.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
-import { MAX_GROUPNAME_LEN } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
+  validateAppGroup,
+  validateAppName,
   validateDeploymentConfig,
-  validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -22,57 +22,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   res,
 ) => {
   const data = ctx.request.requestBody;
-
-  // TODO: validate project id
-
-  {
-    const groupNameIsValid =
-      data.name.length <= MAX_GROUPNAME_LEN &&
-      data.name.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/);
-    if (!groupNameIsValid) {
-      return json(400, res, {
-        code: 400,
-        message: "Invalid group name",
-      });
-    }
-
-    const appValidationErrors = data.apps
-      .map((app) => validateDeploymentConfig(app))
-      .filter((validation) => !validation.valid)
-      .map((validation) => validation.message);
-    if (appValidationErrors.length > 0) {
-      return json(400, res, {
-        code: 400,
-        message: JSON.stringify(appValidationErrors),
-      });
-    }
-
-    const subdomainErrors = (
-      await Promise.all(
-        data.apps.map((app) => validateSubdomain(app.subdomain)),
-      )
-    )
-      .filter((validation) => !validation.valid)
-      .map((validation) => validation.message);
-    if (subdomainErrors.length > 0) {
-      return json(400, res, {
-        code: 400,
-        message: JSON.stringify(subdomainErrors),
-      });
-    }
-
-    for (const app of data.apps) {
-      if (!validateRFC1123(app.name)) {
-        return json(400, res, {
-          code: 400,
-          message:
-            "App name must contain only lowercase alphanumeric characters or '-', " +
-            "start and end with an alphanumeric character, " +
-            "and contain at most 63 characters.",
-        });
-      }
-    }
-  }
 
   const organization = await db.organization.findUnique({
     where: {
@@ -93,7 +42,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   });
 
   if (!organization) {
-    return json(401, res, {});
+    return json(400, res, { code: 400, message: "Organization not found" });
   }
 
   if (organization.appGroups.length != 0) {
@@ -103,21 +52,49 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     });
   }
 
+  try {
+    validateAppGroup({ type: "create-new", name: data.name });
+  } catch (e) {
+    return json(400, res, { code: 400, message: e.message });
+  }
+  const appValidationErrors = data.apps
+    .map(async (app) => {
+      try {
+        const subdomainRes = validateSubdomain(app.subdomain);
+        validateDeploymentConfig(app);
+        validateAppName(app.name);
+        await subdomainRes;
+        return null;
+      } catch (e) {
+        return e;
+      }
+    })
+    .filter(Boolean);
+  if (appValidationErrors.length > 0) {
+    return json(400, res, {
+      code: 400,
+      message: JSON.stringify(appValidationErrors),
+    });
+  }
+
   const { clusterUsername } = await db.user.findUnique({
     where: { id: req.user.id },
   });
 
   const permissionResults = await Promise.all(
-    data.apps.map((app) => canManageProject(clusterUsername, app.projectId)),
+    data.apps.map(async (app) => ({
+      project: app.projectId,
+      canManage: await canManageProject(clusterUsername, app.projectId),
+    })),
   );
 
-  if (
-    !permissionResults.reduce(
-      (canManageAll, canManageCur) => canManageAll && canManageCur,
-      true,
-    )
-  ) {
-    return json(401, res, {});
+  for (const result of permissionResults) {
+    if (!result.canManage) {
+      return json(400, res, {
+        code: 400,
+        message: `Project ${result.project} not found`,
+      });
+    }
   }
 
   let octokit: Octokit;

@@ -13,12 +13,6 @@ export const inviteUser: HandlerMap["inviteUser"] = async (
     select: { id: true },
   });
 
-  if (otherUser.id === req.user.id) {
-    return json(400, res, {
-      message: "You cannot send an invitation to yourself.",
-    });
-  }
-
   if (otherUser === null) {
     return json(404, res, {
       code: 404,
@@ -26,6 +20,14 @@ export const inviteUser: HandlerMap["inviteUser"] = async (
         "No user was found with that email address. Make sure it is spelled correctly.",
     });
   }
+
+  if (otherUser.id === req.user.id) {
+    return json(400, res, {
+      code: 400,
+      message: "You cannot send an invitation to yourself.",
+    });
+  }
+
   try {
     await db.organization.update({
       where: {
@@ -50,6 +52,7 @@ export const inviteUser: HandlerMap["inviteUser"] = async (
     if (e instanceof PrismaClientKnownRequestError && e.code === "P2002") {
       // Unique constraint failed
       return json(400, res, {
+        code: 400,
         message: "That user has already been invited to this organization.",
       });
     }

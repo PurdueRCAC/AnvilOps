@@ -57,7 +57,15 @@ const api = new OpenAPIBackend({
 api.init();
 
 const handler = async (req: ExpressRequest, res: ExpressResponse) => {
-  await api.handleRequest(req as Request, req, res);
+  try {
+    await api.handleRequest(req as Request, req, res);
+  } catch (err) {
+    if (err instanceof URIError) {
+      res.status(400).json({ code: 400, message: "Malformed URI." });
+    }
+    console.error(err);
+    res.status(500).json({ code: 500, message: "Something went wrong." });
+  }
 };
 
 export default handler;

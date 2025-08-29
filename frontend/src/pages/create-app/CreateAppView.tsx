@@ -69,14 +69,13 @@ export default function CreateAppView() {
         onSubmit={async (e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
-
           let appName = "untitled";
           if (formState.source === "git") {
-            // https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
-            appName = formState.repoName!.toLowerCase().substring(0, 64);
+            // Make RFC1123 compliant
+            appName = getCleanedAppName(formState.repoName!);
           } else if (formState.source === "image") {
             const tag = formState.imageTag!.split("/");
-            appName = tag[tag.length - 1].split(":")[0];
+            appName = getCleanedAppName(tag[tag.length - 1].split(":")[0]);
           }
           try {
             let appGroup: components["schemas"]["NewApp"]["appGroup"];
@@ -201,6 +200,12 @@ export default function CreateAppView() {
     </div>
   );
 }
+
+export const getCleanedAppName = (name: string) =>
+  name
+    .toLowerCase()
+    .substring(0, 60)
+    .replace(/[^a-z0-9-]/g, "");
 
 export const GitHubIcon = ({ className }: { className?: string }) => (
   <svg

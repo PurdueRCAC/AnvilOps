@@ -1,13 +1,13 @@
 import { type components } from "../generated/openapi.ts";
-import { type AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
 import {
   deleteNamespace,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
+import { db } from "../lib/db.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
+import { type AuthenticatedRequest } from "./index.ts";
 
 export const deleteApp: HandlerMap["deleteApp"] = async (
   ctx,
@@ -17,6 +17,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   HandlerResponse<{
     200: { headers: { [name: string]: unknown }; content?: never };
     401: { headers: { [name: string]: unknown }; content?: never };
+    404: { headers: { [name: string]: unknown }; content?: never };
     500: {
       headers: { [name: string]: unknown };
       content: { "application/json": components["schemas"]["ApiError"] };
@@ -45,7 +46,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   });
 
   if (!org) {
-    return json(401, res, {});
+    return json(404, res, {});
   }
   const { subdomain, projectId, imageRepo, appGroup } = await db.app.findUnique(
     {

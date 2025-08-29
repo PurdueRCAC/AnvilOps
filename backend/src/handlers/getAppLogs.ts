@@ -21,7 +21,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   });
 
   if (app === null) {
-    return json(404, res, {});
+    return json(404, res, { code: 404, message: "App not found." });
   }
 
   res.set({
@@ -43,7 +43,10 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   // Pull logs from Postgres and send them to the client as they come in
   if (typeof ctx.request.params.deploymentId !== "number") {
     // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation and additional sanitization in `subscribe()`
-    return json(400, res, {});
+    return json(400, res, {
+      code: 400,
+      message: "Deployment ID must be number.",
+    });
   }
 
   let lastLogId = -1;

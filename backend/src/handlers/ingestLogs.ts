@@ -28,7 +28,7 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
     }
     case "runtime": {
       if (!ctx.request.query.appId) {
-        return json(400, res, {});
+        return json(400, res, { code: 400, message: "Missing app ID." });
       }
       const count = await db.app.count({
         where: { id: ctx.request.query.appId, logIngestSecret: password },
@@ -51,7 +51,7 @@ export const ingestLogs: HandlerMap["ingestLogs"] = async (ctx, req, res) => {
 
   if (logType === undefined) {
     // Should never happen
-    return json(400, res, {});
+    return json(400, res, { code: 400, message: "Missing log type." });
   }
 
   const lines = (req.body as string)

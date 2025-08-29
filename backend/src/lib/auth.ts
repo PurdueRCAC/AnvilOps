@@ -51,7 +51,7 @@ router.get("/oauth_callback", async (req, res) => {
   try {
     const currentUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
     const tokens = await client.authorizationCodeGrant(
-      config,
+      await getConfig(),
       new URL(currentUrl),
       {
         pkceCodeVerifier: (req.session as any).code_verifier,
@@ -135,6 +135,7 @@ const ALLOWED_ROUTES = [
   "/github/webhook",
   "/logs/ingest",
   "/settings",
+  "/templates",
 ];
 router.use((req, res, next) => {
   if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {

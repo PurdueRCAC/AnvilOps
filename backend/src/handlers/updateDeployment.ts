@@ -23,7 +23,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   }
 
   if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => status === it)) {
-    return json(400, res, {});
+    return json(400, res, { code: 400, message: "Invalid status." });
   }
   const deployment = await db.deployment.update({
     where: { secret: secret },
@@ -46,7 +46,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   });
 
   if (!deployment) {
-    return json(403, res, {});
+    return json(404, res, { code: 404, message: "Deployment not found." });
   }
 
   log(
@@ -141,7 +141,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
               content: {
                 log: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
               },
-              type: "BUILD",
+              type: "SYSTEM",
             },
           },
         },

@@ -12,8 +12,8 @@ import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
+  validateAppName,
   validateDeploymentConfig,
-  validateRFC1123,
   validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -27,40 +27,6 @@ export const createApp: HandlerMap["createApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
 
-  {
-    const validation = validateDeploymentConfig(appData);
-    if (!validation.valid) {
-      return json(400, res, { code: 400, message: validation.message });
-    }
-
-    const appGroupValidation = validateAppGroup(appData.appGroup);
-
-    if (!appGroupValidation.valid) {
-      return json(400, res, {
-        code: 400,
-        message: appGroupValidation.message,
-      });
-    }
-
-    const subdomainValidation = await validateSubdomain(appData.subdomain);
-    if (!subdomainValidation.valid) {
-      return json(400, res, {
-        code: 400,
-        message: subdomainValidation.message,
-      });
-    }
-
-    if (!validateRFC1123(appData.name)) {
-      return json(400, res, {
-        code: 400,
-        message:
-          "App name must contain only lowercase alphanumeric characters or '-', " +
-          "start and end with an alphanumeric character, " +
-          "and contain at most 63 characters.",
-      });
-    }
-  }
-
   const organization = await db.organization.findUnique({
     where: {
       id: appData.orgId,
@@ -73,13 +39,26 @@ export const createApp: HandlerMap["createApp"] = async (
   });
 
   if (!organization) {
-    return json(401, res, {});
+    return json(400, res, { code: 400, message: "Organization not found" });
+  }
+
+  try {
+    validateDeploymentConfig(appData);
+    validateAppGroup(appData.appGroup);
+    const subdomainRes = validateSubdomain(appData.subdomain);
+    validateAppName(appData.name);
+    await subdomainRes;
+  } catch (e) {
+    return json(400, res, {
+      code: 400,
+      message: e.message,
+    });
   }
 
   let clusterUsername: string;
   if (isRancherManaged()) {
     if (!appData.projectId) {
-      return json(500, res, { code: 500, message: "Project ID is required" });
+      return json(400, res, { code: 400, message: "Project ID is required" });
     }
 
     let { clusterUsername: username } = await db.user.findUnique({
@@ -87,7 +66,7 @@ export const createApp: HandlerMap["createApp"] = async (
       select: { clusterUsername: true },
     });
     if (!(await canManageProject(username, appData.projectId))) {
-      return json(401, res, {});
+      return json(400, res, { code: 400, message: "Project not found" });
     }
 
     clusterUsername = username;
@@ -131,7 +110,7 @@ export const createApp: HandlerMap["createApp"] = async (
           })
           .then((res) => res.data.workflows);
         if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
-          return json(400, res, { code: 400, message: "Invalid workflow id" });
+          return json(400, res, { code: 400, message: "Workflow not found" });
         }
       } catch (err) {
         console.error(err);

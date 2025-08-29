@@ -15,7 +15,10 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
 
   const repoId = payload.repository?.id;
   if (!repoId) {
-    return json(400, res, { message: "Repository ID not specified" });
+    return json(400, res, {
+      code: 400,
+      message: "Repository ID not specified",
+    });
   }
 
   const updatedBranch = payload.ref.match(/^refs\/heads\/(?<branch>.+)/).groups

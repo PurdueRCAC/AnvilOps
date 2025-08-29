@@ -1,9 +1,9 @@
-import type { Octokit } from "octokit";
 import type { components } from "../generated/openapi.ts";
 import { namespaceInUse } from "./cluster/kubernetes.ts";
 import {
   getNamespace,
   MAX_GROUPNAME_LEN,
+  MAX_STS_NAME_LEN,
   MAX_SUBDOMAIN_LEN,
 } from "./cluster/resources.ts";
 
@@ -14,65 +14,41 @@ export function validateDeploymentConfig(
   ) &
     Omit<components["schemas"]["KnownDeploymentOptions"], "replicas">,
 ) {
-  // TODO verify that the organization has access to the repository
-
   const { source, env, mounts, port } = data;
   if (source === "git") {
     const { builder, dockerfilePath, rootDir, event, eventId } = data;
     if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
-      return { valid: false, message: "Invalid root directory" };
+      throw new Error("Invalid root directory");
     }
     if (builder === "dockerfile") {
       if (!dockerfilePath) {
-        return {
-          valid: false,
-          message: "Dockerfile path must be provided",
-        };
+        throw new Error("Dockerfile path is required");
       }
       if (dockerfilePath.startsWith("/") || dockerfilePath.includes(`"`)) {
-        return { valid: false, message: "Invalid Dockerfile path" };
+        throw new Error("Invalid Dockerfile path");
       }
     }
 
     if (event === "workflow_run" && eventId === undefined) {
-      return { valid: false, message: "Must provide workflow id" };
+      throw new Error("Workflow ID is required");
     }
   } else if (source === "image") {
-    const { imageTag } = data;
-    if (
-      !imageTag ||
-      imageTag.match(
-        /^(?:(?=[^:\/]{4,253})(?!-)[a-zA-Z0-9\-]{1,63}(?<!-)(?:\.(?!-)[a-zA-Z0-9\-]{1,63}(?<!-))*(?::[0-9]{1,5})?\/)?((?![._\-])(?:[a-z0-9._\-]*)(?<![._\-])(?:\/(?![._\-])[a-z0-9._\-]*(?<![._\-]))*)(?::(?![.\-])[a-zA-Z0-9_.\-]{1,128})?$/,
-      ) === null
-    ) {
-      return {
-        valid: false,
-        message: "Invalid image tag",
-      };
+    if (!data.imageTag) {
+      throw new Error("Image tag is required");
     }
   } else {
-    return {
-      valid: false,
-      message: "Invalid deployment source type: expected `git` or `image`.",
-    };
+    throw new Error(
+      "Invalid deployment source type: expected `git` or `image`.",
+    );
   }
 
   if (port < 0 || port > 65535) {
-    return {
-      valid: false,
-      message: "Invalid port number",
-    };
+    throw new Error("Invalid port number: must be between 0 and 65535");
   }
 
-  try {
-    validateEnv(env);
-  } catch (err) {
-    return { valid: false, message: err.message };
-  }
+  validateEnv(env);
 
-  // TODO validate mounts
-
-  return { valid: true };
+  validateMounts(mounts);
 }
 
 export const validateAppGroup = (
@@ -92,33 +68,66 @@ export const validateAppGroup = (
   return { valid: true };
 };
 
+const validateMounts = (
+  mounts: components["schemas"]["KnownDeploymentOptions"]["mounts"],
+) => {
+  const pathSet = new Set();
+  for (const mount of mounts) {
+    if (!mount.path.startsWith("/")) {
+      throw new Error(`Invalid mount path ${mount.path}: must start with '/'`);
+    }
+
+    if (pathSet.has(mount.path)) {
+      throw new Error(`Invalid mounts: paths are not unique`);
+    }
+    pathSet.add(mount.path);
+  }
+};
+
 export const validateEnv = (env: PrismaJson.EnvVar[]) => {
   if (env?.some((it) => !it.name || it.name.length === 0)) {
-    throw new Error("Some environment variable(s) are empty");
+    return { valid: false, message: "Some environment variable(s) are empty" };
   }
 
   const envNames = new Set();
 
   for (let envVar of env) {
     if (envNames.has(envVar.name)) {
-      throw new Error("Duplicate environment variable " + envVar.name);
+      return {
+        valid: false,
+        message: "Duplicate environment variable " + envVar.name,
+      };
     }
     envNames.add(envVar.name);
   }
 };
 
 export const validateSubdomain = async (subdomain: string) => {
-  if (subdomain.length > MAX_SUBDOMAIN_LEN || !validateRFC1123(subdomain)) {
-    return { valid: false, message: `Invalid subdomain ${subdomain}` };
+  if (subdomain.length > MAX_SUBDOMAIN_LEN || !isRFC1123(subdomain)) {
+    throw new Error(
+      "Subdomain must contain only lowercase alphanumeric characters or '-', " +
+        "start and end with an alphanumeric character, " +
+        `and contain at most ${MAX_SUBDOMAIN_LEN} characters`,
+    );
   }
 
   if (await namespaceInUse(getNamespace(subdomain))) {
-    return { valid: false, message: `Subdomain ${subdomain} is unavailable` };
+    throw new Error("Subdomain is unavailable");
   }
 
   return { valid: true };
 };
 
-export const validateRFC1123 = (value: string) =>
+export const validateAppName = (name: string) => {
+  if (name.length > MAX_STS_NAME_LEN || !isRFC1123(name)) {
+    throw new Error(
+      "App name must contain only lowercase alphanumeric characters or '-', " +
+        "start and end with an alphanumeric character, " +
+        `and contain at most ${MAX_STS_NAME_LEN} characters`,
+    );
+  }
+};
+
+export const isRFC1123 = (value: string) =>
   value.length <= 63 &&
   value.match(/[a-zA-Z0-9]([-a-z0-9]*[a-z0-9])?$/) !== null;

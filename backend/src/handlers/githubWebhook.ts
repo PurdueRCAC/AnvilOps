@@ -274,7 +274,10 @@ export async function buildAndDeploy({
         data: { status: DeploymentStatus.COMPLETE },
       });
     } catch (e) {
-      console.error("Failed to create Kubernetes resources for app", e);
+      console.error(
+        `Failed to create Kubernetes resources for deployment ${deployment.id}`,
+        e,
+      );
       await db.deployment.update({
         where: { id: deployment.id },
         data: {
@@ -285,7 +288,7 @@ export async function buildAndDeploy({
               content: {
                 log: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
               },
-              type: "BUILD",
+              type: "SYSTEM",
             },
           },
         },

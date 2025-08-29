@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
-import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
   async (ctx, req: AuthenticatedRequest, res) => {
@@ -19,12 +19,12 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
     });
 
     if (!org) {
-      return json(404, res, {});
+      return json(404, res, { code: 404, message: "Organization not found." });
     }
 
     if (!org.githubInstallationId) {
-      return json(400, res, {
-        code: 400,
+      return json(403, res, {
+        code: 403,
         message: "Organization has not installed the GitHub App",
       });
     }

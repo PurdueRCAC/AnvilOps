@@ -1,7 +1,7 @@
-import type { AuthenticatedRequest } from "./index.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const getInstallation: HandlerMap["getInstallation"] = async (
   ctx,
@@ -19,8 +19,12 @@ export const getInstallation: HandlerMap["getInstallation"] = async (
     },
   });
 
-  if (!org || !org.githubInstallationId) {
-    return json(404, res, {});
+  if (!org) {
+    return json(404, res, { code: 404, message: "Organization not found." });
+  }
+
+  if (!org.githubInstallationId) {
+    return json(404, res, { code: 404, message: "GitHub app not installed." });
   }
 
   const octokit = await getOctokit(org.githubInstallationId);

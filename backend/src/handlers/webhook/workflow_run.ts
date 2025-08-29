@@ -19,7 +19,10 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
 
   const repoId = payload.repository?.id;
   if (!repoId) {
-    return json(400, res, { message: "Repository ID not specified" });
+    return json(400, res, {
+      code: 400,
+      message: "Repository ID not specified",
+    });
   }
 
   if (payload.action === "in_progress") {

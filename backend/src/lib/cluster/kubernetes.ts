@@ -11,10 +11,10 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
-import { env } from "../env.ts";
-import type { K8sObject } from "./resources.ts";
-import { shouldImpersonate } from "./rancher.ts";
 import { db } from "../db.ts";
+import { env } from "../env.ts";
+import { shouldImpersonate } from "./rancher.ts";
+import type { K8sObject } from "./resources.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -185,5 +185,4 @@ export const createOrUpdateApp = async (
   }
 
   postCreate?.(api);
-  console.log(`App ${name} updated`);
 };

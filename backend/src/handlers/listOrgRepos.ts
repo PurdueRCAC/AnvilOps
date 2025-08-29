@@ -16,6 +16,14 @@ export const listOrgRepos: HandlerMap["listOrgRepos"] = async (
     select: { githubInstallationId: true },
   });
 
+  if (!org) {
+    return json(404, res, { code: 404, message: "Organization not found." });
+  }
+
+  if (org.githubInstallationId === null) {
+    return json(403, res, { code: 403, message: "GitHub not connected" });
+  }
+
   const octokit = await getOctokit(org.githubInstallationId);
   const repos = await octokit.rest.apps.listReposAccessibleToInstallation();
 
