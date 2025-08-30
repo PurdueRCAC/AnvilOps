@@ -27,7 +27,7 @@ type UserContextType = {
         >
       >)
     | undefined;
-  error: { code?: number; message?: string } | null;
+  error: { code?: number; message?: string } | undefined | null;
 };
 
 export const UserContext = React.createContext<UserContextType>({

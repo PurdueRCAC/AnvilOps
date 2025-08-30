@@ -266,6 +266,10 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "500":
           description: Unexpected Error
           content:
@@ -1872,6 +1876,7 @@ components:
         url:
           type: string
           format: uri
+      required: [id, userId, installationId, targetName, url]
     Org:
       type: object
       properties:
