@@ -114,7 +114,6 @@ export const RedeployModal = ({
             }),
       },
     }));
-    console.log(redeployState);
   };
 
   useEffect(() => {

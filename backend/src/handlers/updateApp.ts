@@ -128,9 +128,9 @@ export const updateApp: HandlerMap["updateApp"] = async (
     data.displayName = appData.name;
   }
 
-  if (appData.projectId !== undefined) {
-    data.projectId = appData.projectId;
-  }
+  // if (appData.projectId !== undefined) {
+  //   data.projectId = appData.projectId;
+  // }
 
   if (appData.enableCD !== undefined) {
     data.enableCD = appData.enableCD;
@@ -194,7 +194,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
       updatedConfig.branch !== currentConfig.branch ||
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
-      updatedConfig.dockerfilePath !== currentConfig.dockerfilePath ||
+      (updatedConfig.builder === "dockerfile" &&
+        updatedConfig.dockerfilePath !== currentConfig.dockerfilePath) ||
       updatedConfig.rootDir !== currentConfig.rootDir ||
       updatedConfig.commitHash !== currentConfig.commitHash)
   ) {
