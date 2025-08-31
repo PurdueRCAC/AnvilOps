@@ -2,6 +2,7 @@ import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
 import { AlertTriangle, FileClock, Loader, SatelliteDish } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
 
 type Deployment =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -100,7 +101,7 @@ export const Logs = ({
             lastScroll.current.scrollTop = element.scrollTop;
           }
         }}
-        className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-auto max-h-96"
+        className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-auto max-h-screen"
       >
         {logs && logs.length > 0 ? (
           <pre>
@@ -134,6 +135,22 @@ export const Logs = ({
           </>
         ) : null}
       </div>
+      <Button
+        onClick={() => {
+          const data = logs.map((log) => `${log.time} ${log.log}\n`);
+          const blob = new Blob(data, { type: "text/plain" });
+
+          const downloadLink = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = "logs.txt";
+          downloadLink.click();
+
+          URL.revokeObjectURL(url);
+        }}
+      >
+        Download logs
+      </Button>
     </>
   );
 };
