@@ -1,7 +1,7 @@
 import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
 import { AlertTriangle, FileClock, Loader, SatelliteDish } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 type Deployment =
   paths["/app/{appId}/deployments/{deploymentId}"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -19,12 +19,17 @@ export const Logs = ({
   const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
 
   const logsBody = useRef<HTMLDivElement | null>(null);
-  const [hasScrolled, setHasScrolled] = useState(false);
+  const lastScroll = useRef({ scrollTop: 0, hasScrolledUp: false });
   const isNearBottom = (element: HTMLDivElement, threshold = 500) =>
     element.scrollHeight - element.scrollTop <= threshold;
-  useEffect(() => {
+
+  // useLayoutEffect scrolls the element before paint
+  useLayoutEffect(() => {
     const element = logsBody.current;
-    if (element && (!hasScrolled || isNearBottom(element))) {
+    if (
+      element &&
+      (!lastScroll.current.hasScrolledUp || isNearBottom(element))
+    ) {
       element.scrollTop = element.scrollHeight;
     }
   }, [logs]);
@@ -82,7 +87,19 @@ export const Logs = ({
 
       <div
         ref={logsBody}
-        onScroll={() => setHasScrolled(true)}
+        onScroll={() => {
+          const element = logsBody.current;
+          if (element) {
+            const lastScrollTop = lastScroll.current.scrollTop;
+
+            // If scrolled up
+            if (element.scrollTop < lastScrollTop) {
+              lastScroll.current.hasScrolledUp = true;
+            }
+
+            lastScroll.current.scrollTop = element.scrollTop;
+          }
+        }}
         className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-auto max-h-96"
       >
         {logs && logs.length > 0 ? (
