@@ -34,9 +34,8 @@ Try this:
 ```sh
 # Make sure you're connected to your local development cluster and not a production cluster!
 # This script is very destructive!
-kubectl delete pv $(kubectl get pv -o template='{{range $item := .items}}{{if eq .spec.claimRef.name "db-data-anvilops-postgres-0"}}{{$item.metadata.name}}{{end}}{{end}}')
-kubectl delete pvc db-data-anvilops-postgres-0
+kubectl delete pv $(kubectl get pv -o template='{{range $item := .items}}{{if eq .spec.claimRef.name "db-data-anvilops-postgres-0"}}{{$item.metadata.name}}{{end}}{{end}}') &
+kubectl delete pvc db-data-anvilops-postgres-0 &
 kubectl delete sts anvilops-postgres
-tilt down
-tilt up
+tilt trigger anvilops-postgres # Recreate the database
 ```

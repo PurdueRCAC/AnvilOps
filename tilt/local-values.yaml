@@ -36,6 +36,7 @@ appProxy:
         hosts:
           - "*.anvilops.rcac.purdue.edu"
 postgres:
+  generateCredentials: false
   image: postgres:17
   nodeSelector: {}
   tolerations: []

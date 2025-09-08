@@ -92,6 +92,7 @@ appProxy:
     tls: []
 
 postgres:
+  generateCredentials: true
   image: postgres:17
   nodeSelector: {}
   tolerations: []

@@ -13,7 +13,7 @@ dotenv(fn='../backend/.env')
 
 k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
   'client-id': os.getenv('CLIENT_ID'),
-  'client-secret': os.getenv('CLIENT_ID')
+  'client-secret': os.getenv('CLIENT_SECRET')
 }))
 
 random_webhook_secret = local('openssl rand -hex 32')
@@ -33,6 +33,9 @@ k8s_yaml(secret_from_dict("github-app", inputs={
 k8s_yaml(secret_from_dict("image-delete-secret", inputs={'server': '__disabled', 'username': '__disabled', 'password': '__disabled'}))
 k8s_yaml(secret_yaml_registry("image-push-secret", flags_dict={'docker-server': '__disabled', 'docker-username': '__disabled', 'docker-password': '__disabled'}))
 k8s_yaml(secret_yaml_registry("image-pull-secret", flags_dict={'docker-server': '__disabled', 'docker-username': '__disabled', 'docker-password': '__disabled'}))
+
+# Hard-code these values so that the secret value doesn't drift from the value that Postgres used when creating the user
+k8s_yaml(secret_from_dict("postgres-credentials", inputs={'password': 'super-insecure-local-dev-password', 'field-encryption-key': '96WYSbPNEYi65gb8BRCzbf5ISIywNVV8Dm1rFCnRUFk='}))
 
 yaml = helm(
   '../charts/anvilops',
