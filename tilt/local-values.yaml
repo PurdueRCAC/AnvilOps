@@ -1,0 +1,60 @@
+# This values file is substituted into the Helm chart when developing locally with Tilt.
+# https://docs.tilt.dev/helm.html
+
+anvilops:
+  image: anvilops/anvilops
+  env:
+    baseURL: http://localhost:3000
+    appDomain: https://127.0.0.1.nip.io:3001 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
+    harborProjectName: anvilops
+    allowedIdps: https://access-ci.org/idp
+    fileBrowserImage: anvilops/file-browser
+    dockerfileBuilderImage: anvilops/dockerfile-builder
+    railpackBuilderImage: anvilops/railpack-builder
+  serviceAccount:
+    create: false
+    secretName: kube-auth
+  ingress:
+    className: nginx
+    hosts:
+      - host: anvilops.rcac.purdue.edu
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tls-cert
+        hosts:
+          - anvilops.rcac.purdue.edu
+appProxy:
+  image: anvilops/sandbox-proxy
+  ingress:
+    enabled: true
+    className: nginx
+    host: "*.anvilops.rcac.purdue.edu"
+    tls:
+      - secretName: tls-cert
+        hosts:
+          - "*.anvilops.rcac.purdue.edu"
+postgres:
+  image: postgres:17
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  volumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: standard
+buildkitd:
+  install: true
+  address: "tcp://buildkitd:1234"
+harbor:
+  install: false
+  expose:
+    ingress:
+      hosts:
+        core: registry.anvil.rcac.purdue.edu
+logging-operator:
+  enabled: false
+  install: false
+tenants:
+  storageClassName: standard
+  accessModes: [ReadWriteOnce]

@@ -179,6 +179,7 @@ spec:
                 secretKeyRef:
                   name: logging-ingest-secret
                   key: secret
+                  optional: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"

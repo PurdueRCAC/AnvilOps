@@ -1,0 +1,50 @@
+docker_build("anvilops/anvilops", "../")
+docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
+docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
+docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
+docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
+
+load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
+kubeconfig = local('kubectl config view --raw --minify')
+k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': kubeconfig}))
+
+load('ext://dotenv', 'dotenv')
+dotenv(fn='../backend/.env')
+
+k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
+  'client-id': os.getenv('CLIENT_ID'),
+  'client-secret': os.getenv('CLIENT_ID')
+}))
+
+random_webhook_secret = local('openssl rand -hex 32')
+
+k8s_yaml(secret_from_dict("github-app", inputs={
+  'app-name': os.getenv('GITHUB_APP_NAME'),
+  'app-id': os.getenv('GITHUB_APP_ID'),
+  'client-id': os.getenv('GITHUB_CLIENT_ID'),
+  'client-secret': os.getenv('GITHUB_CLIENT_SECRET'),
+  'private-key': os.getenv('GITHUB_PRIVATE_KEY'),
+  'webhook-secret': os.getenv('GITHUB_WEBHOOK_SECRET'),
+  'base-url': os.getenv('GITHUB_BASE_URL'),
+  'api-url': os.getenv('GITHUB_API_URL')
+}))
+
+# Deleting images isn't supported locally since we aren't running Harbor
+k8s_yaml(secret_from_dict("image-delete-secret", inputs={'server': '__disabled', 'username': '__disabled', 'password': '__disabled'}))
+k8s_yaml(secret_yaml_registry("image-push-secret", flags_dict={'docker-server': '__disabled', 'docker-username': '__disabled', 'docker-password': '__disabled'}))
+k8s_yaml(secret_yaml_registry("image-pull-secret", flags_dict={'docker-server': '__disabled', 'docker-username': '__disabled', 'docker-password': '__disabled'}))
+
+yaml = helm(
+  '../charts/anvilops',
+  # The release name, equivalent to helm --name
+  name='anvilops',
+  # The namespace to install in, equivalent to helm --namespace
+  namespace='default',
+  # The values file to substitute into the chart.
+  values=['./local-values.yaml']
+  )
+
+k8s_yaml(yaml)
+
+k8s_resource(workload='anvilops-app-proxy', port_forwards=[3001])
+k8s_resource(workload='anvilops', port_forwards=[3000])
