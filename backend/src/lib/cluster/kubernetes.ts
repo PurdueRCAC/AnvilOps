@@ -1,5 +1,6 @@
 import {
   ApiException,
+  ApiextensionsV1Api,
   AppsV1Api,
   AuthorizationV1Api,
   BatchV1Api,
@@ -28,6 +29,7 @@ const APIClientFactory = {
     KubernetesObjectApi.makeApiClient(kc),
   Log: (kc: KubeConfig) => new Log(kc),
   Watch: (kc: KubeConfig) => new Watch(kc),
+  ExtensionsV1Api: (kc: KubeConfig) => kc.makeApiClient(ApiextensionsV1Api),
 };
 Object.freeze(APIClientFactory);
 
