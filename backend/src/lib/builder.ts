@@ -72,7 +72,7 @@ async function createJobFromDeployment(
       map[name] = value;
     }
     await svcK8s["CoreV1Api"].createNamespacedSecret({
-      namespace: "anvilops-dev",
+      namespace: env.CURRENT_NAMESPACE,
       body: {
         apiVersion: "v1",
         kind: "Secret",
@@ -231,7 +231,7 @@ async function createJobFromDeployment(
       await svcK8s["CoreV1Api"].patchNamespacedSecret(
         {
           name: secretName,
-          namespace: "anvilops-dev",
+          namespace: env.CURRENT_NAMESPACE,
           body: {
             metadata: {
               ownerReferences: [
@@ -254,7 +254,7 @@ async function createJobFromDeployment(
         // Remove it manually now and throw an error.
         await svcK8s["CoreV1Api"].deleteNamespacedSecret({
           name: secretName,
-          namespace: "anvilops-dev",
+          namespace: env.CURRENT_NAMESPACE,
         });
       } catch {}
       throw e;
