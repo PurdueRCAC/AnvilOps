@@ -91,7 +91,7 @@ spec:
 
           PRODUCT=buildkit
 
-          SAN="buildkitd {{ include "anvilops.fullname" . }}-buildkitd {{ include "anvilops.fullname" . }}-buildkitd.{{ .Release.Namespace }}.svc.cluster.local"
+          SAN="buildkitd {{ include "anvilops.fullname" . }}-buildkitd {{ include "anvilops.fullname" . }}-buildkitd.{{ .Release.Namespace }}.svc.cluster.local {{ .Values.harbor.expose.ingress.hosts.core }}"
           SAN_CLIENT=client
 
           mkdir ./daemon ./client

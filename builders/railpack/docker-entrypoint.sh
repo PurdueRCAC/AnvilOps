@@ -36,7 +36,8 @@ run_job() {
       --opt "secrets-hash=$SECRET_CHECKSUM" \
       --export-cache type=registry,ref="$CACHE_TAG" \
       --import-cache type=registry,ref="$CACHE_TAG" \
-      --output type=image,name="$IMAGE_TAG",push=true
+      --output type=image,name="$IMAGE_TAG",push=true \
+      --progress plain
   }
 
   if build ; then
