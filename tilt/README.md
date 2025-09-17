@@ -16,7 +16,17 @@
 
    It's probably easier to create a new cluster using Tilt's instructions because Tilt needs to be able to access a local registry that the guide will help you create.
 
-2. Run Tilt:
+2. Make sure you're in Tilt's Kubernetes context
+
+   If you aren't, Tilt could start creating resources in a production cluster!
+
+   ```sh
+   kubectl config current-context
+   ```
+
+   Make sure this command outputs the name of your local cluster. If you aren't sure, check your kubeconfig (`kubectl config view`) and make sure the name corresponds to an address that starts with `localhost`.
+
+3. Run Tilt:
 
    ```sh
    tilt up

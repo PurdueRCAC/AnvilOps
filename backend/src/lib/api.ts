@@ -64,7 +64,11 @@ const handler = async (req: ExpressRequest, res: ExpressResponse) => {
       res.status(400).json({ code: 400, message: "Malformed URI." });
     }
     console.error(err);
-    res.status(500).json({ code: 500, message: "Something went wrong." });
+    if (!res.headersSent) {
+      res.status(500).json({ code: 500, message: "Something went wrong." });
+    } else {
+      res.end();
+    }
   }
 };
 
