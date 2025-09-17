@@ -13,7 +13,7 @@ jobs:
 
       - name: Pull, tag, and push the image
         run: |
-          TAG=$(docker pull -q ghcr.io/railwayapp/railpack-frontend:v0.2.2)
+          TAG=$(docker pull -q ghcr.io/railwayapp/railpack-frontend:v0.6.1)
           NEW_TAG=registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:latest
           docker tag $TAG $NEW_TAG
           docker push $NEW_TAG
