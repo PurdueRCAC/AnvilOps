@@ -46,7 +46,7 @@ postgres:
     storageClassName: standard
 buildkitd:
   install: true
-  address: "tcp://buildkitd:1234"
+  address: "tcp://anvilops-buildkitd.default.svc.cluster.local:1234"
 harbor:
   install: false
   expose:
