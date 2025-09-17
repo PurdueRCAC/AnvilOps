@@ -132,7 +132,7 @@ async function createJobFromDeployment(
                   { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
                   {
                     name: "DEPLOYMENT_API_URL",
-                    value: `${env.BASE_URL}/api`,
+                    value: `${env.CLUSTER_INTERNAL_BASE_URL}/api`,
                   },
                   {
                     name: "BUILDKITD_ADDRESS",
