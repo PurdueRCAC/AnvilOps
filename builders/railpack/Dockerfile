@@ -1,6 +1,6 @@
 # When changing the Railpack version, make sure the Mise version is updated as well
 # Current Mise version: https://github.com/railwayapp/railpack/blob/main/core/mise/install.go#L20
-ARG RAILPACK_VERSION=0.6.1
+ARG RAILPACK_VERSION=0.7.0
 ARG MISE_VERSION=2025.9.9
 
 FROM ghcr.io/jdx/mise:${MISE_VERSION} AS mise
