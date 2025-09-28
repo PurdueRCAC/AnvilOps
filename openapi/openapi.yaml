@@ -28,6 +28,8 @@ paths:
                   appDomain:
                     type: string
                     format: uri
+                  clusterName:
+                    type: string
                   storageEnabled:
                     type: boolean
                   isRancherManaged:

@@ -1,0 +1,12 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: anvilops
+spec:
+  interval: 1m0s
+  secretRef:
+    name: anvilops
+  ref:
+    branch: main
+  url: ssh://git@github.rcac.purdue.edu/RCAC-Staff/AnvilOps

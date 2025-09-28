@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import {
   Accordion,
   AccordionContent,
@@ -17,6 +18,7 @@ import {
   TrendingUp,
   Undo2,
 } from "lucide-react";
+import { BiLogoGoLang } from "react-icons/bi";
 import {
   FaHtml5,
   FaJava,
@@ -37,11 +39,12 @@ import {
   SiRubyonrails,
   SiVite,
 } from "react-icons/si";
-import { BiLogoGoLang } from "react-icons/bi";
 import { Link } from "react-router-dom";
 import { GitHubIcon } from "./create-app/CreateAppView";
 
 export default function LandingView() {
+  const settings = useAppConfig();
+
   return (
     <>
       <div className="mx-auto max-w-4xl my-10">
@@ -53,7 +56,8 @@ export default function LandingView() {
           .
         </h1>
         <p>
-          AnvilOps lets you deploy your app to Anvil Composable without writing
+          AnvilOps lets you deploy your app to{" "}
+          {settings.clusterName ?? "a Kubernetes cluster"} without writing
           Kubernetes manifests.
         </p>
         <Link to="/create-app" className="inline-block mt-8">

@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+  - helm-chart.yaml
+  - harbor-receiver.yaml
+  - imageupdate.yaml
+patches:
+  - patch: |-
+      apiVersion: source.toolkit.fluxcd.io/v1
+      kind: GitRepository
+      metadata:
+        name: anvilops
+      spec:
+        ref:
+          branch: dev
+namespace: anvilops-dev
+commonLabels:
+  environment: dev
