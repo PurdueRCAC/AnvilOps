@@ -1,37 +1,38 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-382-5fc7ea5ad53274f5be2bbd02cad66259e9935d6a # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-382-5fc7ea5ad53274f5be2bbd02cad66259e9935d6a
   env:
-    baseURL: https://anvilops.rcac.purdue.edu
-    appDomain: https://anvilops.rcac.purdue.edu
+    baseURL: https://anvilops.geddes.rcac.purdue.edu
+    appDomain: https://anvilops.geddes.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+  dnsResolver: rke2-coredns-rke2-coredns.kube-system.svc.cluster.local
   serviceAccount:
     create: false
     secretName: kube-auth
   ingress:
     className: nginx
     hosts:
-      - host: anvilops.rcac.purdue.edu
+      - host: anvilops.geddes.rcac.purdue.edu
         paths:
           - path: /
             pathType: Prefix
     tls:
       - secretName: tls-cert
         hosts:
-          - anvilops.rcac.purdue.edu
+          - anvilops.geddes.rcac.purdue.edu
 appProxy:
   image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
   ingress:
     enabled: true
     className: nginx
-    host: "*.anvilops.rcac.purdue.edu"
+    host: "*.anvilops.geddes.rcac.purdue.edu"
     tls:
       - secretName: tls-cert
         hosts:
-          - "*.anvilops.rcac.purdue.edu"
+          - "*.anvilops.geddes.rcac.purdue.edu"
 postgres:
   image: postgres:17
   nodeSelector: {}
@@ -39,7 +40,7 @@ postgres:
   affinity: {}
   volumeClaimTemplate:
     accessModes: ["ReadWriteOnce"]
-    storageClassName: anvil-filesystem
+    storageClassName: depot-cloud-filesystem
 buildkitd:
   install: true
   address: "tcp://buildkitd:1234"
@@ -49,10 +50,10 @@ harbor:
   expose:
     ingress:
       hosts:
-        core: registry.anvil.rcac.purdue.edu
+        core: geddes-registry.rcac.purdue.edu
 logging-operator:
   # We already have the operator installed on Anvil Composable in the `cattle-logging-system` namespace.
   install: false
 tenants:
-  storageClassName: anvil-filesystem
+  storageClassName: depot-cloud-filesystem
   accessModes: [ReadWriteOnce]

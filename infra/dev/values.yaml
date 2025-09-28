@@ -1,0 +1,59 @@
+anvilops:
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-382-5fc7ea5ad53274f5be2bbd02cad66259e9935d6a # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  env:
+    baseURL: https://anvilops-dev.rcac.purdue.edu
+    appDomain: https://anvilops-dev.rcac.purdue.edu
+    harborProjectName: anvilops-dev
+    allowedIdps: https://access-ci.org/idp
+    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
+    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
+    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+  dnsResolver: kube-dns.kube-system.svc.cluster.local
+  serviceAccount:
+    create: false
+    secretName: kube-auth
+  ingress:
+    className: nginx
+    hosts:
+      - host: anvilops-dev.rcac.purdue.edu
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tls-cert
+        hosts:
+          - anvilops-dev.rcac.purdue.edu
+appProxy:
+  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
+  ingress:
+    enabled: true
+    className: nginx
+    host: "*.anvilops-dev.rcac.purdue.edu"
+    tls:
+      - secretName: tls-cert
+        hosts:
+          - "*.anvilops-dev.rcac.purdue.edu"
+postgres:
+  image: postgres:17
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  volumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: anvil-filesystem
+buildkitd:
+  install: true
+  address: "tcp://buildkitd:1234"
+harbor:
+  # We already have Harbor installed, so no need to install another instance just for AnvilOps.
+  install: false
+  expose:
+    ingress:
+      hosts:
+        core: registry.anvil.rcac.purdue.edu
+logging-operator:
+  # We already have the operator installed on Anvil Composable in the `cattle-logging-system` namespace.
+  install: false
+tenants:
+  storageClassName: anvil-filesystem
+  accessModes: [ReadWriteOnce]

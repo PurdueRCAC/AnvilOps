@@ -46,6 +46,10 @@ const variables = {
    */
   APP_DOMAIN: { required: false },
   /**
+   * Display name of the cluster on which AnvilOps is deployed.
+   */
+  CLUSTER_NAME: { required: false },
+  /**
    * A random value used to sign the session ID cookie
    */
   SESSION_SECRET: { required: true },

@@ -3,7 +3,6 @@ apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
   name: anvilops
-  namespace: anvilops-dev
   labels:
     app.kubernetes.io/name: imagerepo
     app.kubernetes.io/instance: dev
@@ -12,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: anvilops
     app.kubernetes.io/managed-by: fluxcd
 spec:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops
+  image: registry.anvil.rcac.purdue.edu/anvilops-dev/anvilops
   interval: 1h
   provider: generic
 ---
@@ -20,7 +19,6 @@ apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImagePolicy
 metadata:
   name: anvilops-imagepolicy
-  namespace: default
   labels:
     app.kubernetes.io/name: imagepolicy
     app.kubernetes.io/instance: dev
@@ -42,7 +40,6 @@ apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageUpdateAutomation
 metadata:
   name: anvilops-update
-  namespace: anvilops-dev
   labels:
     app.kubernetes.io/name: image-update
     app.kubernetes.io/instance: dev
