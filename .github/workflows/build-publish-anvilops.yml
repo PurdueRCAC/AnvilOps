@@ -15,7 +15,7 @@ jobs:
     name: Push AnvilOps Docker image to Harbor
     runs-on: self-hosted
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
