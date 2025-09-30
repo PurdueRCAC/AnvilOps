@@ -29,7 +29,12 @@ jobs:
       - name: Log out of container registry
         if: always()
         run: docker logout registry.anvil.rcac.purdue.edu
-
+        
+      - name: Install yq
+        run: |
+          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/local/bin/yq &&\
+          chmod +x /usr/local/bin/yq
+      
       - name: Update values.yaml files
         run: |
           yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/anvil/values.yaml
