@@ -112,7 +112,10 @@ const variables = {
   /**
    * A secret value used to verify that log ingest requests are actually coming from the kube-logging operator. Only used for build-time logs; runtime logs use a separate secret for every app stored in the database.
    */
-  BUILD_LOGGING_INGEST_SECRET: { required: true },
+  BUILD_LOGGING_INGEST_SECRET: {
+    required: false,
+    defaultValue: crypto.randomUUID(),
+  },
   /**
    * The hostname of a Harbor instance that contains users' app container images, e.g. https://registry.anvil.rcac.purdue.edu. Used to delete old images when an app is deleted.
    */

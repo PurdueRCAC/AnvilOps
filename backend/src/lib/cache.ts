@@ -79,7 +79,10 @@ export async function set(
     return; // Don't cache it because it'll expire immediately
   }
 
-  localCache.set(key, value, { ttl: expiresAt.getTime() - Date.now() });
+  localCache.set(key, value, {
+    ttl: expiresAt.getTime() - Date.now(),
+    noUpdateTTL: !updateExpiration,
+  });
 
   await db.cache.upsert({
     where: { key },

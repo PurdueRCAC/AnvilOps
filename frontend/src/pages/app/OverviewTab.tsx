@@ -137,6 +137,13 @@ export const OverviewTab = ({
 
   const appDomain = URL.parse(useAppConfig()?.appDomain ?? "");
 
+  let subdomain = "";
+  if (appDomain !== null) {
+    const temp = new URL(appDomain);
+    temp.hostname = app.subdomain + "." + temp.hostname;
+    subdomain = temp.toString();
+  }
+
   return (
     <>
       <RedeployModal
@@ -186,7 +193,7 @@ export const OverviewTab = ({
             </p>
             <p>
               <a
-                href={`${appDomain?.protocol}//${app.subdomain}.${appDomain?.hostname}`}
+                href={subdomain}
                 className="underline flex gap-1 items-center"
                 target="_blank"
                 rel="noopener noreferrer"

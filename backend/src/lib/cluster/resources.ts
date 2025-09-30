@@ -193,7 +193,7 @@ export const createAppConfigsFromDeployment = async (
 
   const statefulSet = createStatefulSetConfig(params);
 
-  const logs = createLogConfig(
+  const logs = await createLogConfig(
     namespaceName,
     deployment.appId,
     app.logIngestSecret,

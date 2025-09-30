@@ -1,14 +1,28 @@
+import { ApiException } from "@kubernetes/client-node";
 import { env } from "../../env.ts";
+import { svcK8s } from "../kubernetes.ts";
 import type { K8sObject } from "../resources.ts";
 
 /**
  * Creates the configuration needed for the kube-logging operator to forward logs from the user's pod to our backend.
  */
-export const createLogConfig = (
+export const createLogConfig = async (
   namespace: string,
   appId: number,
   secret: string,
-): K8sObject[] => {
+): Promise<K8sObject[]> => {
+  try {
+    await svcK8s.ExtensionsV1Api.readCustomResourceDefinition({
+      name: "flows.logging.banzaicloud.io",
+    });
+  } catch (e) {
+    if (e instanceof ApiException && e.code === 404) {
+      // The logging operator is not installed; these resources can't be installed on the cluster.
+      return [];
+    }
+    throw e;
+  }
+
   return [
     {
       apiVersion: "v1",

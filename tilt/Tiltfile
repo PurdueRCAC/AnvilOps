@@ -1,0 +1,83 @@
+docker_build("anvilops/anvilops", "../")
+docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
+docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
+docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
+docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
+
+load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
+
+# Read the current kubeconfig, set the server to kubernetes.default.svc (a hostname accessible from within the cluster), and make it available to AnvilOps via a K8s secret
+kubeconfig_str = local('kubectl config view --raw --minify')
+kubeconfig = decode_yaml_stream(kubeconfig_str)
+kubeconfig[0]["clusters"][0]["cluster"]["server"] = "https://kubernetes.default.svc"
+modified_kubeconfig = encode_yaml_stream(kubeconfig)
+k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig}))
+
+# Get the hostname of Tilt's internal registry so that we can use it for AnvilOps user images 
+registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | cut -d \":\" -f2-")).strip()
+print("Using local registry from within the cluster at " + registry_host)
+
+load('ext://dotenv', 'dotenv')
+dotenv(fn='../backend/.env')
+
+k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
+  'client-id': os.getenv('CLIENT_ID'),
+  'client-secret': os.getenv('CLIENT_SECRET')
+}))
+
+k8s_yaml(secret_from_dict("github-app", inputs={
+  'app-name': os.getenv('GITHUB_APP_NAME'),
+  'app-id': os.getenv('GITHUB_APP_ID'),
+  'client-id': os.getenv('GITHUB_CLIENT_ID'),
+  'client-secret': os.getenv('GITHUB_CLIENT_SECRET'),
+  'private-key': os.getenv('GITHUB_PRIVATE_KEY'),
+  'webhook-secret': os.getenv('GITHUB_WEBHOOK_SECRET'),
+  'base-url': os.getenv('GITHUB_BASE_URL'),
+  'api-url': os.getenv('GITHUB_API_URL')
+}))
+
+# Deleting images isn't supported locally since we aren't running Harbor
+k8s_yaml(secret_from_dict("image-delete-secret", inputs={'server': '__disabled_delete_server', 'username': '__disabled_delete_username', 'password': '__disabled_delete_password'}))
+k8s_yaml(secret_yaml_registry("image-push-secret", flags_dict={'docker-server': registry_host, 'docker-username': '__disabled_push_username', 'docker-password': '__disabled_push_password'}))
+k8s_yaml(secret_yaml_registry("image-pull-secret", flags_dict={'docker-server': registry_host, 'docker-username': '__disabled_pull_username', 'docker-password': '__disabled_pull_password'}))
+
+# Hard-code these values so that the secret value doesn't drift from the value that Postgres used when creating the user
+k8s_yaml(secret_from_dict("postgres-credentials", inputs={'password': 'super-insecure-local-dev-password', 'field-encryption-key': '96WYSbPNEYi65gb8BRCzbf5ISIywNVV8Dm1rFCnRUFk='}))
+
+yaml = helm(
+  '../charts/anvilops',
+  # The release name, equivalent to helm --name
+  name='anvilops',
+  # The namespace to install in, equivalent to helm --namespace
+  namespace='default',
+  # The values file to substitute into the chart.
+  values=['./local-values.yaml']
+)
+
+parsed = decode_yaml_stream(yaml)
+for object in parsed:
+  # Pass our registry hostname to AnvilOps as an environment variable
+  if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
+    for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
+      if variable["name"] == "REGISTRY_HOSTNAME":
+        variable["value"] = registry_host
+  # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
+  if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
+    object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
+    object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/etc/buildkit"})
+
+k8s_yaml(blob("""
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anvilops-buildkitd-config
+data:
+  buildkitd.toml: |
+    [registry.\"""" + registry_host + """\"]
+      http = true
+"""))
+
+k8s_yaml(encode_yaml_stream(parsed))
+
+k8s_resource(workload='anvilops-app-proxy', port_forwards=[3001])
+k8s_resource(workload='anvilops', port_forwards=[3000])

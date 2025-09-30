@@ -1,6 +1,7 @@
 # This Flow and Output collect logs from image builds running in the AnvilOps namespace.
 # Other versions of these resources are also created in users' namespaces to forward runtime logs from their pods.
 
+{{- if (index .Values "logging-operator").enabled -}}
 apiVersion: logging.banzaicloud.io/v1beta1
 kind: Flow
 metadata:
@@ -14,7 +15,9 @@ spec:
           anvilops.rcac.purdue.edu/collect-logs: "true"
   localOutputRefs:
     - {{ include "anvilops.fullname" . }}-output-http
+{{- end }}
 ---
+{{- if (index .Values "logging-operator").enabled -}}
 apiVersion: logging.banzaicloud.io/v1beta1
 kind: Output
 metadata:
@@ -43,3 +46,4 @@ spec:
       timekey_wait: "0s"
       flush_mode: "interval"
       flush_interval: "1s"
+{{- end }}

@@ -92,6 +92,7 @@ appProxy:
     tls: []
 
 postgres:
+  generateCredentials: true
   image: postgres:17
   nodeSelector: {}
   tolerations: []
@@ -152,6 +153,8 @@ harbor:
       existingSecret: postgres-credentials
 
 logging-operator:
+  # Set this to `true` to create Flow and Output resources specific to the logging operator in the cluster.
+  enabled: true
   # Set this to `true` to install the kube-logging operator in the cluster.
   # The operator is required, but if you already have it installed and configured with a `Logging` resource, you should set this to `false`.
   install: true
