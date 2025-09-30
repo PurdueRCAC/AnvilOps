@@ -32,13 +32,13 @@ jobs:
         
       - name: Install yq
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/local/bin/yq &&\
-          chmod +x /usr/local/bin/yq
+          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O ./yq &&\
+          chmod +x yq
       
       - name: Update values.yaml files
         run: |
-          yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/anvil/values.yaml
-          yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/geddes/values.yaml
+          ./yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/anvil/values.yaml
+          ./yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/geddes/values.yaml
           cat infra/anvil/values.yaml
 
       - name: Commit changes
