@@ -119,7 +119,7 @@ spec:
           kubectl create secret generic ${PRODUCT}-daemon-certs --dry-run=client -o yaml --from-file=./daemon >${PRODUCT}-daemon-certs.yaml
           kubectl create secret generic ${PRODUCT}-client-certs --dry-run=client -o yaml --from-file=./client >${PRODUCT}-client-certs.yaml
 
-          kubectl apply -n {{ .Release.Namespace }} -f ${PRODUCT}-daemon-certs.yaml -f ${PRODUCT}-client-certs.yaml
+          kubectl create -n {{ .Release.Namespace }} -f ${PRODUCT}-daemon-certs.yaml -f ${PRODUCT}-client-certs.yaml || true # <-- Don't fail if the secrets already exist
       containers: # We're only using initContainers because they run sequentially. We need generate-certs to complete before create-secrets starts.
         - name: finish-job
           image: busybox:1.37.0@sha256:f85340bf132ae937d2c2a763b8335c9bab35d6e8293f70f606b9c6178d84f42b
