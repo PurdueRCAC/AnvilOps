@@ -37,8 +37,8 @@ jobs:
       
       - name: Update values.yaml files
         run: |
-          ./yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/anvil/values.yaml
-          ./yq -i '.anvilops.image |= registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}' infra/geddes/values.yaml
+          ./yq -i '.anvilops.image = "registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}"' infra/anvil/values.yaml
+          ./yq -i '.anvilops.image = "registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}"' infra/geddes/values.yaml
           cat infra/anvil/values.yaml
 
       - name: Commit changes
