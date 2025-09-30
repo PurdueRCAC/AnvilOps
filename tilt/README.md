@@ -55,6 +55,6 @@ tilt trigger anvilops-postgres # Recreate the database
 If the image builder says "context deadline exceeded", that means it waited too long for the connection to the BuildKit Daemon to become active.
 This probably means some other error is happening.
 
-First, try restarting the BuildKit daemon. It's likely that the certificate creation job ran while the server was running, and it didn't pick up the new certificates. Then, when the build job tried to connect, the server rejected the client's certificates over and over until the maximum wait time was reached. You can restart it from the Tilt dashboard, or with the CLI (`tilt trigger anvilops-buildkitd` or `kubectl rollout restart deployment anvilops-buildkitd`).
+First, try restarting the BuildKit daemon. It's possible that the certificate creation job ran while the server was running, and it didn't pick up the new certificates. Then, when the build job tried to connect, the server rejected the client's certificates over and over until the maximum wait time was reached. You can restart it from the Tilt dashboard, or with the CLI (`tilt trigger anvilops-buildkitd` or `kubectl rollout restart deployment anvilops-buildkitd`).
 
 If that doesn't fix the issue, try removing the `--wait` flag from the `buildctl` command. That should reveal a more useful error message.
