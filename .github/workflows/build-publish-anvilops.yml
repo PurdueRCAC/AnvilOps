@@ -32,7 +32,7 @@ jobs:
         
       - name: Install yq
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O ./yq &&\
+          wget https://github.com/mikefarah/yq/releases/download/v4.47.2/yq_linux_amd64 -O ./yq &&\
           chmod +x yq
       
       - name: Update values.yaml files
