@@ -1,5 +1,5 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-382-5fc7ea5ad53274f5be2bbd02cad66259e9935d6a
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-390-1ce15a987981a57d6f89516ff9799a6740a42f9c
   env:
     baseURL: https://anvilops.geddes.rcac.purdue.edu
     appDomain: https://anvilops.geddes.rcac.purdue.edu
