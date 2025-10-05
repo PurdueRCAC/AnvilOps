@@ -1,5 +1,5 @@
 ---
-title: Deploying an App from a Container Image
+title: First Image Deployment
 sidebar:
   order: 2
 ---
@@ -36,4 +36,4 @@ AnvilOps can deploy apps from publicly accessible container images.
 
 5. Add any environment variables your app requires. Environment variables can be marked as sensitive. Sensitive environment variables cannot be viewed after they are set, although they can be updated.
 
-6. If your app requires storage that persists across restarts, configure volume mounts. Make sure to select an appropriate path and storage limit— these values cannot be changed later.
+6. If your app requires storage that persists across restarts, configure volume mounts. Make sure to select an appropriate path and storage limit— these values cannot be changed later. See the [PostgreSQL database tutorial](/guides/deploying-a-database) for an example.

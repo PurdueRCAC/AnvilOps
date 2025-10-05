@@ -6,19 +6,21 @@ sidebar:
 
 import { Steps } from "@astrojs/starlight/components";
 
+If you would like to deploy an application on Anvil Composable, follow these instructions on `https://anvilops.rcac.purdue.edu`. If you would like to deploy on Geddes v2, follow these instructions on `anvilops.geddes.rcac.purdue.edu`.
+
 ## Setting Up Your Account
 
 <Steps>
 
-1. [Sign in to AnvilOps](https://anvilops.rcac.purdue.edu/api/login) with your ACCESS account.
+1. Sign in to AnvilOps with your ACCESS account.
 
    This will create an AnvilOps account for you.
 
-2. Navigate to the [dashboard](https://anvilops.rcac.purdue.edu/dashboard) page.
+2. Navigate to the dashboard page.
 3. Link your GitHub organization or personal account.
 
    This will allow you to deploy applications from GitHub repositories.
-   Make sure you grant the AnvilOps GitHub App permission to access the repositories you want to deploy!
+   Make sure you grant the AnvilOps GitHub App permission to access any repositories you want to deploy!
 
 </Steps>
 
@@ -29,11 +31,20 @@ import { Steps } from "@astrojs/starlight/components";
 - A **GitHub repository** or publicly available OCI-compliant **container image** (e.g. Docker image) you would like to deploy.
   - Singularity images are not currently supported.
 - A **Rancher Project** to deploy your project inside.
-  - On Rancher, a Project is a group of namespaces which can be configured with access controls and resource quotas. Consult your administrator to gain access to one.
-  - Alternatively, you can deploy your application in the `anvilops_sandbox` Project.
+  - Consult your administrator to gain access to one. A Rancher Project will serve as a workspace in which you can run applications.
+  - In particular, a Project is a group of namespaces which can be configured with access controls and resource quotas.
+  - If you do not have access to a Project at this time, you can deploy your application temporarily in the `anvilops_sandbox` Project.
 
 ### Deploying an App
 
-Navigate to the [create app](https://anvilops.rcac.purdue.edu/create-app) page in order to configure and launch your app.
+![](./tutorial/nginx-deploy-opts.png)
 
-Applications on AnvilOps can be configured in a number of ways. For more information on available parameters, see the [configuration guide](/reference/configuration).
+Navigate to the Create App page in order to configure and launch your app. You will need to select your Project, the repository or image you would like to deploy, a subdomain, and the port number of the application.
+
+If you are deploying a Git repository, you will need to specify the build configuration. If your repository already contains a Dockerfile, select the `Dockerfile` option and provide the path to the file. For instance, if the Dockerfile is in the root directory of your application, enter `Dockerfile`.
+
+If your repository does not contain a Dockerfile, we encourage you to try the `Railpack` builder, which detects common application types in order to automatically build them.
+
+For more information on available parameters, see the [configuration guide](/reference/configuration).
+
+When you click Deploy, AnvilOps will build and run your application on the cluster.
