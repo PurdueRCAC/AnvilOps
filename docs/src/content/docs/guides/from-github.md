@@ -4,7 +4,11 @@ sidebar:
   order: 1
 ---
 
-If you have already installed the AnvilOps GitHub App for your organization, you can deploy applications from GitHub repositories that you have given the GitHub App access to.
+This tutorial will demonstrate how to deploy one of AnvilOps' template applications.
+
+### Prerequisites
+
+You will need to have the AnvilOps GitHub App installed for your organization. This allows AnvilOps to deploy repositories on the cluster. In particular, for this tutorial, the GitHub App is needed for AnvilOps to clone the template repository to your account.
 
 ### Initial Configuration
 
@@ -23,7 +27,7 @@ If you have already installed the AnvilOps GitHub App for your organization, you
 
 5. Look over the settings that have been autofilled.
 
-   **Build**: AnvilOps will use Railpack to detect the framework your repository uses([Astro](https://astro.build/)) and build it without extra configuration.
+   **Build**: AnvilOps will use Railpack to detect the framework the repository uses([Astro](https://astro.build/)) and build it without extra configuration.
 
    **Port**: The application will listen on port 80 for requests.
 
@@ -40,7 +44,7 @@ If you have already installed the AnvilOps GitHub App for your organization, you
 
 Try pushing a commit to the repository to see how AnvilOps updates the deployment.
 
-1. Open the file `/src/pages/index.astro` in your repository.
+1. Open the file `/src/pages/index.astro`.
 
 2. Find the section that says `Try editing this text!` and change it to say `Hello, World!` or another phrase of your choice. Then commit and push your changes to the repository.
 

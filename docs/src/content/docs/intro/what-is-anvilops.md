@@ -8,6 +8,8 @@ AnvilOps is a platform-as-a-service for Kubernetes.
 - [Kubernetes](https://kubernetes.io/): a container orchestration system with a powerful set of features for deploying containerized applications, scaling them across servers, and ensuring they are available.
 - Container: A lightweight unit of software containing all the code and dependencies an application needs to run. Containers are useful for running applications in different environments or at scale.
 
+AnvilOps can deploy applications on Geddes v2 from `https://anvilops.geddes.rcac.purdue.edu`, or on Anvil Composable from `https://anvilops.rcac.purdue.edu`.
+
 ## Key Features
 
 ### Easy Configuration
@@ -38,4 +40,4 @@ You can also see the current status of all your application's pods in realtime a
 
 ### Automatic Subdomain and TLS Certificate
 
-Every app deployed on AnvilOps gets its own subdomain of `anvilops.rcac.purdue.edu`, and TLS encryption is handled for you.
+Every app deployed on AnvilOps gets its own subdomain, and TLS encryption is handled for you. If you are deploying on Anvil, you may select a subdomain of `anvilops.rcac.purdue.edu`. If you are deploying on Geddes, you may select a subdomain of `anvilops.geddes.rcac.purdue.edu`.
