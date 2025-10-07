@@ -1,7 +1,7 @@
+{{- if (index .Values "logging-operator").enabled -}}
 # This Flow and Output collect logs from image builds running in the AnvilOps namespace.
 # Other versions of these resources are also created in users' namespaces to forward runtime logs from their pods.
 
-{{- if (index .Values "logging-operator").enabled -}}
 apiVersion: logging.banzaicloud.io/v1beta1
 kind: Flow
 metadata:
