@@ -47,6 +47,10 @@ spec:
               containerPort: 3000
               protocol: TCP
           volumeMounts:
+            - name: cluster-config
+              mountPath: /opt/config/cluster.json
+              subPath: cluster.json
+              readOnly: true
             - name: ca-cert
               mountPath: /etc/ssl/certs
               readOnly: true
@@ -64,10 +68,8 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
-            {{- with .Values.anvilops.env.clusterName }}
-            - name: CLUSTER_NAME
-              value: {{ . | quote }}
-            {{- end }}
+            - name: CLUSTER_CONFIG_PATH
+              value: /opt/config/cluster.json
             - name: POSTGRES_USER
               value: anvilops
             - name: POSTGRES_PASSWORD
@@ -211,6 +213,9 @@ spec:
             - name: RAILPACK_BUILDER_IMAGE
               value: {{ .Values.anvilops.env.railpackBuilderImage }}
       volumes:
+        - name: cluster-config
+          configMap:
+            name: anvilops-cluster-config
         - name: ca-cert
           secret:
             secretName: root-ca-cert

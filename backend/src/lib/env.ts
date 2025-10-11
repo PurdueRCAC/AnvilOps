@@ -46,9 +46,9 @@ const variables = {
    */
   APP_DOMAIN: { required: false },
   /**
-   * Display name of the cluster on which AnvilOps is deployed.
+   * Path to the JSON file describing the cluster on which AnvilOps is installed.
    */
-  CLUSTER_NAME: { required: false },
+  CLUSTER_CONFIG_PATH: { required: false },
   /**
    * A random value used to sign the session ID cookie
    */

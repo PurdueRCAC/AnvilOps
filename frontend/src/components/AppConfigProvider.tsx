@@ -10,7 +10,7 @@ const AppConfig = createContext<AppConfigType>({});
 export const useAppConfig = () => useContext(AppConfig);
 
 export const AppConfigProvider = ({ children }: { children: ReactNode }) => {
-  const { data: value } = api.useQuery("get", "/settings");
+  const { data: value } = api.useSuspenseQuery("get", "/settings");
 
   return (
     <AppConfig.Provider value={value ?? {}}>{children}</AppConfig.Provider>

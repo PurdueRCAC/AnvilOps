@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import defaultPfp from "../assets/default_pfp.png";
+import { useAppConfig } from "./AppConfigProvider";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -14,16 +15,18 @@ import logo from "/anvilops.png";
 export default function Navbar() {
   const { user, loading } = useContext(UserContext);
 
+  const settings = useAppConfig();
   return (
     <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 bg-gold sm:purdue-gradient border-b gap-4 backdrop-blur-xl h-16 z-50">
-      <p className="text-xl font-bold">
+      <div className="flex items-end justify-center space-x-4">
         <Link
           to={user ? "/dashboard" : "/"}
-          className="flex items-center gap-2"
+          className="text-xl font-bold flex items-center gap-2"
         >
           <img src={logo} className="h-10" />
         </Link>
-      </p>
+        <p className="text-3xl italic">{settings.clusterName}</p>
+      </div>
       <div className="flex gap-8 justify-end items-center">
         {user && (
           <Link to="/" className="sm:text-white">

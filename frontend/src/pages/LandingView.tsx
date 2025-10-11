@@ -236,26 +236,23 @@ export default function LandingView() {
         </div>
         <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
         <Accordion type="single" collapsible>
-          <AccordionItem value="q1">
-            <AccordionTrigger className="font-bold text-lg">
-              What is the Anvil Composable Subsystem?
-            </AccordionTrigger>
-            <AccordionContent className="text-pretty p-4 text-base">
-              Anvil Composable Subsystem is a Kubernetes based private cloud
-              managed with Rancher that provides a platform for creating
-              composable infrastructure on demand. This cloud-style flexibility
-              provides researchers the ability to self-deploy and manage
-              persistent services to complement HPC workflows and run
-              container-based data analysis tools and applications.
-              <p>
-                Visit{" "}
-                <a className="underline">
-                  https://www.rcac.purdue.edu/knowledge/anvil/composable
-                </a>{" "}
-                for more information.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
+          {settings.faq?.question && settings.faq?.answer && (
+            <AccordionItem value="q1">
+              <AccordionTrigger className="font-bold text-lg">
+                {settings.faq.question}
+              </AccordionTrigger>
+              <AccordionContent className="text-pretty p-4 text-base">
+                {settings.faq.answer}
+                {settings.faq?.link && (
+                  <p>
+                    Visit <a className="underline">{settings.faq.link}</a> for
+                    more information.
+                  </p>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
           <AccordionItem value="q2">
             <AccordionTrigger className="font-bold text-lg">
               What languages and frameworks are supported?
