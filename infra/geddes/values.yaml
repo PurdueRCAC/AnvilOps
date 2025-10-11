@@ -3,12 +3,17 @@ anvilops:
   env:
     baseURL: https://anvilops.geddes.rcac.purdue.edu
     appDomain: https://anvilops.geddes.rcac.purdue.edu
-    clusterName: Geddes
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+  cluster:
+    name: "Geddes"
+    faq:
+      question: "What is the Geddes Composable Platform?"
+      answer: "Geddes is a Community Composable Platform optimized for composable, cloud-like workflows that are complementary to the batch applications run on Community Clusters."
+      link: https://www.rcac.purdue.edu/knowledge/geddes/overview
   dnsResolver: kube-dns.kube-system.svc.cluster.local
   serviceAccount:
     create: false

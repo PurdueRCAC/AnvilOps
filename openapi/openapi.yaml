@@ -30,6 +30,15 @@ paths:
                     format: uri
                   clusterName:
                     type: string
+                  faq:
+                    type: object
+                    properties:
+                      question:
+                        type: string
+                      answer:
+                        type: string
+                      link:
+                        type: string
                   storageEnabled:
                     type: boolean
                   isRancherManaged:

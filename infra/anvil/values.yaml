@@ -3,12 +3,17 @@ anvilops:
   env:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
-    clusterName: "Anvil Composable"
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+  cluster:
+    name: "Anvil Composable"
+    faq:
+      question: "What is the Anvil Composable Subsystem?"
+      answer: "Anvil Composable Subsystem is a Kubernetes based private cloud managed with Rancher that provides a platform for creating composable infrastructure on demand. This cloud-style flexibility provides researchers the ability to self-deploy and manage persistent services to complement HPC workflows and run container-based data analysis tools and applications."
+      link: https://www.rcac.purdue.edu/knowledge/anvil/composable
   dnsResolver: kube-dns.kube-system.svc.cluster.local
   serviceAccount:
     create: false
