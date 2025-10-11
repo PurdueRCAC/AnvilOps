@@ -322,5 +322,18 @@ Follow the instructions in the Rancher section of the [backend setup guide](/bac
 #### Keys
 
 - `api-base`: The Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3).
-- `rancher-token`: Non-scoped service user token for calling the Rancher v3 API.
+- `rancher-token`: Non-scoped, Base64-encoded service user token for calling the Rancher v3 API.
 - `sandbox_id`(optional): The ID of the sandbox project, something like `c-xxxxx:p-xxxxx`.
+
+## `postgres-credentials`
+
+AnvilOps uses the values in this secret to protect the database, which contains app configurations.
+
+#### How to obtain
+
+Follow the instructions in the Rancher section of the [backend setup guide](/backend/README.md#postgres).
+
+#### Keys
+
+- `password`: The password for the database to use.
+- `field-encryption-key`: 32-byte, base64-encoded key used to encrypt app secrets before they are entered in the database.

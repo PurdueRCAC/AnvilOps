@@ -3,6 +3,7 @@ anvilops:
   env:
     baseURL: https://anvilops-dev.rcac.purdue.edu
     appDomain: https://anvilops-dev.rcac.purdue.edu
+    clusterName: "Anvil Composable(development)"
     harborProjectName: anvilops-dev
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest

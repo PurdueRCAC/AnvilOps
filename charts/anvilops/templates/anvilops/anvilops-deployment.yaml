@@ -64,6 +64,10 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
+            {{- with .Values.anvilops.env.clusterName }}
+            - name: CLUSTER_NAME
+              value: {{ . | quote }}
+            {{- end }}
             - name: POSTGRES_USER
               value: anvilops
             - name: POSTGRES_PASSWORD

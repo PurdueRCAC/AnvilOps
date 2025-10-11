@@ -1,14 +1,15 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-390-1ce15a987981a57d6f89516ff9799a6740a42f9c
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-391-736e8d515d5efc7ac13ce99f736d5d21014da332
   env:
     baseURL: https://anvilops.geddes.rcac.purdue.edu
     appDomain: https://anvilops.geddes.rcac.purdue.edu
+    clusterName: Geddes
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
-  dnsResolver: rke2-coredns-rke2-coredns.kube-system.svc.cluster.local
+  dnsResolver: kube-dns.kube-system.svc.cluster.local
   serviceAccount:
     create: false
     secretName: kube-auth
@@ -40,7 +41,7 @@ postgres:
   affinity: {}
   volumeClaimTemplate:
     accessModes: ["ReadWriteOnce"]
-    storageClassName: depot-cloud-filesystem
+    storageClassName: geddes-standard-multinode
 buildkitd:
   install: true
   address: "tcp://buildkitd:1234"
