@@ -245,8 +245,11 @@ export default function LandingView() {
                 {settings.faq.answer}
                 {settings.faq?.link && (
                   <p>
-                    Visit <a className="underline">{settings.faq.link}</a> for
-                    more information.
+                    Visit{" "}
+                    <a href={settings.faq.link} className="underline">
+                      {settings.faq.link}
+                    </a>{" "}
+                    for more information.
                   </p>
                 )}
               </AccordionContent>
