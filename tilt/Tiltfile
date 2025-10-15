@@ -1,19 +1,24 @@
 load('ext://restart_process', 'docker_build_with_restart')
+load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
+load('ext://dotenv', 'dotenv')
+
+dotenv(fn='../backend/.env')
+
 docker_build_with_restart(
   "anvilops/anvilops", "../",
   entrypoint=["npm", "run", "start:prod"],
   live_update=[
     fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
     sync("../backend/src", "/app/src")
-  ]
+  ],
+  only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
 )
+docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma"])
 docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
 docker_build("anvilops/log-shipper", "../log-shipper", match_in_env_vars=True)
-
-load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
 
 # Read the current kubeconfig, set the server to kubernetes.default.svc (a hostname accessible from within the cluster), and make it available to AnvilOps via a K8s secret
 kubeconfig_str = local('kubectl config view --raw --minify')
@@ -25,9 +30,6 @@ k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig
 # Get the hostname of Tilt's internal registry so that we can use it for AnvilOps user images 
 registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | cut -d \":\" -f2-")).strip()
 print("Using local registry from within the cluster at " + registry_host)
-
-load('ext://dotenv', 'dotenv')
-dotenv(fn='../backend/.env')
 
 k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
   'client-id': os.getenv('CLIENT_ID'),
@@ -74,6 +76,9 @@ for object in parsed:
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
     object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/etc/buildkit"})
+  # Make the database migration Job use our lighter local development image
+  if object["kind"] == "Job" and object["metadata"]["name"] == "anvilops-migrate-db":
+    object["spec"]["template"]["spec"]["containers"][0]["image"] = "anvilops/anvilops-migrate-db"
 
 k8s_yaml(blob("""
 apiVersion: v1

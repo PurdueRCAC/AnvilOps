@@ -78,6 +78,6 @@ docker exec kind-control-plane crictl rmi --prune
 
 2. Recreate Tilt resources: `tilt down && tilt up`
 3. Prune on your system: `docker system prune`
-4. Recreate your development cluster: `ctlptl delete cluster kind-kind && docker system prune --volumes && ctlptl create cluster kind`
+4. Recreate your development cluster: `docker system prune --volumes && ctlptl delete cluster kind-kind && docker rm -f ctlptl-registry && ctlptl create cluster kind --registry=ctlptl-registry`
 
 Similar error messages could also appear if you've hit your open file limit. Follow [these instructions](https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files) to resolve that issue.
