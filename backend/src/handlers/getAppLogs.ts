@@ -88,7 +88,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       await sendLog({
         id: log.id,
         type: log.type,
-        log: (log.content as any).log as string,
+        log: log.content as string,
         pod: log.podName,
         time: log.timestamp.toISOString(),
       });

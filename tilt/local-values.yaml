@@ -11,6 +11,9 @@ anvilops:
     fileBrowserImage: anvilops/file-browser
     dockerfileBuilderImage: anvilops/dockerfile-builder
     railpackBuilderImage: anvilops/railpack-builder
+    logShipperImage: anvilops/log-shipper
+    registryProtocol: http
+  dnsResolver: kube-dns.kube-system.svc.cluster.local
   serviceAccount:
     create: false
     secretName: kube-auth
@@ -25,6 +28,10 @@ anvilops:
       - secretName: tls-cert
         hosts:
           - anvilops.rcac.purdue.edu
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
 appProxy:
   image: anvilops/sandbox-proxy
   ingress:
@@ -53,9 +60,6 @@ harbor:
     ingress:
       hosts:
         core: registry.anvil.rcac.purdue.edu
-logging-operator:
-  enabled: false
-  install: false
 tenants:
   storageClassName: standard
   accessModes: [ReadWriteOnce]

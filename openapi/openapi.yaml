@@ -1630,27 +1630,47 @@ paths:
     post:
       operationId: ingestLogs
       parameters:
-        - name: type
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [build, runtime]
         - name: Authorization
           in: header
           required: true
           schema:
             type: string
-        - name: appId
-          in: query
-          schema:
-            type: number
-            format: int64
       requestBody:
         content:
-          application/jsonl: # jsonl = newline-delimited JSON objects (https://jsonlines.org/)
+          application/json:
             schema:
-              type: string
+              type: object
+              required: [type, lines, deploymentId, hostname]
+              properties:
+                type:
+                  type: string
+                  description: Whether the log is from a build or a running application
+                  enum: [build, runtime]
+                lines:
+                  type: array
+                  description: The log lines to ingest
+                  items:
+                    type: object
+                    required: [content, stream, timestamp]
+                    properties:
+                      content:
+                        description: The text content of the log line
+                        type: string
+                      stream:
+                        description: The name of the stream that this log line came from
+                        type: string
+                        enum: [stdout, stderr]
+                      timestamp:
+                        description: The Unix timestamp (in milliseconds) that this log line was produced
+                        type: number
+                        format: int64
+                deploymentId:
+                  description: The ID of the deployment
+                  type: number
+                  format: int64
+                hostname:
+                  description: The hostname of the pod that produced the log line, which should equal the pod name
+                  type: string
       responses:
         "200":
           description: Success

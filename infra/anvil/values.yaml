@@ -57,9 +57,6 @@ harbor:
     ingress:
       hosts:
         core: registry.anvil.rcac.purdue.edu
-logging-operator:
-  # We already have the operator installed on Anvil Composable in the `cattle-logging-system` namespace.
-  install: false
 tenants:
   storageClassName: anvil-filesystem
   accessModes: [ReadWriteOnce]

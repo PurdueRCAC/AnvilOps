@@ -11,7 +11,6 @@ import type {
   Organization,
 } from "../../generated/prisma/client.ts";
 import { getOctokit } from "../octokit.ts";
-import { createLogConfig } from "./resources/log.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
@@ -181,25 +180,21 @@ export const createAppConfigsFromDeployment = async (
   }
 
   const params: DeploymentParams = {
+    deploymentId: deployment.id,
     name: app.name,
     namespace: namespaceName,
     serviceName: namespaceName,
     image: conf.imageTag,
     env: envVars,
+    logIngestSecret: app.logIngestSecret,
     ...conf.fieldValues,
   };
 
   const svc = createServiceConfig(params);
 
-  const statefulSet = createStatefulSetConfig(params);
+  const statefulSet = await createStatefulSetConfig(params);
 
-  const logs = await createLogConfig(
-    namespaceName,
-    deployment.appId,
-    app.logIngestSecret,
-  );
-
-  configs.push(...logs, statefulSet, svc);
+  configs.push(statefulSet, svc);
 
   const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
   const labels = {

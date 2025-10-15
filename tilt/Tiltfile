@@ -1,8 +1,17 @@
-docker_build("anvilops/anvilops", "../")
+load('ext://restart_process', 'docker_build_with_restart')
+docker_build_with_restart(
+  "anvilops/anvilops", "../",
+  entrypoint=["npm", "run", "start:prod"],
+  live_update=[
+    fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
+    sync("../backend/src", "/app/src")
+  ]
+)
 docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
+docker_build("anvilops/log-shipper", "../log-shipper", match_in_env_vars=True)
 
 load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
 
@@ -79,5 +88,6 @@ data:
 
 k8s_yaml(encode_yaml_stream(parsed))
 
-k8s_resource(workload='anvilops-app-proxy', port_forwards=[3001])
+k8s_resource(workload='anvilops-app-proxy', port_forwards=["3001:80"])
 k8s_resource(workload='anvilops', port_forwards=[3000])
+k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
