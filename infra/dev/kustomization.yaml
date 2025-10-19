@@ -7,13 +7,13 @@ resources:
   - imageupdate.yaml
 patches:
   - patch: |-
-      apiVersion: source.toolkit.fluxcd.io/v1
-      kind: GitRepository
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
       metadata:
         name: anvilops
       spec:
-        ref:
-          branch: dev
+        chartRef:
+          namespace: anvilops-dev
 namespace: anvilops-dev
 commonLabels:
   environment: dev

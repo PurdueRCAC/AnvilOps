@@ -1,15 +1,15 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-384-c4d200cf7d5f2e29b704a16540a792a7881af197 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-393-a3ee462dc4bcadbf0443e6c1e18ceef3b7ce7f81 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
   env:
-    baseURL: https://anvilops-dev.rcac.purdue.edu
-    appDomain: https://anvilops-dev.rcac.purdue.edu
+    baseURL: https://anvilops.rcac.purdue.edu
+    appDomain: https://anvilops.rcac.purdue.edu
     harborProjectName: anvilops-dev
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
   cluster:
-    name: "Anvil Composable (AnvilOps-Dev)"
+    name: "Anvil Composable"
     faq:
       question: "What is the Anvil Composable Subsystem?"
       answer: "Anvil Composable Subsystem is a Kubernetes based private cloud managed with Rancher that provides a platform for creating composable infrastructure on demand. This cloud-style flexibility provides researchers the ability to self-deploy and manage persistent services to complement HPC workflows and run container-based data analysis tools and applications."
@@ -21,24 +21,24 @@ anvilops:
   ingress:
     className: nginx
     hosts:
-      - host: anvilops-dev.rcac.purdue.edu
+      - host: anvilops.rcac.purdue.edu
         paths:
           - path: /
             pathType: Prefix
     tls:
       - secretName: tls-cert
         hosts:
-          - anvilops-dev.rcac.purdue.edu
+          - anvilops.rcac.purdue.edu
 appProxy:
   image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
   ingress:
     enabled: true
     className: nginx
-    host: "*.anvilops-dev.rcac.purdue.edu"
+    host: "*.anvilops.rcac.purdue.edu"
     tls:
       - secretName: tls-cert
         hosts:
-          - "*.anvilops-dev.rcac.purdue.edu"
+          - "*.anvilops.rcac.purdue.edu"
 postgres:
   image: postgres:17
   nodeSelector: {}
