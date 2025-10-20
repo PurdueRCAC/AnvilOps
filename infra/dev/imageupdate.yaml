@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: anvilops
     app.kubernetes.io/managed-by: fluxcd
 spec:
-  image: registry.anvil.rcac.purdue.edu/anvilops-dev/anvilops
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops
   interval: 1h
   provider: generic
 ---
