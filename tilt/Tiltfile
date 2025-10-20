@@ -1,18 +1,42 @@
 load('ext://restart_process', 'docker_build_with_restart')
 load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
 load('ext://dotenv', 'dotenv')
+load('ext://deployment', 'deployment_create')
+
+# Should the frontend and backend be deployed separately?
+# If enabled, frontend changes will appear much faster at the expense of a development environment that looks less like production.
+separate_frontend_and_backend = True
 
 dotenv(fn='../backend/.env')
 
-docker_build_with_restart(
-  "anvilops/anvilops", "../",
-  entrypoint=["npm", "run", "start:prod"],
-  live_update=[
-    fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
-    sync("../backend/src", "/app/src")
-  ],
-  only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
-)
+if separate_frontend_and_backend:
+  docker_build(
+    "anvilops-frontend", "../",
+    dockerfile="./anvilops-frontend.Dockerfile",
+    live_update=[
+      sync("../frontend/src", "/app/src")
+    ],
+    only=["frontend", "openapi"]
+  )
+  docker_build_with_restart(
+    "anvilops/anvilops", "../",
+    dockerfile="./anvilops-backend.Dockerfile",
+    entrypoint=["npm", "run", "start:prod"],
+    live_update=[
+      sync("../frontend/src", "/app/src")
+    ],
+    only=["backend", "templates", "openapi"]
+  )
+else:
+  docker_build_with_restart(
+    "anvilops/anvilops", "../",
+    entrypoint=["npm", "run", "start:prod"],
+    live_update=[
+      fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
+      sync("../backend/src", "/app/src")
+    ],
+    only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
+  )
 docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma"])
 docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
@@ -94,5 +118,14 @@ data:
 k8s_yaml(encode_yaml_stream(parsed))
 
 k8s_resource(workload='anvilops-app-proxy', port_forwards=["3001:80"])
-k8s_resource(workload='anvilops', port_forwards=[3000])
 k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
+
+if separate_frontend_and_backend:
+  # Deploy the frontend separately so that it can be hot reloaded when files change
+  deployment_create(
+    'anvilops-frontend',
+    ports='3000'
+  )
+  k8s_resource(workload="anvilops-frontend", port_forwards=["3000:5173"])
+else:
+  k8s_resource(workload="anvilops", port_forwards=[3000])
