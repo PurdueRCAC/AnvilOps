@@ -262,10 +262,10 @@ type EnvVars struct {
 
 // When this pod is created, it has some extra environment variables:
 //
-// (TODO Ban these names from user-provided environment variables)
 // - _PRIVATE_ANVILOPS_LOG_ENDPOINT
 // - _PRIVATE_ANVILOPS_LOG_TYPE
 // - _PRIVATE_ANVILOPS_LOG_TOKEN
+// - _PRIVATE_ANVILOPS_LOG_DEPLOYMENT_ID
 //
 // This function returns a struct with the environment variables specific to the log shipper
 // (mentioned above) and a string array of variables that can be passed to the child process.
@@ -293,7 +293,6 @@ func getAnvilOpsEnvVars() (*EnvVars, []string) {
 				panic("Invalid deployment ID: " + err.Error())
 			}
 			anvilOpsEnv.DeploymentID = number
-			fallthrough
 		default:
 			childEnv = append(childEnv, variable)
 		}

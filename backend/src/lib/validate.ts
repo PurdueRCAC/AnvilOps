@@ -89,6 +89,15 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
     return { valid: false, message: "Some environment variable(s) are empty" };
   }
 
+  if (env?.some((it) => it.name.startsWith("_PRIVATE_ANVILOPS_"))) {
+    // Environment variables with this prefix are used in the log shipper - see log-shipper/main.go
+    return {
+      valid: false,
+      message:
+        'Environment variable(s) use reserved prefix "_PRIVATE_ANVILOPS_"',
+    };
+  }
+
   const envNames = new Set();
 
   for (let envVar of env) {
