@@ -7,7 +7,6 @@ import {
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
-  Log,
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
@@ -26,7 +25,6 @@ const APIClientFactory = {
   AuthorizationV1Api: (kc: KubeConfig) => kc.makeApiClient(AuthorizationV1Api),
   KubernetesObjectApi: (kc: KubeConfig) =>
     KubernetesObjectApi.makeApiClient(kc),
-  Log: (kc: KubeConfig) => new Log(kc),
   Watch: (kc: KubeConfig) => new Watch(kc),
   ExtensionsV1Api: (kc: KubeConfig) => kc.makeApiClient(ApiextensionsV1Api),
 };

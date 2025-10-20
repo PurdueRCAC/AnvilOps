@@ -1,9 +1,5 @@
-import { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
-import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
-import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { db, subscribe } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -61,15 +57,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     }
   }
 
-  let isFetchingFromK8sApi = false;
-
   const fetchNewLogs = async () => {
-    if (isFetchingFromK8sApi) {
-      // The user has seen logs from the K8s API. This only happens when there are no logs in the DB at the time the response starts.
-      // To prevent duplication, close the connection. The client will reopen it and fetch logs exclusively from the DB now that they exist.
-      res.end();
-      return;
-    }
     // Fetch them in reverse order so that we can take only the 500 most recent lines
     const newLogs = await db.log.findMany({
       where: {
@@ -94,7 +82,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
         time: log.timestamp.toISOString(),
       });
     }
-    return newLogs.length > 0;
   };
 
   // When new logs come in, send them to the client
@@ -108,65 +95,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   });
 
   // Send all previous logs now
-  const found = await fetchNewLogs();
-
-  if (!found && ctx.request.query.type === "RUNTIME") {
-    // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
-    isFetchingFromK8sApi = true;
-    const { CoreV1Api: core, Log: log } = await getClientsForRequest(
-      req.user.id,
-      app.projectId,
-      ["CoreV1Api", "Log"],
-    );
-    let pods: V1PodList;
-    try {
-      pods = await core.listNamespacedPod({
-        namespace: getNamespace(app.subdomain),
-        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
-      });
-    } catch (err) {
-      // Namespace may not be ready yet
-      pods = { apiVersion: "v1", items: [] };
-    }
-
-    let podIndex = 0;
-    for (const pod of pods.items) {
-      podIndex++;
-      const podName = pod.metadata.name;
-      const logStream = new stream.PassThrough();
-      const abortController = await log.log(
-        getNamespace(app.subdomain),
-        podName,
-        pod.spec.containers[0].name,
-        logStream,
-        { follow: true, tailLines: 500, timestamps: true },
-      );
-      let i = 0;
-      let current = "";
-      logStream.on("data", async (chunk: Buffer) => {
-        const str = chunk.toString();
-        current += str;
-        if (str.endsWith("\n") || str.endsWith("\r")) {
-          const lines = current.split("\n");
-          current = "";
-          for (const line of lines) {
-            if (line.trim().length === 0) continue;
-            const [date, ...text] = line.split(" ");
-            await sendLog({
-              type: "RUNTIME",
-              log: text.join(" "),
-              pod: podName,
-              time: date,
-              id: podIndex * 100_000_000 + i,
-            });
-            i++;
-          }
-        }
-      });
-
-      req.on("close", () => abortController.abort());
-    }
-  }
+  await fetchNewLogs();
 
   res.write("event: pastLogsSent\ndata:\n\n"); // Let the browser know that all previous logs have been sent. If none were received, then there are no logs for this deployment so far.
 };
