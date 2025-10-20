@@ -2328,6 +2328,9 @@ components:
           type: string
         type:
           $ref: "#/components/schemas/LogType"
+        stream:
+          type: string
+          enum: [stdout, stderr]
         pod:
           type: string
         id:

@@ -1,5 +1,6 @@
 import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
+import clsx from "clsx";
 import { AlertTriangle, FileClock, Loader, SatelliteDish } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
@@ -13,7 +14,10 @@ export const Logs = ({
   deployment,
   type,
 }: {
-  deployment: Pick<Deployment, "status" | "id" | "appId" | "updatedAt">;
+  deployment: Pick<
+    Deployment,
+    "status" | "id" | "appId" | "updatedAt" | "podStatus"
+  >;
   type: LogType;
 }) => {
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
@@ -101,18 +105,38 @@ export const Logs = ({
             lastScroll.current.scrollTop = element.scrollTop;
           }
         }}
-        className="bg-gray-100 font-mono w-full rounded-md my-4 p-4 overflow-x-auto max-h-screen"
+        className="bg-gray-100 font-mono w-full rounded-md my-4 py-4 overflow-x-auto max-h-screen"
       >
         {logs && logs.length > 0 ? (
-          <pre>
-            {logs?.map((log) => (
-              <p key={log.id}>
-                <span className="opacity-50">{log.time}</span> {log.log}
-              </p>
-            ))}
-          </pre>
+          <table className="w-full">
+            <tbody>
+              {logs?.map((log) => (
+                <tr
+                  key={log.id}
+                  className={clsx(
+                    "font-mono whitespace-pre-wrap [&>*]:align-top",
+                    log.stream === "stderr" &&
+                      "text-red-900 bg-red-100 first:rounded-t-md last:rounded-b-md",
+                  )}
+                >
+                  <td className="opacity-50 whitespace-nowrap w-0 pl-4 pr-2">
+                    {/* "w-0" above forces this column to take up as little horizontal space as possible */}
+                    {new Date(log.time).toLocaleString()}
+                  </td>
+                  {(deployment.podStatus?.total ?? 1) > 1 && (
+                    <td className="px-2">
+                      <span className="opacity-70">{log.pod}</span>
+                    </td>
+                  )}
+                  <td className="pl-2 pr-4">
+                    <p>{log.log}</p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : type === "BUILD" && !noLogs ? (
-          <>
+          <div className="px-4">
             <p className="flex gap-2 text-lg font-medium">
               <SatelliteDish /> Logs Unavailable
             </p>
@@ -121,18 +145,21 @@ export const Logs = ({
                 ? "Waiting for the build to start."
                 : null}
             </p>
-          </>
+          </div>
         ) : !connecting ? (
-          <>
+          <div className="px-4">
             <p className="flex gap-2 text-lg font-medium">
               <FileClock /> No Logs Found
             </p>
             <p className="opacity-50 ml-8">
               {["PENDING", "BUILDING", "DEPLOYING"].includes(deployment.status)
                 ? "Waiting for your app to be deployed."
-                : "Logs from your app will appear here."}
+                : ["COMPLETE", "STOPPED"].includes(deployment.status) &&
+                    type === "BUILD"
+                  ? "Build completed with no log output."
+                  : "Logs from your app will appear here."}
             </p>
-          </>
+          </div>
         ) : null}
       </div>
       <Button

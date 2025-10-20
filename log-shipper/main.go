@@ -90,7 +90,6 @@ func main() {
 	close(sig)
 
 	fmt.Printf("Process exited with status %v\n", cmd.ProcessState.ExitCode())
-	fmt.Println("Uploading final log lines...")
 
 	// Stop the upload loop
 	done <- true
@@ -138,7 +137,6 @@ func readStream(name string, file io.Reader) {
 			Content:   line,
 			Timestamp: time.Now().UnixMilli(),
 		}:
-			fmt.Println("Enqueued log line to be uploaded")
 		default:
 			{
 				fmt.Println("Upload buffer is full")
@@ -182,8 +180,6 @@ func drainUploadQueue(env EnvVars) chan bool {
 					DeploymentID: env.DeploymentID,
 					Hostname:     hostname,
 				}
-
-				fmt.Printf("Uploading %+v\n", body)
 
 				json, err := json.Marshal(body)
 
