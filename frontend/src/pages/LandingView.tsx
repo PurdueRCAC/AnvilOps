@@ -97,8 +97,8 @@ export default function LandingView() {
               3
             </div>
             <p>
-              <AppWindow size={32} /> Your app is automatically deployed in the
-              Anvil Composable cluster
+              <AppWindow size={32} /> Your app is automatically deployed in the{" "}
+              {settings.clusterName} cluster
             </p>
           </div>
         </div>
