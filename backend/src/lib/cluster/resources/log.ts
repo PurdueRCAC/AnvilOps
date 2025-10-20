@@ -11,18 +11,6 @@ export const createLogConfig = async (
   appId: number,
   secret: string,
 ): Promise<K8sObject[]> => {
-  try {
-    await svcK8s.ExtensionsV1Api.readCustomResourceDefinition({
-      name: "flows.logging.banzaicloud.io",
-    });
-  } catch (e) {
-    if (e instanceof ApiException && e.code === 404) {
-      // The logging operator is not installed; these resources can't be installed on the cluster.
-      return [];
-    }
-    throw e;
-  }
-
   return [
     {
       apiVersion: "v1",
