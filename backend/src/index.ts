@@ -40,6 +40,12 @@ app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 app.use(
   morgan(
     `:remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms`,
+    {
+      skip: (req, res) => {
+        // Don't log successful /logs/ingest requests
+        return res.statusCode === 200 && req.path === "/api/logs/ingest";
+      },
+    },
   ),
 );
 
