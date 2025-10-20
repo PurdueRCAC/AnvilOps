@@ -2,6 +2,7 @@ import bodyParser from "body-parser";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import session from "express-session";
 import morgan from "morgan";
 import { existsSync, statSync } from "node:fs";
@@ -64,6 +65,22 @@ app.use(
   /^\/api(?!((\/github\/webhook)|(\/logs\/ingest)|(\/app\/(.*)\/file)))/,
   bodyParser.json(),
 );
+
+const updateRateLimiter = rateLimit({
+  windowMs: 10000,
+  limit: 30,
+  standardHeaders: true,
+  handler: (req, res) => {
+    res.status(429).json({
+      code: 429,
+      message: "Too many requests, please try again later",
+    });
+  },
+});
+
+apiRouter.post("/app", updateRateLimiter);
+apiRouter.post("/app/group", updateRateLimiter);
+apiRouter.put("/app/:id", updateRateLimiter);
 
 apiRouter.use(apiHandler);
 app.use("/api", apiRouter);

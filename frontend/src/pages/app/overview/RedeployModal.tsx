@@ -334,7 +334,11 @@ export const RedeployModal = ({
                     </>
                   )}
                 </p>
-                <Button type="submit" className="w-full mt-4">
+                <Button
+                  type="submit"
+                  className="w-full mt-4"
+                  disabled={isUpdatingApp}
+                >
                   {isUpdatingApp ? (
                     <>
                       <Loader className="animate-spin" />
