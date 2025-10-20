@@ -94,7 +94,11 @@ func main() {
 	// Stop the upload loop
 	done <- true
 
-	// TODO add timeout
+	go func() {
+		// If it takes longer than 10 seconds to flush the remaining logs, stop the program without sending them
+		time.Sleep(10 * time.Second)
+		os.Exit(cmd.ProcessState.ExitCode())
+	}()
 	m.RLock() // Block until all log lines have been uploaded (we can't acquire the reader lock while the writer lock is held)
 
 	close(uploadQueue)
@@ -203,8 +207,10 @@ func drainUploadQueue(env EnvVars) chan bool {
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
 					for _, line := range lines {
-						// TODO what do we do if the queue is full?
-						uploadQueue <- line
+						select {
+						case uploadQueue <- line:
+						default: // If the upload queue is now full, it will be dropped instead of blocking until the queue is empty. If we block here, the queue will never be drained again because we're inside the loop that processes the queue.
+						}
 					}
 				} else if res.StatusCode != 200 {
 					body, err := io.ReadAll(res.Body)
@@ -217,8 +223,10 @@ func drainUploadQueue(env EnvVars) chan bool {
 					}
 
 					for _, line := range lines {
-						// TODO what do we do if the queue is full?
-						uploadQueue <- line
+						select {
+						case uploadQueue <- line:
+						default: // Same as above
+						}
 					}
 				} else {
 					res.Body.Close()
