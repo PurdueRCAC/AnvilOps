@@ -13,86 +13,119 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { App } from "./AppView";
 
 export const DangerZoneTab = ({ app }: { app: App }) => {
-  const { mutateAsync: deleteProject } = api.useMutation(
-    "delete",
-    "/app/{appId}",
-  );
-
-  const navigate = useNavigate();
-  const params = useParams();
-
-  const appId = parseInt(params.id!);
-
-  const [text, setText] = useState("");
-
   return (
     <>
-      <h2 className="text-xl font-medium mb-2">Delete Project</h2>
+      <h2 className="text-xl font-medium mb-2">Migrate Project</h2>
+      <p className="opacity-50 mb-4">
+        AnvilOps will stop managing this application, but Kubernetes resources
+        will not be deleted.
+      </p>
+      <DeleteDialog app={app} keepNamespace={true} />
+      <h2 className="text-xl font-medium mb-2 mt-4">Delete Project</h2>
       <p className="opacity-50 mb-4">
         Permanently delete all deployments, logs, and compute resources
         associated with this project without affecting the source Git
         repository.
       </p>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="destructive">Delete Project</Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm delete project</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div>
-                <ul className="*:list-disc *:ml-4 mt-2 mb-4">
-                  This action cannot be undone.
-                  <li>
-                    Your AnvilOps project and all associated deployments and
-                    infrastructure will be deleted.
-                  </li>
-                  <li>
-                    Your project's subdomain will become available for other
-                    projects to use.
-                  </li>
-                  <li>Your Git repository will be unaffected.</li>
-                </ul>
-                <p className="mb-2">
-                  Type the project name <b>{app.displayName}</b> to continue.
-                </p>
-                <Input
-                  placeholder={app.displayName}
-                  value={text}
-                  onChange={(e) => setText(e.currentTarget.value)}
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={text !== app.displayName}
-              onClick={async () => {
-                try {
-                  await deleteProject({
-                    params: { path: { appId: appId } },
-                  });
-                } catch (e) {
-                  toast.error("There was a problem deleting your project.");
-                  return;
-                }
-                toast.success("Your project has been deleted.");
-                navigate("/dashboard");
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog app={app} keepNamespace={false} />
     </>
+  );
+};
+
+const DeleteDialog = ({
+  app,
+  keepNamespace,
+}: {
+  app: App;
+  keepNamespace: boolean;
+}) => {
+  const navigate = useNavigate();
+  const [text, setText] = useState("");
+  const { mutateAsync: deleteProject } = api.useMutation(
+    "post",
+    "/app/{appId}/delete",
+  );
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant={keepNamespace ? "outline" : "destructive"}>
+          {keepNamespace ? "Migrate" : "Delete"} Project
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Confirm {keepNamespace ? "migrate" : "delete"} project
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div>
+              <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                {keepNamespace ? (
+                  <>
+                    <li>AnvilOps will stop managing this application.</li>
+                    <li>
+                      AnvilOps will delete logs stored for this application.
+                    </li>
+                    <li>
+                      Infrastructure associated with this application will still
+                      be available in the Kubernetes namespace{" "}
+                      <b>anvilops-{app.subdomain}</b>.
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    This action cannot be undone.
+                    <li className="font-bold">
+                      Your AnvilOps project and all associated deployments and
+                      infrastructure will be deleted.
+                    </li>
+                    <li>
+                      Your project's subdomain will become available for other
+                      projects to use.
+                    </li>
+                  </>
+                )}
+                <li>Your Git repository will be unaffected.</li>
+              </ul>
+              <p className="mb-2">
+                Type the project name <b>{app.displayName}</b> to continue.
+              </p>
+              <Input
+                placeholder={app.displayName}
+                value={text}
+                onChange={(e) => setText(e.currentTarget.value)}
+              />
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant={keepNamespace ? "default" : "destructive"}
+            disabled={text !== app.displayName}
+            onClick={async () => {
+              try {
+                await deleteProject({
+                  params: { path: { appId: app.id } },
+                  body: { keepNamespace },
+                });
+              } catch (e) {
+                toast.error("There was a problem deleting your project.");
+                return;
+              }
+              toast.success("Your project has been deleted.");
+              navigate("/dashboard");
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

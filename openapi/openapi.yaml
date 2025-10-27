@@ -1234,7 +1234,7 @@ paths:
         schema:
           type: integer
           format: int64
-    delete:
+    post:
       tags:
         - app
       description: Delete an app.
