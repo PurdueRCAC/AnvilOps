@@ -57,19 +57,21 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
     },
   });
 
-  try {
-    await Promise.all(
-      appGroup.apps.map((app) => async () => {
-        const { KubernetesObjectApi: api } = await getClientsForRequest(
-          req.user.id,
-          app.projectId,
-          ["KubernetesObjectApi"],
-        );
-        deleteNamespace(api, getNamespace(app.subdomain));
-      }),
-    );
-  } catch (err) {
-    console.error("Failed to delete namespace:", err);
+  if (!ctx.request.requestBody.keepNamespace) {
+    try {
+      await Promise.all(
+        appGroup.apps.map((app) => async () => {
+          const { KubernetesObjectApi: api } = await getClientsForRequest(
+            req.user.id,
+            app.projectId,
+            ["KubernetesObjectApi"],
+          );
+          deleteNamespace(api, getNamespace(app.subdomain));
+        }),
+      );
+    } catch (err) {
+      console.error("Failed to delete namespace:", err);
+    }
   }
   try {
     const repos = appGroup.apps.map((app) => app.imageRepo);
