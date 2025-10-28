@@ -59,6 +59,66 @@ test("Parses Docker image reference properly", () => {
     image: "railpack-builder",
     tag: "test-tag",
   });
+
+  expect(
+    parseImageRef(
+      "registry.anvil.rcac.purdue.edu/railpack-builder:test-tag@sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+    ),
+  ).toEqual({
+    repository: "registry.anvil.rcac.purdue.edu",
+    image: "railpack-builder",
+    tag: "test-tag",
+    digest:
+      "sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+  });
+
+  expect(
+    parseImageRef(
+      "nginx@sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+    ),
+  ).toEqual({
+    repository: "registry-1.docker.io",
+    image: "library/nginx",
+    tag: "latest",
+    digest:
+      "sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+  });
+
+  expect(
+    parseImageRef(
+      "library/nginx@sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+    ),
+  ).toEqual({
+    repository: "registry-1.docker.io",
+    image: "library/nginx",
+    tag: "latest",
+    digest:
+      "sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+  });
+
+  expect(
+    parseImageRef(
+      "docker.io/nginx@sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+    ),
+  ).toEqual({
+    repository: "registry-1.docker.io",
+    image: "library/nginx",
+    tag: "latest",
+    digest:
+      "sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+  });
+
+  expect(
+    parseImageRef(
+      "docker.io/library/nginx@sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+    ),
+  ).toEqual({
+    repository: "registry-1.docker.io",
+    image: "library/nginx",
+    tag: "latest",
+    digest:
+      "sha256:61e01287e546aac28a3f56839c136b31f590273f3b41187a36f46f6a03bbfe22",
+  });
 });
 
 test("Parses Www-Authenticate header properly", () => {
@@ -657,14 +717,40 @@ test("Retrieves entrypoint of OCI image", async () => {
 
   const server = setupServer(...handlers);
   server.listen({ onUnhandledRequest: "error" });
+  {
+    const config = await getImageConfig({
+      repository: "registry-1.docker.io",
+      image: "library/nginx",
+      tag: "1.29.1",
+      digest: undefined,
+    });
+    expect(config.config.Entrypoint).toEqual(["/docker-entrypoint.sh"]);
+    expect(config.config.Cmd).toEqual(["nginx", "-g", "daemon off;"]);
+  }
 
-  const config = await getImageConfig({
-    repository: "registry-1.docker.io",
-    image: "library/nginx",
-    tag: "1.29.1",
-  });
-  expect(config.config.Entrypoint).toEqual(["/docker-entrypoint.sh"]);
-  expect(config.config.Cmd).toEqual(["nginx", "-g", "daemon off;"]);
+  {
+    const config = await getImageConfig({
+      repository: "registry-1.docker.io",
+      image: "library/nginx",
+      tag: "1.29.1",
+      digest:
+        "sha256:17ae566734b63632e543c907ba74757e0c1a25d812ab9f10a07a6bed98dd199c",
+    });
+    expect(config.config.Entrypoint).toEqual(["/docker-entrypoint.sh"]);
+    expect(config.config.Cmd).toEqual(["nginx", "-g", "daemon off;"]);
+  }
+
+  await expect(
+    async () =>
+      await getImageConfig({
+        repository: "registry-1.docker.io",
+        image: "library/nginx",
+        tag: "1.29.1",
+        digest: "sha256:non-existent-digest",
+      }),
+  ).rejects.toThrowError(
+    "No image found with matching digest: sha256:non-existent-digest",
+  );
 
   server.close();
 });

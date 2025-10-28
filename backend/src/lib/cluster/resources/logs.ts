@@ -80,8 +80,8 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
 
     // Populate the container's CMD and ENTRYPOINT if necessary because we need to modify them
     if (!container.command || !container.args) {
-      const { repository, image, tag } = parseImageRef(container.image);
-      const config = await getImageConfig({ repository, image, tag });
+      const imageInfo = parseImageRef(container.image);
+      const config = await getImageConfig(imageInfo);
       const { Cmd, Entrypoint } = config.config;
       container.command = Entrypoint;
       container.args = Cmd;
@@ -118,20 +118,23 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
   return clone;
 }
 
-// https://github.com/distribution/reference/blob/main/regexp.go
-// const imageReferenceRegex =
-//   /^(?<repository>[\w.\-_]+((?::\d+|)(?=\/[a-z0-9._-]+\/[a-z0-9._-]+))|)(?:\/|)(?<image>[a-z0-9.\-_]+(?:\/[a-z0-9.\-_]+|))(:(?<tag>[\w.\-_]{1,127})|)$/i;
-
 /**
  * Parses an image reference in the format [server/[namespace/]]image[:version]
  * (e.g. docker.io/library/nginx or nginx:latest or library/nginx)
  */
 export function parseImageRef(reference: string) {
-  // TODO support image digests
+  let repository: string, image: string, tag: string, digest: string;
+
+  // If the image tag ends with `@sha256:<digest>`, remove it from the tag and return it as a separate field
+  const digestSpecifier = "@sha256:";
+  const digestEndRegexp = new RegExp(digestSpecifier + "[a-z0-9]{64}$", "gi");
+  if (reference.match(digestEndRegexp)) {
+    const index = reference.lastIndexOf(digestSpecifier);
+    digest = reference.substring(index + 1);
+    reference = reference.substring(0, index);
+  }
+
   const split = reference.split("/");
-
-  let repository: string, image: string, tag: string;
-
   // Take off the first segment and check if it's a domain name
   if (split[0].includes(".") || (split.length > 1 && split[0].includes(":"))) {
     // split[0] is a domain name
@@ -164,7 +167,7 @@ export function parseImageRef(reference: string) {
   }
 
   if (repository === "registry-1.docker.io" && !image.includes("/")) {
-    // Official images with no namespace should be prefixed with "library/"; e.g. nginx -> library/nginx
+    // Docker Hub images with no namespace should be prefixed with "library/"; e.g. nginx -> library/nginx
     image = "library/" + image;
   }
 
@@ -174,7 +177,7 @@ export function parseImageRef(reference: string) {
     repository = env.REGISTRY_HOSTNAME;
   }
 
-  return { repository, image, tag };
+  return { repository, image, tag, digest };
 }
 
 // https://docs.docker.com/reference/api/registry/latest/#tag/pull
@@ -182,10 +185,12 @@ export async function getImageConfig({
   repository,
   image,
   tag,
+  digest: digestInput,
 }: {
   repository: string;
   image: string;
   tag: string;
+  digest: string;
 }): Promise<ImageConfig> {
   // Get the image digest from its tag
   const protocol =
@@ -255,6 +260,9 @@ export async function getImageConfig({
     // This response is a list of manifests. Pick the one that best matches our system architecture and OS.
     digestJson.manifests.sort((manifest) => {
       let score = 0;
+      if (manifest.digest === digestInput) {
+        score = Number.MIN_SAFE_INTEGER; // This image must come first since we're specifically looking for it by its digest
+      }
       if (manifest.platform.architecture === "amd64") {
         score++;
       }
@@ -266,6 +274,10 @@ export async function getImageConfig({
     });
 
     const primaryDigest = digestJson.manifests[0].digest;
+
+    if (digestInput && primaryDigest !== digestInput) {
+      throw new Error("No image found with matching digest: " + digestInput);
+    }
 
     const imageInfoResponse = await fetch(
       baseURL + "/v2/" + image + "/manifests/" + primaryDigest,
