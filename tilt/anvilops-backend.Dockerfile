@@ -1,4 +1,4 @@
-FROM node:24 AS base
+FROM node:24-alpine AS base
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen
@@ -17,6 +17,11 @@ COPY backend/package*.json .
 COPY backend/patches/ ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+# BACKEND: remove devDependencies before node_modules is copied into the final image
+FROM backend_deps AS backend_prod_deps
+WORKDIR /app
+RUN npm prune --omit=dev
+
 # BACKEND: generate Prisma client
 FROM base AS backend_codegen
 
@@ -30,7 +35,7 @@ RUN npm run prisma:generate
 FROM base AS backend_run
 
 WORKDIR /app
-COPY --from=backend_deps /app/node_modules ./node_modules
+COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY templates/templates.json ./templates.json
 COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma
 COPY openapi/*.yaml /openapi/

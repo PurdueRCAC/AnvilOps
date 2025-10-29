@@ -1,7 +1,7 @@
 # This Dockerfile is used to build the AnvilOps frontend for use with Tilt.
 # It's used instead of the main anvilops image because it's much smaller and faster to build, and it supports hot reloading with Vite and Tilt's Live Reload feature.
 
-FROM node:24 AS base
+FROM node:24-alpine AS base
 
 # Install dependencies
 FROM base AS frontend_deps

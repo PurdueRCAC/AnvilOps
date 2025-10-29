@@ -1,7 +1,7 @@
 # This Dockerfile is used to build the image that's used to migrate the database.
 # It's used instead of the main anvilops image because it's much smaller and faster to build.
 
-FROM node:24 AS base
+FROM node:24-alpine AS base
 
 # Install backend dependencies
 FROM base AS backend_deps
