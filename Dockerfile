@@ -49,7 +49,7 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
-# BACKEND: run type checker and bundle the app
+# BACKEND: run type checker
 FROM backend_codegen AS backend_build
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY backend .
