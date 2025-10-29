@@ -1,4 +1,5 @@
-FROM node:24 AS base
+# syntax=docker/dockerfile:1
+FROM node:24-alpine AS base
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen
@@ -34,6 +35,11 @@ COPY backend/package*.json .
 COPY backend/patches/ ./patches
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+# BACKEND: remove devDependencies before node_modules is copied into the final image
+FROM backend_deps AS backend_prod_deps
+WORKDIR /app
+RUN npm prune --omit=dev
+
 # BACKEND: generate Prisma client
 FROM base AS backend_codegen
 
@@ -43,7 +49,7 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
-# BACKEND: run type checker
+# BACKEND: run type checker and bundle the app
 FROM backend_codegen AS backend_build
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY backend .
@@ -61,9 +67,9 @@ FROM base AS backend_run
 WORKDIR /app
 COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
-COPY --from=backend_deps /app/node_modules ./node_modules
+COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY openapi/*.yaml /openapi/
 COPY templates/templates.json ./templates.json
-COPY --from=backend_build /app .
+COPY --from=backend_build --exclude=**/node_modules/** /app .
 
 CMD ["npm", "run", "start:prod"]
