@@ -1,6 +1,7 @@
 import express from "express";
 import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 import { db } from "./db.ts";
 import { env, parseCsv } from "./env.ts";
@@ -148,7 +149,7 @@ router.use((req, res, next) => {
     res.status(401).json({ code: 401, message: "Unauthorized" });
     return;
   }
-  req.user = req.session["user"];
+  (req as AuthenticatedRequest).user = req.session["user"];
   next();
 });
 
