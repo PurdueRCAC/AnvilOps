@@ -29,12 +29,12 @@ jobs:
       - name: Log out of container registry
         if: always()
         run: docker logout registry.anvil.rcac.purdue.edu
-        
+
       - name: Install yq
         run: |
           wget https://github.com/mikefarah/yq/releases/download/v4.47.2/yq_linux_amd64 -O ./yq &&\
           chmod +x yq
-      
+
       - name: Update values.yaml files
         run: |
           ./yq -i '.anvilops.image = "registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}"' infra/anvil/values.yaml
@@ -45,6 +45,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull
           git add infra/anvil/values.yaml infra/geddes/values.yaml
           git commit -m "Update image to ${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}" || echo "No changes to commit"
           git push

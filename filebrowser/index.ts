@@ -1,5 +1,5 @@
 import { formidable } from "formidable";
-import mime from "mime-types";
+import * as mime from "mime-types";
 import { once } from "node:events";
 import { createReadStream } from "node:fs";
 import { mkdir, readdir, rm, stat, unlink } from "node:fs/promises";
@@ -12,7 +12,7 @@ import { basename, extname, join } from "node:path";
 
 const port = 8080;
 const rootDir = "/files";
-const authToken = env.AUTH_TOKEN;
+const authToken = process.env.AUTH_TOKEN;
 
 const server = createServer(async (req, res) => {
   try {

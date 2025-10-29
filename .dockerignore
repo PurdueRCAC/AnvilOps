@@ -13,3 +13,6 @@ swagger-ui/node_modules
 node_modules/
 
 infra/
+log-shipper/
+tilt/
+app-proxy/

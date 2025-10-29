@@ -197,14 +197,15 @@ const DeleteGroupDialog = ({
   const [nameText, setNameText] = useState("");
 
   const { mutateAsync: deleteAppGroupAction } = api.useMutation(
-    "delete",
-    "/app/group/{appGroupId}",
+    "post",
+    "/app/group/{appGroupId}/delete",
   );
 
   const deleteAppGroup = async (appGroupId: number) => {
     try {
       await deleteAppGroupAction({
         params: { path: { appGroupId } },
+        body: { keepNamespace: false },
       });
     } catch (e) {
       toast.error("There was a problem deleting your project.");

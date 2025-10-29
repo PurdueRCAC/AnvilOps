@@ -67,15 +67,17 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     },
   );
 
-  try {
-    const { KubernetesObjectApi: api } = await getClientsForRequest(
-      req.user.id,
-      projectId,
-      ["KubernetesObjectApi"],
-    );
-    await deleteNamespace(api, getNamespace(subdomain));
-  } catch (err) {
-    console.error("Failed to delete namespace:", err);
+  if (!ctx.request.requestBody.keepNamespace) {
+    try {
+      const { KubernetesObjectApi: api } = await getClientsForRequest(
+        req.user.id,
+        projectId,
+        ["KubernetesObjectApi"],
+      );
+      await deleteNamespace(api, getNamespace(subdomain));
+    } catch (err) {
+      console.error("Failed to delete namespace:", err);
+    }
   }
 
   await db.log.deleteMany({

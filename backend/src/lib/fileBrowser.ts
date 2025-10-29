@@ -73,7 +73,7 @@ async function getFileBrowserAddress(
             spec: {
               containers: [
                 {
-                  name: "builder",
+                  name: "file-browser",
                   image: env.FILE_BROWSER_IMAGE,
                   imagePullPolicy: "Always",
                   volumeMounts: [

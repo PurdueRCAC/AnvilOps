@@ -262,8 +262,6 @@ export const updateApp: HandlerMap["updateApp"] = async (
       },
     });
 
-    await cancelAllOtherDeployments(deployment.id, deployment.app, true);
-
     try {
       const { namespace, configs, postCreate } =
         await createAppConfigsFromDeployment(deployment);
@@ -282,6 +280,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
       );
 
       await Promise.all([
+        cancelAllOtherDeployments(deployment.id, deployment.app, true),
         db.deployment.update({
           where: { id: deployment.id },
           data: { status: "COMPLETE" },

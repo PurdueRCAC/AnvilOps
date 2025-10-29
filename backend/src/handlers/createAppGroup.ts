@@ -57,19 +57,22 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   } catch (e) {
     return json(400, res, { code: 400, message: e.message });
   }
-  const appValidationErrors = data.apps
-    .map(async (app) => {
-      try {
-        const subdomainRes = validateSubdomain(app.subdomain);
-        validateDeploymentConfig(app);
-        validateAppName(app.name);
-        await subdomainRes;
-        return null;
-      } catch (e) {
-        return e;
-      }
-    })
-    .filter(Boolean);
+  const appValidationErrors = (
+    await Promise.all(
+      data.apps.map(async (app) => {
+        try {
+          const subdomainRes = validateSubdomain(app.subdomain);
+          validateDeploymentConfig(app);
+          validateAppName(app.name);
+          await subdomainRes;
+          return null;
+        } catch (e) {
+          return e;
+        }
+      }),
+    )
+  ).filter(Boolean);
+  console.log(appValidationErrors);
   if (appValidationErrors.length > 0) {
     return json(400, res, {
       code: 400,

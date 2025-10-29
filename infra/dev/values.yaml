@@ -1,9 +1,9 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-393-a3ee462dc4bcadbf0443e6c1e18ceef3b7ce7f81 # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-399-5b34cbd88840e6bf629b96fafc9172d556f812fb # {"$imagepolicy": "anvilops-dev:anvilops-imagepolicy"}
   env:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
-    harborProjectName: anvilops-dev
+    harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
