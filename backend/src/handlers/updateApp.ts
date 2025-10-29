@@ -48,7 +48,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   }
 
   try {
-    validateDeploymentConfig(appData.config);
+    await validateDeploymentConfig(appData.config);
     if (appData.appGroup) {
       validateAppGroup(appData.appGroup);
     }

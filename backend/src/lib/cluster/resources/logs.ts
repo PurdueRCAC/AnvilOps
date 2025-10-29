@@ -177,6 +177,10 @@ export function parseImageRef(reference: string) {
     repository = env.REGISTRY_HOSTNAME;
   }
 
+  if (!repository || !image || !tag) {
+    throw new Error("Invalid image reference: one or more parts is missing");
+  }
+
   return { repository, image, tag, digest };
 }
 
@@ -199,8 +203,11 @@ export async function getImageConfig({
 
   let token: string | undefined; // Set to `undefined` if the registry doesn't require authentication
 
+  const reference = digestInput ?? tag;
+  console.log("Looking up ", reference);
+
   const fetchDigest = async () =>
-    await fetch(baseURL + `/v2/${image}/manifests/${tag}`, {
+    await fetch(baseURL + `/v2/${image}/manifests/${reference}`, {
       headers: {
         Accept:
           "application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json",
@@ -275,8 +282,11 @@ export async function getImageConfig({
 
     const primaryDigest = digestJson.manifests[0].digest;
 
-    if (digestInput && primaryDigest !== digestInput) {
-      throw new Error("No image found with matching digest: " + digestInput);
+    if (reference !== digestInput) {
+      // ^ We looked up the image manifest earlier by its tag, not its digest. That means one of the items in the manifest must have a matching digest.
+      if (digestInput && primaryDigest !== digestInput) {
+        throw new Error("No image found with matching digest: " + digestInput);
+      }
     }
 
     const imageInfoResponse = await fetch(

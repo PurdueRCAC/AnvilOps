@@ -23,7 +23,7 @@ if separate_frontend_and_backend:
     dockerfile="./anvilops-backend.Dockerfile",
     entrypoint=["npm", "run", "start:prod"],
     live_update=[
-      sync("../frontend/src", "/app/src")
+      sync("../backend/src", "/app/src")
     ],
     only=["backend", "templates", "openapi"]
   )

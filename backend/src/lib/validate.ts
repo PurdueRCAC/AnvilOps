@@ -6,8 +6,9 @@ import {
   MAX_STS_NAME_LEN,
   MAX_SUBDOMAIN_LEN,
 } from "./cluster/resources.ts";
+import { getImageConfig, parseImageRef } from "./cluster/resources/logs.ts";
 
-export function validateDeploymentConfig(
+export async function validateDeploymentConfig(
   data: (
     | components["schemas"]["GitDeploymentOptions"]
     | components["schemas"]["ImageDeploymentOptions"]
@@ -49,6 +50,10 @@ export function validateDeploymentConfig(
   validateEnv(env);
 
   validateMounts(mounts);
+
+  if (data.source === "image") {
+    await validateImageReference(data.imageTag);
+  }
 }
 
 export const validateAppGroup = (
@@ -125,6 +130,23 @@ export const validateSubdomain = async (subdomain: string) => {
   }
 
   return { valid: true };
+};
+
+export const validateImageReference = async (reference: string) => {
+  let imageInfo: ReturnType<typeof parseImageRef>;
+  try {
+    imageInfo = parseImageRef(reference);
+  } catch {
+    throw new Error("Invalid image reference.");
+  }
+
+  try {
+    // Look up the image in its registry to make sure it exists
+    await getImageConfig(imageInfo);
+  } catch (e) {
+    console.error(e);
+    throw new Error("Image could not be found in its registry.");
+  }
 };
 
 export const validateAppName = (name: string) => {
