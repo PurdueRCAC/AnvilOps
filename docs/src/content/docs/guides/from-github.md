@@ -4,11 +4,19 @@ sidebar:
   order: 1
 ---
 
-This tutorial will demonstrate how to deploy one of AnvilOps' template applications.
+This tutorial will demonstrate:
+
+- How to deploy one of AnvilOps' template applications on Anvil Composable.
+- How to use Railpack to build applications without a Dockerfile.
+- How to use AnvilOps' GitHub integrations for continuous deployment.
+
+Follow along at `https://anvilops.rcac.purdue.edu`.
 
 ### Prerequisites
 
 You will need to have the AnvilOps GitHub App installed for your organization. This allows AnvilOps to deploy repositories on the cluster. In particular, for this tutorial, the GitHub App is needed for AnvilOps to clone the template repository to your account.
+
+If you do not have access to your own project on Anvil Composable, select the `anvilops_sandbox` project.
 
 ### Initial Configuration
 

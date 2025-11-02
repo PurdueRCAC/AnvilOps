@@ -1,5 +1,7 @@
 ---
 title: Networking
+sidebar:
+  order: 3
 ---
 
 ## Public Subdomain

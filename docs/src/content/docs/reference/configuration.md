@@ -1,7 +1,7 @@
 ---
 title: App Configuration
 sidebar:
-  order: 0
+  order: 1
 ---
 
 AnvilOps applications can be configured in a number of ways. All listed parameters can be updated later unless otherwise specified.
