@@ -33,8 +33,8 @@ router.get("/login", async (req, res) => {
     scope,
     code_challenge,
     code_challenge_method,
-    selected_idp: process.env.ALLOWED_IDPS,
-    idp_hint: process.env.ALLOWED_IDPS,
+    selected_idp: env.ALLOWED_IDPS,
+    idp_hint: env.ALLOWED_IDPS,
   };
 
   const config = await getConfig();

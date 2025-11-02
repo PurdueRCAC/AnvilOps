@@ -22,6 +22,10 @@ const variables = {
    */
   ALLOWED_IDPS: { required: false },
   /**
+   * The name of the login method AnvilOps users would use to sign in on Rancher, e.g. shibboleth, azuread, github.
+   */
+  LOGIN_TYPE: { required: true },
+  /**
    * The absolute URL of your AnvilOps deployment on the internet, e.g. https://anvilops.rcac.purdue.edu
    */
   BASE_URL: { required: true },

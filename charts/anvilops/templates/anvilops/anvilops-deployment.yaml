@@ -95,6 +95,10 @@ spec:
             - name: ALLOWED_IDPS
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.anvilops.env.loginType }}
+            - name: LOGIN_TYPE
+              value: {{ . | quote }}
+            {{- end }}
             - name: SESSION_SECRET
               valueFrom:
                 secretKeyRef:

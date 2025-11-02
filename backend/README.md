@@ -110,6 +110,10 @@ Copy this value into your configuration.
 
 Ensure that the user associated with the kubeconfig file has permissions to view Users, Projects, and ProjectRoleTemplateBindings, as well as to manage namespaces within the sandbox project.
 
+Finally, in order to link users with their Rancher accounts, AnvilOps needs additional information about how to match login information with user ids.
+
+Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE>/authConfigs` and use the `id` field for the configuration matching your selected login method.
+
 ### Kubernetes API
 
 A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
