@@ -1,5 +1,7 @@
 ---
 title: Railpack
+sidebar:
+  order: 4
 ---
 
 **Railpack** is a tool that allows AnvilOps to build users' applications without Dockerfiles for supported languages and frameworks.

@@ -1,5 +1,7 @@
 ---
 title: System Environment Variables
+sidebar:
+  order: 5
 ---
 
 AnvilOps provides some environment variables in addition to the ones you specify based on your project's settings. These variables are available at build time and at runtime.

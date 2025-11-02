@@ -1,5 +1,7 @@
 ---
 title: Git Integration
+sidebar:
+  order: 2
 ---
 
 ## Connecting a GitHub Organization
@@ -11,7 +13,7 @@ The AnvilOps GitHub App must be installed for an organization in order to deploy
 - Add commit statuses to your repository indicating the status of the deployment on AnvilOps
 
 :::note
-AnvilOps uses a unique GitHub app for each cluster. Anvil Composable uses the app named AnvilOps, while Geddes v2 uses the app named Anvilops-Geddes.
+AnvilOps uses a unique GitHub app for each cluster. Anvil Composable uses a GitHub app named AnvilOps, while Geddes uses an app named Anvilops-Geddes.
 :::
 
 ## Events that Trigger Deployments
