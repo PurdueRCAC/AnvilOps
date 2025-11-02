@@ -12,6 +12,7 @@ anvilops:
     appDomain: http://minikube.local
     harborProjectName: anvilops
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
+    loginType: shibboleth
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest

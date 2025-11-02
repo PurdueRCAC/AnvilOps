@@ -8,6 +8,7 @@ anvilops:
     appDomain: http://127.0.0.1.nip.io:3001 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
+    loginType: shibboleth
     fileBrowserImage: anvilops/file-browser
     dockerfileBuilderImage: anvilops/dockerfile-builder
     railpackBuilderImage: anvilops/railpack-builder

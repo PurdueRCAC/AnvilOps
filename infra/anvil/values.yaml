@@ -5,6 +5,7 @@ anvilops:
     appDomain: https://anvilops.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
+    loginType: shibboleth
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
