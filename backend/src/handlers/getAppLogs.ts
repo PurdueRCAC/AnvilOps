@@ -1,5 +1,9 @@
+import type { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
+import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
+import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { db, subscribe } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -13,6 +17,15 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     where: {
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
+    },
+    select: {
+      projectId: true,
+      subdomain: true,
+      deployments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { config: { select: { fieldValues: true } } },
+      },
     },
   });
 
@@ -57,45 +70,105 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     }
   }
 
-  const fetchNewLogs = async () => {
-    // Fetch them in reverse order so that we can take only the 500 most recent lines
-    const newLogs = await db.log.findMany({
-      where: {
-        id: { gt: lastLogId },
-        deploymentId: ctx.request.params.deploymentId,
-        type: ctx.request.query.type,
-      },
-      orderBy: [{ timestamp: "desc" }, { index: "desc" }],
-      take: 500,
-    });
-    if (newLogs.length > 0) {
-      lastLogId = newLogs[0].id;
-    }
-    for (let i = newLogs.length - 1; i >= 0; i--) {
-      const log = newLogs[i];
-      await sendLog({
-        id: log.id,
-        type: log.type,
-        stream: log.stream,
-        log: log.content as string,
-        pod: log.podName,
-        time: log.timestamp.toISOString(),
+  // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
+  const collectLogs = app.deployments?.[0]?.config?.fieldValues?.collectLogs;
+
+  if (collectLogs || ctx.request.query.type === "BUILD") {
+    const fetchNewLogs = async () => {
+      // Fetch them in reverse order so that we can take only the 500 most recent lines
+      const newLogs = await db.log.findMany({
+        where: {
+          id: { gt: lastLogId },
+          deploymentId: ctx.request.params.deploymentId,
+          type: ctx.request.query.type,
+        },
+        orderBy: [{ timestamp: "desc" }, { index: "desc" }],
+        take: 500,
       });
+      if (newLogs.length > 0) {
+        lastLogId = newLogs[0].id;
+      }
+      for (let i = newLogs.length - 1; i >= 0; i--) {
+        const log = newLogs[i];
+        await sendLog({
+          id: log.id,
+          type: log.type,
+          stream: log.stream,
+          log: log.content as string,
+          pod: log.podName,
+          time: log.timestamp.toISOString(),
+        });
+      }
+    };
+
+    // When new logs come in, send them to the client
+    const unsubscribe = await subscribe(
+      `deployment_${ctx.request.params.deploymentId}_logs`,
+      fetchNewLogs,
+    );
+
+    req.on("close", async () => {
+      await unsubscribe();
+    });
+
+    // Send all previous logs now
+    await fetchNewLogs();
+  } else {
+    const { CoreV1Api: core, Log: log } = await getClientsForRequest(
+      req.user.id,
+      app.projectId,
+      ["CoreV1Api", "Log"],
+    );
+    let pods: V1PodList;
+    try {
+      pods = await core.listNamespacedPod({
+        namespace: getNamespace(app.subdomain),
+        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
+      });
+    } catch (err) {
+      // Namespace may not be ready yet
+      pods = { apiVersion: "v1", items: [] };
     }
-  };
 
-  // When new logs come in, send them to the client
-  const unsubscribe = await subscribe(
-    `deployment_${ctx.request.params.deploymentId}_logs`,
-    fetchNewLogs,
-  );
+    let podIndex = 0;
+    for (const pod of pods.items) {
+      podIndex++;
+      const podName = pod.metadata.name;
+      const logStream = new stream.PassThrough();
+      const abortController = await log.log(
+        getNamespace(app.subdomain),
+        podName,
+        pod.spec.containers[0].name,
+        logStream,
+        { follow: true, tailLines: 500, timestamps: true },
+      );
+      let i = 0;
+      let current = "";
+      logStream.on("data", async (chunk: Buffer) => {
+        const str = chunk.toString();
+        current += str;
+        if (str.endsWith("\n") || str.endsWith("\r")) {
+          const lines = current.split("\n");
+          current = "";
+          for (const line of lines) {
+            if (line.trim().length === 0) continue;
+            const [date, ...text] = line.split(" ");
+            await sendLog({
+              type: "RUNTIME",
+              log: text.join(" "),
+              stream: "stdout",
+              pod: podName,
+              time: date,
+              id: podIndex * 100_000_000 + i,
+            });
+            i++;
+          }
+        }
+      });
 
-  req.on("close", async () => {
-    await unsubscribe();
-  });
-
-  // Send all previous logs now
-  await fetchNewLogs();
+      req.on("close", () => abortController.abort());
+    }
+  }
 
   res.write("event: pastLogsSent\ndata:\n\n"); // Let the browser know that all previous logs have been sent. If none were received, then there are no logs for this deployment so far.
 };

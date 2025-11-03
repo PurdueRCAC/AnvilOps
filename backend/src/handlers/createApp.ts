@@ -140,6 +140,7 @@ export const createApp: HandlerMap["createApp"] = async (
   const deploymentConfig: DeploymentConfigCreateInput = {
     env: appData.env,
     fieldValues: {
+      collectLogs: true,
       replicas: 1,
       port: appData.port,
       servicePort: 80,

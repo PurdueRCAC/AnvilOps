@@ -15,6 +15,7 @@ declare global {
       string | undefined
     >;
     type ConfigFields = {
+      collectLogs: boolean;
       replicas: number;
       port: number;
       servicePort: number;

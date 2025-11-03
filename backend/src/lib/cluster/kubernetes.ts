@@ -7,6 +7,8 @@ import {
   CoreV1Api,
   KubeConfig,
   KubernetesObjectApi,
+  Log,
+  PatchStrategy,
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
@@ -26,6 +28,7 @@ const APIClientFactory = {
   KubernetesObjectApi: (kc: KubeConfig) =>
     KubernetesObjectApi.makeApiClient(kc),
   Watch: (kc: KubeConfig) => new Watch(kc),
+  Log: (kc: KubeConfig) => new Log(kc),
   ExtensionsV1Api: (kc: KubeConfig) => kc.makeApiClient(ApiextensionsV1Api),
 };
 Object.freeze(APIClientFactory);
@@ -169,8 +172,20 @@ export const createOrUpdateApp = async (
   }
 
   for (let config of configs) {
+    console.log(config);
     if (await resourceExists(api, config)) {
-      await api.patch(config);
+      await api.patch(
+        config,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        // Use the non-strategic merge patch here because app updates involve replacing entire lists instead of partially updating them.
+        // For example, when setting environment variables, the strategic merge strategy wouldn't remove environment variables
+        // that we didn't specify in the updated configuration unless we explicitly tell it to via `$retainKeys`.
+        // More info on patch types: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
+        PatchStrategy.MergePatch,
+      );
     } else {
       await api.create(config);
     }

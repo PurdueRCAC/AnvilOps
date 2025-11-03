@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +35,7 @@ import {
   Info,
   Link,
   Loader,
+  Logs,
   MemoryStick,
   Minimize,
   Server,
@@ -67,6 +69,7 @@ export type AppInfoFormData = {
   builder: "dockerfile" | "railpack";
   postStart?: string;
   preStop?: string;
+  collectLogs?: boolean;
   cpuCores: number;
   memoryInMiB: number;
 };
@@ -649,6 +652,37 @@ const AppConfigFormFields = ({
             </Label>
           </AccordionTrigger>
           <AccordionContent className="space-y-10 px-4 mt-2">
+            {isExistingApp && (
+              <div className="space-y-2">
+                <div>
+                  <Label className="pb-1">
+                    <Logs className="inline" size={16} /> Keep Historical Logs
+                  </Label>
+                  <p className="text-sm text-black-2">
+                    When this setting is disabled, you will only be able to view
+                    logs from the most recent, alive pod from your app's most
+                    recent deployment.
+                  </p>
+                  <div className="flex items-center gap-2 mt-4">
+                    <Checkbox
+                      disabled={disabled}
+                      name="collectLogs"
+                      id="collectLogs"
+                      checked={state.collectLogs}
+                      onCheckedChange={(checked) => {
+                        setState((state) => ({
+                          ...state,
+                          collectLogs: checked === true,
+                        }));
+                      }}
+                    />
+                    <Label htmlFor="collectLogs">
+                      Record application logs as they're produced
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <div>
                 <Label className="pb-1" htmlFor="postStart">

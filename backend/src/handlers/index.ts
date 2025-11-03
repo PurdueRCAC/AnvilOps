@@ -420,6 +420,7 @@ export const handlers = {
       subdomain: app.subdomain,
       cdEnabled: app.enableCD,
       config: {
+        collectLogs: currentConfig.fieldValues.collectLogs,
         port: currentConfig.fieldValues.port,
         env: currentConfig.displayEnv,
         replicas: currentConfig.fieldValues.replicas,

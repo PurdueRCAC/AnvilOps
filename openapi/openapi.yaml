@@ -2187,6 +2187,9 @@ components:
           type: string
         preStop:
           type: string
+        collectLogs:
+          description: Whether to use the log-shipper wrapper process to collect logs and send them to AnvilOps. When set to false, this wrapper is disabled, so historical logs aren't kept. For more details, see log-shipper/README.md.
+          type: boolean
         limits:
           type: object
           additionalProperties:

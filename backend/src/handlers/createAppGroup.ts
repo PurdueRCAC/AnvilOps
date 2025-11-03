@@ -226,6 +226,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           const deploymentConfig: DeploymentConfigCreateInput = {
             env: configParams.env,
             fieldValues: {
+              collectLogs: true,
               replicas: 1,
               port: configParams.port,
               servicePort: 80,

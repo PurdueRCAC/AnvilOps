@@ -146,6 +146,11 @@ export const createStatefulSetConfig = async (
         },
         spec: {
           automountServiceAccountToken: false,
+          initContainers: [
+            // Set to an empty array (instead of undefined) so that disabling collectLogs in an existing app
+            // removes the initContainer that copies the log-shipper binary into the app container.
+          ],
+          volumes: [], // Same as above
           containers: [
             {
               name: params.name,
@@ -187,12 +192,14 @@ export const createStatefulSetConfig = async (
 
   base = applyPatches(base, getExtraStsPatches(params.extra));
 
-  base.spec.template = await wrapWithLogExporter(
-    "runtime",
-    params.logIngestSecret,
-    params.deploymentId,
-    base.spec.template,
-  );
+  if (params.collectLogs) {
+    base.spec.template = await wrapWithLogExporter(
+      "runtime",
+      params.logIngestSecret,
+      params.deploymentId,
+      base.spec.template,
+    );
+  }
 
   return base;
 };
