@@ -97,15 +97,12 @@ export const Logs = ({
           if (element) {
             const lastScrollTop = lastScroll.current.scrollTop;
 
-            // If scrolled up
-            if (element.scrollTop < lastScrollTop) {
-              lastScroll.current.hasScrolledUp = true;
-            }
-
+            lastScroll.current.hasScrolledUp =
+              element.scrollTop < lastScrollTop;
             lastScroll.current.scrollTop = element.scrollTop;
           }
         }}
-        className="bg-gray-100 font-mono w-full rounded-md my-4 py-4 overflow-x-auto max-h-screen"
+        className="bg-gray-100 font-mono w-full rounded-md my-4 py-4 overflow-x-auto max-h-[70vh]"
       >
         {logs && logs.length > 0 ? (
           <table className="w-full">

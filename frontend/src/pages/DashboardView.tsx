@@ -292,7 +292,7 @@ const AppCard = ({ app }: { app: components["schemas"]["AppSummary"] }) => {
             </a>
           </p>
         ) : app.source === "IMAGE" ? (
-          <p className="text-sm text-black-4">
+          <p className="text-sm text-black-4 overflow-ellipsis overflow-hidden whitespace-nowrap">
             <Container className="inline" size={16} /> {app.imageTag}
           </p>
         ) : null}

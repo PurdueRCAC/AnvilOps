@@ -204,7 +204,6 @@ export async function getImageConfig({
   let token: string | undefined; // Set to `undefined` if the registry doesn't require authentication
 
   const reference = digestInput ?? tag;
-  console.log("Looking up ", reference);
 
   const fetchDigest = async () =>
     await fetch(baseURL + `/v2/${image}/manifests/${reference}`, {
