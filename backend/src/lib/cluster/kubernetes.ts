@@ -172,7 +172,6 @@ export const createOrUpdateApp = async (
   }
 
   for (let config of configs) {
-    console.log(config);
     if (await resourceExists(api, config)) {
       await api.patch(
         config,

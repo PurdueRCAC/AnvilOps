@@ -8,8 +8,7 @@
     "start:prod": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
     "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
-    "postinstall": "patch-package",
-    "test": "vitest run"
+    "postinstall": "patch-package"
   },
   "author": "",
   "license": "UNLICENSED",
@@ -43,7 +42,6 @@
     "msw": "^2.11.5",
     "prisma": "^6.8.2",
     "prisma-json-types-generator": "^3.5.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "typescript": "^5.8.3"
   }
 }

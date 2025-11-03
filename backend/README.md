@@ -134,6 +134,8 @@ AnvilOps expects environment variables to be set to credentials of an account wi
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).
 
+**Note**: `regctl` must be installed on your system to fetch the image information needed to wrap images with the `log-shipper`. If you're running AnvilOps locally outside of one of the development or production container images, install `regctl` with one of the methods in this guide: https://regclient.org/install/.
+
 First, install packages with `npm install`.
 
 To work on the project locally, run `npm run dev`.

@@ -35,6 +35,7 @@ RUN npm run prisma:generate
 FROM base AS backend_run
 
 WORKDIR /app
+COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY templates/templates.json ./templates.json
 COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma

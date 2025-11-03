@@ -51,7 +51,8 @@ spec:
               subPath: cluster.json
               readOnly: true
             - name: ca-cert
-              mountPath: /etc/ssl/certs
+              mountPath: /etc/ssl/certs/anvilops-tls.crt
+              subPath: anvilops-tls.crt
               readOnly: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: kube-auth
