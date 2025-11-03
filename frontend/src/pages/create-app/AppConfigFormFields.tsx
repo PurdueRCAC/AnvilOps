@@ -67,9 +67,9 @@ export type AppInfoFormData = {
   rootDir?: string;
   source: "git" | "image";
   builder: "dockerfile" | "railpack";
-  postStart?: string;
-  preStop?: string;
-  collectLogs?: boolean;
+  postStart: string | null;
+  preStop: string | null;
+  collectLogs: boolean;
   cpuCores: number;
   memoryInMiB: number;
 };

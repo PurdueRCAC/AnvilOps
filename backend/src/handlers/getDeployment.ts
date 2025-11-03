@@ -121,6 +121,11 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       port: deployment.config.fieldValues.port,
       replicas: deployment.config.fieldValues.replicas,
       rootDir: deployment.config.rootDir,
+      collectLogs: deployment.config.fieldValues.collectLogs,
+      postStart: deployment.config.fieldValues.extra.postStart,
+      preStop: deployment.config.fieldValues.extra.preStop,
+      requests: deployment.config.fieldValues.extra.requests,
+      limits: deployment.config.fieldValues.extra.limits,
     },
   });
 };

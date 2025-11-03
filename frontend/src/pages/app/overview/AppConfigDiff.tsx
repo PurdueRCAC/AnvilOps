@@ -40,7 +40,6 @@ export type DeploymentConfigFormData = {
   replicas: string;
   dockerfilePath?: string;
   env: Env;
-  orgId?: number;
   repositoryId?: number;
   event?: "push" | "workflow_run";
   eventId?: string;
@@ -50,8 +49,9 @@ export type DeploymentConfigFormData = {
   rootDir?: string;
   source: "git" | "image";
   builder?: "dockerfile" | "railpack";
-  postStart?: string;
-  preStop?: string;
+  collectLogs: boolean;
+  postStart: string | null;
+  preStop: string | null;
   cpuCores: string;
   memoryInMiB: number;
 };
@@ -80,7 +80,7 @@ export const AppConfigDiff = ({
   const { user } = useContext(UserContext);
 
   const selectedOrg = orgId
-    ? user?.orgs?.find((it) => it.id === state.orgId)
+    ? user?.orgs?.find((it) => it.id === orgId)
     : undefined;
 
   if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
@@ -359,6 +359,49 @@ export const AppConfigDiff = ({
           <AccordionContent className="space-y-10 px-4">
             <div className="space-y-2">
               <div>
+                <Label className="pb-1" htmlFor="collectLogs">
+                  <Terminal className="inline" size={16} /> Keep Historical Logs
+                </Label>
+                <p className="text-sm text-black-2">
+                  When this setting is disabled, you will only be able to view
+                  logs from the most recent, alive pod from your app's most
+                  recent deployment.
+                </p>
+              </div>
+              <div className="flex items-center justify-around gap-8">
+                <DiffInput
+                  disabled={disabled}
+                  name="collectLogs"
+                  type="checkbox"
+                  left={base.collectLogs ? "true" : "false"}
+                  right={state.collectLogs ? "true" : "false"}
+                  setRight={(collectLogs) => {
+                    setState((state) => ({
+                      ...state,
+                      collectLogs: collectLogs === "true",
+                    }));
+                  }}
+                  select={(props) => (
+                    <Select disabled={disabled} {...props}>
+                      <SelectTrigger
+                        {...props}
+                        id={props.side === "after" ? "collectLogs" : undefined}
+                      >
+                        <SelectValue placeholder={props.placeholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="true">Enabled</SelectItem>
+                          <SelectItem value="false">Disabled</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
                 <Label className="pb-1" htmlFor="postStart">
                   <Terminal className="inline" size={16} /> Post-Start Command
                 </Label>
@@ -373,7 +416,7 @@ export const AppConfigDiff = ({
                   name="postStart"
                   id="postStart"
                   placeholder="(No command)"
-                  left={base.postStart}
+                  left={base.postStart ?? ""}
                   right={state.postStart ?? ""}
                   setRight={(postStart) => {
                     setState((state) => ({ ...state, postStart }));
@@ -403,7 +446,7 @@ export const AppConfigDiff = ({
                       base.preStop !== state.preStop &&
                       "bg-green-50",
                   )}
-                  left={base.preStop}
+                  left={base.preStop ?? ""}
                   right={state.preStop ?? ""}
                   setRight={(preStop) => {
                     setState((state) => ({ ...state, preStop }));

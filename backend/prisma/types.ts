@@ -21,8 +21,8 @@ declare global {
       servicePort: number;
       mounts: { path: string; amountInMiB: number }[];
       extra: {
-        postStart?: string;
-        preStop?: string;
+        postStart: string | null;
+        preStop: string | null;
         limits: ResourceRequests;
         requests: ResourceRequests;
       };

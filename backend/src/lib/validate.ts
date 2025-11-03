@@ -13,7 +13,10 @@ export async function validateDeploymentConfig(
     | components["schemas"]["GitDeploymentOptions"]
     | components["schemas"]["ImageDeploymentOptions"]
   ) &
-    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas">,
+    Omit<
+      components["schemas"]["KnownDeploymentOptions"],
+      "replicas" | "postStart" | "preStop" | "requests" | "limits"
+    >,
 ) {
   const { source, env, mounts, port } = data;
   if (source === "git") {

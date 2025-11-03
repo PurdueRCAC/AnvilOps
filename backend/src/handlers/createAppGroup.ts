@@ -62,7 +62,10 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       data.apps.map(async (app) => {
         try {
           const subdomainRes = validateSubdomain(app.subdomain);
-          await validateDeploymentConfig(app);
+          await validateDeploymentConfig({
+            ...app,
+            collectLogs: true,
+          });
           validateAppName(app.name);
           await subdomainRes;
           return null;
