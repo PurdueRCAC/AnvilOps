@@ -44,7 +44,7 @@ app.use(
     {
       skip: (req, res) => {
         // Don't log successful /logs/ingest requests
-        return res.statusCode === 200 && req.path === "/api/logs/ingest";
+        return res.statusCode === 200 && req.path === "/logs/ingest";
       },
     },
   ),

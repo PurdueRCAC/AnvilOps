@@ -39,7 +39,6 @@
     "@types/express": "^5.0.2",
     "@types/express-session": "^1.18.1",
     "@types/morgan": "^1.9.10",
-    "msw": "^2.11.5",
     "prisma": "^6.8.2",
     "prisma-json-types-generator": "^3.5.0",
     "typescript": "^5.8.3"
