@@ -84,7 +84,7 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
       const config = await getImageConfig(container.image);
       const { Cmd, Entrypoint } = config.config;
       container.command = Entrypoint;
-      container.args = Cmd;
+      container.args = Cmd ?? [];
     }
 
     // Make this container run the log shipper, which will invoke the original program after it starts up
