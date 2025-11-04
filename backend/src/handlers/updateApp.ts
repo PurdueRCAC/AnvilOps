@@ -34,6 +34,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
           deployment: {
             select: {
               commitMessage: true,
+              status: true,
             },
           },
         },
@@ -192,6 +193,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   if (
     updatedConfig.source === "GIT" &&
     (!currentConfig.imageTag ||
+      currentConfig.deployment.status === "ERROR" ||
       updatedConfig.branch !== currentConfig.branch ||
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
