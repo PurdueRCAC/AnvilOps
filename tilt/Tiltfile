@@ -91,11 +91,13 @@ yaml = helm(
 
 parsed = decode_yaml_stream(yaml)
 for object in parsed:
-  # Pass our registry hostname to AnvilOps as an environment variable
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
+    # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
       if variable["name"] == "REGISTRY_HOSTNAME":
         variable["value"] = registry_host
+    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
+    object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})

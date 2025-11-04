@@ -10,6 +10,10 @@ const variables = {
    */
   NODE_ENV: { required: false, defaultValue: "production" },
   /**
+   * Set this to any non-null value when AnvilOps is running in a Tilt development environment
+   */
+  IN_TILT: { required: false, defaultValue: null },
+  /**
    * The CILogon OAuth client ID
    */
   CLIENT_ID: { required: true },

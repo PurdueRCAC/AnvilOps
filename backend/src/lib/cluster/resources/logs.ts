@@ -119,6 +119,16 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
 }
 
 export async function getImageConfig(reference: string): Promise<ImageConfig> {
+  if (env.IN_TILT && reference.startsWith("localhost:")) {
+    // When we're in a Tilt development environment, the builder image environment variables contain
+    // references to a registry at `localhost`. This works from the host machine, but it doesn't work from inside
+    // the container. Instead, we need to replace it with the cluster-internal hostname.
+    reference = reference.replace(
+      /^localhost:\d+\//,
+      env.REGISTRY_HOSTNAME + "/",
+    );
+  }
+
   const child = spawn(
     "regctl",
     [
