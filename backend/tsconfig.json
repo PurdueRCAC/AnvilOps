@@ -5,8 +5,7 @@
     "erasableSyntaxOnly": true,
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "skipLibCheck": true /* This option is needed for MSW to build without adding "DOM" to `lib` above */
+    "noEmit": true
   },
   "exclude": ["node_modules"]
 }

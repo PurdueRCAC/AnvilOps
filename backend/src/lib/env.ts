@@ -217,9 +217,7 @@ for (const [key, _params] of Object.entries(variables)) {
   const value = process.env[key];
   if (value === undefined) {
     if (params.required === true) {
-      if (!process.env.VITEST) {
-        throw new Error("Environment variable " + key + " not found.");
-      }
+      throw new Error("Environment variable " + key + " not found.");
     } else if (params.defaultValue !== undefined) {
       env[key] = params.defaultValue;
     }
@@ -230,7 +228,6 @@ for (const [key, _params] of Object.entries(variables)) {
 
 // Either DATABASE_URL or the separate variables must be specified
 if (
-  !process.env.VITEST &&
   !env["DATABASE_URL"] &&
   !(
     env["POSTGRES_DB"] &&

@@ -1,3 +1,5 @@
+# This Dockerfile is used to build the AnvilOps backend for use with Tilt.
+# It's used instead of the main anvilops image because it's much smaller and faster to build.
 FROM node:24-alpine AS base
 
 # Generate TypeScript types from OpenAPI spec

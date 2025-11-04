@@ -36,6 +36,9 @@ anvilops:
         hosts:
           - anvilops.rcac.purdue.edu
   securityContext:
+    # These settings are required for Tilt's Live Reload feature, which copies files into the container at runtime.
+    # When we aren't running as root, the script that copies the files doesn't have permission to write to the files it needs to write.
+    # https://github.com/tilt-dev/tilt/blob/95096909efe883a6df10617cdafc1bfee6cf67fc/internal/containerupdate/tar.go#L24
     runAsUser: 0
     runAsGroup: 0
     runAsNonRoot: false
