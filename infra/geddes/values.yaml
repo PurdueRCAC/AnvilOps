@@ -6,6 +6,8 @@ anvilops:
     harborProjectName: anvilops
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
+    # The value of loginClaim is ignored in the Geddes version.
+    loginClaim: eppn
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest

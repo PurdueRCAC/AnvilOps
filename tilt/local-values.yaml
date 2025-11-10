@@ -9,6 +9,7 @@ anvilops:
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     loginType: shibboleth
+    loginClaim: eppn
     fileBrowserImage: anvilops/file-browser
     dockerfileBuilderImage: anvilops/dockerfile-builder
     railpackBuilderImage: anvilops/railpack-builder
