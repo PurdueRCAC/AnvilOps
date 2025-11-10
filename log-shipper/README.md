@@ -56,4 +56,4 @@ There are a few other ways to collect logs that fit our requirements:
 
 Disable the "Keep Historical Logs" option in your app's Config tab via the AnvilOps web dashboard.
 
-This will disable the log shipper, and AnvilOps will only show logs from current instances of your app. When your app's pods are deleted, you will no longer be able to view any of their logs.
+AnvilOps will redeploy your application without the log shipper, and AnvilOps will only show logs from current instances of your app. When your app's pods are deleted, you will no longer be able to view any of their logs.

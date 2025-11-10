@@ -22,7 +22,8 @@ var m sync.RWMutex
 // This program accepts at least two arguments. The first one is the name of the program to run,
 // and the remaining arguments are the command-line arguments to pass to that program.
 func main() {
-	uploadQueue = make(chan LogLine, 500)
+	const maxBatchSize = 500
+	uploadQueue = make(chan LogLine, maxBatchSize)
 
 	args := os.Args[1:] // The first argument is the name of this program, so we can ignore that
 
@@ -72,7 +73,7 @@ func main() {
 	}
 
 	// Start draining log lines from the queue and sending them to the AnvilOps backend
-	done := drainUploadQueue(*env)
+	done := drainUploadQueue(*env, maxBatchSize)
 
 	err := cmd.Start()
 
@@ -92,17 +93,15 @@ func main() {
 	fmt.Printf("Process exited with status %v\n", cmd.ProcessState.ExitCode())
 
 	// Stop the upload loop
-	done <- true
+	close(uploadQueue)
 
 	go func() {
 		// If it takes longer than 10 seconds to flush the remaining logs, stop the program without sending them
 		time.Sleep(10 * time.Second)
 		os.Exit(cmd.ProcessState.ExitCode())
 	}()
-	m.RLock() // Block until all log lines have been uploaded (we can't acquire the reader lock while the writer lock is held)
 
-	close(uploadQueue)
-
+	<-done
 	os.Exit(cmd.ProcessState.ExitCode())
 }
 
@@ -134,111 +133,124 @@ func readStream(name string, file io.Reader) {
 			os.Stdout.Write([]byte("\n"))
 		}
 		// Enqueue the line to be uploaded to the AnvilOps backend
+		// Wait up to 100ms for the queue to empty, otherwise drop the message
 		line := scanner.Text()
+
 		select {
 		case uploadQueue <- LogLine{
 			Stream:    name,
 			Content:   line,
 			Timestamp: time.Now().UnixMilli(),
 		}:
-		default:
+		case <-time.After(100 * time.Millisecond):
 			{
 				fmt.Println("Upload buffer is full")
-				// The buffer is full; we can't add any more log lines until the current ones are uploaded.
 			}
 		}
 	}
 }
 
-func drainUploadQueue(env EnvVars) chan bool {
-	ticker := time.NewTicker(500 * time.Millisecond)
+func drainUploadQueue(env EnvVars, maxBatchSize int) chan bool {
 	done := make(chan bool)
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = ""
 	}
 
+	send := func(lines []LogLine) {
+		body := LogUploadRequest{
+			Type:         env.LogType,
+			Lines:        lines,
+			DeploymentID: env.DeploymentID,
+			Hostname:     hostname,
+		}
+
+		json, err := json.Marshal(body)
+
+		if err != nil {
+			panic("Error marshalling JSON: " + err.Error())
+		}
+
+		buf := bytes.NewBuffer(json)
+
+		req, err := http.NewRequest("POST", env.LogIngestAddress, buf)
+
+		if err != nil {
+			panic("Error creating HTTP request: " + err.Error())
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", "Bearer "+env.LogIngestToken)
+
+		res, err := http.DefaultClient.Do(req)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
+			for _, line := range lines {
+				select {
+				case uploadQueue <- line:
+				default: // If the upload queue is now full, it will be dropped instead of blocking until the queue is empty. If we block here, the queue will never be drained again because we're inside the loop that processes the queue.
+				}
+			}
+		} else if res.StatusCode != 200 {
+			body, err := io.ReadAll(res.Body)
+			res.Body.Close()
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error uploading logs: %v (error reading response body)\n", res.StatusCode)
+			} else {
+				fmt.Fprintf(os.Stderr, "Error uploading logs: %v %v\n", res.StatusCode, string(body))
+			}
+
+			for _, line := range lines {
+				select {
+				case uploadQueue <- line:
+				default: // Same as above
+				}
+			}
+		} else {
+			res.Body.Close()
+		}
+	}
+
 	go func() {
+		defer close(done)
 	outer:
 		for {
-			select {
-			case <-ticker.C:
-				// Every 500ms, send all items in the upload queue to the AnvilOps backend
+			batch := make([]LogLine, 0, maxBatchSize)
 
-				if len(uploadQueue) == 0 {
-					continue
-				}
+			// Wait for a log to arrive
+			first, ok := <-uploadQueue
+			if !ok {
+				return
+			}
 
-				m.Lock()
+			batch = append(batch, first)
+			timer := time.NewTimer(500 * time.Millisecond)
+			for {
+				select {
+				case log, ok := <-uploadQueue:
+					{
+						if !ok {
+							send(batch)
+							return
+						}
 
-				// Drain the queue into a slice
-				lines := make([]LogLine, 0, len(uploadQueue))
-				for len(uploadQueue) > 0 {
-					lines = append(lines, <-uploadQueue)
-				}
-
-				body := LogUploadRequest{
-					Type:         env.LogType,
-					Lines:        lines,
-					DeploymentID: env.DeploymentID,
-					Hostname:     hostname,
-				}
-
-				json, err := json.Marshal(body)
-
-				if err != nil {
-					panic("Error marshalling JSON: " + err.Error())
-				}
-
-				buf := bytes.NewBuffer(json)
-
-				req, err := http.NewRequest("POST", env.LogIngestAddress, buf)
-
-				if err != nil {
-					panic("Error creating HTTP request: " + err.Error())
-				}
-
-				req.Header.Add("Content-Type", "application/json")
-				req.Header.Add("Authorization", "Bearer "+env.LogIngestToken)
-
-				res, err := http.DefaultClient.Do(req)
-
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
-					for _, line := range lines {
-						select {
-						case uploadQueue <- line:
-						default: // If the upload queue is now full, it will be dropped instead of blocking until the queue is empty. If we block here, the queue will never be drained again because we're inside the loop that processes the queue.
+						batch = append(batch, log)
+						if len(batch) >= maxBatchSize {
+							send(batch)
+							continue outer
 						}
 					}
-				} else if res.StatusCode != 200 {
-					body, err := io.ReadAll(res.Body)
-					res.Body.Close()
-
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error uploading logs: %v (error reading response body)\n", res.StatusCode)
-					} else {
-						fmt.Fprintf(os.Stderr, "Error uploading logs: %v %v\n", res.StatusCode, string(body))
+				case <-timer.C:
+					{
+						send(batch)
+						continue outer
 					}
-
-					for _, line := range lines {
-						select {
-						case uploadQueue <- line:
-						default: // Same as above
-						}
-					}
-				} else {
-					res.Body.Close()
 				}
-
-				m.Unlock()
-			case <-done:
-				break outer
 			}
 		}
 	}()
-
 	return done
 }
 
