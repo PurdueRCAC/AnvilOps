@@ -26,6 +26,10 @@ const variables = {
    */
   LOGIN_TYPE: { required: true },
   /**
+   * A token claim from CILogon. The value from the IdP that Rancher uses to set the principalId, e.g. eppn. See more at https://www.cilogon.org/oidc
+   */
+  LOGIN_CLAIM: { required: true },
+  /**
    * The absolute URL of your AnvilOps deployment on the internet, e.g. https://anvilops.rcac.purdue.edu
    */
   BASE_URL: { required: true },
