@@ -83,7 +83,9 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
     if (!container.command || !container.args) {
       const config = await getImageConfig(container.image);
       const { Cmd, Entrypoint } = config.config;
-      container.command = Entrypoint;
+
+      // Either ENTRYPOINT or CMD must be specified in an image
+      container.command = Entrypoint ?? [];
       container.args = Cmd ?? [];
     }
 
