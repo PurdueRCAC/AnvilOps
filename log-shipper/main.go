@@ -12,18 +12,26 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
 var uploadQueue chan LogLine
-var m sync.RWMutex
+
+// The maximum number of times the program will attempt to upload a single log line.
+// After this amount of attempts, the line will be dropped.
+const MAX_UPLOAD_ATTEMPTS = 5
+
+// The maximum amount of time to wait between starting a new batch and uploading it.
+// Longer lengths will allow for larger, less frequent batches.
+const UPLOAD_BATCH_LENGTH_MS = 500
+
+// The maximum number of lines that can be uploaded in one batch.
+const MAX_BATCH_SIZE = 500
 
 // This program accepts at least two arguments. The first one is the name of the program to run,
 // and the remaining arguments are the command-line arguments to pass to that program.
 func main() {
-	const maxBatchSize = 500
-	uploadQueue = make(chan LogLine, maxBatchSize)
+	uploadQueue = make(chan LogLine, MAX_BATCH_SIZE)
 
 	args := os.Args[1:] // The first argument is the name of this program, so we can ignore that
 
@@ -73,7 +81,7 @@ func main() {
 	}
 
 	// Start draining log lines from the queue and sending them to the AnvilOps backend
-	done := drainUploadQueue(*env, maxBatchSize)
+	done := drainUploadQueue(env, MAX_BATCH_SIZE)
 
 	err := cmd.Start()
 
@@ -101,11 +109,11 @@ func main() {
 		os.Exit(cmd.ProcessState.ExitCode())
 	}()
 
-	<-done
+	<-done // Wait for remaining log lines to be uploaded
 	os.Exit(cmd.ProcessState.ExitCode())
 }
 
-// Reads the bytes of file and uploads them to dest (a URL) with token as a Bearer token in the Authorization header.
+// readStream reads the bytes of file and uploads them to dest (a URL) with token as a Bearer token in the Authorization header.
 func readStream(name string, file io.Reader) {
 	scanner := bufio.NewScanner(file)
 
@@ -141,6 +149,7 @@ func readStream(name string, file io.Reader) {
 			Stream:    name,
 			Content:   line,
 			Timestamp: time.Now().UnixMilli(),
+			attempts:  0,
 		}:
 		case <-time.After(100 * time.Millisecond):
 			{
@@ -150,68 +159,15 @@ func readStream(name string, file io.Reader) {
 	}
 }
 
-func drainUploadQueue(env EnvVars, maxBatchSize int) chan bool {
+// drainUploadQueue continuously receives logs from the uploadQueue and uploads them.
+// It waits until a log is received and then waits up to UPLOAD_BATCH_LENGTH_MS
+// milliseconds for additional logs to arrive in the current batch. When that timeout
+// occurs (or when the batch fills up), the batch is uploaded.
+//
+// drainUploadQueue returns a channel which is closed when uploadQueue is closed and
+// all logs have been uploaded.
+func drainUploadQueue(env *EnvVars, maxBatchSize int) chan bool {
 	done := make(chan bool)
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = ""
-	}
-
-	send := func(lines []LogLine) {
-		body := LogUploadRequest{
-			Type:         env.LogType,
-			Lines:        lines,
-			DeploymentID: env.DeploymentID,
-			Hostname:     hostname,
-		}
-
-		json, err := json.Marshal(body)
-
-		if err != nil {
-			panic("Error marshalling JSON: " + err.Error())
-		}
-
-		buf := bytes.NewBuffer(json)
-
-		req, err := http.NewRequest("POST", env.LogIngestAddress, buf)
-
-		if err != nil {
-			panic("Error creating HTTP request: " + err.Error())
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", "Bearer "+env.LogIngestToken)
-
-		res, err := http.DefaultClient.Do(req)
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
-			for _, line := range lines {
-				select {
-				case uploadQueue <- line:
-				default: // If the upload queue is now full, it will be dropped instead of blocking until the queue is empty. If we block here, the queue will never be drained again because we're inside the loop that processes the queue.
-				}
-			}
-		} else if res.StatusCode != 200 {
-			body, err := io.ReadAll(res.Body)
-			res.Body.Close()
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error uploading logs: %v (error reading response body)\n", res.StatusCode)
-			} else {
-				fmt.Fprintf(os.Stderr, "Error uploading logs: %v %v\n", res.StatusCode, string(body))
-			}
-
-			for _, line := range lines {
-				select {
-				case uploadQueue <- line:
-				default: // Same as above
-				}
-			}
-		} else {
-			res.Body.Close()
-		}
-	}
 
 	go func() {
 		defer close(done)
@@ -221,37 +177,111 @@ func drainUploadQueue(env EnvVars, maxBatchSize int) chan bool {
 
 			// Wait for a log to arrive
 			first, ok := <-uploadQueue
-			if !ok {
+			if !ok { // uploadQueue is closed
 				return
 			}
 
 			batch = append(batch, first)
-			timer := time.NewTimer(500 * time.Millisecond)
+
+			// Add logs received shortly after the first line to the current batch
+			timer := time.NewTimer(UPLOAD_BATCH_LENGTH_MS * time.Millisecond)
 			for {
 				select {
 				case log, ok := <-uploadQueue:
 					{
-						if !ok {
-							send(batch)
+						if !ok { // uploadQueue is closed
+							send(batch, env)
 							return
 						}
 
 						batch = append(batch, log)
 						if len(batch) >= maxBatchSize {
-							send(batch)
+							// If we've filled up our buffer, upload the current batch immediately
+							send(batch, env)
 							continue outer
 						}
 					}
 				case <-timer.C:
 					{
-						send(batch)
+						// We've waited the maximum allowed amount of time for this batch and it hasn't filled up; upload it now
+						send(batch, env)
 						continue outer
 					}
 				}
 			}
 		}
 	}()
+
 	return done
+}
+
+// send uploads the slice of log lines to the server.
+// If there was a problem uploading a log line, it is added to the end of the uploadQueue.
+// If the uploadQueue is full, the log line is dropped.
+func send(lines []LogLine, env *EnvVars) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+	}
+	body := LogUploadRequest{
+		Type:         env.LogType,
+		Lines:        lines,
+		DeploymentID: env.DeploymentID,
+		Hostname:     hostname,
+	}
+
+	json, err := json.Marshal(body)
+
+	if err != nil {
+		panic("Error marshalling JSON: " + err.Error())
+	}
+
+	buf := bytes.NewBuffer(json)
+
+	req, err := http.NewRequest("POST", env.LogIngestAddress, buf)
+
+	if err != nil {
+		panic("Error creating HTTP request: " + err.Error())
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+env.LogIngestToken)
+
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
+		for _, line := range lines {
+			if line.attempts <= MAX_UPLOAD_ATTEMPTS {
+				line.attempts++
+				select {
+				case uploadQueue <- line:
+				default: // If the upload queue is now full, it will be dropped instead of blocking until the queue is empty. If we block here, the queue will never be drained again because we're inside the loop that processes the queue.
+				}
+			}
+		}
+	} else if res.StatusCode != 200 {
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error uploading logs: %v (error reading response body)\n", res.StatusCode)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error uploading logs: %v %v\n", res.StatusCode, string(body))
+		}
+
+		for _, line := range lines {
+			if line.attempts <= MAX_UPLOAD_ATTEMPTS {
+				line.attempts++
+				select {
+				case uploadQueue <- line:
+				default: // Same as above
+				}
+			}
+		}
+	} else {
+		res.Body.Close()
+	}
 }
 
 type LogLine struct {
@@ -260,6 +290,8 @@ type LogLine struct {
 	Stream string `json:"stream"`
 	// The log line's timestamp represented as a Unix timestamp in milliseconds
 	Timestamp int64 `json:"timestamp"`
+	// The amount of times we have attempted to upload this log line
+	attempts int
 }
 
 type LogUploadRequest struct {
