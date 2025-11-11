@@ -99,6 +99,10 @@ spec:
             - name: LOGIN_TYPE
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.anvilops.env.loginClaim }}
+            - name: LOGIN_CLAIM
+              value: {{ . | quote }}
+            {{- end }}
             - name: SESSION_SECRET
               valueFrom:
                 secretKeyRef:

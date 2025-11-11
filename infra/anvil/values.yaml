@@ -1,11 +1,12 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-403-19f5ecf1ca29a53d39f1fadebefc3c079704d5cc
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-408-e7182cb8ff95ee07faeffdb3ca216d829892bb36
   env:
     baseURL: https://anvilops.rcac.purdue.edu
     appDomain: https://anvilops.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     loginType: shibboleth
+    loginClaim: eppn
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest

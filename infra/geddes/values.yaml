@@ -1,11 +1,13 @@
 anvilops:
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-403-19f5ecf1ca29a53d39f1fadebefc3c079704d5cc
+  image: geddes-registry.rcac.purdue.edu/anvilops/anvilops:main-408-e7182cb8ff95ee07faeffdb3ca216d829892bb36
   env:
     baseURL: https://anvilops.geddes.rcac.purdue.edu
     appDomain: https://anvilops.geddes.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
+    # The value of loginClaim is ignored in the patched Geddes version.
+    loginClaim: eppn
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
