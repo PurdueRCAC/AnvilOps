@@ -159,7 +159,10 @@ export const createAppConfigsFromDeployment = async (
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
-  const octokit = await getOctokit(app.org.githubInstallationId);
+  const octokit =
+    deployment.config.source === "GIT"
+      ? await getOctokit(app.org.githubInstallationId)
+      : null;
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = await getEnvVars(

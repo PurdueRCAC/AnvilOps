@@ -1,5 +1,7 @@
+import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import AppConfigFormFields, {
@@ -7,12 +9,11 @@ import AppConfigFormFields, {
 } from "@/pages/create-app/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
-import { useState, type Dispatch } from "react";
+import { useContext, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
-import HelpTooltip from "@/components/HelpTooltip";
 
 export const ConfigTab = ({
   app,
@@ -64,6 +65,12 @@ export const ConfigTab = ({
     "put",
     "/app/{appId}",
   );
+
+  const { user } = useContext(UserContext);
+
+  const enableSaveButton =
+    formState.source !== "git" ||
+    user?.orgs?.find((it) => it.id === app.orgId)?.githubConnected;
 
   return (
     <form
@@ -199,17 +206,19 @@ export const ConfigTab = ({
           isExistingApp
         />
       </FormContext>
-      <Button className="mt-8 max-w-max" disabled={updatePending}>
-        {updatePending ? (
-          <>
-            <Loader className="animate-spin" /> Saving...
-          </>
-        ) : (
-          <>
-            <Save /> Save
-          </>
-        )}
-      </Button>
+      {enableSaveButton && (
+        <Button className="mt-8 max-w-max" disabled={updatePending}>
+          {updatePending ? (
+            <>
+              <Loader className="animate-spin" /> Saving...
+            </>
+          ) : (
+            <>
+              <Save /> Save
+            </>
+          )}
+        </Button>
+      )}
     </form>
   );
 };

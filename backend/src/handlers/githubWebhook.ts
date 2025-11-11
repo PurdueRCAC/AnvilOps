@@ -288,7 +288,7 @@ export async function buildAndDeploy({
               content: {
                 log: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
               },
-              type: "SYSTEM",
+              type: "BUILD",
             },
           },
         },
@@ -481,13 +481,16 @@ export async function cancelAllOtherDeployments(
     },
   });
 
-  const octokit = await getOctokit(app.org.githubInstallationId);
+  let octokit: Octokit;
   for (const deployment of deployments) {
     if (
       !["STOPPED", "COMPLETE", "ERROR"].includes(deployment.status) &&
       deployment.checkRunId
     ) {
       // Should have a check run that is either queued or in_progress
+      if (!octokit) {
+        octokit = await getOctokit(app.org.githubInstallationId);
+      }
       const repo = await getRepoById(octokit, deployment.config.repositoryId);
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,

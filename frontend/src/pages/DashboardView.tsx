@@ -32,7 +32,6 @@ import { Fragment, useContext, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Status } from "./app/AppView";
-import { GitHubIcon } from "./create-app/CreateAppView";
 
 export default function DashboardView() {
   const { user } = useContext(UserContext);
@@ -60,27 +59,14 @@ export default function DashboardView() {
       </div>
       <div className="flex flex-col gap-8">
         {user?.orgs?.map((org) => (
-          <OrgApps
-            orgId={org.id}
-            name={org.name}
-            key={org.id}
-            permissionLevel={org.permissionLevel}
-          />
+          <OrgApps orgId={org.id} name={org.name} key={org.id} />
         ))}
       </div>
     </main>
   );
 }
 
-const OrgApps = ({
-  orgId,
-  name,
-  permissionLevel,
-}: {
-  orgId: number;
-  name: string;
-  permissionLevel: "OWNER" | "USER";
-}) => {
+const OrgApps = ({ orgId, name }: { orgId: number; name: string }) => {
   const { data: org, isPending } = api.useQuery("get", "/org/{orgId}", {
     params: {
       path: {
@@ -128,34 +114,8 @@ const OrgApps = ({
           <Loader className="animate-spin inline" />
           <span>Loading apps...</span>
         </p>
-      ) : org?.githubInstallationId ? (
-        appGroups
-      ) : permissionLevel === "OWNER" ? (
-        <div className="w-fit">
-          <p className="mt-4">
-            <strong>{org?.name}</strong> has not been connected to GitHub.
-          </p>
-          <p className="mb-4">
-            AnvilOps integrates with GitHub to deploy your app as soon as you
-            push to your repository.
-          </p>
-          <a
-            className="flex w-full"
-            href={`/api/org/${org?.id}/install-github-app`}
-          >
-            <Button className="w-full" type="button">
-              <GitHubIcon />
-              Install GitHub App
-            </Button>
-          </a>
-        </div>
       ) : (
-        <>
-          <p className="my-4">
-            <strong>{org?.name}</strong> has not been connected to GitHub. Ask
-            the owner of your organization to install the AnvilOps GitHub App.
-          </p>
-        </>
+        appGroups
       )}
     </div>
   );
