@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -27,6 +28,9 @@ const UPLOAD_BATCH_LENGTH_MS = 500
 
 // The maximum number of lines that can be uploaded in one batch.
 const MAX_BATCH_SIZE = 500
+
+// The exit code for a termination caused by a signal is 128 + (signal number).
+const SIGNAL_TERMINATION_BASE = 128
 
 // This program accepts at least two arguments. The first one is the name of the program to run,
 // and the remaining arguments are the command-line arguments to pass to that program.
@@ -90,15 +94,25 @@ func main() {
 	}
 
 	err = cmd.Wait()
+
+	exitCode := cmd.ProcessState.ExitCode()
 	if err != nil {
-		panic("Error waiting for process to terminate: " + err.Error())
+		os.Stderr.WriteString(err.Error())
+
+		// If the command exited due to a signal, cmd.ProcessState.ExitCode() returns -1
+		// Use the signal number to get the true exit code
+		// This method works on UNIX systems
+		status := err.(*exec.ExitError).Sys().(syscall.WaitStatus)
+		if status.Signaled() {
+			exitCode = SIGNAL_TERMINATION_BASE + int(status.Signal())
+		}
 	}
 
 	// Stop listening for signals
 	signal.Stop(sig)
 	close(sig)
 
-	fmt.Printf("Process exited with status %v\n", cmd.ProcessState.ExitCode())
+	fmt.Printf("Process exited with status %v\n", exitCode)
 
 	// Stop the upload loop
 	close(uploadQueue)
@@ -106,11 +120,11 @@ func main() {
 	go func() {
 		// If it takes longer than 10 seconds to flush the remaining logs, stop the program without sending them
 		time.Sleep(10 * time.Second)
-		os.Exit(cmd.ProcessState.ExitCode())
+		os.Exit(exitCode)
 	}()
 
 	<-done // Wait for remaining log lines to be uploaded
-	os.Exit(cmd.ProcessState.ExitCode())
+	os.Exit(exitCode)
 }
 
 // readStream reads the bytes of file and uploads them to dest (a URL) with token as a Bearer token in the Authorization header.
