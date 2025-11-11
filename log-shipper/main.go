@@ -54,7 +54,9 @@ func main() {
 
 		go func() {
 			for signal := range sig {
-				if cmd.ProcessState != nil && !cmd.ProcessState.Exited() {
+				// Forward signals if cmd.Start() was called successfully,
+				// and the final process state is not available yet
+				if cmd.Process != nil && cmd.ProcessState == nil {
 					err := cmd.Process.Signal(signal)
 					if err != nil {
 						panic("Error relaying signal to process: " + err.Error())
