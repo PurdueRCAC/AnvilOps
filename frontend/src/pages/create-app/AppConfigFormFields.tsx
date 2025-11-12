@@ -147,272 +147,11 @@ const AppConfigFormFields = ({
     );
   }, [groupName]);
 
-  if (selectedOrg !== undefined && !selectedOrg?.githubConnected) {
-    return selectedOrg?.permissionLevel === "OWNER" ? (
-      <>
-        <p className="mt-4">
-          <strong>{selectedOrg?.name}</strong> has not been connected to GitHub.
-        </p>
-        <p className="mb-4">
-          AnvilOps integrates with GitHub to deploy your app as soon as you push
-          to your repository.
-        </p>
-        <a
-          className="flex w-full"
-          href={`/api/org/${selectedOrg?.id}/install-github-app`}
-        >
-          <Button className="w-full" type="button">
-            <GitHubIcon />
-            Install GitHub App
-          </Button>
-        </a>
-      </>
-    ) : (
-      <>
-        <p className="my-4">
-          <strong>{selectedOrg?.name}</strong> has not been connected to GitHub.
-          Ask the owner of your organization to install the AnvilOps GitHub App.
-        </p>
-      </>
-    );
-  }
-
   const appConfig = useAppConfig();
   const appDomain = URL.parse(appConfig?.appDomain ?? "");
 
-  return (
+  const DeploymentOptions = (
     <>
-      {!hideGroupSelect && (
-        <>
-          <h3 className="mt-4 font-bold pb-1 border-b">Grouping Options</h3>
-          <div className="space-y-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <Label htmlFor="selectGroup" className="pb-1">
-                  <Component className="inline" size={16} />
-                  Group
-                </Label>
-                <span
-                  className="text-red-500 cursor-default"
-                  title="This field is required."
-                >
-                  *
-                </span>
-              </div>
-              <p className="text-sm text-black-2">
-                Applications can be created as standalone apps, or as part of a
-                group of related microservices.
-              </p>
-            </div>
-            <Select
-              required
-              disabled={disabled || orgId === undefined || groupsLoading}
-              onValueChange={(groupOption) => {
-                const groupId = parseInt(groupOption);
-                if (isNaN(groupId)) {
-                  setState((prev) => ({
-                    ...prev,
-                    groupOption: groupOption,
-                    groupId: undefined,
-                  }));
-                } else {
-                  setState((prev) => ({
-                    ...prev,
-                    groupOption: "add-to",
-                    groupId,
-                  }));
-                }
-              }}
-              value={
-                groupOption === "add-to" ? groupId?.toString() : groupOption
-              }
-              name="group"
-            >
-              <SelectTrigger className="w-full" id="selectGroup">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="standalone">Standalone app</SelectItem>
-                  <SelectItem value="create-new">Create new group</SelectItem>
-                  {groups && groups.length > 0 && (
-                    <>
-                      <SelectLabel key="add-label">
-                        Add to existing group
-                      </SelectLabel>
-                      {groups?.map((group) => (
-                        <SelectItem key={group.id} value={group.id.toString()}>
-                          {group.name}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-
-            {groupOption === "create-new" && (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <Label htmlFor="groupName" className="pb-1">
-                    Group Name
-                  </Label>
-                  <span
-                    className="text-red-500 cursor-default"
-                    title="This field is required."
-                  >
-                    *
-                  </span>
-                </div>
-                <Input
-                  required
-                  disabled={disabled}
-                  placeholder="Group name"
-                  name="groupName"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.currentTarget.value)}
-                  autoComplete="off"
-                />
-                {groupName && !isGroupNameValid && (
-                  <div className="text-sm flex gap-5">
-                    <X className="text-red-500" />
-                    <ul className="text-black-3 list-disc">
-                      <li>A group name must have 56 or fewer characters.</li>
-                      <li>
-                        A group name must contain only alphanumeric characters,
-                        dashes, underscores, dots, and spaces.
-                      </li>
-                      <li>
-                        A group name must start with an alphanumeric character.
-                      </li>
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </>
-      )}
-      {appConfig.isRancherManaged && (
-        <div className="space-y-2">
-          <div>
-            <div className="flex items-baseline gap-2">
-              <Label htmlFor="selectProject" className="pb-1">
-                <Fence className="inline" size={16} />
-                Project
-              </Label>
-              <span
-                className="text-red-500 cursor-default"
-                title="This field is required."
-              >
-                *
-              </span>
-            </div>
-            <p className="text-sm text-black-3">
-              In clusters managed by Rancher, resources are organized into
-              projects for administration.
-            </p>
-          </div>
-          <Select
-            required
-            name="project"
-            value={projectId ?? ""}
-            onValueChange={(projectId) =>
-              setState((prev) => ({ ...prev, projectId }))
-            }
-          >
-            <SelectTrigger className="w-full" id="selectProject">
-              <SelectValue placeholder="Select a Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {user?.projects?.map((project) => (
-                  <SelectItem key={project.id} value={project.id.toString()}>
-                    <p>
-                      {project.name}{" "}
-                      <span className="text-sm text-black-2">
-                        {project.description}
-                      </span>
-                    </p>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
-      <div className="space-y-2">
-        <div className="flex items-baseline gap-2">
-          <Label htmlFor="deploymentSource" className="pb-1">
-            <Cable className="inline" size={16} />
-            Deployment Source
-          </Label>
-          <span
-            className="text-red-500 cursor-default"
-            title="This field is required."
-          >
-            *
-          </span>
-        </div>
-        <Select
-          required
-          disabled={disabled}
-          value={source}
-          onValueChange={(source) =>
-            setState((prev) => ({ ...prev, source: source as "git" | "image" }))
-          }
-          name="source"
-        >
-          <SelectTrigger className="w-full" id="deploymentSource">
-            <SelectValue placeholder="Select deployment source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="git">Git Repository</SelectItem>
-              <SelectItem value="image">OCI Image</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-      {source === "git" ? (
-        <GitDeploymentFields
-          orgId={orgId}
-          state={state}
-          setState={setState}
-          disabled={disabled}
-        />
-      ) : source === "image" ? (
-        <>
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-2">
-              <Label htmlFor="imageTag" className="pb-1 mb-2">
-                <Tag className="inline" size={16} /> Image tag
-              </Label>
-              <span
-                className="text-red-500 cursor-default"
-                title="This field is required."
-              >
-                *
-              </span>
-            </div>
-            <Input
-              disabled={disabled}
-              value={state.imageTag ?? ""}
-              onChange={(e) => {
-                const imageTag = e.currentTarget.value;
-                setState((state) => ({ ...state, imageTag }));
-              }}
-              name="imageTag"
-              id="imageTag"
-              placeholder="nginx:latest"
-              className="w-full"
-              required
-            />
-          </div>
-        </>
-      ) : null}
-
       <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
 
       {!isExistingApp && appDomain !== null && (
@@ -732,6 +471,272 @@ const AppConfigFormFields = ({
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+    </>
+  );
+
+  return (
+    <>
+      {!hideGroupSelect && (
+        <>
+          <h3 className="mt-4 font-bold pb-1 border-b">Grouping Options</h3>
+          <div className="space-y-2">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <Label htmlFor="selectGroup" className="pb-1">
+                  <Component className="inline" size={16} />
+                  Group
+                </Label>
+                <span
+                  className="text-red-500 cursor-default"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              </div>
+              <p className="text-sm text-black-2">
+                Applications can be created as standalone apps, or as part of a
+                group of related microservices.
+              </p>
+            </div>
+            <Select
+              required
+              disabled={disabled || orgId === undefined || groupsLoading}
+              onValueChange={(groupOption) => {
+                const groupId = parseInt(groupOption);
+                if (isNaN(groupId)) {
+                  setState((prev) => ({
+                    ...prev,
+                    groupOption: groupOption,
+                    groupId: undefined,
+                  }));
+                } else {
+                  setState((prev) => ({
+                    ...prev,
+                    groupOption: "add-to",
+                    groupId,
+                  }));
+                }
+              }}
+              value={
+                groupOption === "add-to" ? groupId?.toString() : groupOption
+              }
+              name="group"
+            >
+              <SelectTrigger className="w-full" id="selectGroup">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="standalone">Standalone app</SelectItem>
+                  <SelectItem value="create-new">Create new group</SelectItem>
+                  {groups && groups.length > 0 && (
+                    <>
+                      <SelectLabel key="add-label">
+                        Add to existing group
+                      </SelectLabel>
+                      {groups?.map((group) => (
+                        <SelectItem key={group.id} value={group.id.toString()}>
+                          {group.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            {groupOption === "create-new" && (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <Label htmlFor="groupName" className="pb-1">
+                    Group Name
+                  </Label>
+                  <span
+                    className="text-red-500 cursor-default"
+                    title="This field is required."
+                  >
+                    *
+                  </span>
+                </div>
+                <Input
+                  required
+                  disabled={disabled}
+                  placeholder="Group name"
+                  name="groupName"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.currentTarget.value)}
+                  autoComplete="off"
+                />
+                {groupName && !isGroupNameValid && (
+                  <div className="text-sm flex gap-5">
+                    <X className="text-red-500" />
+                    <ul className="text-black-3 list-disc">
+                      <li>A group name must have 56 or fewer characters.</li>
+                      <li>
+                        A group name must contain only alphanumeric characters,
+                        dashes, underscores, dots, and spaces.
+                      </li>
+                      <li>
+                        A group name must start with an alphanumeric character.
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
+      {appConfig.isRancherManaged && (
+        <div className="space-y-2">
+          <div>
+            <div className="flex items-baseline gap-2">
+              <Label htmlFor="selectProject" className="pb-1">
+                <Fence className="inline" size={16} />
+                Project
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <p className="text-sm text-black-3">
+              In clusters managed by Rancher, resources are organized into
+              projects for administration.
+            </p>
+          </div>
+          <Select
+            required
+            name="project"
+            value={projectId ?? ""}
+            onValueChange={(projectId) =>
+              setState((prev) => ({ ...prev, projectId }))
+            }
+          >
+            <SelectTrigger className="w-full" id="selectProject">
+              <SelectValue placeholder="Select a Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {user?.projects?.map((project) => (
+                  <SelectItem key={project.id} value={project.id.toString()}>
+                    <p>
+                      {project.name}{" "}
+                      <span className="text-sm text-black-2">
+                        {project.description}
+                      </span>
+                    </p>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <Label htmlFor="deploymentSource" className="pb-1">
+            <Cable className="inline" size={16} />
+            Deployment Source
+          </Label>
+          <span
+            className="text-red-500 cursor-default"
+            title="This field is required."
+          >
+            *
+          </span>
+        </div>
+        <Select
+          required
+          disabled={disabled}
+          value={source}
+          onValueChange={(source) =>
+            setState((prev) => ({ ...prev, source: source as "git" | "image" }))
+          }
+          name="source"
+        >
+          <SelectTrigger className="w-full" id="deploymentSource">
+            <SelectValue placeholder="Select deployment source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="git">Git Repository</SelectItem>
+              <SelectItem value="image">OCI Image</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      {source === "git" ? (
+        selectedOrg?.githubConnected ? (
+          <GitDeploymentFields
+            orgId={orgId}
+            state={state}
+            setState={setState}
+            disabled={disabled}
+          />
+        ) : selectedOrg?.permissionLevel === "OWNER" ? (
+          <div>
+            <p className="mt-4">
+              <strong>{selectedOrg?.name}</strong> has not been connected to
+              GitHub.
+            </p>
+            <p className="mb-4">
+              AnvilOps integrates with GitHub to deploy your app as soon as you
+              push to your repository.
+            </p>
+            <a
+              className="flex w-full"
+              href={`/api/org/${selectedOrg?.id}/install-github-app`}
+            >
+              <Button className="w-full" type="button">
+                <GitHubIcon />
+                Install GitHub App
+              </Button>
+            </a>
+          </div>
+        ) : (
+          <>
+            <p className="my-4">
+              <strong>{selectedOrg?.name}</strong> has not been connected to
+              GitHub. Ask the owner of your organization to install the AnvilOps
+              GitHub App.
+            </p>
+          </>
+        )
+      ) : source === "image" ? (
+        <>
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label htmlFor="imageTag" className="pb-1 mb-2">
+                <Tag className="inline" size={16} /> Image tag
+              </Label>
+              <span
+                className="text-red-500 cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            </div>
+            <Input
+              disabled={disabled}
+              value={state.imageTag ?? ""}
+              onChange={(e) => {
+                const imageTag = e.currentTarget.value;
+                setState((state) => ({ ...state, imageTag }));
+              }}
+              name="imageTag"
+              id="imageTag"
+              placeholder="nginx:latest"
+              className="w-full"
+            />
+          </div>
+        </>
+      ) : null}
+
+      {(source !== "git" || selectedOrg?.githubConnected) && DeploymentOptions}
     </>
   );
 };

@@ -24,7 +24,7 @@ export type DeploymentParams = {
 } & PrismaJson.ConfigFields;
 
 export const generateAutomaticEnvVars = async (
-  octokit: Octokit,
+  octokit: Octokit | null,
   deployment: Pick<Deployment, "id" | "commitMessage"> & {
     config: Pick<
       DeploymentConfig,
@@ -76,7 +76,7 @@ export const generateAutomaticEnvVars = async (
     },
   ];
 
-  if (deployment.config.source === "GIT") {
+  if (octokit && deployment.config.source === "GIT") {
     const repo = await getRepoById(octokit, deployment.config.repositoryId);
     list.push({
       name: "ANVILOPS_REPOSITORY_ID",

@@ -308,7 +308,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
             create: {
               timestamp: new Date(),
               content: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              type: "SYSTEM",
+              type: "BUILD",
               stream: "stderr",
             },
           },

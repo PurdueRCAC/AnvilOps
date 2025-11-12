@@ -13,7 +13,7 @@ import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppConfigFormFields, {
   type AppInfoFormData,
@@ -54,14 +54,10 @@ export default function CreateAppView() {
 
   const navigate = useNavigate();
 
-  const shouldShowDeploy = useMemo(() => {
-    return (
-      formState.orgId === undefined ||
-      user?.orgs.some(
-        (org) => org.id === formState.orgId && org.githubConnected,
-      )
-    );
-  }, [user, formState.orgId]);
+  const shouldShowDeploy =
+    formState.orgId === undefined ||
+    formState.source !== "git" ||
+    user?.orgs.some((org) => org.id === formState.orgId && org.githubConnected);
 
   const config = useAppConfig();
 

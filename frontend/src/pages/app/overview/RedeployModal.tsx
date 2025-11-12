@@ -13,10 +13,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Container, GitCommit, Loader, Rocket } from "lucide-react";
-import { useEffect, useRef, useState, type Dispatch } from "react";
+import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
 import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
@@ -130,7 +131,7 @@ export const RedeployModal = ({
     ) {
       setRadioValue("useBuild");
     }
-  }, [pastDeployment, pastDeploymentLoading]);
+  }, [pastDeployment, pastDeploymentLoading, isOpen]);
 
   useEffect(() => {
     // Clear inputs when closing the dialog
@@ -138,6 +139,9 @@ export const RedeployModal = ({
       setRedeployState(defaultRedeployState);
     }
   }, [isOpen]);
+
+  const { user } = useContext(UserContext);
+  const selectedOrg = user?.orgs?.find((org) => org.id === app.orgId);
 
   const form = useRef<HTMLFormElement | null>(null);
 
@@ -334,7 +338,7 @@ export const RedeployModal = ({
                     </>
                   ) : (
                     <>
-                      If this app is linked to a Git repository this app{" "}
+                      If this app is linked to a Git repository, this app{" "}
                       <strong>will not be updated</strong> on the cluster in
                       response to repository events until continuous deployment
                       is re-enabled.
@@ -401,19 +405,25 @@ export const RedeployModal = ({
                   }}
                   defaults={{ config: pastDeployment?.config }}
                 />
-                <Button
-                  className="mt-4 float-right"
-                  type="button"
-                  onClick={() => {
-                    if (form.current!.checkValidity()) {
-                      setRedeployState((rs) => ({ ...rs, configOpen: false }));
-                    } else {
-                      form.current!.reportValidity();
-                    }
-                  }}
-                >
-                  Use this configuration
-                </Button>
+                {(redeployState.configState.source !== "git" ||
+                  selectedOrg?.githubConnected) && (
+                  <Button
+                    className="mt-4 float-right"
+                    type="button"
+                    onClick={() => {
+                      if (form.current!.checkValidity()) {
+                        setRedeployState((rs) => ({
+                          ...rs,
+                          configOpen: false,
+                        }));
+                      } else {
+                        form.current!.reportValidity();
+                      }
+                    }}
+                  >
+                    Use this configuration
+                  </Button>
+                )}
               </>
             )}
           </form>
