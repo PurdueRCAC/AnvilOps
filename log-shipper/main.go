@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -32,6 +32,9 @@ const MAX_BATCH_SIZE = 500
 // The exit code for a termination caused by a signal is 128 + (signal number).
 const SIGNAL_TERMINATION_BASE = 128
 
+var logger = log.New(os.Stdout, "[anvilops-log-shipper] ", 0)
+var errorLogger = log.New(os.Stderr, "[anvilops-log-shipper] ", 0)
+
 // This program accepts at least two arguments. The first one is the name of the program to run,
 // and the remaining arguments are the command-line arguments to pass to that program.
 func main() {
@@ -43,6 +46,8 @@ func main() {
 	programArgs := args[1:]
 
 	env, childEnv := getAnvilOpsEnvVars()
+
+	logger.Printf("Starting program: %s %s\n", programName, strings.Join(programArgs, " "))
 
 	cmd := exec.Command(programName, programArgs...)
 	cmd.Env = childEnv
@@ -59,7 +64,7 @@ func main() {
 				if cmd.Process != nil && cmd.ProcessState == nil {
 					err := cmd.Process.Signal(signal)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error relaying signal to process: %s\n", err.Error())
+						errorLogger.Printf("Error relaying signal to process: %s\n", err.Error())
 					}
 				}
 			}
@@ -70,7 +75,7 @@ func main() {
 		// Read the process's stdout and send it to the AnvilOps backend
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			panic("Error setting up stdout redirection: " + err.Error())
+			errorLogger.Panicf("Error setting up stdout redirection: %s\n", err.Error())
 		}
 		defer stdout.Close()
 		go readStream("stdout", stdout)
@@ -80,7 +85,7 @@ func main() {
 		// Same as above but for `stderr`
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
-			panic("Error setting up stderr redirection: " + err.Error())
+			errorLogger.Panicf("Error setting up stderr redirection: %s\n", err.Error())
 		}
 		defer stderr.Close()
 		go readStream("stderr", stderr)
@@ -92,14 +97,14 @@ func main() {
 	err := cmd.Start()
 
 	if err != nil {
-		panic(err.Error())
+		errorLogger.Panicln(err.Error())
 	}
 
 	err = cmd.Wait()
 
 	exitCode := cmd.ProcessState.ExitCode()
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		errorLogger.Println(err.Error())
 
 		// If the command exited due to a signal, cmd.ProcessState.ExitCode() returns -1
 		// Use the signal number to get the true exit code
@@ -114,7 +119,7 @@ func main() {
 	signal.Stop(sig)
 	close(sig)
 
-	fmt.Printf("Process exited with status %v\n", exitCode)
+	logger.Printf("Process exited with status %v\n", exitCode)
 
 	// Stop the upload loop
 	close(uploadQueue)
@@ -169,7 +174,7 @@ func readStream(name string, file io.Reader) {
 		}:
 		case <-time.After(100 * time.Millisecond):
 			{
-				fmt.Println("Upload buffer is full")
+				errorLogger.Printf("Upload buffer is full; dropping line \"%s\"\n", line)
 			}
 		}
 	}
@@ -249,7 +254,7 @@ func send(lines []LogLine, env *EnvVars) {
 	json, err := json.Marshal(body)
 
 	if err != nil {
-		panic("Error marshalling JSON: " + err.Error())
+		errorLogger.Panicf("Error marshalling JSON: %s\n", err.Error())
 	}
 
 	buf := bytes.NewBuffer(json)
@@ -257,7 +262,7 @@ func send(lines []LogLine, env *EnvVars) {
 	req, err := http.NewRequest("POST", env.LogIngestAddress, buf)
 
 	if err != nil {
-		panic("Error creating HTTP request: " + err.Error())
+		errorLogger.Panicf("Error creating HTTP request: %s\n", err.Error())
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -266,7 +271,7 @@ func send(lines []LogLine, env *EnvVars) {
 	res, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error uploading logs: %v\n", err)
+		errorLogger.Printf("Error uploading logs: %v\n", err)
 		for _, line := range lines {
 			if line.attempts <= MAX_UPLOAD_ATTEMPTS {
 				line.attempts++
@@ -281,9 +286,9 @@ func send(lines []LogLine, env *EnvVars) {
 		res.Body.Close()
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error uploading logs: %v (error reading response body)\n", res.StatusCode)
+			errorLogger.Printf("Error uploading logs: %v (error reading response body)\n", res.StatusCode)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error uploading logs: %v %v\n", res.StatusCode, string(body))
+			errorLogger.Printf("Error uploading logs: %v %v\n", res.StatusCode, string(body))
 		}
 
 		for _, line := range lines {
@@ -346,7 +351,7 @@ func getAnvilOpsEnvVars() (*EnvVars, []string) {
 	for _, variable := range env {
 		key, value, found := strings.Cut(variable, "=")
 		if !found {
-			panic("Invalid environment variable format: = expected but not found")
+			errorLogger.Panicln("Invalid environment variable format: = expected but not found")
 		}
 		switch key {
 		case "_PRIVATE_ANVILOPS_LOG_ENDPOINT":
@@ -358,7 +363,7 @@ func getAnvilOpsEnvVars() (*EnvVars, []string) {
 		case "_PRIVATE_ANVILOPS_LOG_DEPLOYMENT_ID":
 			number, err := strconv.Atoi(value)
 			if err != nil {
-				panic("Invalid deployment ID: " + err.Error())
+				errorLogger.Panicf("Invalid deployment ID: %s\n", err.Error())
 			}
 			anvilOpsEnv.DeploymentID = number
 		default:
@@ -367,15 +372,15 @@ func getAnvilOpsEnvVars() (*EnvVars, []string) {
 	}
 
 	if anvilOpsEnv.LogIngestAddress == "" {
-		panic("Log ingest address not provided")
+		errorLogger.Panicln("Log ingest address not provided")
 	}
 
 	if anvilOpsEnv.LogIngestToken == "" {
-		panic("Log ingest token not provided")
+		errorLogger.Panicln("Log ingest token not provided")
 	}
 
 	if anvilOpsEnv.DeploymentID == 0 {
-		panic("Deployment ID not provided")
+		errorLogger.Panicln("Deployment ID not provided")
 	}
 
 	return anvilOpsEnv, childEnv
