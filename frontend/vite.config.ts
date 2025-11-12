@@ -14,7 +14,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: process.env.IN_TILT
+          ? "http://anvilops"
+          : "http://localhost:3000",
       },
     },
   },

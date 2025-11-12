@@ -34,6 +34,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
           deployment: {
             select: {
               commitMessage: true,
+              status: true,
             },
           },
         },
@@ -48,7 +49,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   }
 
   try {
-    validateDeploymentConfig(appData.config);
+    await validateDeploymentConfig(appData.config);
     if (appData.appGroup) {
       validateAppGroup(appData.appGroup);
     }
@@ -157,6 +158,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(currentConfig.getPlaintextEnv(), appConfig.env),
     fieldValues: {
+      collectLogs: appConfig.collectLogs,
       replicas: appConfig.replicas,
       port: appConfig.port,
       servicePort: 80,
@@ -191,6 +193,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   if (
     updatedConfig.source === "GIT" &&
     (!currentConfig.imageTag ||
+      currentConfig.deployment.status === "ERROR" ||
       updatedConfig.branch !== currentConfig.branch ||
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
@@ -304,10 +307,9 @@ export const updateApp: HandlerMap["updateApp"] = async (
           logs: {
             create: {
               timestamp: new Date(),
-              content: {
-                log: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              },
+              content: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
               type: "BUILD",
+              stream: "stderr",
             },
           },
         },

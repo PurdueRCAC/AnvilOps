@@ -43,7 +43,7 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    validateDeploymentConfig(appData);
+    await validateDeploymentConfig({ ...appData, collectLogs: true });
     validateAppGroup(appData.appGroup);
     const subdomainRes = validateSubdomain(appData.subdomain);
     validateAppName(appData.name);
@@ -140,6 +140,7 @@ export const createApp: HandlerMap["createApp"] = async (
   const deploymentConfig: DeploymentConfigCreateInput = {
     env: appData.env,
     fieldValues: {
+      collectLogs: true,
       replicas: 1,
       port: appData.port,
       servicePort: 80,

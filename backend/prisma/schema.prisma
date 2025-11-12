@@ -237,8 +237,9 @@ model Log {
   deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
   timestamp    DateTime
   index        Int        @default(0) // Used to order logs with the same timestamp
-  content      Json
+  content      String
   podName      String?
+  stream       LogStream
 }
 
 // A temporary object used to keep track of state while going through the GitHub OAuth flow
@@ -269,6 +270,11 @@ enum WebhookEvent {
   // GitHub webhook events to deploy on
   push
   workflow_run
+}
+
+enum LogStream {
+  stdout
+  stderr
 }
 
 enum LogType {

@@ -27,8 +27,8 @@ const APIClientFactory = {
   AuthorizationV1Api: (kc: KubeConfig) => kc.makeApiClient(AuthorizationV1Api),
   KubernetesObjectApi: (kc: KubeConfig) =>
     KubernetesObjectApi.makeApiClient(kc),
-  Log: (kc: KubeConfig) => new Log(kc),
   Watch: (kc: KubeConfig) => new Watch(kc),
+  Log: (kc: KubeConfig) => new Log(kc),
   ExtensionsV1Api: (kc: KubeConfig) => kc.makeApiClient(ApiextensionsV1Api),
 };
 Object.freeze(APIClientFactory);
@@ -179,7 +179,11 @@ export const createOrUpdateApp = async (
         undefined,
         undefined,
         undefined,
-        PatchStrategy.MergePatch, // The default is PatchStrategy.StrategicMergePatch, which can target individual array items, but it doesn't work with custom resources (we're using `flow` and `output` from the kube-logging operator).
+        // Use the non-strategic merge patch here because app updates involve replacing entire lists instead of partially updating them.
+        // For example, when setting environment variables, the strategic merge strategy wouldn't remove environment variables
+        // that we didn't specify in the updated configuration unless we explicitly tell it to via `$retainKeys`.
+        // More info on patch types: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
+        PatchStrategy.MergePatch,
       );
     } else {
       await api.create(config);

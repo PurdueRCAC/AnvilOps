@@ -10,6 +10,10 @@ const variables = {
    */
   NODE_ENV: { required: false, defaultValue: "production" },
   /**
+   * Set this to any non-null value when AnvilOps is running in a Tilt development environment
+   */
+  IN_TILT: { required: false, defaultValue: null },
+  /**
    * The CILogon OAuth client ID
    */
   CLIENT_ID: { required: true },
@@ -118,13 +122,6 @@ const variables = {
    */
   GITHUB_WEBHOOK_SECRET: { required: true },
   /**
-   * A secret value used to verify that log ingest requests are actually coming from the kube-logging operator. Only used for build-time logs; runtime logs use a separate secret for every app stored in the database.
-   */
-  BUILD_LOGGING_INGEST_SECRET: {
-    required: false,
-    defaultValue: crypto.randomUUID(),
-  },
-  /**
    * The hostname of a Harbor instance that contains users' app container images, e.g. https://registry.anvil.rcac.purdue.edu. Used to delete old images when an app is deleted.
    */
   DELETE_REPO_HOST: { required: true },
@@ -157,6 +154,10 @@ const variables = {
    */
   REGISTRY_HOSTNAME: { required: true },
   /**
+   * The protocol used to contact the image registry over HTTP (should be "http" or "https")
+   */
+  REGISTRY_PROTOCOL: { required: false, defaultValue: "https" },
+  /**
    * The image that serves file information for the Files tab on the app page
    */
   FILE_BROWSER_IMAGE: {
@@ -178,6 +179,13 @@ const variables = {
     required: false,
     defaultValue:
       "registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest",
+  },
+  /**
+   * The image that copies the log shipper binary to a destination path, used in an initContainer to start collecting logs from users' apps (see backend/src/lib/cluster/resources/logs.ts for more details)
+   */
+  LOG_SHIPPER_IMAGE: {
+    required: false,
+    defaultValue: "registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest",
   },
   /**
    * The storageClassName to use when provisioning tenant apps. If you omit this value, storage-related options will be hidden.

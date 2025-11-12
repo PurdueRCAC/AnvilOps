@@ -30,6 +30,9 @@ export default function CreateAppView() {
   const [search] = useSearchParams();
 
   const [formState, setFormState] = useState<AppInfoFormData>({
+    postStart: "",
+    preStop: "",
+    collectLogs: true,
     groupOption: "standalone",
     env: [],
     mounts: [],

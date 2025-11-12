@@ -58,3 +58,26 @@ This probably means some other error is happening.
 First, try restarting the BuildKit daemon. It's possible that the certificate creation job ran while the server was running, and it didn't pick up the new certificates. Then, when the build job tried to connect, the server rejected the client's certificates over and over until the maximum wait time was reached. You can restart it from the Tilt dashboard, or with the CLI (`tilt trigger anvilops-buildkitd` or `kubectl rollout restart deployment anvilops-buildkitd`).
 
 If that doesn't fix the issue, try removing the `--wait` flag from the `buildctl` command. That should reveal a more useful error message.
+
+### "no space left on device" errors
+
+If you're seeing this message, Tilt has probably built hundreds of copies of the AnvilOps images and pushed them to its local registry on your computer.
+This has likely used most or all of your disk space, causing this error.
+
+Even if your disk isn't completely full, you may still see this error if your file system needs uses a separate chunk of space to store metadata (like `btrfs`) or
+if your disk has reached its inode limit.
+
+Here are a few ways to reclaim space. Try each one in order until the issue is resolved:
+
+1. Remove unused images from within your local cluster
+
+```
+docker exec ctlptl-registry registry garbage-collect -m /etc/docker/registry/config.yml
+docker exec kind-control-plane crictl rmi --prune
+```
+
+2. Recreate Tilt resources: `tilt down && tilt up`
+3. Prune on your system: `docker system prune -a`
+4. Recreate your development cluster: `docker system prune -a --volumes && ctlptl delete cluster kind-kind && docker rm -f ctlptl-registry && ctlptl create cluster kind --registry=ctlptl-registry`
+
+Similar error messages could also appear if you've hit your open file limit. Follow [these instructions](https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files) to resolve that issue.

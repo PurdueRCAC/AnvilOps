@@ -41,15 +41,20 @@ app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"]);
 app.use(
   morgan(
     `:remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms`,
+    {
+      skip: (req, res) => {
+        // Don't log successful /logs/ingest requests
+        return res.statusCode === 200 && req.path === "/logs/ingest";
+      },
+    },
   ),
 );
 
 // For GitHub webhooks, we need to access the request body as a string to verify it against the signature
-// For log ingestion, the request body is a series of JSON objects separated by newlines
 app.use(
-  /^\/api((\/github\/webhook)|(\/logs\/ingest))/,
+  /^\/api\/github\/webhook/,
   bodyParser.text({
-    type: ["application/json", "application/jsonl"],
+    type: ["application/json"],
     limit: "1000kb",
   }),
 );
@@ -62,7 +67,7 @@ app.use(
 
 // For everything else, the request body should be valid JSON
 app.use(
-  /^\/api(?!((\/github\/webhook)|(\/logs\/ingest)|(\/app\/(.*)\/file)))/,
+  /^\/api(?!((\/github\/webhook)|(\/app\/(.*)\/file)))/,
   bodyParser.json(),
 );
 

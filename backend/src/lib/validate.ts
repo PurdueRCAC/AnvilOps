@@ -6,13 +6,17 @@ import {
   MAX_STS_NAME_LEN,
   MAX_SUBDOMAIN_LEN,
 } from "./cluster/resources.ts";
+import { getImageConfig } from "./cluster/resources/logs.ts";
 
-export function validateDeploymentConfig(
+export async function validateDeploymentConfig(
   data: (
     | components["schemas"]["GitDeploymentOptions"]
     | components["schemas"]["ImageDeploymentOptions"]
   ) &
-    Omit<components["schemas"]["KnownDeploymentOptions"], "replicas">,
+    Omit<
+      components["schemas"]["KnownDeploymentOptions"],
+      "replicas" | "postStart" | "preStop" | "requests" | "limits"
+    >,
 ) {
   const { source, env, mounts, port } = data;
   if (source === "git") {
@@ -49,6 +53,10 @@ export function validateDeploymentConfig(
   validateEnv(env);
 
   validateMounts(mounts);
+
+  if (data.source === "image" && data.collectLogs) {
+    await validateImageReference(data.imageTag);
+  }
 }
 
 export const validateAppGroup = (
@@ -89,6 +97,15 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
     return { valid: false, message: "Some environment variable(s) are empty" };
   }
 
+  if (env?.some((it) => it.name.startsWith("_PRIVATE_ANVILOPS_"))) {
+    // Environment variables with this prefix are used in the log shipper - see log-shipper/main.go
+    return {
+      valid: false,
+      message:
+        'Environment variable(s) use reserved prefix "_PRIVATE_ANVILOPS_"',
+    };
+  }
+
   const envNames = new Set();
 
   for (let envVar of env) {
@@ -116,6 +133,16 @@ export const validateSubdomain = async (subdomain: string) => {
   }
 
   return { valid: true };
+};
+
+export const validateImageReference = async (reference: string) => {
+  try {
+    // Look up the image in its registry to make sure it exists
+    await getImageConfig(reference);
+  } catch (e) {
+    console.error(e);
+    throw new Error("Image could not be found in its registry.");
+  }
 };
 
 export const validateAppName = (name: string) => {

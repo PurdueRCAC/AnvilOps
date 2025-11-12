@@ -33,7 +33,10 @@ const defaultRedeployState = {
     port: "",
     cpuCores: "1",
     memoryInMiB: 1024,
-  },
+    postStart: null,
+    preStop: null,
+    collectLogs: true,
+  } satisfies DeploymentConfigFormData,
   enableCD: true,
   idx: 0,
 };
@@ -96,6 +99,9 @@ export const RedeployModal = ({
           parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
         ).toString(), // convert millicores ("m") to cores,
         memoryInMiB: parseInt(pastDeployment.config.limits?.memory ?? "1024Mi"),
+        collectLogs: pastDeployment.config.collectLogs,
+        postStart: pastDeployment.config.postStart,
+        preStop: pastDeployment.config.preStop,
         ...(pastDeployment.config.source === "git"
           ? {
               source: "git",
@@ -178,10 +184,11 @@ export const RedeployModal = ({
                 port: parseInt(config.port),
                 env: config.env.filter((env) => env.name.length > 0),
                 mounts: app.config.mounts,
-                postStart: config.postStart,
-                preStop: config.preStop,
+                postStart: config.postStart ?? null,
+                preStop: config.preStop ?? null,
                 limits: resourceConfig,
                 requests: resourceConfig,
+                collectLogs: config.collectLogs === true,
                 ...(config.source === "git"
                   ? {
                       source: "git" as const,

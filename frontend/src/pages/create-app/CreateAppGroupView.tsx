@@ -38,6 +38,9 @@ export default function CreateAppGroupView() {
   const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
 
   const defaultState = {
+    postStart: "",
+    preStop: "",
+    collectLogs: true,
     env: [],
     mounts: [],
     source: "git" as "git",
