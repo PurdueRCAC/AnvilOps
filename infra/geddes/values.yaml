@@ -2,7 +2,7 @@ anvilops:
   image: geddes-registry.rcac.purdue.edu/anvilops/anvilops:main-410-057e8dc9c63e7a0646056095c471f8dfe362f3a1
   env:
     baseURL: https://anvilops.geddes.rcac.purdue.edu
-    appDomain: https://anvilops.geddes.rcac.purdue.edu
+    appDomain: https://geddes.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
@@ -33,16 +33,13 @@ anvilops:
       - secretName: tls-cert
         hosts:
           - anvilops.geddes.rcac.purdue.edu
-appProxy:
-  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
-  ingress:
-    enabled: true
-    className: nginx
-    host: "*.anvilops.geddes.rcac.purdue.edu"
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - "*.anvilops.geddes.rcac.purdue.edu"
+  apps:
+    ingress:
+      className: nginx
+      annotations:
+        # Allow apps to be accessed over the internet, not just on the Purdue network
+        # https://www.rcac.purdue.edu/knowledge/geddes/services
+        kubernetes.io/ingress.class: "public"
 postgres:
   image: postgres:17
   nodeSelector: {}

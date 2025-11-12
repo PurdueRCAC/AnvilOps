@@ -22,7 +22,7 @@ if (configPath) {
 
 export const getSettings: HandlerMap["getSettings"] = (ctx, req, res) => {
   return json(200, res, {
-    appDomain: env.APP_DOMAIN,
+    appDomain: !!env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,

@@ -2,7 +2,7 @@ anvilops:
   image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:main-410-057e8dc9c63e7a0646056095c471f8dfe362f3a1
   env:
     baseURL: https://anvilops.rcac.purdue.edu
-    appDomain: https://anvilops.rcac.purdue.edu
+    appDomain: https://anvilcloud.rcac.purdue.edu
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     loginType: shibboleth
@@ -32,16 +32,10 @@ anvilops:
       - secretName: tls-cert
         hosts:
           - anvilops.rcac.purdue.edu
-appProxy:
-  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
-  ingress:
-    enabled: true
-    className: nginx
-    host: "*.anvilops.rcac.purdue.edu"
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - "*.anvilops.rcac.purdue.edu"
+  apps:
+    ingress:
+      className: nginx
+      annotations:
 postgres:
   image: postgres:17
   nodeSelector: {}

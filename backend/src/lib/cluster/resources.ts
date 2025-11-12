@@ -11,6 +11,7 @@ import type {
   Organization,
 } from "../../generated/prisma/client.ts";
 import { getOctokit } from "../octokit.ts";
+import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
@@ -191,10 +192,14 @@ export const createAppConfigsFromDeployment = async (
   };
 
   const svc = createServiceConfig(params);
-
+  const ingress = createIngressConfig(params);
   const statefulSet = await createStatefulSetConfig(params);
 
   configs.push(statefulSet, svc);
+  if (ingress !== null) {
+    // ^ Can be null if APP_DOMAIN is not set, meaning no Ingress should be created for the app
+    configs.push(ingress);
+  }
 
   const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
   const labels = {

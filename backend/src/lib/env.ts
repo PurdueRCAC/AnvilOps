@@ -188,6 +188,14 @@ const variables = {
     defaultValue: "registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest",
   },
   /**
+   * The ingressClassName to use when provisioning tenant apps. If you omit this value, subdomain-related options will be hidden.
+   */
+  INGRESS_CLASS_NAME: { required: false },
+  /**
+   * Annotations to add to end users' Ingress configurations
+   */
+  INGRESS_ANNOTATIONS: { required: false },
+  /**
    * The storageClassName to use when provisioning tenant apps. If you omit this value, storage-related options will be hidden.
    */
   STORAGE_CLASS_NAME: { required: false },

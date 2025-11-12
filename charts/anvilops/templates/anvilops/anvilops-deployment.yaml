@@ -198,6 +198,12 @@ spec:
               value: {{ .Values.harbor.expose.ingress.hosts.core }}
             - name: CLUSTER_INTERNAL_BASE_URL
               value: "http://{{ include "anvilops.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: INGRESS_CLASS_NAME
+              value: {{ .Values.anvilops.apps.ingress.className }}
+            {{- with .Values.anvilops.apps.ingress.annotations }}
+            - name: INGRESS_ANNOTATIONS
+              value: {{ . | toJson | quote }}
+            {{- end }}
             - name: STORAGE_CLASS_NAME
               value: {{ .Values.tenants.storageClassName }}
             - name: STORAGE_ACCESS_MODES

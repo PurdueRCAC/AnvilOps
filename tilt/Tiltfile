@@ -2,12 +2,12 @@ load('ext://restart_process', 'docker_build_with_restart')
 load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
 load('ext://dotenv', 'dotenv')
 load('ext://deployment', 'deployment_create')
+load('ext://helm_remote', 'helm_remote')
+dotenv(fn='../backend/.env')
 
 # Should the frontend and backend be deployed separately?
 # If enabled, frontend changes will appear much faster at the expense of a development environment that looks less like production.
 separate_frontend_and_backend = True
-
-dotenv(fn='../backend/.env')
 
 if separate_frontend_and_backend:
   docker_build(
@@ -27,6 +27,11 @@ if separate_frontend_and_backend:
     ],
     only=["backend", "templates", "openapi"]
   )
+
+  deployment_create(
+    'anvilops-frontend',
+    ports='80:5173'
+  )
 else:
   docker_build_with_restart(
     "anvilops/anvilops", "../",
@@ -38,7 +43,6 @@ else:
     only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
   )
 docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma"])
-docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
@@ -105,6 +109,10 @@ for object in parsed:
   # Make the database migration Job use our lighter local development image
   if object["kind"] == "Job" and object["metadata"]["name"] == "anvilops-migrate-db":
     object["spec"]["template"]["spec"]["containers"][0]["image"] = "anvilops/anvilops-migrate-db"
+  # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
+  if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
+    object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
+    # object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["port"]["number"] = 5173
 
 k8s_yaml(blob("""
 apiVersion: v1
@@ -119,15 +127,8 @@ data:
 
 k8s_yaml(encode_yaml_stream(parsed))
 
-k8s_resource(workload='anvilops-app-proxy', port_forwards=["3001:80"])
 k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
 
-if separate_frontend_and_backend:
-  # Deploy the frontend separately so that it can be hot reloaded when files change
-  deployment_create(
-    'anvilops-frontend',
-    ports='3000'
-  )
-  k8s_resource(workload="anvilops-frontend", port_forwards=["3000:5173"])
-else:
-  k8s_resource(workload="anvilops", port_forwards=[3000])
+# Install the Nginx ingress controller and forward localhost:3000 to it
+helm_remote('ingress-nginx', namespace='ingress-nginx', repo_url='https://kubernetes.github.io/ingress-nginx', create_namespace=True)
+k8s_resource('ingress-nginx-controller', port_forwards='3000:80')
