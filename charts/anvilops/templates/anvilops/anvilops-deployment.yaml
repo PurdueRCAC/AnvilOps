@@ -35,6 +35,8 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          command: ["/bin/sh", "-c"]
+          args: ["npm run start:prod"]
           {{- with .Values.anvilops.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}

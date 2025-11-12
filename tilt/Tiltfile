@@ -21,7 +21,7 @@ if separate_frontend_and_backend:
   docker_build_with_restart(
     "anvilops/anvilops", "../",
     dockerfile="./anvilops-backend.Dockerfile",
-    entrypoint=["npm", "run", "start:prod"],
+    entrypoint=["/bin/sh", "-c"],
     live_update=[
       sync("../backend/src", "/app/src")
     ],
@@ -30,7 +30,7 @@ if separate_frontend_and_backend:
 else:
   docker_build_with_restart(
     "anvilops/anvilops", "../",
-    entrypoint=["npm", "run", "start:prod"],
+    entrypoint=["/bin/sh", "-c"],
     live_update=[
       fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
       sync("../backend/src", "/app/src")

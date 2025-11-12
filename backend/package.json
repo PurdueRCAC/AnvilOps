@@ -8,7 +8,8 @@
     "start:prod": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
     "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "job:rotate-logs": "node --experimental-strip-types src/jobs/rotateLogs.ts"
   },
   "author": "",
   "license": "UNLICENSED",
