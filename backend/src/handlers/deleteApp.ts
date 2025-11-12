@@ -1,9 +1,13 @@
 import { type components } from "../generated/openapi.ts";
 import {
+  createOrUpdateApp,
   deleteNamespace,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
+import {
+  createAppConfigsFromDeployment,
+  getNamespace,
+} from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { json, type HandlerMap, type HandlerResponse } from "../types.ts";
@@ -48,24 +52,54 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   if (!org) {
     return json(404, res, {});
   }
-  const { subdomain, projectId, imageRepo, appGroup } = await db.app.findUnique(
-    {
-      where: {
-        id: appId,
+
+  const {
+    subdomain,
+    projectId,
+    imageRepo,
+    appGroup,
+    deployments: [lastDeployment],
+  } = await db.app.findUnique({
+    where: {
+      id: appId,
+    },
+    select: {
+      id: true,
+      name: true,
+      displayName: true,
+      logIngestSecret: true,
+      subdomain: true,
+      imageRepo: true,
+      projectId: true,
+      appGroup: {
+        select: {
+          id: true,
+          _count: true,
+        },
       },
-      select: {
-        subdomain: true,
-        imageRepo: true,
-        projectId: true,
-        appGroup: {
-          select: {
-            id: true,
-            _count: true,
+      deployments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+        include: {
+          config: true,
+          app: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              logIngestSecret: true,
+              subdomain: true,
+              org: { select: { githubInstallationId: true } },
+              projectId: true,
+              appGroup: true,
+            },
           },
         },
       },
     },
-  );
+  });
 
   if (!ctx.request.requestBody.keepNamespace) {
     try {
@@ -78,6 +112,24 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }
+  } else if (lastDeployment.config.fieldValues.collectLogs) {
+    // If the log shipper was enabled, redeploy without it
+    lastDeployment.config.fieldValues.collectLogs = false; // <-- Disable log shipping
+    const { namespace, configs, postCreate } =
+      await createAppConfigsFromDeployment(lastDeployment);
+
+    const { KubernetesObjectApi: api } = await getClientsForRequest(
+      req.user.id,
+      lastDeployment.app.projectId,
+      ["KubernetesObjectApi"],
+    );
+    await createOrUpdateApp(
+      api,
+      lastDeployment.app.name,
+      namespace,
+      configs,
+      postCreate,
+    );
   }
 
   await db.log.deleteMany({
