@@ -32,16 +32,10 @@ anvilops:
       - secretName: tls-cert
         hosts:
           - anvilops.rcac.purdue.edu
-appProxy:
-  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:main-9-c57efa93c146824100e6a3682c4e25e5daf9f07b
-  ingress:
-    enabled: true
-    className: nginx
-    host: "*.anvilops.rcac.purdue.edu"
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - "*.anvilops.rcac.purdue.edu"
+  apps:
+    ingress:
+      className: nginx
+      annotations:
 postgres:
   image: postgres:17
   nodeSelector: {}

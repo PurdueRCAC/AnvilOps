@@ -5,7 +5,7 @@ anvilops:
   image: anvilops/anvilops
   env:
     baseURL: http://localhost:3000
-    appDomain: http://127.0.0.1.nip.io:3001 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
+    appDomain: http://127.0.0.1.nip.io:3000 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     loginType: shibboleth
@@ -28,14 +28,10 @@ anvilops:
   ingress:
     className: nginx
     hosts:
-      - host: anvilops.rcac.purdue.edu
+      - host: localhost
         paths:
           - path: /
             pathType: Prefix
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - anvilops.rcac.purdue.edu
   securityContext:
     # These settings are required for Tilt's Live Reload feature, which copies files into the container at runtime.
     # When we aren't running as root, the script that copies the files doesn't have permission to write to the files it needs to write.
@@ -43,16 +39,10 @@ anvilops:
     runAsUser: 0
     runAsGroup: 0
     runAsNonRoot: false
-appProxy:
-  image: anvilops/sandbox-proxy
-  ingress:
-    enabled: true
-    className: nginx
-    host: "*.anvilops.rcac.purdue.edu"
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - "*.anvilops.rcac.purdue.edu"
+  apps:
+    ingress:
+      className: nginx
+      annotations:
 postgres:
   generateCredentials: false
   image: postgres:17

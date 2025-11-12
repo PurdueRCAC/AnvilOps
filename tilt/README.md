@@ -34,6 +34,8 @@
 
    Make sure you run this command from the `tilt` directory in the AnvilOps project. If you run `ls`, you should be able to see the `Tiltfile`.
 
+4. After waiting a few minutes, you should be able to access AnvilOps at http://localhost:3000 in your browser.
+
 ## Troubleshooting
 
 ### Database authentication errors

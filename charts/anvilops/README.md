@@ -7,93 +7,7 @@ This chart will install AnvilOps (and optionally, its dependencies) in your Kube
 To install this chart, you will need a Kubernetes cluster with:
 
 - A persistent volume provisioner (or you can create the volumes manually)
-- An ingress controller that handles TLS termination
-
-### Local Minikube Setup
-
-If you are using Minikube to install AnvilOps locally, you can enable these with built-in addons:
-
-(In a production environment, your cluster should already have these features set up! Only use this convenience script for local development.)
-
-1. Default StorageClass
-2. `hostPath` persistent volume provisioner
-3. Ingress
-   - Requires setting up a TLS certificate. In the script below, we use `mkcert` to generate a certificate. Then, we create a Kubernetes secret with the leaf certificate and copy the CA cert to the trust stores of your host system and the Minikube nodes.
-4. Ingress DNS
-   - Requires updating your system's DNS configuration to point to Minikube for `.minikube.local` domains. See link below for a guide.
-
-This will help us replicate a production environment as closely as possible. If your cluster already has a storage provisioner, skip steps 1 and 2, and if it already has Ingress set up, skip steps 3 and 4.
-
-```sh
-set -e
-
-NAMESPACE=default # The namespace that you're installing AnvilOps in
-
-# STEP 1: Default StorageClass
-minikube addons enable default-storageclass
-
-# STEP 2: hostPath provisioner
-minikube addons enable storage-provisioner
-
-# STEP 3: Ingress and TLS certificate generation
-minikube addons enable ingress
-
-# Configure the Ingress addon to use a custom TLS certificate and then make your Minikube nodes trust that certificate
-# This is necessary to run an image registry locally
-CERTDIR="${MINIKUBE_HOME:-$HOME/.minikube}/files/etc/anvilops-tls"
-CA_CERT="$CERTDIR/_wildcard.minikube.local.pem"
-ROOT_CA="$CERTDIR/rootCA.pem"
-mkdir -p $CERTDIR
-
-if [ ! -f "$CERTDIR/rootCA.pem" ]; then
-  # Generate a new certificate
-  docker run -v $CERTDIR:/work -w /work --entrypoint=sh alpine/mkcert:latest -c 'mkcert "*.minikube.local" && cp /root/.local/share/mkcert/* .'
-  sudo chown -R "$USER:$USER" "$CERTDIR"
-
-  # Install the certificate in the system's local trust store
-  if which apt; then
-    # Assume Ubuntu or Debian
-    sudo cp "$ROOT_CA" /etc/ssl/certs/_wildcard.minikube.local.crt
-    sudo update-ca-certificates
-  elif which dnf; then
-    # Assume Fedora or RHEL
-    sudo cp "$ROOT_CA" /etc/pki/ca-trust/source/anchors/
-    sudo update-ca-trust
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # Assume macOS
-    sudo security add-trusted-cert -d -r trustRoot -p ssl -k /Library/Keychains/System.keychain "$ROOT_CA"
-  else
-    echo "Unknown OS. Can't install certificate manually."
-    echo "Install the certificate at $(pwd)/_wildcard.minikube.local.pem into your system's local trust store."
-  fi
-fi
-
-kubectl delete --ignore-not-found -n kube-system secret ingress-cert
-kubectl delete --ignore-not-found -n ${NAMESPACE:-default} secret root-ca-cert
-
-kubectl -n kube-system create secret tls ingress-cert --key $CERTDIR/_wildcard.minikube.local-key.pem --cert "$CA_CERT"
-kubectl -n ${NAMESPACE:-default} create secret tls root-ca-cert --key $CERTDIR/rootCA-key.pem --cert "$ROOT_CA"
-
-# If this command results in a "Are you sure you want to override?" message, just run `minikube addons configure ingress`, then type in `kube-system/ingress-cert` followed by `y` (to confirm you want to make the change)
-echo "kube-system/ingress-cert" | minikube addons configure ingress || true # (if already configured, assume it was us)
-
-# Re-enable the addon to apply the certificate change
-minikube addons disable ingress
-minikube addons enable ingress
-
-# Copy the certificates to Minikube's certificate directory so that each node trusts our new CA (for the VM-based Minikube drivers)
-mkdir -p "${MINIKUBE_HOME:-$HOME/.minikube}/files/etc/ssl/certs"
-cp "$ROOT_CA" "${MINIKUBE_HOME:-$HOME/.minikube}/files/etc/ssl/certs"
-
-# Restart Minikube to sync the certificates with the nodes
-minikube start
-echo 'sudo update-ca-certificates && exit' | minikube ssh || true
-
-# STEP 4: Ingress DNS
-minikube addons enable ingress-dns
-```
-
-Then, [follow steps 3 and 4 in this guide](https://minikube.sigs.k8s.io/docs/handbook/addons/ingress-dns/#:~:text=Add%20the%20%60minikube%20ip%60%20as%20a%20DNS%20server) to add Minikube as a DNS server on your machine and inside the cluster.
+- An ingress controller that handles TLS termination and DNS name generation
 
 ## Configuration
 
@@ -133,16 +47,9 @@ If an option has a ⭐ beside it, you will likely have to change it to fit your 
 |     | `anvilops.nodeSelector`                                                                                |                                                                                                                                                                                                                                                                        |                                                                                                 |
 |     | `anvilops.tolerations`                                                                                 |                                                                                                                                                                                                                                                                        |                                                                                                 |
 |     | `anvilops.affinity`                                                                                    |                                                                                                                                                                                                                                                                        |                                                                                                 |
-|     | **App proxy configuration**                                                                            | _The app proxy routes requests from one centralized location to users' apps based on the `Host` header._                                                                                                                                                               |                                                                                                 |
-|     | `appProxy.image`                                                                                       | The image to use for the AnvilOps app proxy.                                                                                                                                                                                                                           | registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest                                    |
-|     | `appProxy.service.type`                                                                                | The type of service that AnvilOps runs in the cluster.                                                                                                                                                                                                                 | ClusterIP                                                                                       |
-|     | `appProxy.service.port`                                                                                | The port that the AnvilOps app proxy will be accessible at within the cluster through its service.                                                                                                                                                                     | 80                                                                                              |
-| ⭐  | `appProxy.ingress.enabled`                                                                             | Enable Ingress for the AnvilOps app proxy                                                                                                                                                                                                                              | true                                                                                            |
-| ⭐  | `appProxy.ingress.className`                                                                           | Ingress class name for the AnvilOps app proxy                                                                                                                                                                                                                          |                                                                                                 |
-|     | `appProxy.ingress.annotations`                                                                         | The public hostname of the AnvilOps dashboard. Should not contain the protocol.                                                                                                                                                                                        |                                                                                                 |
-| ⭐  | `appProxy.ingress.hosts[].host`                                                                        |                                                                                                                                                                                                                                                                        | \*.minikube.local                                                                               |
-| ⭐  | `appProxy.ingress.tls[].secretName`                                                                    | The name of the K8s Secret containing a wildcard TLS certificate                                                                                                                                                                                                       |                                                                                                 |
-| ⭐  | `appProxy.ingress.tls[].hosts[]`                                                                       | A string array of the host names covered by the TLS certificate. Should contain a wildcard subdomain, e.g. `*.anvilops.rcac.purdue.edu`.                                                                                                                               |                                                                                                 |
+|     | **App ingress configuration**                                                                          | _These values influence the generated `Ingress` configuration created for every app._                                                                                                                                                                                  |                                                                                                 |
+| ⭐  | `anvilops.apps.ingress.className`                                                                      | Ingress class name                                                                                                                                                                                                                                                     | nginx                                                                                           |
+|     | `anvilops.apps.ingress.annotations`                                                                    | Annotations added to end users' `Ingress` resources.                                                                                                                                                                                                                   |                                                                                                 |
 |     | **Postgres configuration**                                                                             | _AnvilOps uses Postgres to store all user data except container images._                                                                                                                                                                                               |                                                                                                 |
 |     | `postgres.generateCredentials`                                                                         | Automatically generate a password and field encryption secret and store them in a secret called `postgres-credentials`. If you set this to `false`, populate that secret with random values in the `password` and `field-encryption-key` keys.                         | true                                                                                            |
 |     | `postgres.image`                                                                                       | The image to use for the Postgres deployment.                                                                                                                                                                                                                          | postgres:17                                                                                     |
@@ -183,27 +90,23 @@ helm upgrade --install $RELEASE_NAME .
 # (`upgrade --install` will install the chart or update it if it's already installed)
 ```
 
-## Utilities for Local Development
+## More on Ingress Configuration
 
-- If you're developing AnvilOps in a local Kubernetes cluster, you can rebuild and redeploy the app using the `charts/anvilops/scripts/redeploy.sh` script. This will build the image using Minikube's container engine and then patch the deployment to point to the new image tag. To prevent chart upgrades from overriding the image tag, add the `--set=anvilops.image=anvilops/anvilops:dev` flag to `helm [install|upgrade]`.
+When you configure AnvilOps to support public subdomains by setting the `anvilops.env.appDomain` field, AnvilOps creates an `Ingress` for every user's app. It's configured to route requests from the user's subdomain on any path to the app's `Service`.
 
-- If your CILogon configuration requires your redirect URL to be on localhost instead of `anvilops.minikube.local`, you can proxy traffic from the AnvilOps deployment to `localhost`:
+This default configuration assumes that your networking setup already handles TLS termination and DNS resolution.
 
-  ```sh
-  # 1) Set the base URL
-  helm upgrade --install $RELEASE_NAME . --set anvilops.env.baseURL=http://localhost:3000
+If you need to set this up, it's easiest to create a wildcard TLS certificate for all subdomains of your `appDomain`.
+Then, configure your DNS records to point all subdomains of your `appDomain` to your cluster's ingress controller.
 
-  # 2) Proxy traffic to that URL
-  kubectl proxy svc/anvilops 3000:80
+For example, if your `appDomain` was `https://example.com` (users' apps would be subdomains of this, e.g. `myapp1.example.com` and `myapp2.example.com`):
 
-  # If you're restarting the AnvilOps deployment frequently, it may be useful to run `kubectl proxy` in a loop:
-  while true; kubectl proxy svc/anvilops 3000:80 ; done
-  ```
+1. Create a TLS certificate for `*.example.com` and configure your ingress controller to use it by default. If you're using the Nginx ingress controller, follow [this guide](https://kubernetes.github.io/ingress-nginx/user-guide/tls/#default-ssl-certificate) to set a default certificate.
+2. Create a DNS record:
 
-- If you need to delete the database volume, SSH into the Minikube node (replace `default` with the name of your namespace):
-  ```
-  echo 'sudo rm -rf /tmp/hostpath-provisioner/default/db-data-anvilops-postgres-0/* & exit' | minikube ssh && kubectl rollout restart statefulset anvilops-postgres
-  ```
+- Type: `A` or `AAAA`
+- Domain: `*.example.com`
+- IP: the public IP address of your ingress controller
 
 ## Required Secrets
 

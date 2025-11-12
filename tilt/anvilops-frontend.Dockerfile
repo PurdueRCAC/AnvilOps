@@ -29,5 +29,6 @@ COPY frontend/ .
 
 # Tell Vite to proxy `/api` to the backend pod instead of localhost
 ENV IN_TILT "1"
+EXPOSE 5173
 # Run `npm run dev` so that Vite hot-reloads when Tilt Live Update copies changed files into the container
 CMD ["npm", "run", "dev"]

@@ -77,21 +77,12 @@ anvilops:
 
   affinity: {}
 
-appProxy:
-  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest
-  service:
-    type: ClusterIP
-    port: 80
-
-  ingress:
-    enabled: true
-    className: ""
-    port: 80
-    annotations:
+  apps:
+    ingress:
+      className: nginx
+      annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
-    host: "*.minikube.local"
-    tls: []
 
 postgres:
   generateCredentials: true
