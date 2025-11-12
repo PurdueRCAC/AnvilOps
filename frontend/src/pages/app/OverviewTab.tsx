@@ -219,26 +219,24 @@ export const OverviewTab = ({
           </>
         ) : null}
       </p>
-      <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
-        <thead>
-          <tr className="*:text-start *:pb-2 *:font-medium border-b">
-            <th>Created</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Logs</th>
-            <th>Rollback</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isPending ? (
-            <tr>
-              <td colSpan={4} className="text-center space-x-2">
-                <Loader className="animate-spin inline" />
-                <span>Loading past deployments...</span>
-              </td>
+      {isPending ? (
+        <div className="flex gap-2 items-center text-black-4">
+          <Loader className="animate-spin inline" />
+          <span>Loading past deployments...</span>
+        </div>
+      ) : (
+        <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
+          <thead>
+            <tr className="*:text-start *:pb-2 *:font-medium border-b">
+              <th>Created</th>
+              <th>Source</th>
+              <th>Status</th>
+              <th>Logs</th>
+              <th>Rollback</th>
             </tr>
-          ) : (
-            deployments?.map((d) => (
+          </thead>
+          <tbody>
+            {deployments?.map((d) => (
               <tr key={d.id}>
                 <td>
                   <div className="flex items-center gap-2">
@@ -323,52 +321,52 @@ export const OverviewTab = ({
                   </Button>
                 </td>
               </tr>
-            ))
+            ))}
+          </tbody>
+          {app.deploymentCount > pageLength && (
+            <tfoot>
+              <tr>
+                <td colSpan={4}>
+                  <div className="flex justify-center items-center gap-5">
+                    <Button
+                      variant="outline"
+                      disabled={page == 0}
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page - 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronLeft />
+                    </Button>
+                    <p className="text-black-2 text-center">
+                      Showing {page * pageLength + 1} to{" "}
+                      {Math.min(
+                        app.deploymentCount,
+                        page * pageLength + pageLength,
+                      )}{" "}
+                      of {app.deploymentCount}
+                    </p>
+                    <Button
+                      variant="outline"
+                      disabled={
+                        page * pageLength + pageLength >= app.deploymentCount
+                      }
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page + 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronRight />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           )}
-        </tbody>
-        {app.deploymentCount > pageLength && (
-          <tfoot>
-            <tr>
-              <td colSpan={4}>
-                <div className="flex justify-center items-center gap-5">
-                  <Button
-                    variant="outline"
-                    disabled={page == 0}
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page - 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <p className="text-black-2 text-center">
-                    Showing {page * pageLength + 1} to{" "}
-                    {Math.min(
-                      app.deploymentCount,
-                      page * pageLength + pageLength,
-                    )}{" "}
-                    of {app.deploymentCount}
-                  </p>
-                  <Button
-                    variant="outline"
-                    disabled={
-                      page * pageLength + pageLength >= app.deploymentCount
-                    }
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page + 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronRight />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          </tfoot>
-        )}
-      </table>
+        </table>
+      )}
     </>
   );
 };
