@@ -195,7 +195,7 @@ export const handlers = {
 
     if (
       org.appGroups.some((it) =>
-        it.apps.some((app) => app.config.source === "GIT"),
+        it.apps.some((app) => app.config?.source === "GIT"),
       ) &&
       org.githubInstallationId
     ) {
