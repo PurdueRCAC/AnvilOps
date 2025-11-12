@@ -20,6 +20,7 @@ export type DeploymentParams = {
   image: string;
   env: V1EnvVar[];
   logIngestSecret: string;
+  subdomain: string;
 } & PrismaJson.ConfigFields;
 
 export const generateAutomaticEnvVars = async (

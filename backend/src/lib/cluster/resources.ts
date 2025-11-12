@@ -188,6 +188,7 @@ export const createAppConfigsFromDeployment = async (
     image: conf.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
+    subdomain: app.subdomain,
     ...conf.fieldValues,
   };
 

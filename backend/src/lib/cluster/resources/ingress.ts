@@ -6,7 +6,7 @@ import type { DeploymentParams } from "./statefulset.ts";
 export const createIngressConfig = (
   app: Pick<
     DeploymentParams,
-    "name" | "namespace" | "serviceName" | "port" | "servicePort"
+    "name" | "namespace" | "serviceName" | "port" | "servicePort" | "subdomain"
   >,
 ): (V1Ingress & K8sObject) | null => {
   if (!env.APP_DOMAIN || URL.parse(env.APP_DOMAIN) === null) {
@@ -14,7 +14,7 @@ export const createIngressConfig = (
   }
 
   const appDomain = new URL(env.APP_DOMAIN);
-  const hostname = app.name + "." + appDomain.hostname;
+  const hostname = app.subdomain + "." + appDomain.hostname;
 
   return {
     apiVersion: "networking.k8s.io/v1",

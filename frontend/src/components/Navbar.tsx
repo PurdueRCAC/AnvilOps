@@ -34,7 +34,7 @@ export default function Navbar() {
           </Link>
         )}
         <a
-          href="https://docs.anvilops.rcac.purdue.edu"
+          href="https://docs.anvilcloud.rcac.purdue.edu"
           className="sm:text-white"
           target="_blank"
         >
