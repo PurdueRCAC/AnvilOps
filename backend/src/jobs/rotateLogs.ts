@@ -6,7 +6,7 @@ const RETENTION_PERIOD_MS = 14 * MS_PER_DAY;
 
 /**
  * Deletes logs that have a timestamp of over 14 days ago.
- * This function is run in a CronJob (see charts/anvilops/)
+ * This function is run in a CronJob (see charts/anvilops/templates/jobs/rotate-logs.yaml)
  */
 async function rotateLogs() {
   const connectionString = `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
