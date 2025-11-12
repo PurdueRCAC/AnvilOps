@@ -1,4 +1,5 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
+import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -19,6 +20,7 @@ import {
   Link2,
   Loader,
   LogsIcon,
+  Network,
   Tag,
   Undo2,
 } from "lucide-react";
@@ -189,7 +191,7 @@ export const OverviewTab = ({
           <>
             <p className="flex items-center gap-2">
               <Link2 size={16} />
-              Subdomain
+              Public address
             </p>
             <p>
               <a
@@ -204,6 +206,23 @@ export const OverviewTab = ({
             </p>
           </>
         )}
+        <p className="flex items-center gap-2">
+          <Network size={16} />
+          Internal address
+          <HelpTooltip size={16}>
+            Other workloads within the cluster can communicate with your
+            application using this address. <br />
+            Use this address when possible for improved speed and compatibility
+            with non-HTTP protocols.
+            <br />
+            End users cannot use this address, as it's only valid within the
+            cluster.
+          </HelpTooltip>
+        </p>
+        <p>
+          anvilops-{app.subdomain}.anvilops-{app.subdomain}
+          .svc.cluster.local
+        </p>
       </div>
       <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
