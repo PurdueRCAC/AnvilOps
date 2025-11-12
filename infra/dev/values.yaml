@@ -10,6 +10,7 @@ anvilops:
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
   cluster:
     name: "Anvil Composable"
     faq:
