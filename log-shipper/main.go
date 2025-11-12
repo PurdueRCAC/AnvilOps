@@ -59,7 +59,7 @@ func main() {
 				if cmd.Process != nil && cmd.ProcessState == nil {
 					err := cmd.Process.Signal(signal)
 					if err != nil {
-						panic("Error relaying signal to process: " + err.Error())
+						fmt.Fprintf(os.Stderr, "Error relaying signal to process: %s\n", err.Error())
 					}
 				}
 			}
