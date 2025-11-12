@@ -272,8 +272,8 @@ export const RedeployModal = ({
                     </div>
                     <p className="text-black-3 ml-6 text-sm mb-4">
                       AnvilOps will combine this version of your application
-                      with your latest configuration, so that you roll back your
-                      application while keeping your new settings.
+                      with your latest configuration, so that you can roll back
+                      your application while keeping your new settings.
                     </p>
                   </Label>
                   <Label className="flex-col items-start">
