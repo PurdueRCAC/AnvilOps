@@ -10,6 +10,7 @@ anvilops:
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
   cluster:
     name: "Anvil Composable"
     faq:
@@ -59,9 +60,6 @@ harbor:
     ingress:
       hosts:
         core: registry.anvil.rcac.purdue.edu
-logging-operator:
-  # We already have the operator installed on Anvil Composable in the `cattle-logging-system` namespace.
-  install: false
 tenants:
   storageClassName: anvil-filesystem
   accessModes: [ReadWriteOnce]

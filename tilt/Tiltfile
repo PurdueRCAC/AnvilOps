@@ -1,10 +1,48 @@
-docker_build("anvilops/anvilops", "../")
+load('ext://restart_process', 'docker_build_with_restart')
+load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
+load('ext://dotenv', 'dotenv')
+load('ext://deployment', 'deployment_create')
+
+# Should the frontend and backend be deployed separately?
+# If enabled, frontend changes will appear much faster at the expense of a development environment that looks less like production.
+separate_frontend_and_backend = True
+
+dotenv(fn='../backend/.env')
+
+if separate_frontend_and_backend:
+  docker_build(
+    "anvilops-frontend", "../",
+    dockerfile="./anvilops-frontend.Dockerfile",
+    live_update=[
+      sync("../frontend/src", "/app/src")
+    ],
+    only=["frontend", "openapi"]
+  )
+  docker_build_with_restart(
+    "anvilops/anvilops", "../",
+    dockerfile="./anvilops-backend.Dockerfile",
+    entrypoint=["npm", "run", "start:prod"],
+    live_update=[
+      sync("../backend/src", "/app/src")
+    ],
+    only=["backend", "templates", "openapi"]
+  )
+else:
+  docker_build_with_restart(
+    "anvilops/anvilops", "../",
+    entrypoint=["npm", "run", "start:prod"],
+    live_update=[
+      fall_back_on(["../backend/package.json", "../backend/package-lock.json"]),
+      sync("../backend/src", "/app/src")
+    ],
+    only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
+  )
+docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma"])
 docker_build("anvilops/sandbox-proxy", "../infra/sandbox/proxy")
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
-
-load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
+docker_build("anvilops/log-shipper", "../log-shipper", match_in_env_vars=True)
 
 # Read the current kubeconfig, set the server to kubernetes.default.svc (a hostname accessible from within the cluster), and make it available to AnvilOps via a K8s secret
 kubeconfig_str = local('kubectl config view --raw --minify')
@@ -16,9 +54,6 @@ k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig
 # Get the hostname of Tilt's internal registry so that we can use it for AnvilOps user images 
 registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | cut -d \":\" -f2-")).strip()
 print("Using local registry from within the cluster at " + registry_host)
-
-load('ext://dotenv', 'dotenv')
-dotenv(fn='../backend/.env')
 
 k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
   'client-id': os.getenv('CLIENT_ID'),
@@ -56,15 +91,20 @@ yaml = helm(
 
 parsed = decode_yaml_stream(yaml)
 for object in parsed:
-  # Pass our registry hostname to AnvilOps as an environment variable
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
+    # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
       if variable["name"] == "REGISTRY_HOSTNAME":
         variable["value"] = registry_host
+    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
+    object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
     object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/etc/buildkit"})
+  # Make the database migration Job use our lighter local development image
+  if object["kind"] == "Job" and object["metadata"]["name"] == "anvilops-migrate-db":
+    object["spec"]["template"]["spec"]["containers"][0]["image"] = "anvilops/anvilops-migrate-db"
 
 k8s_yaml(blob("""
 apiVersion: v1
@@ -79,5 +119,15 @@ data:
 
 k8s_yaml(encode_yaml_stream(parsed))
 
-k8s_resource(workload='anvilops-app-proxy', port_forwards=[3001])
-k8s_resource(workload='anvilops', port_forwards=[3000])
+k8s_resource(workload='anvilops-app-proxy', port_forwards=["3001:80"])
+k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
+
+if separate_frontend_and_backend:
+  # Deploy the frontend separately so that it can be hot reloaded when files change
+  deployment_create(
+    'anvilops-frontend',
+    ports='3000'
+  )
+  k8s_resource(workload="anvilops-frontend", port_forwards=["3000:5173"])
+else:
+  k8s_resource(workload="anvilops", port_forwards=[3000])

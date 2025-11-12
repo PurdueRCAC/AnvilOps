@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Log" ALTER COLUMN "stream" DROP DEFAULT;

@@ -1,3 +1,4 @@
+import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
@@ -12,7 +13,6 @@ import { toast } from "sonner";
 import { Input } from "../../components/ui/input";
 import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
-import HelpTooltip from "@/components/HelpTooltip";
 
 export const ConfigTab = ({
   app,
@@ -33,8 +33,9 @@ export const ConfigTab = ({
       amountInMiB: mount.amountInMiB,
       path: mount.path,
     })),
-    postStart: app.config.postStart,
-    preStop: app.config.preStop,
+    postStart: app.config.postStart ?? null,
+    preStop: app.config.preStop ?? null,
+    collectLogs: app.config.collectLogs,
     subdomain: "",
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",
@@ -106,6 +107,7 @@ export const ConfigTab = ({
               mounts: formState.mounts.filter((it) => it.path.length > 0),
               postStart: formState.postStart,
               preStop: formState.preStop,
+              collectLogs: formState.collectLogs,
               replicas: parseInt(formData.get("replicas")!.toString()),
               requests: resources,
               limits: resources,

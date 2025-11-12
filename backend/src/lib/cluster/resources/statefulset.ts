@@ -10,13 +10,16 @@ import type {
 import { env } from "../../env.ts";
 import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
+import { wrapWithLogExporter } from "./logs.ts";
 
 export type DeploymentParams = {
+  deploymentId: number;
   name: string;
   namespace: string;
   serviceName: string;
   image: string;
   env: V1EnvVar[];
+  logIngestSecret: string;
 } & PrismaJson.ConfigFields;
 
 export const generateAutomaticEnvVars = async (
@@ -117,10 +120,10 @@ export const generateVolumeName = (mountPath: string) => {
   );
 };
 
-export const createStatefulSetConfig = (
+export const createStatefulSetConfig = async (
   params: DeploymentParams,
-): V1StatefulSet & K8sObject => {
-  const base: V1StatefulSet & K8sObject = {
+): Promise<V1StatefulSet & K8sObject> => {
+  let base: V1StatefulSet & K8sObject = {
     apiVersion: "apps/v1",
     kind: "StatefulSet",
     metadata: {
@@ -139,11 +142,15 @@ export const createStatefulSetConfig = (
         metadata: {
           labels: {
             app: params.name,
-            "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
         spec: {
           automountServiceAccountToken: false,
+          initContainers: [
+            // Set to an empty array (instead of undefined) so that disabling collectLogs in an existing app
+            // removes the initContainer that copies the log-shipper binary into the app container.
+          ],
+          volumes: [], // Same as above
           containers: [
             {
               name: params.name,
@@ -183,7 +190,18 @@ export const createStatefulSetConfig = (
     },
   };
 
-  return applyPatches(base, getExtraStsPatches(params.extra));
+  base = applyPatches(base, getExtraStsPatches(params.extra));
+
+  if (params.collectLogs) {
+    base.spec.template = await wrapWithLogExporter(
+      "runtime",
+      params.logIngestSecret,
+      params.deploymentId,
+      base.spec.template,
+    );
+  }
+
+  return base;
 };
 
 const StsExtraPatchPaths: Record<

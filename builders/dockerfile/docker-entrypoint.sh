@@ -15,7 +15,7 @@ run_job() {
   set_status "BUILDING"
 
   git config --global advice.detachedHead false # The clone command below puts is in a "detached HEAD" state (https://git-scm.com/docs/git-checkout/2.47.1#_detached_head), but the warning isn't useful in a CI environment. This disables it.
-  git clone "$CLONE_URL" --depth=1 --shallow-submodules --revision="$REF" .
+  git clone "$CLONE_URL" --depth=1 --shallow-submodules --revision="$REF" . 2>&1
 
   cd "$ROOT_DIRECTORY"
 
@@ -38,7 +38,7 @@ run_job() {
     --import-cache type=registry,ref="$CACHE_TAG" \
     --export-cache type=registry,ref="$CACHE_TAG" \
     --output type=image,name="$IMAGE_TAG",push=true \
-    --progress plain
+    --progress plain 2>&1
   }
 
   if build ; then

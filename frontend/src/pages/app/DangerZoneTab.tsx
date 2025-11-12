@@ -122,7 +122,7 @@ const DeleteDialog = ({
               navigate("/dashboard");
             }}
           >
-            Delete
+            {keepNamespace ? "Migrate" : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -15,7 +15,6 @@ spec:
       annotations:
         {{- toYaml . | nindent 8 }}
         config/postgres-creds-sum: {{ include (print $.Template.BasePath "/secrets/postgres-credentials.yaml") . | sha256sum }}
-        config/log-ingest-secret-sum: {{ include (print $.Template.BasePath "/secrets/log-ingest-secret.yaml") . | sha256sum }}
       {{- end }}
       labels:
         {{- include "anvilops.labels" . | nindent 8 }}
@@ -52,7 +51,8 @@ spec:
               subPath: cluster.json
               readOnly: true
             - name: ca-cert
-              mountPath: /etc/ssl/certs
+              mountPath: /etc/ssl/certs/anvilops-tls.crt
+              subPath: anvilops-tls.crt
               readOnly: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: kube-auth
@@ -188,12 +188,6 @@ spec:
                 secretKeyRef:
                   name: image-delete-secret
                   key: password
-            - name: BUILD_LOGGING_INGEST_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: logging-ingest-secret
-                  key: secret
-                  optional: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
@@ -220,6 +214,12 @@ spec:
               value: {{ .Values.anvilops.env.dockerfileBuilderImage }}
             - name: RAILPACK_BUILDER_IMAGE
               value: {{ .Values.anvilops.env.railpackBuilderImage }}
+            - name: LOG_SHIPPER_IMAGE
+              value: {{ .Values.anvilops.env.logShipperImage }}
+            {{- with .Values.anvilops.env.registryProtocol }}
+            - name: REGISTRY_PROTOCOL
+              value: {{ . }}
+            {{- end }}
       volumes:
         - name: cluster-config
           configMap:
