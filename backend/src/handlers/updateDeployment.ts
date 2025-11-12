@@ -149,5 +149,5 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     }
   }
 
-  return json(200, res, {});
+  return json(200, res, undefined);
 };
