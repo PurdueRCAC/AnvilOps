@@ -85,7 +85,7 @@ The module to use to build your repository into a container image, from the spec
 A unique subdomain. AnvilOps will then make your application publicly accessible at
 
 ```
-https://<subdomain>.anvilops.rcac.purdue.edu
+https://<subdomain>.anvilcloud.rcac.purdue.edu
 ```
 
 on port 80, without any authentication. **This setting cannot be changed later.**

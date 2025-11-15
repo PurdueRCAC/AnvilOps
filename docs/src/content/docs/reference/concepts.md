@@ -16,7 +16,7 @@ Only an organization owner is allowed to delete the organization— and with it,
 
 This represents the application you would like to run on the Kubernetes cluster. An App can be created from a GitHub repository or an [OCI-compliant](https://opencontainers.org/) container image (e.g. a Docker image).
 
-Your App has a subdomain that allows external users to access your application at `<subdomain>.anvilops.rcac.purdue.edu` (Anvil Composable) or `<subdomain>.geddes.rcac.purdue.edu` (Geddes).
+Your App has a subdomain that allows external users to access your application at `<subdomain>.anvilcloud.rcac.purdue.edu` (Anvil Composable) or `<subdomain>.geddes.rcac.purdue.edu` (Geddes).
 
 An app may be standalone, or it may belong to an app group. Within the cluster, an app is accessible to other apps in the same app group at `anvilops-<subdomain>.anvilops-<subdomain>`.
 
