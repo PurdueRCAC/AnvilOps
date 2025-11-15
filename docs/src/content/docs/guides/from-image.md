@@ -9,6 +9,8 @@ This tutorial will demonstrate:
 
 - How to deploy an application from a preexisting container image.
 
+Follow along at `https://anvilops.rcac.purdue.edu`.
+
 ### Getting started
 
 1. Click the Create App button on the AnvilOps dashboard.
@@ -35,9 +37,9 @@ This tutorial will demonstrate:
 
 ### Deployment options
 
-4. Select a unique subdomain for your app. Your app will be made publicly accessible at `https://<subdomain>.anvilops.rcac.purdue.edu`.
+4. Select a unique subdomain for your app. Your app will be made publicly accessible at `https://<subdomain>.anvilcloud.rcac.purdue.edu`.
 
-5. Enter the port number your application listens on. Kubernetes will route requests to `https://<subdomain>.anvilops.rcac.purdue.edu` to this port for your applications to process.
+5. Enter the port number your application listens on. Kubernetes will route requests to `https://<subdomain>.anvilcloud.rcac.purdue.edu` to this port for your applications to process.
 
 6. Add any environment variables your app requires. Environment variables can be marked as sensitive. Sensitive environment variables cannot be viewed after they are set, although they can be updated.
 

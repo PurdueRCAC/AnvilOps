@@ -44,7 +44,7 @@ If you do not have access to your own project on Anvil Composable, select the `a
    ![Build and deployment options for the AnvilOps demo app. The builder is Railpack, the subdomain is anvilops-demo-96ynq, and the port number is 80.](./tutorial/git-build-deploy.png)
 
 6. Click `Deploy`. In a few minutes, the application should be up and running at \
-   `https://<subdomain>.anvilops.rcac.purdue.edu`.
+   `https://<subdomain>.anvilcloud.rcac.purdue.edu`.
 
    ![A screenshot of the AnvilOps demo web app.](./tutorial/anvilops-git-demo-app.png)
 
@@ -59,4 +59,4 @@ Try pushing a commit to the repository to see how AnvilOps updates the deploymen
 3. Go back to the dashboard for your app in AnvilOps. Under `Recent Deployments`, you should see a new entry. If you click the `Logs` button for that deployment, you can watch the logs as AnvilOps rebuilds the application.
    ![A screenshot of the recent deployments for an AnvilOps app. The latest entry has the status Building.](./tutorial/git-recent-deployments.png)
 
-4. When the build completes, go back to `https://<subdomain>.anvilops.rcac.purdue.edu` and reload the page. It should have the updated text.
+4. When the build completes, go back to `https://<subdomain>.anvilcloud.rcac.purdue.edu` and reload the page. It should have the updated text.

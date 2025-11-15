@@ -20,7 +20,7 @@ The display name of your application that you see in the dashboard.
 
 ### `ANVILOPS_SUBDOMAIN`
 
-The subdomain portion of your app's full URL. For example, if your app is available at `https://myapp.anvilops.rcac.purdue.edu`, `ANVILOPS_SUBDOMAIN` will be `myapp`.
+The subdomain portion of your app's full URL. For example, if your app is available at `https://myapp.anvilcloud.rcac.purdue.edu`, `ANVILOPS_SUBDOMAIN` will be `myapp`.
 
 ### `ANVILOPS_APP_ID`
 

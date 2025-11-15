@@ -6,11 +6,11 @@ sidebar:
 
 ## Public Subdomain
 
-When you create an app, you must select a unique public subdomain. This cannot be changed after the app is created. This allows AnvilOps to make your app accessible at `<your subdomain>.anvilops.rcac.purdue.edu`.
+When you create an app, you must select a unique public subdomain. This cannot be changed after the app is created. This allows AnvilOps to make your app accessible at `<your subdomain>.anvilcloud.rcac.purdue.edu`, or `<your subdomain>.geddes.rcac.purdue.edu`.
 
 Your public subdomain only supports HTTP. Services like databases which rely on other protocols won't be accessible.
 
-When a user visits `https://<your subdomain>.anvilops.rcac.purdue.edu`, AnvilOps routes the traffic to the corresponding app over the port number specified in the app's configuration.
+When a user visits `https://<your subdomain>.anvilcloud.rcac.purdue.edu`, AnvilOps routes the traffic to the corresponding app over the port number specified in the app's configuration.
 
 If your port number is not set properly, you may see a message like this when you visit your public subdomain:
 

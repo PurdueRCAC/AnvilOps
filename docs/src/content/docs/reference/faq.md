@@ -43,4 +43,4 @@ sidebar:
 
 ### My question isn't listed here.
 
-- Please contact us.
+- Please contact us at swans150@purdue.edu and zheng861@purdue.edu.
