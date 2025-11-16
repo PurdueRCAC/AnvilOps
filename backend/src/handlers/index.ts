@@ -205,51 +205,54 @@ export const handlers = {
     const appGroupRes: components["schemas"]["Org"]["appGroups"] =
       await Promise.all(
         org.appGroups.map(async (group) => {
-          const apps = await Promise.all(
-            group.apps
-              .filter((app) => !!app.config)
-              .map(async (app) => {
-                let repoURL: string;
-                if (app.config.source === "GIT" && org.githubInstallationId) {
-                  try {
-                    const repo = await getRepoById(
-                      octokit,
-                      app.config.repositoryId,
-                    );
-                    repoURL = repo.html_url;
-                  } catch (error: any) {
-                    if (error?.status === 404) {
-                      // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
-                      return;
+          const apps = (
+            await Promise.all(
+              group.apps
+                .filter((app) => !!app.config)
+                .map(async (app) => {
+                  let repoURL: string;
+                  if (app.config.source === "GIT" && org.githubInstallationId) {
+                    try {
+                      const repo = await getRepoById(
+                        octokit,
+                        app.config.repositoryId,
+                      );
+                      repoURL = repo.html_url;
+                    } catch (error: any) {
+                      if (error?.status === 404) {
+                        // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
+                        return;
+                      }
+                      throw error; // Rethrow all other kinds of errors
                     }
-                    throw error; // Rethrow all other kinds of errors
                   }
-                }
 
-                const latestCompleteDeployment = app.deployments.find(
-                  (deploy) => deploy.status === "COMPLETE",
-                );
-                const selectedDeployment =
-                  latestCompleteDeployment ?? app.deployments[0];
+                  const latestCompleteDeployment = app.deployments.find(
+                    (deploy) => deploy.status === "COMPLETE",
+                  );
+                  const selectedDeployment =
+                    latestCompleteDeployment ?? app.deployments[0];
 
-                const appDomain = URL.parse(env.APP_DOMAIN);
+                  const appDomain = URL.parse(env.APP_DOMAIN);
 
-                return {
-                  id: app.id,
-                  displayName: app.displayName,
-                  status: selectedDeployment?.status,
-                  source: selectedDeployment?.config.source,
-                  imageTag: selectedDeployment?.config.imageTag,
-                  repositoryURL: repoURL,
-                  branch: app.config.branch,
-                  commitHash: selectedDeployment?.config.commitHash,
-                  link:
-                    selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
-                      ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
-                      : undefined,
-                };
-              }),
-          );
+                  return {
+                    id: app.id,
+                    displayName: app.displayName,
+                    status: selectedDeployment?.status,
+                    source: selectedDeployment?.config.source,
+                    imageTag: selectedDeployment?.config.imageTag,
+                    repositoryURL: repoURL,
+                    branch: app.config.branch,
+                    commitHash: selectedDeployment?.config.commitHash,
+                    link:
+                      selectedDeployment?.status === "COMPLETE" &&
+                      env.APP_DOMAIN
+                        ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
+                        : undefined,
+                  };
+                }),
+            )
+          ).filter(Boolean);
           return { ...group, apps };
         }),
       );
