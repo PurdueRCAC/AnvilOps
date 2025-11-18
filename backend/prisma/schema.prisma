@@ -222,6 +222,8 @@ model DeploymentConfig {
   // > Image deployment source
   imageTag       String?
 
+  createIngress Boolean @default(true)
+
   /// [ConfigFields]
   fieldValues Json
 

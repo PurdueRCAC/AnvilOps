@@ -6,10 +6,20 @@ import type { DeploymentParams } from "./statefulset.ts";
 export const createIngressConfig = (
   app: Pick<
     DeploymentParams,
-    "name" | "namespace" | "serviceName" | "port" | "servicePort" | "subdomain"
+    | "name"
+    | "namespace"
+    | "serviceName"
+    | "port"
+    | "servicePort"
+    | "subdomain"
+    | "createIngress"
   >,
 ): (V1Ingress & K8sObject) | null => {
-  if (!env.APP_DOMAIN || URL.parse(env.APP_DOMAIN) === null) {
+  if (
+    !app.createIngress ||
+    !env.APP_DOMAIN ||
+    URL.parse(env.APP_DOMAIN) === null
+  ) {
     return null;
   }
 

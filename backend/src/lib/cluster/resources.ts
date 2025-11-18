@@ -192,6 +192,7 @@ export const createAppConfigsFromDeployment = async (
     env: envVars,
     logIngestSecret: app.logIngestSecret,
     subdomain: app.subdomain,
+    createIngress: conf.createIngress,
     ...conf.fieldValues,
   };
 
