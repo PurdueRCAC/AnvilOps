@@ -38,8 +38,6 @@ export default function CreateAppGroupView() {
   const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
 
   const defaultState = {
-    postStart: "",
-    preStop: "",
     collectLogs: true,
     env: [],
     mounts: [],
@@ -102,8 +100,6 @@ export default function CreateAppGroupView() {
                   port: parseInt(appState.port!),
                   env: appState.env.filter((ev) => ev.name.length > 0),
                   mounts: appState.mounts.filter((m) => m.path.length > 0),
-                  postStart: appState.postStart,
-                  preStop: appState.preStop,
                   cpuCores: appState.cpuCores,
                   memoryInMiB: appState.memoryInMiB,
                   ...(appState.source === "git"
