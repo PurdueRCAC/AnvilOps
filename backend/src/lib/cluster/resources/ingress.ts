@@ -42,7 +42,7 @@ export const createIngressConfig = (
                   service: {
                     name: app.serviceName,
                     port: {
-                      number: app.servicePort,
+                      number: 80,
                     },
                   },
                 },
