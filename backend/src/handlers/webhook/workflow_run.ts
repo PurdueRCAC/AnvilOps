@@ -63,7 +63,11 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
           commitMessage: payload.workflow_run.head_commit.message,
           config: {
             // Reuse the config from the previous deployment
-            fieldValues: app.config.fieldValues,
+            port: app.config.port,
+            replicas: app.config.replicas,
+            requests: app.config.requests,
+            limits: app.config.limits,
+            mounts: app.config.mounts,
             source: "GIT",
             env: app.config.getPlaintextEnv(),
             repositoryId: app.config.repositoryId,

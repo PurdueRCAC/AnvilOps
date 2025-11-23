@@ -38,7 +38,7 @@ async function createJobFromDeployment(
       | "env"
       | "envKey"
       | "getPlaintextEnv"
-      | "fieldValues"
+      | "port"
     >;
     app: Pick<
       App,

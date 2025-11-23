@@ -424,16 +424,17 @@ export const handlers = {
       subdomain: app.subdomain,
       cdEnabled: app.enableCD,
       config: {
-        collectLogs: currentConfig.fieldValues.collectLogs,
-        port: currentConfig.fieldValues.port,
+        collectLogs: currentConfig.collectLogs,
+        port: currentConfig.port,
         env: currentConfig.displayEnv,
-        replicas: currentConfig.fieldValues.replicas,
-        mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+        replicas: currentConfig.replicas,
+        mounts: currentConfig.mounts.map((mount) => ({
           amountInMiB: mount.amountInMiB,
           path: mount.path,
           volumeClaimName: generateVolumeName(mount.path),
         })),
-        ...currentConfig.fieldValues.extra,
+        limits: currentConfig.limits,
+        requests: currentConfig.requests,
         ...(currentConfig.source === "GIT"
           ? {
               source: "git",

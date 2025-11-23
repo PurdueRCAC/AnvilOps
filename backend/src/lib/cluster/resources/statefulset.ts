@@ -1,5 +1,4 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
-import jsonpatch from "fast-json-patch";
 import crypto from "node:crypto";
 import type { Octokit } from "octokit";
 import type {
@@ -12,8 +11,9 @@ import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
 import { wrapWithLogExporter } from "./logs.ts";
 
-export type DeploymentParams = {
+interface DeploymentParams {
   deploymentId: number;
+  collectLogs: boolean;
   name: string;
   namespace: string;
   serviceName: string;
@@ -21,19 +21,19 @@ export type DeploymentParams = {
   env: V1EnvVar[];
   logIngestSecret: string;
   subdomain: string;
-} & PrismaJson.ConfigFields;
+  port: number;
+  replicas: number;
+  mounts: PrismaJson.VolumeMount[];
+  requests: PrismaJson.Resources;
+  limits: PrismaJson.Resources;
+}
 
 export const generateAutomaticEnvVars = async (
   octokit: Octokit | null,
   deployment: Pick<Deployment, "id" | "commitMessage"> & {
     config: Pick<
       DeploymentConfig,
-      | "source"
-      | "branch"
-      | "imageTag"
-      | "repositoryId"
-      | "commitHash"
-      | "fieldValues"
+      "source" | "branch" | "imageTag" | "repositoryId" | "commitHash" | "port"
     >;
     app: Pick<App, "id" | "subdomain" | "displayName">;
   },
@@ -43,7 +43,7 @@ export const generateAutomaticEnvVars = async (
   const list = [
     {
       name: "PORT",
-      value: deployment.config.fieldValues.port.toString(),
+      value: deployment.config.port.toString(),
       isSensitive: false,
     },
     {
@@ -163,8 +163,10 @@ export const createStatefulSetConfig = async (
                   protocol: "TCP",
                 },
               ],
-              // Parent paths of a JSON patch must exist for the patch to work without error
-              resources: {},
+              resources: {
+                requests: params.requests,
+                limits: params.limits,
+              },
               env: params.env,
               volumeMounts: params.mounts.map((mount) => ({
                 mountPath: mount.path,
@@ -190,9 +192,6 @@ export const createStatefulSetConfig = async (
       },
     },
   };
-
-  base = applyPatches(base, getExtraStsPatches(params.extra));
-
   if (params.collectLogs) {
     base.spec.template = await wrapWithLogExporter(
       "runtime",
@@ -204,65 +203,3 @@ export const createStatefulSetConfig = async (
 
   return base;
 };
-
-const StsExtraPatchPaths: Record<
-  keyof PrismaJson.ConfigFields["extra"],
-  string[]
-> = {
-  postStart: ["/spec/template/spec/containers/0/lifecycle/postStart"],
-  preStop: ["/spec/template/spec/containers/0/lifecycle/preStop"],
-  limits: ["/spec/template/spec/containers/0/resources/limits"],
-  requests: ["/spec/template/spec/containers/0/resources/requests"],
-};
-
-const getExtraStsPatches = (
-  fields: PrismaJson.ConfigFields["extra"],
-): jsonpatch.Operation[] => {
-  const patches = [] as jsonpatch.Operation[];
-  for (const [key, value] of Object.entries(fields)) {
-    if (!fields[key]) continue;
-
-    const field = key as keyof PrismaJson.ConfigFields["extra"];
-    switch (field) {
-      case "postStart":
-      case "preStop": {
-        patches.push(
-          ...StsExtraPatchPaths[field].map(
-            (path) =>
-              ({
-                op: "add",
-                path,
-                value: {
-                  exec: {
-                    command: ["/bin/sh", "-c", value],
-                  },
-                },
-              }) satisfies jsonpatch.Operation,
-          ),
-        );
-        break;
-      }
-      default: {
-        patches.push(
-          ...StsExtraPatchPaths[field].map(
-            (path) =>
-              ({ op: "add", path, value }) satisfies jsonpatch.Operation,
-          ),
-        );
-      }
-    }
-  }
-
-  return patches;
-};
-
-function applyPatches<T extends object>(
-  document: T,
-  patches: jsonpatch.Operation[],
-): T {
-  try {
-    return jsonpatch.applyPatch(document, patches).newDocument as T;
-  } catch (err) {
-    console.error(err);
-  }
-}
