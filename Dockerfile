@@ -15,7 +15,7 @@ FROM base AS frontend_deps
 
 WORKDIR /app
 COPY frontend/package*.json .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # FRONTEND: build for production
 FROM base AS frontend_build
@@ -33,7 +33,7 @@ FROM base AS backend_deps
 WORKDIR /app
 COPY backend/package*.json .
 COPY backend/patches/ ./patches
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts && npm run postinstall
 
 # BACKEND: remove devDependencies before node_modules is copied into the final image
 FROM backend_deps AS backend_prod_deps
