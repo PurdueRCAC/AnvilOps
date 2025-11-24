@@ -4,7 +4,7 @@
 
 ## 👀 Read The Docs
 
-**These docs are deployed on AnvilOps [here](https://docs.anvilops.rcac.purdue.edu).**
+**These docs are deployed on AnvilOps [here](https://docs.anvilcloud.rcac.purdue.edu).**
 
 If you want to view your own local changes, run `npm run dev` and visit http://localhost:4321 in your browser. Make sure you run `npm install` first!
 
