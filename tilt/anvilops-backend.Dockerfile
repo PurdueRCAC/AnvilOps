@@ -46,3 +46,4 @@ COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generate
 COPY backend/ .
 
 CMD ["npm", "run", "start:prod"]
+EXPOSE 3000

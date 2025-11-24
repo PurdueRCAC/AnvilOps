@@ -52,6 +52,7 @@ import { listDeployments } from "./listDeployments.ts";
 import { listOrgRepos } from "./listOrgRepos.ts";
 import { listRepoBranches } from "./listRepoBranches.ts";
 import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { livenessProbe } from "./liveness.ts";
 import { removeUserFromOrg } from "./removeUserFromOrg.ts";
 import { revokeInvitation } from "./revokeInvitation.ts";
 import { updateApp } from "./updateApp.ts";
@@ -590,5 +591,6 @@ export const handlers = {
   inviteUser,
   removeUserFromOrg,
   revokeInvitation,
+  livenessProbe,
 } satisfies HandlerMap;
 Object.freeze(handlers);

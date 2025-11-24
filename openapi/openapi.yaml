@@ -13,6 +13,13 @@ tags:
   - name: app
     description: Operations about apps
 paths:
+  /liveness:
+    get:
+      operationId: livenessProbe
+      description: Liveness probe
+      responses:
+        "200":
+          description: Success
   /settings:
     get:
       description: Get AnvilOps configuration
