@@ -16,14 +16,12 @@ import {
 } from "@/components/ui/select";
 import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
-import { cn } from "@/lib/utils";
 import {
   Cable,
   Code2,
   Cog,
   Cpu,
   MemoryStick,
-  Minimize,
   Scale3D,
   Server,
   Tag,
@@ -50,8 +48,6 @@ export type DeploymentConfigFormData = {
   source: "git" | "image";
   builder?: "dockerfile" | "railpack";
   collectLogs: boolean;
-  postStart: string | null;
-  preStop: string | null;
   cpuCores: string;
   memoryInMiB: number;
 };
@@ -405,62 +401,6 @@ export const AppConfigDiff = ({
                           </SelectContent>
                         </Select>
                       )}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <Label className="pb-1" htmlFor="postStart">
-                      <Terminal className="inline" size={16} /> Post-Start
-                      Command
-                    </Label>
-                    <p className="text-sm text-black-2">
-                      Run a shell(sh) command on each pod of your app
-                      immediately after it starts, and before it becomes
-                      reachable.
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-around gap-8">
-                    <DiffInput
-                      disabled={disabled}
-                      name="postStart"
-                      id="postStart"
-                      placeholder="(No command)"
-                      left={base.postStart ?? ""}
-                      right={state.postStart ?? ""}
-                      setRight={(postStart) => {
-                        setState((state) => ({ ...state, postStart }));
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <Label className="pb-1" htmlFor="preStop">
-                      <Minimize className="inline" size={16} /> Pre-Stop Command
-                    </Label>
-                    <p className="text-sm text-black-2">
-                      Run a shell(sh) command on each pod of your app just
-                      before it is deleted.
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-around gap-8">
-                    <DiffInput
-                      disabled={disabled}
-                      name="preStop"
-                      id="preStop"
-                      placeholder="(No command)"
-                      className={cn(
-                        "w-full",
-                        (base.preStop || state.preStop) &&
-                          base.preStop !== state.preStop &&
-                          "bg-green-50",
-                      )}
-                      left={base.preStop ?? ""}
-                      right={state.preStop ?? ""}
-                      setRight={(preStop) => {
-                        setState((state) => ({ ...state, preStop }));
-                      }}
                     />
                   </div>
                 </div>

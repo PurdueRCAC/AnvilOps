@@ -30,8 +30,6 @@ export default function CreateAppView() {
   const [search] = useSearchParams();
 
   const [formState, setFormState] = useState<AppInfoFormData>({
-    postStart: "",
-    preStop: "",
     collectLogs: true,
     groupOption: "standalone",
     env: [],
@@ -113,8 +111,6 @@ export default function CreateAppView() {
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
-                postStart: formState.postStart,
-                preStop: formState.preStop,
                 cpuCores: formState.cpuCores,
                 memoryInMiB: formState.memoryInMiB,
                 appGroup,
