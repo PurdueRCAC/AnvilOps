@@ -47,6 +47,12 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: "/api/liveness"
+              port: 3000
+              initialDelaySeconds: 5
+              periodSeconds: 5
           volumeMounts:
             - name: cluster-config
               mountPath: /opt/config/cluster.json

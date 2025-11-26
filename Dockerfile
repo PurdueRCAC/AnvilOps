@@ -15,7 +15,7 @@ FROM base AS frontend_deps
 
 WORKDIR /app
 COPY frontend/package*.json .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # FRONTEND: build for production
 FROM base AS frontend_build
@@ -33,7 +33,7 @@ FROM base AS backend_deps
 WORKDIR /app
 COPY backend/package*.json .
 COPY backend/patches/ ./patches
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts && npm run postinstall
 
 # BACKEND: remove devDependencies before node_modules is copied into the final image
 FROM backend_deps AS backend_prod_deps
@@ -84,3 +84,5 @@ COPY templates/templates.json ./templates.json
 COPY --from=backend_build --exclude=**/node_modules/** /app .
 
 CMD ["npm", "run", "start:prod"]
+EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=10s --start-period=5s --retries=3 CMD ["wget", "-O-", "http://localhost:3000/api/liveness"]

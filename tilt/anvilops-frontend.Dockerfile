@@ -8,7 +8,7 @@ FROM base AS frontend_deps
 
 WORKDIR /app
 COPY frontend/package*.json .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen

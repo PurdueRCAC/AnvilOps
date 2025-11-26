@@ -1,5 +1,7 @@
 ---
 title: System Environment Variables
+sidebar:
+  order: 5
 ---
 
 AnvilOps provides some environment variables in addition to the ones you specify based on your project's settings. These variables are available at build time and at runtime.
@@ -18,7 +20,7 @@ The display name of your application that you see in the dashboard.
 
 ### `ANVILOPS_SUBDOMAIN`
 
-The subdomain portion of your app's full URL. For example, if your app is available at `https://myapp.anvilops.rcac.purdue.edu`, `ANVILOPS_SUBDOMAIN` will be `myapp`.
+The subdomain portion of your app's full URL. For example, if your app is available at `https://myapp.anvilcloud.rcac.purdue.edu`, `ANVILOPS_SUBDOMAIN` will be `myapp`.
 
 ### `ANVILOPS_APP_ID`
 

@@ -52,6 +52,7 @@ import { listDeployments } from "./listDeployments.ts";
 import { listOrgRepos } from "./listOrgRepos.ts";
 import { listRepoBranches } from "./listRepoBranches.ts";
 import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { livenessProbe } from "./liveness.ts";
 import { removeUserFromOrg } from "./removeUserFromOrg.ts";
 import { revokeInvitation } from "./revokeInvitation.ts";
 import { updateApp } from "./updateApp.ts";
@@ -423,16 +424,17 @@ export const handlers = {
       subdomain: app.subdomain,
       cdEnabled: app.enableCD,
       config: {
-        collectLogs: currentConfig.fieldValues.collectLogs,
-        port: currentConfig.fieldValues.port,
+        collectLogs: currentConfig.collectLogs,
+        port: currentConfig.port,
         env: currentConfig.displayEnv,
-        replicas: currentConfig.fieldValues.replicas,
-        mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+        replicas: currentConfig.replicas,
+        mounts: currentConfig.mounts.map((mount) => ({
           amountInMiB: mount.amountInMiB,
           path: mount.path,
           volumeClaimName: generateVolumeName(mount.path),
         })),
-        ...currentConfig.fieldValues.extra,
+        limits: currentConfig.limits,
+        requests: currentConfig.requests,
         ...(currentConfig.source === "GIT"
           ? {
               source: "git",
@@ -590,5 +592,6 @@ export const handlers = {
   inviteUser,
   removeUserFromOrg,
   revokeInvitation,
+  livenessProbe,
 } satisfies HandlerMap;
 Object.freeze(handlers);

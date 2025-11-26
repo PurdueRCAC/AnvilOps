@@ -13,7 +13,7 @@ import { DATABASE_URL } from "./lib/db.ts";
 import { env } from "./lib/env.ts";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT ?? 3000;
 
 app.use(cookieParser());
 
@@ -43,8 +43,11 @@ app.use(
     `:remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms`,
     {
       skip: (req, res) => {
-        // Don't log successful /logs/ingest requests
-        return res.statusCode === 200 && req.path === "/logs/ingest";
+        // Don't log successful /logs/ingest and /liveness requests
+        return (
+          res.statusCode === 200 &&
+          ["/logs/ingest", "/liveness"].includes(req.path)
+        );
       },
     },
   ),

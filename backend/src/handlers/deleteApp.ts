@@ -112,9 +112,9 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }
-  } else if (lastDeployment.config.fieldValues.collectLogs) {
+  } else if (lastDeployment.config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
-    lastDeployment.config.fieldValues.collectLogs = false; // <-- Disable log shipping
+    lastDeployment.config.collectLogs = false; // <-- Disable log shipping
     const { namespace, configs, postCreate } =
       await createAppConfigsFromDeployment(lastDeployment);
 

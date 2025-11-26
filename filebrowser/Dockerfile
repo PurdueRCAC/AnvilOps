@@ -3,7 +3,7 @@ FROM node:24-alpine AS base
 FROM base AS deps
 WORKDIR /work
 COPY package*.json .
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM base AS typecheck
 WORKDIR /work

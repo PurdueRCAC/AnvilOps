@@ -24,7 +24,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       deployments: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { config: { select: { fieldValues: true } } },
+        select: { config: { select: { collectLogs: true } } },
       },
     },
   });
@@ -71,7 +71,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   }
 
   // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
-  const collectLogs = app.deployments?.[0]?.config?.fieldValues?.collectLogs;
+  const collectLogs = app.deployments?.[0]?.config?.collectLogs;
 
   if (collectLogs || ctx.request.query.type === "BUILD") {
     const fetchNewLogs = async () => {

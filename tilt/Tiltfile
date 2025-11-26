@@ -94,7 +94,10 @@ yaml = helm(
 )
 
 parsed = decode_yaml_stream(yaml)
-for object in parsed:
+for i, object in enumerate(parsed):
+  if object["kind"] == "NetworkPolicy" and object["metadata"]["name"] == "anvilops-allow-apps":
+    parsed.pop(i)
+    continue
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:

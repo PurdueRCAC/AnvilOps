@@ -1,19 +1,19 @@
 import type { V1Ingress } from "@kubernetes/client-node";
 import { env } from "../../env.ts";
 import type { K8sObject } from "../resources.ts";
-import type { DeploymentParams } from "./statefulset.ts";
+
+interface IngressInterface {
+  name: string;
+  namespace: string;
+  serviceName: string;
+  port: number;
+  servicePort?: number;
+  subdomain: string;
+  createIngress: boolean;
+}
 
 export const createIngressConfig = (
-  app: Pick<
-    DeploymentParams,
-    | "name"
-    | "namespace"
-    | "serviceName"
-    | "port"
-    | "servicePort"
-    | "subdomain"
-    | "createIngress"
-  >,
+  app: IngressInterface,
 ): (V1Ingress & K8sObject) | null => {
   if (
     !app.createIngress ||
@@ -47,7 +47,7 @@ export const createIngressConfig = (
                   service: {
                     name: app.serviceName,
                     port: {
-                      number: app.servicePort,
+                      number: 80,
                     },
                   },
                 },

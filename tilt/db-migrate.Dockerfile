@@ -8,7 +8,7 @@ FROM base AS backend_deps
 
 WORKDIR /app
 COPY backend/package*.json .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # Copy dependencies from previous steps and run the migration
 FROM base
