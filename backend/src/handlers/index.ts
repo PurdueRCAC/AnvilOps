@@ -247,7 +247,8 @@ export const handlers = {
                     commitHash: selectedDeployment?.config.commitHash,
                     link:
                       selectedDeployment?.status === "COMPLETE" &&
-                      env.APP_DOMAIN
+                      env.APP_DOMAIN &&
+                      app.config.createIngress
                         ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
                         : undefined,
                   };
@@ -424,6 +425,7 @@ export const handlers = {
       subdomain: app.subdomain,
       cdEnabled: app.enableCD,
       config: {
+        createIngress: currentConfig.createIngress,
         collectLogs: currentConfig.collectLogs,
         port: currentConfig.port,
         env: currentConfig.displayEnv,

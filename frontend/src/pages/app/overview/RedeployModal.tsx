@@ -33,6 +33,7 @@ const defaultRedeployState = {
     port: "",
     cpuCores: "1",
     memoryInMiB: 1024,
+    createIngress: true,
     collectLogs: true,
   } satisfies DeploymentConfigFormData,
   enableCD: true,
@@ -97,6 +98,7 @@ export const RedeployModal = ({
           parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
         ).toString(), // convert millicores ("m") to cores,
         memoryInMiB: parseInt(pastDeployment.config.limits?.memory ?? "1024Mi"),
+        createIngress: pastDeployment.config.createIngress,
         collectLogs: pastDeployment.config.collectLogs,
         ...(pastDeployment.config.source === "git"
           ? {
@@ -182,6 +184,7 @@ export const RedeployModal = ({
                 mounts: app.config.mounts,
                 limits: resourceConfig,
                 requests: resourceConfig,
+                createIngress: config.createIngress === true,
                 collectLogs: config.collectLogs === true,
                 ...(config.source === "git"
                   ? {

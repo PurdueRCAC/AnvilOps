@@ -46,6 +46,7 @@ export default function CreateAppView() {
     dockerfilePath: "Dockerfile",
     rootDir: "./",
     subdomain: "",
+    createIngress: true,
     cpuCores: 1,
     memoryInMiB: 1024,
   });

@@ -2190,6 +2190,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
+        createIngress:
+          type: boolean
         collectLogs:
           description: Whether to use the log-shipper wrapper process to collect logs and send them to AnvilOps. When set to false, this wrapper is disabled, so historical logs aren't kept. For more details, see log-shipper/README.md.
           type: boolean
@@ -2209,6 +2211,7 @@ components:
         - limits
         - requests
         - collectLogs
+        - createIngress
     GitDeploymentOptions:
       allOf:
         - type: object

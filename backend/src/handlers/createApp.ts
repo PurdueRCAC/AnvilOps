@@ -43,7 +43,11 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await validateDeploymentConfig({ ...appData, collectLogs: true });
+    await validateDeploymentConfig({
+      ...appData,
+      createIngress: !!appData.subdomain,
+      collectLogs: true,
+    });
     validateAppGroup(appData.appGroup);
     const subdomainRes = validateSubdomain(appData.subdomain);
     validateAppName(appData.name);

@@ -45,6 +45,7 @@ export default function CreateAppGroupView() {
     builder: "railpack" as "railpack",
     event: "push" as "push",
     subdomain: "",
+    createIngress: true,
     rootDir: "./",
     dockerfilePath: "Dockerfile",
     cpuCores: 1,

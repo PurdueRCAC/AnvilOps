@@ -125,6 +125,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       mounts: deployment.config.mounts,
       port: deployment.config.port,
       replicas: deployment.config.replicas,
+      createIngress: deployment.config.createIngress,
       collectLogs: deployment.config.collectLogs,
       requests: deployment.config.requests,
       limits: deployment.config.limits,

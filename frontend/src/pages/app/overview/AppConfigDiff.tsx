@@ -47,6 +47,7 @@ export type DeploymentConfigFormData = {
   rootDir?: string;
   source: "git" | "image";
   builder?: "dockerfile" | "railpack";
+  createIngress: boolean;
   collectLogs: boolean;
   cpuCores: string;
   memoryInMiB: number;

@@ -64,6 +64,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           const subdomainRes = validateSubdomain(app.subdomain);
           await validateDeploymentConfig({
             ...app,
+            createIngress: !!app.subdomain,
             collectLogs: true,
           });
           validateAppName(app.name);

@@ -187,7 +187,7 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        {appDomain !== null && (
+        {appDomain !== null && app.config.createIngress && (
           <>
             <p className="flex items-center gap-2">
               <Link2 size={16} />
