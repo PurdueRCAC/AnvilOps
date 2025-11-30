@@ -16,5 +16,6 @@ FROM base
 WORKDIR /app
 COPY --from=backend_deps /app/node_modules ./node_modules
 COPY backend/prisma ./prisma
+COPY backend/prisma.config.ts ./prisma.config.ts
 
 CMD ["npx", "prisma", "migrate", "deploy"]

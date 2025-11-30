@@ -42,7 +42,7 @@ else:
     ],
     only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
   )
-docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma"])
+docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma", "backend/prisma.config.ts"])
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
