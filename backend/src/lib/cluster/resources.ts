@@ -17,7 +17,6 @@ import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
   generateAutomaticEnvVars,
-  type DeploymentParams,
 } from "./resources/statefulset.ts";
 
 const NAMESPACE_PREFIX = "anvilops-";
@@ -175,8 +174,9 @@ export const createAppConfigsFromDeployment = async (
     configs.unshift(secretConfig);
   }
 
-  const params: DeploymentParams = {
+  const params = {
     deploymentId: deployment.id,
+    collectLogs: conf.collectLogs,
     name: app.name,
     namespace: namespaceName,
     serviceName: namespaceName,
@@ -184,7 +184,11 @@ export const createAppConfigsFromDeployment = async (
     env: envVars,
     logIngestSecret: app.logIngestSecret,
     subdomain: app.subdomain,
-    ...conf.fieldValues,
+    port: conf.port,
+    replicas: conf.replicas,
+    mounts: conf.mounts,
+    requests: conf.requests,
+    limits: conf.limits,
   };
 
   const svc = createServiceConfig(params);

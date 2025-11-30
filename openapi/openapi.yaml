@@ -2152,12 +2152,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
-        postStart:
-          type: string
-          nullable: true
-        preStop:
-          type: string
-          nullable: true
         collectLogs:
           description: Whether to use the log-shipper wrapper process to collect logs and send them to AnvilOps. When set to false, this wrapper is disabled, so historical logs aren't kept. For more details, see log-shipper/README.md.
           type: boolean
@@ -2174,8 +2168,6 @@ components:
         - replicas
         - env
         - mounts
-        - postStart
-        - preStop
         - limits
         - requests
         - collectLogs
@@ -2385,12 +2377,6 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Mount"
-            postStart:
-              type: string
-              nullable: true
-            preStop:
-              type: string
-              nullable: true
             cpuCores:
               type: number
             memoryInMiB:
@@ -2430,8 +2416,6 @@ components:
             - appGroup
             - cpuCores
             - memoryInMiB
-            - postStart
-            - preStop
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"
@@ -2460,12 +2444,6 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Mount"
-            postStart:
-              type: string
-              nullable: true
-            preStop:
-              type: string
-              nullable: true
             cpuCores:
               type: number
             memoryInMiB:
@@ -2479,9 +2457,6 @@ components:
             - mounts
             - cpuCores
             - memoryInMiB
-            - postStart
-            - preStop
-
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

@@ -111,7 +111,12 @@ export interface DeploymentConfig {
   rootDir?: string;
   dockerfilePath?: string;
   imageTag?: string;
-  fieldValues: PrismaJson.ConfigFields;
+  collectLogs: boolean;
+  requests: PrismaJson.Resources;
+  limits: PrismaJson.Resources;
+  replicas: number;
+  port: number;
+  mounts: PrismaJson.VolumeMount[];
 }
 
 export type DeploymentConfigCreate = Omit<

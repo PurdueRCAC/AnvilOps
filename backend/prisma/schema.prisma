@@ -221,8 +221,18 @@ model DeploymentConfig {
   // > Image deployment source
   imageTag       String?
 
-  /// [ConfigFields]
-  fieldValues Json
+  collectLogs Boolean @default(true)
+
+  replicas Int @default(1)
+  port     Int
+
+  ///[VolumeMount[]]              
+  mounts Json @default("[]")
+
+  ///[Resources]
+  limits   Json
+  ///[Resources]
+  requests Json
 
   // Reverse relation field for when this DeploymentConfig is an App's template config
   app App?

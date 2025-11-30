@@ -47,7 +47,12 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
       commitMessage: payload.head_commit.message,
       config: {
         // Reuse the config from the previous deployment
-        fieldValues: config.fieldValues,
+        port: config.port,
+        replicas: config.replicas,
+        requests: config.requests,
+        limits: config.limits,
+        mounts: config.mounts,
+        collectLogs: config.collectLogs,
         source: "GIT",
         event: config.event,
         env: config.getEnv(),

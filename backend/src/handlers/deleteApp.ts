@@ -44,9 +44,9 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }
-  } else if (config.fieldValues.collectLogs) {
+  } else if (config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
-    config.fieldValues.collectLogs = false; // <-- Disable log shipping
+    config.collectLogs = false; // <-- Disable log shipping
 
     const app = await db.app.getById(lastDeployment.appId);
     const [org, appGroup] = await Promise.all([

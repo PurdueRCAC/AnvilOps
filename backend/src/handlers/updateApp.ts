@@ -115,21 +115,12 @@ export const updateApp: HandlerMap["updateApp"] = async (
   const updatedConfig: DeploymentConfigCreate = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(currentConfig.getEnv(), appConfig.env),
-    fieldValues: {
-      collectLogs: appConfig.collectLogs,
-      replicas: appConfig.replicas,
-      port: appConfig.port,
-      servicePort: 80,
-      mounts: appConfig.mounts,
-      extra: {
-        postStart: appConfig.postStart,
-        preStop: appConfig.preStop,
-        requests:
-          appConfig.requests as DeploymentConfigCreate["fieldValues"]["extra"]["requests"],
-        limits:
-          appConfig.limits as DeploymentConfigCreate["fieldValues"]["extra"]["limits"],
-      },
-    },
+    collectLogs: appConfig.collectLogs,
+    replicas: appConfig.replicas,
+    port: appConfig.port,
+    mounts: appConfig.mounts,
+    requests: appConfig.requests,
+    limits: appConfig.limits,
     ...(appConfig.source === "git"
       ? {
           source: "GIT",

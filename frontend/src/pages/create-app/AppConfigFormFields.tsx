@@ -37,10 +37,8 @@ import {
   Loader,
   Logs,
   MemoryStick,
-  Minimize,
   Server,
   Tag,
-  Terminal,
   X,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
@@ -67,8 +65,6 @@ export type AppInfoFormData = {
   rootDir?: string;
   source: "git" | "image";
   builder: "dockerfile" | "railpack";
-  postStart: string | null;
-  preStop: string | null;
   collectLogs: boolean;
   cpuCores: number;
   memoryInMiB: number;
@@ -384,14 +380,14 @@ const AppConfigFormFields = ({
             </AccordionContent>
           </AccordionItem>
         )}
-        <AccordionItem value="advanced">
-          <AccordionTrigger>
-            <Label className="pb-1">
-              <Cog className="inline" size={16} /> Advanced
-            </Label>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-10 px-4 mt-2">
-            {isExistingApp && (
+        {isExistingApp && (
+          <AccordionItem value="advanced">
+            <AccordionTrigger>
+              <Label className="pb-1">
+                <Cog className="inline" size={16} /> Advanced
+              </Label>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-10 px-4 mt-2">
               <div className="space-y-2">
                 <div>
                   <Label className="pb-1">
@@ -421,55 +417,9 @@ const AppConfigFormFields = ({
                   </div>
                 </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <div>
-                <Label className="pb-1" htmlFor="postStart">
-                  <Terminal className="inline" size={16} /> Post-Start Command
-                </Label>
-                <p className="text-sm text-black-2">
-                  Run a shell(sh) command on each pod of your app immediately
-                  after it starts, and before it becomes reachable.
-                </p>
-              </div>
-              <Input
-                disabled={disabled}
-                name="postStart"
-                id="postStart"
-                placeholder="echo Hello World"
-                className="w-full"
-                value={state.postStart ?? ""}
-                onChange={(e) => {
-                  const postStart = e.currentTarget.value;
-                  setState((state) => ({ ...state, postStart }));
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <div>
-                <Label className="pb-1" htmlFor="preStop">
-                  <Minimize className="inline" size={16} /> Pre-Stop Command
-                </Label>
-                <p className="text-sm text-black-2">
-                  Run a shell(sh) command on each pod of your app just before it
-                  is deleted.
-                </p>
-              </div>
-              <Input
-                disabled={disabled}
-                name="preStop"
-                id="preStop"
-                placeholder="echo Goodbye"
-                className="w-full"
-                value={state.preStop ?? ""}
-                onChange={(e) => {
-                  const preStop = e.currentTarget.value;
-                  setState((state) => ({ ...state, preStop }));
-                }}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
     </>
   );

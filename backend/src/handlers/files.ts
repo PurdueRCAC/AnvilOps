@@ -92,7 +92,7 @@ async function forward(
   const config = await db.app.getDeploymentConfig(appId);
 
   if (
-    !config.fieldValues.mounts.some((mount) =>
+    !config.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
     )
   ) {

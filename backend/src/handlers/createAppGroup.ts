@@ -190,20 +190,13 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           }
 
           const deploymentConfig: DeploymentConfigCreate = {
+            collectLogs: true,
             env: configParams.env,
-            fieldValues: {
-              collectLogs: true,
-              replicas: 1,
-              port: configParams.port,
-              servicePort: 80,
-              mounts: configParams.mounts,
-              extra: {
-                postStart: configParams.postStart,
-                preStop: configParams.preStop,
-                limits: { cpu, memory, "nvidia.com/gpu": undefined },
-                requests: { cpu, memory, "nvidia.com/gpu": undefined },
-              },
-            },
+            requests: { cpu, memory },
+            limits: { cpu, memory },
+            replicas: 1,
+            port: configParams.port,
+            mounts: configParams.mounts,
             ...(configParams.source === "git"
               ? {
                   source: "GIT",

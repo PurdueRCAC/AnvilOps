@@ -103,7 +103,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     config: {
       branch: config.branch,
       imageTag: config.imageTag,
-      mounts: config.fieldValues.mounts.map((mount) => ({
+      mounts: config.mounts.map((mount) => ({
         path: mount.path,
         amountInMiB: mount.amountInMiB,
       })),
@@ -115,14 +115,12 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       builder: config.builder,
       dockerfilePath: config.dockerfilePath,
       env: config.displayEnv,
-      port: config.fieldValues.port,
-      replicas: config.fieldValues.replicas,
+      port: config.port,
+      replicas: config.replicas,
       rootDir: config.rootDir,
-      collectLogs: config.fieldValues.collectLogs,
-      postStart: config.fieldValues.extra.postStart,
-      preStop: config.fieldValues.extra.preStop,
-      requests: config.fieldValues.extra.requests,
-      limits: config.fieldValues.extra.limits,
+      collectLogs: config.collectLogs,
+      requests: config.requests,
+      limits: config.limits,
     },
   });
 };

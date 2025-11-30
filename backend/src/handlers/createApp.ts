@@ -123,20 +123,13 @@ export const createApp: HandlerMap["createApp"] = async (
   const cpu = Math.round(appData.cpuCores * 1000) + "m",
     memory = appData.memoryInMiB + "Mi";
   const deploymentConfig: DeploymentConfigCreate = {
+    collectLogs: true,
     env: appData.env,
-    fieldValues: {
-      collectLogs: true,
-      replicas: 1,
-      port: appData.port,
-      servicePort: 80,
-      mounts: appData.mounts,
-      extra: {
-        postStart: appData.postStart,
-        preStop: appData.preStop,
-        requests: { cpu, memory, "nvidia.com/gpu": undefined },
-        limits: { cpu, memory, "nvidia.com/gpu": undefined },
-      },
-    },
+    requests: { cpu, memory },
+    limits: { cpu, memory },
+    replicas: 1,
+    port: appData.port,
+    mounts: appData.mounts,
     ...(appData.source === "git"
       ? {
           source: "GIT",
