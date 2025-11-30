@@ -235,7 +235,7 @@ export class AppRepo {
       where: {
         appId: appId,
         status: {
-          notIn: statuses,
+          in: statuses,
         },
       },
       include: {
