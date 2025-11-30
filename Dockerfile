@@ -84,3 +84,5 @@ COPY templates/templates.json ./templates.json
 COPY --from=backend_build --exclude=**/node_modules/** /app .
 
 CMD ["npm", "run", "start:prod"]
+EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=10s --start-period=5s --retries=3 CMD ["wget", "-O-", "http://localhost:3000/api/liveness"]

@@ -121,6 +121,7 @@ router.post("/logout", (req, res, next) => {
 });
 
 const ALLOWED_ROUTES = [
+  "/liveness",
   "/deployment/update",
   "/github/webhook",
   "/logs/ingest",

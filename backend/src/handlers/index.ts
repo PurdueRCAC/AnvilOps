@@ -36,6 +36,7 @@ import { listOrgGroups } from "./listOrgGroups.ts";
 import { listOrgRepos } from "./listOrgRepos.ts";
 import { listRepoBranches } from "./listRepoBranches.ts";
 import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { livenessProbe } from "./liveness.ts";
 import { removeUserFromOrg } from "./removeUserFromOrg.ts";
 import { revokeInvitation } from "./revokeInvitation.ts";
 import { setAppCD } from "./setAppCD.ts";
@@ -85,6 +86,7 @@ export const handlers = {
   listOrgRepos,
   listRepoBranches,
   listRepoWorkflows,
+  livenessProbe,
   removeUserFromOrg,
   revokeInvitation,
   setAppCD,
