@@ -37,7 +37,7 @@ export const getAppByID: HandlerMap["getAppByID"] = async (
   };
 
   const [org, appGroup, currentConfig, activeDeployment] = await Promise.all([
-    db.org.getById(app.id),
+    db.org.getById(app.orgId),
     db.appGroup.getById(app.appGroupId),
     db.deployment.getConfig(recentDeployment.id),
     (await getK8sDeployment())?.spec?.template?.metadata?.labels?.[
@@ -70,16 +70,17 @@ export const getAppByID: HandlerMap["getAppByID"] = async (
     subdomain: app.subdomain,
     cdEnabled: app.enableCD,
     config: {
-      collectLogs: currentConfig.fieldValues.collectLogs,
-      port: currentConfig.fieldValues.port,
+      collectLogs: currentConfig.collectLogs,
+      port: currentConfig.port,
       env: currentConfig.displayEnv,
-      replicas: currentConfig.fieldValues.replicas,
-      mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+      replicas: currentConfig.replicas,
+      requests: currentConfig.requests,
+      limits: currentConfig.limits,
+      mounts: currentConfig.mounts.map((mount) => ({
         amountInMiB: mount.amountInMiB,
         path: mount.path,
         volumeClaimName: generateVolumeName(mount.path),
       })),
-      ...currentConfig.fieldValues.extra,
       ...(currentConfig.source === "GIT"
         ? {
             source: "git",
