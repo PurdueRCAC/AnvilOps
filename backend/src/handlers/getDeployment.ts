@@ -1,6 +1,7 @@
+import type { V1Pod } from "@kubernetes/client-node";
+import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -10,43 +11,34 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const deployment = await db.deployment.findFirst({
-    where: {
-      id: ctx.request.params.deploymentId,
-      appId: ctx.request.params.appId,
-      app: { org: { users: { some: { userId: req.user.id } } } },
+  const deployment = await db.deployment.getById(
+    ctx.request.params.deploymentId,
+    {
+      requireUser: { id: req.user.id },
     },
-    include: {
-      config: true,
-      app: {
-        select: {
-          subdomain: true,
-          name: true,
-          org: {
-            select: { githubInstallationId: true },
-          },
-          projectId: true,
-        },
-      },
-    },
-  });
+  );
 
   if (!deployment) {
     return json(404, res, { code: 404, message: "Deployment not found." });
   }
 
+  const [config, app] = await Promise.all([
+    db.deployment.getConfig(deployment.id),
+    db.app.getById(deployment.appId),
+  ]);
+
+  const org = await db.org.getById(app.orgId);
+
   const { CoreV1Api: api } = await getClientsForRequest(
     req.user.id,
-    deployment.app.projectId,
+    app.projectId,
     ["CoreV1Api"],
   );
   const [repositoryURL, pods] = await Promise.all([
     (async () => {
-      if (deployment.config.source === "GIT") {
-        const octokit = await getOctokit(
-          deployment.app.org.githubInstallationId,
-        );
-        const repo = await getRepoById(octokit, deployment.config.repositoryId);
+      if (config.source === "GIT") {
+        const octokit = await getOctokit(org.githubInstallationId);
+        const repo = await getRepoById(octokit, config.repositoryId);
         return repo.html_url;
       }
       return undefined;
@@ -54,12 +46,12 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
     api
       .listNamespacedPod({
-        namespace: getNamespace(deployment.app.subdomain),
+        namespace: getNamespace(app.subdomain),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
       .catch(
         // Namespace may not be ready yet
-        () => ({ apiVersion: "v1", items: [] }),
+        () => ({ apiVersion: "v1", items: [] as V1Pod[] }),
       ),
   ]);
 
@@ -88,15 +80,20 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
     }
   }
 
+  const status =
+    deployment.status === "COMPLETE" && scheduled + ready + failed === 0
+      ? "STOPPED"
+      : deployment.status;
+
   return json(200, res, {
     repositoryURL,
-    commitHash: deployment.config.commitHash,
+    commitHash: config.commitHash,
     commitMessage: deployment.commitMessage,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
     id: deployment.id,
     appId: deployment.appId,
-    status: deployment.status,
+    status: status,
     podStatus: {
       scheduled,
       ready,
@@ -104,28 +101,28 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       failed,
     },
     config: {
-      branch: deployment.config.branch,
-      imageTag: deployment.config.imageTag,
-      mounts: deployment.config.fieldValues.mounts.map((mount) => ({
+      branch: config.branch,
+      imageTag: config.imageTag,
+      mounts: config.fieldValues.mounts.map((mount) => ({
         path: mount.path,
         amountInMiB: mount.amountInMiB,
       })),
-      source: deployment.config.source === "GIT" ? "git" : "image",
-      repositoryId: deployment.config.repositoryId,
-      event: deployment.config.event,
-      eventId: deployment.config.eventId,
-      commitHash: deployment.config.commitHash,
-      builder: deployment.config.builder,
-      dockerfilePath: deployment.config.dockerfilePath,
-      env: deployment.config.displayEnv,
-      port: deployment.config.fieldValues.port,
-      replicas: deployment.config.fieldValues.replicas,
-      rootDir: deployment.config.rootDir,
-      collectLogs: deployment.config.fieldValues.collectLogs,
-      postStart: deployment.config.fieldValues.extra.postStart,
-      preStop: deployment.config.fieldValues.extra.preStop,
-      requests: deployment.config.fieldValues.extra.requests,
-      limits: deployment.config.fieldValues.extra.limits,
+      source: config.source === "GIT" ? "git" : "image",
+      repositoryId: config.repositoryId,
+      event: config.event,
+      eventId: config.eventId,
+      commitHash: config.commitHash,
+      builder: config.builder,
+      dockerfilePath: config.dockerfilePath,
+      env: config.displayEnv,
+      port: config.fieldValues.port,
+      replicas: config.fieldValues.replicas,
+      rootDir: config.rootDir,
+      collectLogs: config.fieldValues.collectLogs,
+      postStart: config.fieldValues.extra.postStart,
+      preStop: config.fieldValues.extra.preStop,
+      requests: config.fieldValues.extra.requests,
+      limits: config.fieldValues.extra.limits,
     },
   });
 };

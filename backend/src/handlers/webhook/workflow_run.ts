@@ -1,6 +1,5 @@
+import { db } from "../../db/index.ts";
 import type { components } from "../../generated/openapi.ts";
-import { DeploymentSource } from "../../generated/prisma/enums.ts";
-import { db } from "../../lib/db.ts";
 import { getOctokit } from "../../lib/octokit.ts";
 import { json, type HandlerMap } from "../../types.ts";
 import {
@@ -30,23 +29,12 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
   }
 
   // Look up the connected apps
-  const apps = await db.app.findMany({
-    where: {
-      config: {
-        source: DeploymentSource.GIT,
-        repositoryId: repoId,
-        branch: payload.workflow_run.head_branch,
-        event: "workflow_run",
-        eventId: payload.workflow.id,
-      },
-      org: { githubInstallationId: { not: null } },
-      enableCD: true,
-    },
-    include: {
-      org: { select: { githubInstallationId: true } },
-      config: true,
-    },
-  });
+  const apps = await db.app.listFromConnectedRepo(
+    repoId,
+    "workflow_run",
+    payload.workflow_run.head_branch,
+    payload.workflow.id,
+  );
 
   if (apps.length === 0) {
     return json(200, res, { message: "No matching apps found" });
@@ -54,27 +42,29 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
 
   if (payload.action === "requested") {
     for (const app of apps) {
-      const octokit = await getOctokit(app.org.githubInstallationId);
+      const org = await db.org.getById(app.orgId);
+      const config = await db.app.getDeploymentConfig(app.id);
+      const octokit = await getOctokit(org.githubInstallationId);
       try {
         await createPendingWorkflowDeployment({
-          orgId: app.orgId,
-          appId: app.id,
+          org: org,
+          app: app,
           imageRepo: app.imageRepo,
           commitMessage: payload.workflow_run.head_commit.message,
           config: {
             // Reuse the config from the previous deployment
-            fieldValues: app.config.fieldValues,
+            fieldValues: config.fieldValues,
             source: "GIT",
-            env: app.config.getPlaintextEnv(),
-            repositoryId: app.config.repositoryId,
-            branch: app.config.branch,
+            env: config.getEnv(),
+            repositoryId: config.repositoryId,
+            branch: config.branch,
             commitHash: payload.workflow_run.head_commit.id,
-            builder: app.config.builder,
-            rootDir: app.config.rootDir,
-            dockerfilePath: app.config.dockerfilePath,
-            imageTag: app.config.imageTag,
-            event: app.config.event,
-            eventId: app.config.eventId,
+            builder: config.builder,
+            rootDir: config.rootDir,
+            dockerfilePath: config.dockerfilePath,
+            imageTag: config.imageTag,
+            event: config.event,
+            eventId: config.eventId,
           },
           workflowRunId: payload.workflow_run.id,
           createCheckRun: true,
@@ -88,20 +78,13 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
     }
   } else if (payload.action === "completed") {
     for (const app of apps) {
-      const deployment = await db.deployment.findUnique({
-        where: { appId: app.id, workflowRunId: payload.workflow_run.id },
-        select: {
-          id: true,
-          // commitHash: true,
-          commitMessage: true,
-          status: true,
-          secret: true,
-          checkRunId: true,
-          appId: true,
-          app: { include: { org: true, appGroup: true } },
-          config: true,
-        },
-      });
+      const org = await db.org.getById(app.orgId);
+      const deployment = await db.deployment.getFromWorkflowRunId(
+        app.id,
+        payload.workflow_run.id,
+      );
+      const config = await db.deployment.getConfig(deployment.id);
+
       if (!deployment || deployment.status !== "PENDING") {
         // If the app was deleted, nothing to do
         // If the deployment was canceled, its check run will be updated to canceled
@@ -117,7 +100,7 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
         if (!deployment.checkRunId) {
           continue;
         }
-        const octokit = await getOctokit(app.org.githubInstallationId);
+        const octokit = await getOctokit(org.githubInstallationId);
         try {
           await octokit.rest.checks.update({
             check_run_id: deployment.checkRunId,
@@ -131,23 +114,17 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
             "BUILD",
             "Updated GitHub check run to Completed with conclusion Cancelled",
           );
-          await db.deployment.update({
-            where: { id: deployment.id },
-            data: { status: "STOPPED" },
-          });
+          await db.deployment.setStatus(deployment.id, "CANCELLED");
         } catch (e) {}
         continue;
       }
 
-      const octokit = await getOctokit(app.org.githubInstallationId);
-      await buildAndDeployFromRepo({
-        deployment,
-        opts: {
-          createCheckRun: true,
-          octokit,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-        },
+      const octokit = await getOctokit(org.githubInstallationId);
+      await buildAndDeployFromRepo(org, app, deployment, config, {
+        createCheckRun: true,
+        octokit,
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
       });
     }
   }

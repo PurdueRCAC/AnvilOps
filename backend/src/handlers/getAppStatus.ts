@@ -9,9 +9,9 @@ import {
   type V1StatefulSet,
 } from "@kubernetes/client-node";
 import { once } from "node:events";
+import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -20,18 +20,8 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const app = await db.app.findFirst({
-    where: {
-      id: ctx.request.params.appId,
-      org: { users: { some: { userId: req.user.id } } },
-    },
-    include: {
-      deployments: {
-        take: 1,
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-      },
-    },
+  const app = await db.app.getById(ctx.request.params.appId, {
+    requireUser: { id: req.user.id },
   });
 
   if (!app) {
@@ -167,11 +157,6 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
       { fieldSelector, limit: 15 },
       async (newValue) => {
         events = newValue;
-        newValue.items = newValue.items.filter(
-          (event) =>
-            new Date(event.lastTimestamp).getTime() >
-            (app.deployments?.[0]?.createdAt?.getTime() ?? 0),
-        );
         await update();
       },
       close,

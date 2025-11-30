@@ -1102,54 +1102,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-
-  /app/group/{appGroupId}/delete:
-    parameters:
-      - name: appGroupId
-        in: path
-        description: Id of app group.
-        required: true
-        schema:
-          type: integer
-          format: int64
-    post:
-      tags: [app]
-      description: Delete an app group by id.
-      operationId: deleteAppGroup
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                keepNamespace:
-                  type: boolean
-              required: [keepNamespaces]
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Validation failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Unauthorized
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Unexpected Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-
   /app/{appId}:
     parameters:
       - name: appId
@@ -1609,6 +1561,8 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Unauthorized
+        "404":
+          description: Not found
 
   /app/{appId}/deployments/{deploymentId}/logs:
     parameters:
@@ -2030,7 +1984,15 @@ components:
           type: string
         status:
           type: string
-          enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+          enum:
+            - PENDING
+            - QUEUED
+            - BUILDING
+            - DEPLOYING
+            - COMPLETE
+            - ERROR
+            - STOPPED
+            - CANCELLED
         source:
           type: string
           enum: [GIT, IMAGE]
@@ -2275,7 +2237,15 @@ components:
       required: [path, amountInMiB]
     DeploymentStatus:
       type: string
-      enum: [PENDING, QUEUED, BUILDING, DEPLOYING, COMPLETE, ERROR, STOPPED]
+      enum:
+        - PENDING
+        - QUEUED
+        - BUILDING
+        - DEPLOYING
+        - COMPLETE
+        - ERROR
+        - STOPPED
+        - CANCELLED
     DeploymentEntry:
       type: object
       properties:
@@ -2382,7 +2352,7 @@ components:
       required: [id, time, log, type, pod]
     LogType:
       type: string
-      enum: [SYSTEM, BUILD, RUNTIME]
+      enum: [BUILD, RUNTIME]
     NewApp:
       type: object
       allOf:

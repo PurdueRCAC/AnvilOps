@@ -8,8 +8,9 @@ import type {
   App,
   AppGroup,
   Deployment,
+  DeploymentConfig,
   Organization,
-} from "../../generated/prisma/client.ts";
+} from "../../db/models.ts";
 import { getOctokit } from "../octokit.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
@@ -139,39 +140,30 @@ const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
 };
 
 export const createAppConfigsFromDeployment = async (
-  deployment: Pick<Deployment, "appId" | "id" | "commitMessage"> & {
-    app: Pick<
-      App,
-      | "id"
-      | "name"
-      | "displayName"
-      | "logIngestSecret"
-      | "subdomain"
-      | "projectId"
-    > & { appGroup: AppGroup; org: Pick<Organization, "githubInstallationId"> };
-    config: ExtendedDeploymentConfig;
-  },
+  org: Organization,
+  app: App,
+  appGroup: AppGroup,
+  deployment: Deployment,
+  conf: DeploymentConfig,
 ) => {
-  const app = deployment.app;
-  const conf = deployment.config;
   const namespaceName = getNamespace(app.subdomain);
 
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
   const octokit =
-    deployment.config.source === "GIT"
-      ? await getOctokit(app.org.githubInstallationId)
-      : null;
+    conf.source === "GIT" ? await getOctokit(org.githubInstallationId) : null;
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = await getEnvVars(
-    conf.getPlaintextEnv(),
+    conf.getEnv(),
     secretName,
     octokit,
     deployment,
+    conf,
+    app,
   );
-  const secretData = getEnvRecord(conf.getPlaintextEnv());
+  const secretData = getEnvRecord(conf.getEnv());
   if (secretData !== null) {
     const secretConfig = createSecretConfig(
       secretData,
@@ -205,13 +197,12 @@ export const createAppConfigsFromDeployment = async (
     configs.push(ingress);
   }
 
-  const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
+  const appGroupLabel = `${appGroup.name.replaceAll(" ", "_")}-${appGroup.id}-${org.id}`;
   const labels = {
-    "anvilops.rcac.purdue.edu/app-group-id":
-      deployment.app.appGroup.id.toString(),
-    "anvilops.rcac.purdue.edu/app-id": deployment.appId.toString(),
+    "anvilops.rcac.purdue.edu/app-group-id": appGroup.id.toString(),
+    "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
     "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
-    "app.kubernetes.io/name": deployment.app.name,
+    "app.kubernetes.io/name": app.name,
     "app.kubernetes.io/part-of": appGroupLabel,
     "app.kubernetes.io/managed-by": "anvilops",
   };

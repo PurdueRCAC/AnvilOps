@@ -2,11 +2,7 @@ import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import jsonpatch from "fast-json-patch";
 import crypto from "node:crypto";
 import type { Octokit } from "octokit";
-import type {
-  App,
-  Deployment,
-  DeploymentConfig,
-} from "../../../generated/prisma/client.ts";
+import type { App, Deployment, DeploymentConfig } from "../../../db/models.ts";
 import { env } from "../../env.ts";
 import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
@@ -25,25 +21,15 @@ export type DeploymentParams = {
 
 export const generateAutomaticEnvVars = async (
   octokit: Octokit | null,
-  deployment: Pick<Deployment, "id" | "commitMessage"> & {
-    config: Pick<
-      DeploymentConfig,
-      | "source"
-      | "branch"
-      | "imageTag"
-      | "repositoryId"
-      | "commitHash"
-      | "fieldValues"
-    >;
-    app: Pick<App, "id" | "subdomain" | "displayName">;
-  },
+  deployment: Deployment,
+  config: DeploymentConfig,
+  app: App,
 ): Promise<{ name: string; value: string }[]> => {
-  const app = deployment.app;
   const appDomain = URL.parse(env.APP_DOMAIN);
   const list = [
     {
       name: "PORT",
-      value: deployment.config.fieldValues.port.toString(),
+      value: config.fieldValues.port.toString(),
       isSensitive: false,
     },
     {
@@ -68,19 +54,19 @@ export const generateAutomaticEnvVars = async (
     },
     {
       name: "ANVILOPS_DEPLOYMENT_SOURCE",
-      value: deployment.config.source,
+      value: config.source,
     },
     {
       name: "ANVILOPS_IMAGE_TAG",
-      value: deployment.config.imageTag,
+      value: config.imageTag,
     },
   ];
 
-  if (octokit && deployment.config.source === "GIT") {
-    const repo = await getRepoById(octokit, deployment.config.repositoryId);
+  if (octokit && config.source === "GIT") {
+    const repo = await getRepoById(octokit, config.repositoryId);
     list.push({
       name: "ANVILOPS_REPOSITORY_ID",
-      value: deployment.config.repositoryId.toString(),
+      value: config.repositoryId.toString(),
     });
     list.push({ name: "ANVILOPS_REPOSITORY_OWNER", value: repo.owner.login });
     list.push({ name: "ANVILOPS_REPOSITORY_NAME", value: repo.name });
@@ -90,7 +76,7 @@ export const generateAutomaticEnvVars = async (
     });
     list.push({
       name: "ANVILOPS_COMMIT_HASH",
-      value: deployment.config.commitHash,
+      value: config.commitHash,
     });
     list.push({
       name: "ANVILOPS_COMMIT_MESSAGE",

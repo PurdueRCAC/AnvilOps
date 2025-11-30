@@ -154,6 +154,7 @@ export const Status = ({
     COMPLETE: "bg-green-500",
     ERROR: "bg-red-500",
     STOPPED: "bg-gray-600",
+    CANCELLED: "bg-gray-600",
   };
 
   if (!status || !colors[status]) {

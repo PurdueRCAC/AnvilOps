@@ -1,6 +1,5 @@
+import { db } from "../../db/index.ts";
 import type { components } from "../../generated/openapi.ts";
-import { DeploymentSource } from "../../generated/prisma/enums.ts";
-import { db } from "../../lib/db.ts";
 import { getOctokit } from "../../lib/octokit.ts";
 import { json, type HandlerMap } from "../../types.ts";
 import { buildAndDeploy } from "../githubWebhook.ts";
@@ -25,48 +24,40 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
     .branch;
 
   // Look up the connected app and create a deployment job
-  const apps = await db.app.findMany({
-    where: {
-      config: {
-        source: DeploymentSource.GIT,
-        event: "push",
-        branch: updatedBranch,
-        repositoryId: repoId,
-      },
-      org: { githubInstallationId: { not: null } },
-      enableCD: true,
-    },
-    include: {
-      org: { select: { githubInstallationId: true } },
-      config: true,
-    },
-  });
+  const apps = await db.app.listFromConnectedRepo(
+    repoId,
+    "push",
+    updatedBranch,
+    undefined,
+  );
 
   if (apps.length === 0) {
     return json(200, res, { message: "No matching apps found" });
   }
 
   for (const app of apps) {
-    const octokit = await getOctokit(app.org.githubInstallationId);
+    const org = await db.org.getById(app.orgId);
+    const config = await db.app.getDeploymentConfig(app.id);
+    const octokit = await getOctokit(org.githubInstallationId);
 
     await buildAndDeploy({
-      orgId: app.orgId,
-      appId: app.id,
+      org: org,
+      app: app,
       imageRepo: app.imageRepo,
       commitMessage: payload.head_commit.message,
       config: {
         // Reuse the config from the previous deployment
-        fieldValues: app.config.fieldValues,
+        fieldValues: config.fieldValues,
         source: "GIT",
-        event: app.config.event,
-        env: app.config.getPlaintextEnv(),
-        repositoryId: app.config.repositoryId,
-        branch: app.config.branch,
+        event: config.event,
+        env: config.getEnv(),
+        repositoryId: config.repositoryId,
+        branch: config.branch,
         commitHash: payload.head_commit.id,
-        builder: app.config.builder,
-        rootDir: app.config.rootDir,
-        dockerfilePath: app.config.dockerfilePath,
-        imageTag: app.config.imageTag,
+        builder: config.builder,
+        rootDir: config.rootDir,
+        dockerfilePath: config.dockerfilePath,
+        imageTag: config.imageTag,
       },
       createCheckRun: true,
       octokit,
