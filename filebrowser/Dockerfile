@@ -13,6 +13,6 @@ RUN npx tsc --noEmit
 
 FROM typecheck AS run
 WORKDIR /work
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --omit=optional
 
 CMD ["npm", "run", "start"]
