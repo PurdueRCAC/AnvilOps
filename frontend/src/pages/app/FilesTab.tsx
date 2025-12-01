@@ -274,6 +274,10 @@ export const FilesTab = ({ app }: { app: App }) => {
   );
 };
 
+const LazyEditor = lazy(() =>
+  import("../../lib/monaco").then((module) => ({ default: module.Editor })),
+);
+
 const FilePreview = ({
   file,
   path,
@@ -424,10 +428,6 @@ const FilePreview = ({
   }, [editorVisible]);
 
   const [saving, setSaving] = useState(false);
-
-  const LazyEditor = lazy(() =>
-    import("../../lib/monaco").then((module) => ({ default: module.Editor })),
-  );
 
   if (raw || isTextFile(file.fileType!, file.name!)) {
     requestDownload();
