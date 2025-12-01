@@ -4,8 +4,11 @@ import type {
   LogType,
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
-import { type DeploymentConfigModel as PrismaDeploymentConfig } from "../../generated/prisma/models/DeploymentConfig.ts";
-import { decryptEnv } from "../crypto.ts";
+import {
+  type DeploymentConfigCreateInput,
+  type DeploymentConfigModel as PrismaDeploymentConfig,
+} from "../../generated/prisma/models/DeploymentConfig.ts";
+import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
 import type {
   Deployment,
@@ -84,7 +87,7 @@ export class DeploymentRepo {
     return await this.client.deployment.create({
       data: {
         app: { connect: { id: appId } },
-        config: { create: config },
+        config: { create: DeploymentRepo.encryptEnv(config) },
         commitMessage,
         workflowRunId,
         secret: randomBytes(32).toString("hex"),
@@ -153,9 +156,21 @@ export class DeploymentRepo {
     return DeploymentRepo.preprocessDeploymentConfig(deployment.config);
   }
 
+  private static encryptEnv(
+    config: DeploymentConfigCreate,
+  ): DeploymentConfigCreateInput {
+    const copy = structuredClone(config) as DeploymentConfigCreateInput;
+    copy.envKey = generateKey();
+    copy.env = encryptEnv(copy.env, copy.envKey);
+    return copy;
+  }
+
   static preprocessDeploymentConfig(
     config: PrismaDeploymentConfig,
   ): DeploymentConfig {
+    if (config === null) {
+      return null;
+    }
     const env = config.env;
     const key = config.envKey;
 

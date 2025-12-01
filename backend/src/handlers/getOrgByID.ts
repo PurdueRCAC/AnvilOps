@@ -42,6 +42,10 @@ export const getOrgByID: HandlerMap["getOrgByID"] = async (
         db.app.getMostRecentDeployment(app.id),
       ]);
 
+      if (!config) {
+        return null;
+      }
+
       let repoURL: string;
       if (config.source === "GIT" && org.githubInstallationId) {
         try {
@@ -80,7 +84,7 @@ export const getOrgByID: HandlerMap["getOrgByID"] = async (
     (group) => {
       return {
         ...group,
-        apps: hydratedApps.filter((app) => app.groupId === group.id),
+        apps: hydratedApps.filter((app) => app?.groupId === group.id),
       };
     },
   );
