@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import { ConflictError, db } from "../db/index.ts";
 import type { App, DeploymentConfigCreate } from "../db/models.ts";
-import { canManageProject } from "../lib/cluster/rancher.ts";
+import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
@@ -61,19 +61,21 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 
   const { clusterUsername } = await db.user.getById(req.user.id);
 
-  const permissionResults = await Promise.all(
-    data.apps.map(async (app) => ({
-      project: app.projectId,
-      canManage: await canManageProject(clusterUsername, app.projectId),
-    })),
-  );
+  if (isRancherManaged()) {
+    const permissionResults = await Promise.all(
+      data.apps.map(async (app) => ({
+        project: app.projectId,
+        canManage: await canManageProject(clusterUsername, app.projectId),
+      })),
+    );
 
-  for (const result of permissionResults) {
-    if (!result.canManage) {
-      return json(400, res, {
-        code: 400,
-        message: `Project ${result.project} not found`,
-      });
+    for (const result of permissionResults) {
+      if (!result.canManage) {
+        return json(400, res, {
+          code: 400,
+          message: `Project ${result.project} not found`,
+        });
+      }
     }
   }
 
