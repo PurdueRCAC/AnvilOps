@@ -17,6 +17,7 @@ Railpack generates instructions to download dependencies and compilers and build
   - Nuxt
 - Python, including:
   - Django
+  - FastAPI
 - Go
 - PHP, including:
   - Laravel
@@ -30,6 +31,7 @@ Railpack generates instructions to download dependencies and compilers and build
 - Elixir
 - Gleam
 - .NET
+- C/C++
 - Shell scripts (from a `start.sh` file in the root directory)
 
 For more information on each framework and how it is detected, see the [Railpack documentation](https://railpack.com/getting-started).
