@@ -63,6 +63,15 @@ export const OverviewTab = ({
       refetchInterval: ({ state: { data } }) => {
         if (!data) return false;
         switch (data?.[0]?.status) {
+          case "QUEUED":
+            if (
+              new Date().getTime() - new Date(data?.[0]?.createdAt).getTime() <
+              10_000
+            ) {
+              return 1_000;
+            } else {
+              return 5_000;
+            }
           case "PENDING":
             return 1_000;
           case "BUILDING":
