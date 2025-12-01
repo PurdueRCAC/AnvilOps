@@ -144,14 +144,13 @@ export class AppRepo {
       });
       const app = await tx.app.delete({
         where: { id: appId },
-        include: {
-          appGroup: {
-            select: { _count: { select: { apps: true } } },
-          },
-        },
+        select: { appGroupId: true },
       });
 
-      const appsRemaining = app.appGroup._count.apps;
+      const appsRemaining = await tx.app.count({
+        where: { id: { not: appId }, appGroupId: app.appGroupId },
+      });
+
       if (appsRemaining === 0) {
         // We removed the last app in the group; remove the group as well
         await tx.appGroup.delete({ where: { id: app.appGroupId } });
