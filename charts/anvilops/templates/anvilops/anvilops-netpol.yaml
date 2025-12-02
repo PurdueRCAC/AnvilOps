@@ -5,11 +5,10 @@ metadata:
   labels:
     {{- include "anvilops.commonLabels" . | nindent 4 }}
 spec:
+  podSelector:
+    matchLabels:
+      app: anvilops
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          {{- include "anvilops.appLabels" . | nindent 10 }}
-  podSelector: {}
+  - {}
   policyTypes:
     - Ingress
