@@ -3,7 +3,9 @@ import { type Octokit } from "octokit";
 import type { App } from "../generated/prisma/client.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
@@ -165,7 +167,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   const appConfigs = await Promise.all(
     data.apps.map(async (app) => {
       let namespace = app.subdomain;
-      if ((await db.app.findMany({ where: { namespace } })).length > 0) {
+      if (await namespaceInUse(getNamespace(namespace))) {
         namespace += "-" + Math.floor(Math.random() * 10_000);
       }
 

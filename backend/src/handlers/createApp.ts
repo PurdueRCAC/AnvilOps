@@ -7,7 +7,9 @@ import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
 } from "../generated/prisma/models.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
@@ -193,7 +195,7 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   let namespace = appData.subdomain;
-  if ((await db.app.findMany({ where: { namespace } })).length > 0) {
+  if (await namespaceInUse(getNamespace(namespace))) {
     namespace += "-" + Math.floor(Math.random() * 10_000);
   }
 
