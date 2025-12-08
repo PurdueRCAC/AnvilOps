@@ -101,7 +101,7 @@ async function forward(
   }
 
   const response = await forwardRequest(
-    getNamespace(app.subdomain),
+    getNamespace(app.namespace),
     volumeClaimName,
     path,
     requestInit,

@@ -2106,10 +2106,10 @@ components:
           format: int64
         repositoryURL:
           type: string
+        namespace:
+          type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
-        subdomain:
-          type: string
         activeDeployment:
           type: number
           format: int64
@@ -2126,7 +2126,7 @@ components:
         - name
         - displayName
         - config
-        - subdomain
+        - namespace
         - activeDeployment
         - deploymentCount
     AppUpdate:
@@ -2190,6 +2190,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
+        subdomain:
+          type: string
+        createIngress:
+          type: boolean
         collectLogs:
           description: Whether to use the log-shipper wrapper process to collect logs and send them to AnvilOps. When set to false, this wrapper is disabled, so historical logs aren't kept. For more details, see log-shipper/README.md.
           type: boolean
@@ -2209,6 +2213,7 @@ components:
         - limits
         - requests
         - collectLogs
+        - createIngress
     GitDeploymentOptions:
       allOf:
         - type: object
@@ -2436,16 +2441,18 @@ components:
                       type: integer
                       format: int64
                   required: [type, id]
+            createIngress:
+              type: boolean
           required:
             - name
             - orgId
-            - subdomain
             - port
             - env
             - mounts
             - appGroup
             - cpuCores
             - memoryInMiB
+            - createIngress
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"
@@ -2478,6 +2485,8 @@ components:
               type: number
             memoryInMiB:
               type: integer
+            createIngress:
+              type: boolean
           required:
             - name
             - orgId
@@ -2487,6 +2496,7 @@ components:
             - mounts
             - cpuCores
             - memoryInMiB
+            - createIngress
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

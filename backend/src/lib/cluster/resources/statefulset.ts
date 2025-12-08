@@ -21,6 +21,7 @@ interface DeploymentParams {
   env: V1EnvVar[];
   logIngestSecret: string;
   subdomain: string;
+  createIngress: boolean;
   port: number;
   replicas: number;
   mounts: PrismaJson.VolumeMount[];
@@ -33,9 +34,16 @@ export const generateAutomaticEnvVars = async (
   deployment: Pick<Deployment, "id" | "commitMessage"> & {
     config: Pick<
       DeploymentConfig,
-      "source" | "branch" | "imageTag" | "repositoryId" | "commitHash" | "port"
+      | "source"
+      | "branch"
+      | "imageTag"
+      | "repositoryId"
+      | "commitHash"
+      | "port"
+      | "subdomain"
+      | "createIngress"
     >;
-    app: Pick<App, "id" | "subdomain" | "displayName">;
+    app: Pick<App, "id" | "namespace" | "displayName">;
   },
 ): Promise<{ name: string; value: string }[]> => {
   const app = deployment.app;
@@ -48,16 +56,16 @@ export const generateAutomaticEnvVars = async (
     },
     {
       name: "ANVILOPS_CLUSTER_HOSTNAME",
-      value: `anvilops-${app.subdomain}.anvilops-${app.subdomain}.svc.cluster.local`,
+      value: `anvilops-${app.namespace}.anvilops-${app.namespace}.svc.cluster.local`,
     },
     {
       name: "ANVILOPS_APP_NAME",
       value: app.displayName,
     },
-    {
-      name: "ANVILOPS_SUBDOMAIN",
-      value: app.subdomain,
-    },
+    // {
+    //   name: "ANVILOPS_SUBDOMAIN",
+    //   value: app.subdomain,
+    // },
     {
       name: "ANVILOPS_APP_ID",
       value: app.id.toString(),
@@ -98,8 +106,8 @@ export const generateAutomaticEnvVars = async (
     });
   }
 
-  if (appDomain !== null) {
-    const hostname = `${app.subdomain}.${appDomain.host}`;
+  if (appDomain !== null && deployment.config.createIngress) {
+    const hostname = `${deployment.config.subdomain}.${appDomain.host}`;
     list.push({
       name: "ANVILOPS_HOSTNAME",
       value: hostname,

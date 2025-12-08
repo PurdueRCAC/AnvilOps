@@ -139,13 +139,6 @@ export const OverviewTab = ({
 
   const appDomain = URL.parse(useAppConfig()?.appDomain ?? "");
 
-  let subdomain = "";
-  if (appDomain !== null) {
-    const temp = new URL(appDomain);
-    temp.hostname = app.subdomain + "." + temp.hostname;
-    subdomain = temp.toString();
-  }
-
   return (
     <>
       <RedeployModal
@@ -187,7 +180,7 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        {appDomain !== null && (
+        {appDomain !== null && app.config.createIngress && (
           <>
             <p className="flex items-center gap-2">
               <Link2 size={16} />
@@ -195,12 +188,16 @@ export const OverviewTab = ({
             </p>
             <p>
               <a
-                href={subdomain}
+                href={(() => {
+                  const temp = new URL(appDomain);
+                  temp.hostname = app.config.subdomain + "." + temp.hostname;
+                  return temp.toString();
+                })()}
                 className="underline flex gap-1 items-center"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {app.subdomain}.{appDomain?.hostname}
+                {app.config.subdomain}.{appDomain?.hostname}
                 <ExternalLink size={14} />
               </a>
             </p>
@@ -220,7 +217,7 @@ export const OverviewTab = ({
           </HelpTooltip>
         </p>
         <p>
-          anvilops-{app.subdomain}.anvilops-{app.subdomain}
+          anvilops-{app.namespace}.anvilops-{app.namespace}
           .svc.cluster.local
         </p>
       </div>

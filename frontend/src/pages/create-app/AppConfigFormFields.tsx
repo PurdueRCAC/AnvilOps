@@ -49,6 +49,7 @@ export type AppInfoFormData = {
   name?: string;
   port?: string;
   subdomain: string;
+  createIngress: boolean;
   dockerfilePath?: string;
   groupOption?: string;
   groupId?: number;
@@ -98,6 +99,7 @@ const AppConfigFormFields = ({
     mounts,
     orgId,
     subdomain,
+    createIngress,
   } = state;
 
   const { user } = useContext(UserContext);
@@ -116,6 +118,7 @@ const AppConfigFormFields = ({
       )
     : { data: null, isPending: false };
 
+  console.log(defaults);
   const MAX_SUBDOMAIN_LENGTH = 54;
   const subdomainIsValid =
     subdomain.length < MAX_SUBDOMAIN_LENGTH &&
@@ -150,30 +153,49 @@ const AppConfigFormFields = ({
     <>
       <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
 
-      {!isExistingApp && appDomain !== null && (
+      {appDomain !== null && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label className="pb-1" htmlFor="subdomain">
               <Link className="inline" size={16} /> Public URL
             </Label>
-            <span
-              className="text-red-500 cursor-default"
-              title="This field is required."
-            >
-              *
-            </span>
+            {createIngress && (
+              <span
+                className="text-red-500 h-fit cursor-default"
+                title="This field is required."
+              >
+                *
+              </span>
+            )}
           </div>
+          <Label>
+            <Checkbox
+              checked={createIngress}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setState((prev) => ({
+                    ...prev,
+                    createIngress: !!checked,
+                    subdomain: "",
+                  }));
+                } else {
+                  setState((prev) => ({ ...prev, createIngress: checked }));
+                }
+              }}
+            />
+            <span className="text-sm">Make my app public</span>
+          </Label>
           <div className="flex relative items-center gap-2">
             <span className="absolute left-2 text-sm opacity-50">
               {appDomain?.protocol}//
             </span>
             <Input
-              disabled={disabled}
+              disabled={disabled || !createIngress}
+              required={createIngress}
               name="subdomain"
               id="subdomain"
               placeholder="my-app"
               className="w-full pl-14 pr-45"
-              required
               pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
               value={subdomain}
               onChange={(e) => {
@@ -206,7 +228,9 @@ const AppConfigFormFields = ({
               </ul>
             </div>
           ) : null}
-          {subdomain && subdomainIsValid ? (
+          {subdomain &&
+          subdomainIsValid &&
+          subdomain !== defaults?.config?.subdomain ? (
             subdomain !== debouncedSub || subLoading ? (
               <span className="text-sm">
                 <Loader className="animate-spin inline" /> Checking subdomain...

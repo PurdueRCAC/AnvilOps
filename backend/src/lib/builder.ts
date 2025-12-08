@@ -23,26 +23,10 @@ export type CreateJobFromDeploymentInput = Parameters<
 
 async function createJobFromDeployment(
   deployment: Pick<Deployment, "id" | "commitMessage" | "appId" | "secret"> & {
-    config: Pick<
-      ExtendedDeploymentConfig,
-      | "source"
-      | "repositoryId"
-      | "branch"
-      | "commitHash"
-      | "imageTag"
-      | "builder"
-      | "dockerfilePath"
-      | "imageTag"
-      | "repositoryId"
-      | "rootDir"
-      | "env"
-      | "envKey"
-      | "getPlaintextEnv"
-      | "port"
-    >;
+    config: ExtendedDeploymentConfig;
     app: Pick<
       App,
-      "id" | "displayName" | "subdomain" | "imageRepo" | "logIngestSecret"
+      "id" | "displayName" | "namespace" | "imageRepo" | "logIngestSecret"
     > & {
       org: Pick<Organization, "githubInstallationId">;
     };
@@ -350,9 +334,9 @@ export async function dequeueBuildJob(): Promise<string> {
           select: {
             id: true,
             displayName: true,
-            subdomain: true,
             imageRepo: true,
             logIngestSecret: true,
+            namespace: true,
             org: { select: { githubInstallationId: true } },
           },
         },

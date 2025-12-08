@@ -1,6 +1,7 @@
 import type {
   KubernetesObjectApi,
   V1EnvVar,
+  V1Ingress,
   V1Namespace,
   V1Secret,
 } from "@kubernetes/client-node";
@@ -145,7 +146,7 @@ export const createAppConfigsFromDeployment = async (
       | "name"
       | "displayName"
       | "logIngestSecret"
-      | "subdomain"
+      | "namespace"
       | "projectId"
     > & { appGroup: AppGroup; org: Pick<Organization, "githubInstallationId"> };
     config: ExtendedDeploymentConfig;
@@ -153,7 +154,7 @@ export const createAppConfigsFromDeployment = async (
 ) => {
   const app = deployment.app;
   const conf = deployment.config;
-  const namespaceName = getNamespace(app.subdomain);
+  const namespaceName = getNamespace(app.namespace);
 
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
@@ -191,7 +192,8 @@ export const createAppConfigsFromDeployment = async (
     image: conf.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
-    subdomain: app.subdomain,
+    subdomain: conf.subdomain,
+    createIngress: conf.createIngress,
     port: conf.port,
     replicas: conf.replicas,
     mounts: conf.mounts,
@@ -224,12 +226,26 @@ export const createAppConfigsFromDeployment = async (
     applyLabels(config, labels);
   }
   const postCreate = async (api: KubernetesObjectApi) => {
-    // Clean up secrets from previous deployments of the app
+    // Clean up secrets and ingresses from previous deployments of the app
     const secrets = (await api
       .list("v1", "Secret", namespaceName)
-      .then((data) => data.items)) as V1Secret[];
+      .then((data) => data.items)
+      .then((data) =>
+        data.map((d) => ({ ...d, apiVersion: "v1", kind: "Secret" })),
+      )) as (V1Secret & K8sObject)[];
+    const ingresses = (await api
+      .list("networking.k8s.io/v1", "Ingress", namespaceName)
+      .then((data) => data.items)
+      .then((data) =>
+        data.map((d) => ({
+          ...d,
+          apiVersion: "networking.k8s.io/v1",
+          kind: "Ingress",
+        })),
+      )) as (V1Ingress & K8sObject)[];
+
     await Promise.all(
-      secrets
+      [...secrets, ...ingresses]
         .filter(
           (secret) =>
             parseInt(

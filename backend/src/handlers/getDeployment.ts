@@ -20,7 +20,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       config: true,
       app: {
         select: {
-          subdomain: true,
+          namespace: true,
           name: true,
           org: {
             select: { githubInstallationId: true },
@@ -54,7 +54,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
     api
       .listNamespacedPod({
-        namespace: getNamespace(deployment.app.subdomain),
+        namespace: getNamespace(deployment.app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
       .catch(
@@ -125,6 +125,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       mounts: deployment.config.mounts,
       port: deployment.config.port,
       replicas: deployment.config.replicas,
+      createIngress: deployment.config.createIngress,
       collectLogs: deployment.config.collectLogs,
       requests: deployment.config.requests,
       limits: deployment.config.limits,

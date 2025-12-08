@@ -9,12 +9,17 @@ interface IngressInterface {
   port: number;
   servicePort?: number;
   subdomain: string;
+  createIngress: boolean;
 }
 
 export const createIngressConfig = (
   app: IngressInterface,
 ): (V1Ingress & K8sObject) | null => {
-  if (!env.APP_DOMAIN || URL.parse(env.APP_DOMAIN) === null) {
+  if (
+    !app.createIngress ||
+    !env.APP_DOMAIN ||
+    URL.parse(env.APP_DOMAIN) === null
+  ) {
     return null;
   }
 
