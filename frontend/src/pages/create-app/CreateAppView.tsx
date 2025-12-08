@@ -108,6 +108,7 @@ export default function CreateAppView() {
                 orgId: formState.orgId!,
                 projectId: formState.projectId,
                 name: appName,
+                createIngress: formState.createIngress,
                 subdomain: subdomain,
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),

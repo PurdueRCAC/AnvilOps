@@ -98,6 +98,7 @@ export default function CreateAppGroupView() {
                   projectId: appState.projectId,
                   name: getAppName(appState),
                   subdomain: appState.subdomain,
+                  createIngress: appState.createIngress,
                   port: parseInt(appState.port!),
                   env: appState.env.filter((ev) => ev.name.length > 0),
                   mounts: appState.mounts.filter((m) => m.path.length > 0),

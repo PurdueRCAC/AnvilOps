@@ -66,7 +66,7 @@ export const deleteAppGroup: HandlerMap["deleteAppGroup"] = async (
             app.projectId,
             ["KubernetesObjectApi"],
           );
-          deleteNamespace(api, getNamespace(app.subdomain));
+          deleteNamespace(api, getNamespace(app.namespace));
         }),
       );
     } catch (err) {

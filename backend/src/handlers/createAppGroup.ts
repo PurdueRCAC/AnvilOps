@@ -171,7 +171,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     return {
       name: app.name,
       displayName: app.name,
-      subdomain: app.subdomain,
+      namespace: app.subdomain,
       orgId: app.orgId,
       // This cluster username will be used to automatically update the app after a build job or webhook payload
       clusterUsername,
@@ -229,6 +229,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 
           const deploymentConfig: DeploymentConfigCreateInput = {
             collectLogs: true,
+            createIngress: configParams.createIngress,
+            subdomain: configParams.subdomain,
             env: configParams.env,
             requests: { cpu, memory },
             limits: { cpu, memory },

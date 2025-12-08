@@ -54,7 +54,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
   }
 
   const {
-    subdomain,
+    namespace,
     projectId,
     imageRepo,
     appGroup,
@@ -68,7 +68,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
       name: true,
       displayName: true,
       logIngestSecret: true,
-      subdomain: true,
+      namespace: true,
       imageRepo: true,
       projectId: true,
       appGroup: {
@@ -90,7 +90,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
               name: true,
               displayName: true,
               logIngestSecret: true,
-              subdomain: true,
+              namespace: true,
               org: { select: { githubInstallationId: true } },
               projectId: true,
               appGroup: true,
@@ -108,7 +108,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
         projectId,
         ["KubernetesObjectApi"],
       );
-      await deleteNamespace(api, getNamespace(subdomain));
+      await deleteNamespace(api, getNamespace(namespace));
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }

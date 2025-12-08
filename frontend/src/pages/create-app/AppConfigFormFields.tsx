@@ -160,13 +160,30 @@ const AppConfigFormFields = ({
             </Label>
             {createIngress && (
               <span
-                className="text-red-500 cursor-default"
+                className="text-red-500 h-fit cursor-default"
                 title="This field is required."
               >
                 *
               </span>
             )}
           </div>
+          <Label>
+            <Checkbox
+              checked={createIngress}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setState((prev) => ({
+                    ...prev,
+                    createIngress: !!checked,
+                    subdomain: "",
+                  }));
+                } else {
+                  setState((prev) => ({ ...prev, createIngress: checked }));
+                }
+              }}
+            />
+            <span className="text-sm">Make my app public</span>
+          </Label>
           <div className="flex relative items-center gap-2">
             <span className="absolute left-2 text-sm opacity-50">
               {appDomain?.protocol}//
@@ -232,23 +249,6 @@ const AppConfigFormFields = ({
               </>
             )
           ) : null}
-          <Label>
-            <Checkbox
-              checked={!createIngress}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setState((prev) => ({
-                    ...prev,
-                    createIngress: !checked,
-                    subdomain: "",
-                  }));
-                } else {
-                  setState((prev) => ({ ...prev, createIngress: !checked }));
-                }
-              }}
-            />
-            <span className="text-sm">Don't make my app public</span>
-          </Label>
         </div>
       )}
       <div className="space-y-2">

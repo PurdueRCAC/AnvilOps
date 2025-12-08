@@ -2106,10 +2106,10 @@ components:
           format: int64
         repositoryURL:
           type: string
+        namespace:
+          type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
-        subdomain:
-          type: string
         activeDeployment:
           type: number
           format: int64
@@ -2126,7 +2126,7 @@ components:
         - name
         - displayName
         - config
-        - subdomain
+        - namespace
         - activeDeployment
         - deploymentCount
     AppUpdate:
@@ -2190,6 +2190,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Mount"
+        subdomain:
+          type: string
         createIngress:
           type: boolean
         collectLogs:
@@ -2439,6 +2441,8 @@ components:
                       type: integer
                       format: int64
                   required: [type, id]
+            createIngress:
+              type: boolean
           required:
             - name
             - orgId
@@ -2449,6 +2453,7 @@ components:
             - appGroup
             - cpuCores
             - memoryInMiB
+            - createIngress
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"
@@ -2481,6 +2486,8 @@ components:
               type: number
             memoryInMiB:
               type: integer
+            createIngress:
+              type: boolean
           required:
             - name
             - orgId
@@ -2490,6 +2497,7 @@ components:
             - mounts
             - cpuCores
             - memoryInMiB
+            - createIngress
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

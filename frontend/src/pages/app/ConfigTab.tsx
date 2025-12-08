@@ -35,7 +35,7 @@ export const ConfigTab = ({
       path: mount.path,
     })),
     collectLogs: app.config.collectLogs,
-    subdomain: app.subdomain,
+    subdomain: app.config.subdomain ?? "",
     createIngress: app.config.createIngress,
     orgId: app.orgId,
     groupOption: app.appGroup.standalone ? "standalone" : "add-to",

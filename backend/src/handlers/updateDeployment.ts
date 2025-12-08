@@ -36,7 +36,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           name: true,
           displayName: true,
           logIngestSecret: true,
-          subdomain: true,
+          namespace: true,
           org: { select: { githubInstallationId: true } },
           projectId: true,
           appGroup: true,

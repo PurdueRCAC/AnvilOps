@@ -10,7 +10,6 @@ import {
   deleteNamespace,
   getClientForClusterUsername,
   getClientsForRequest,
-  namespaceInUse,
   svcK8s,
 } from "../lib/cluster/kubernetes.ts";
 import {
@@ -249,7 +248,7 @@ export const handlers = {
                       selectedDeployment?.status === "COMPLETE" &&
                       env.APP_DOMAIN &&
                       app.config.createIngress
-                        ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
+                        ? `${appDomain.protocol}//${app.config.subdomain}.${appDomain.host}`
                         : undefined,
                   };
                 }),
@@ -330,7 +329,7 @@ export const handlers = {
             app.projectId === env["SANDBOX_ID"]
               ? svcK8s["KubernetesObjectApi"]
               : userApi;
-          await deleteNamespace(api, getNamespace(app.subdomain));
+          await deleteNamespace(api, getNamespace(app.namespace));
         } catch (err) {
           console.error(err);
         }
@@ -387,7 +386,7 @@ export const handlers = {
           ["AppsV1Api"],
         );
         return await api.readNamespacedStatefulSet({
-          namespace: getNamespace(app.subdomain),
+          namespace: getNamespace(app.namespace),
           name: app.name,
         });
       } catch {}
@@ -422,10 +421,13 @@ export const handlers = {
       updatedAt: app.updatedAt.toISOString(),
       repositoryId: repoId,
       repositoryURL: repoURL,
-      subdomain: app.subdomain,
       cdEnabled: app.enableCD,
+      namespace: app.namespace,
       config: {
         createIngress: currentConfig.createIngress,
+        subdomain: currentConfig.createIngress
+          ? currentConfig.subdomain
+          : undefined,
         collectLogs: currentConfig.collectLogs,
         port: currentConfig.port,
         env: currentConfig.displayEnv,
@@ -504,15 +506,11 @@ export const handlers = {
       return json(400, res, { code: 400, message: "Invalid subdomain." });
     }
 
-    const namespaceExists = namespaceInUse(getNamespace(subdomain));
-    const subdomainUsedByApp = db.app.count({
-      where: { subdomain },
+    // const namespaceExists = namespaceInUse(getNamespace(subdomain));
+    const subdomainUsedByApp = await db.app.count({
+      where: { config: { subdomain } },
     });
-    // Check database in addition to resources in case the namespace is taken but not finished creating
-    const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
-      .map((value) => !!value)
-      .reduce((prev, cur) => prev && !cur, true);
-    return json(200, res, { available: canUse });
+    return json(200, res, { available: !subdomainUsedByApp });
   },
   listOrgGroups: async function (
     ctx: Context<never, { orgId: number }>,

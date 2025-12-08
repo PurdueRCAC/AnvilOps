@@ -143,6 +143,8 @@ export const createApp: HandlerMap["createApp"] = async (
     memory = appData.memoryInMiB + "Mi";
   const deploymentConfig: DeploymentConfigCreateInput = {
     collectLogs: true,
+    createIngress: appData.createIngress,
+    subdomain: appData.subdomain,
     env: appData.env,
     requests: { cpu, memory },
     limits: { cpu, memory },
@@ -198,7 +200,7 @@ export const createApp: HandlerMap["createApp"] = async (
       data: {
         name: appData.name,
         displayName: appData.name,
-        subdomain: appData.subdomain,
+        namespace: appData.subdomain,
         org: {
           connect: {
             id: appData.orgId,

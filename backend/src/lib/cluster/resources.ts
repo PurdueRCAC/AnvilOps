@@ -146,7 +146,7 @@ export const createAppConfigsFromDeployment = async (
       | "name"
       | "displayName"
       | "logIngestSecret"
-      | "subdomain"
+      | "namespace"
       | "projectId"
     > & { appGroup: AppGroup; org: Pick<Organization, "githubInstallationId"> };
     config: ExtendedDeploymentConfig;
@@ -154,7 +154,7 @@ export const createAppConfigsFromDeployment = async (
 ) => {
   const app = deployment.app;
   const conf = deployment.config;
-  const namespaceName = getNamespace(app.subdomain);
+  const namespaceName = getNamespace(app.namespace);
 
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
@@ -192,7 +192,7 @@ export const createAppConfigsFromDeployment = async (
     image: conf.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
-    subdomain: app.subdomain,
+    subdomain: app.namespace,
     createIngress: conf.createIngress,
     port: conf.port,
     replicas: conf.replicas,

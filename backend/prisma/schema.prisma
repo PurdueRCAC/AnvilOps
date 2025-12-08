@@ -154,7 +154,7 @@ model App {
   updatedAt       DateTime          @updatedAt
   name            String
   displayName     String
-  subdomain       String            @unique
+  namespace       String            @unique
   imageRepo       String            @default("")
   deployments     Deployment[]
   logIngestSecret String            @unique
@@ -224,6 +224,7 @@ model DeploymentConfig {
 
   collectLogs   Boolean @default(true)
   createIngress Boolean @default(true)
+  subdomain     String?
 
   replicas Int @default(1)
   port     Int
