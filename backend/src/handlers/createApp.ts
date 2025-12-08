@@ -191,12 +191,18 @@ export const createApp: HandlerMap["createApp"] = async (
       };
       break;
   }
+
+  let namespace = appData.subdomain;
+  if ((await db.app.findMany({ where: { namespace } })).length > 0) {
+    namespace += "-" + Math.floor(Math.random() * 10_000);
+  }
+
   try {
     app = await db.app.create({
       data: {
         name: appData.name,
         displayName: appData.name,
-        namespace: appData.subdomain,
+        namespace,
         org: {
           connect: {
             id: appData.orgId,

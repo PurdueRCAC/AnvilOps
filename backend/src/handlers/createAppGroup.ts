@@ -62,7 +62,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
         try {
           await validateDeploymentConfig({
             ...app,
-            createIngress: !!app.subdomain,
             collectLogs: true,
           });
           validateAppName(app.name);
@@ -163,19 +162,26 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       orgId: data.orgId,
     },
   });
-  const appConfigs = data.apps.map((app) => {
-    return {
-      name: app.name,
-      displayName: app.name,
-      namespace: app.subdomain,
-      orgId: app.orgId,
-      // This cluster username will be used to automatically update the app after a build job or webhook payload
-      clusterUsername,
-      projectId: app.projectId,
-      appGroupId,
-      logIngestSecret: randomBytes(48).toString("hex"),
-    };
-  });
+  const appConfigs = await Promise.all(
+    data.apps.map(async (app) => {
+      let namespace = app.subdomain;
+      if ((await db.app.findMany({ where: { namespace } })).length > 0) {
+        namespace += "-" + Math.floor(Math.random() * 10_000);
+      }
+
+      return {
+        name: app.name,
+        displayName: app.name,
+        namespace,
+        orgId: app.orgId,
+        // This cluster username will be used to automatically update the app after a build job or webhook payload
+        clusterUsername,
+        projectId: app.projectId,
+        appGroupId,
+        logIngestSecret: randomBytes(48).toString("hex"),
+      };
+    }),
+  );
 
   let apps: App[];
   try {
