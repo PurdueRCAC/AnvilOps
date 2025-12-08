@@ -57,6 +57,10 @@ export async function validateDeploymentConfig(
   if (data.source === "image" && data.collectLogs) {
     await validateImageReference(data.imageTag);
   }
+
+  if (data.subdomain) {
+    await validateSubdomain(data.subdomain);
+  }
 }
 
 export const validateAppGroup = (

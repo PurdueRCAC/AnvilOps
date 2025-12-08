@@ -10,7 +10,6 @@ import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -61,14 +60,12 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     await Promise.all(
       data.apps.map(async (app) => {
         try {
-          const subdomainRes = validateSubdomain(app.subdomain);
           await validateDeploymentConfig({
             ...app,
             createIngress: !!app.subdomain,
             collectLogs: true,
           });
           validateAppName(app.name);
-          await subdomainRes;
           return null;
         } catch (e) {
           return e;

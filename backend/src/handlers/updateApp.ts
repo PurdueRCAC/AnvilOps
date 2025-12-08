@@ -137,19 +137,13 @@ export const updateApp: HandlerMap["updateApp"] = async (
     data.enableCD = appData.enableCD;
   }
 
+  if (appData.projectId && appData.projectId !== originalApp.projectId) {
+    data.projectId = appData.projectId;
+  }
+
   if (Object.keys(data).length > 0) {
     await db.app.update({ where: { id: originalApp.id }, data });
   }
-
-  await db.app.update({
-    where: { id: originalApp.id },
-    data: {
-      ...(appData.projectId &&
-        appData.projectId !== originalApp.projectId && {
-          projectId: appData.projectId,
-        }),
-    },
-  });
 
   const secret = randomBytes(32).toString("hex");
 
