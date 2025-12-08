@@ -112,6 +112,9 @@ export const ConfigTab = ({
               env: formState.env.filter((it) => it.name.length > 0),
               mounts: formState.mounts.filter((it) => it.path.length > 0),
               createIngress: formState.createIngress,
+              subdomain: formState.createIngress
+                ? formState.subdomain
+                : undefined,
               collectLogs: formState.collectLogs,
               replicas: parseInt(formData.get("replicas")!.toString()),
               requests: resources,

@@ -118,6 +118,7 @@ const AppConfigFormFields = ({
       )
     : { data: null, isPending: false };
 
+  console.log(defaults);
   const MAX_SUBDOMAIN_LENGTH = 54;
   const subdomainIsValid =
     subdomain.length < MAX_SUBDOMAIN_LENGTH &&
@@ -227,7 +228,9 @@ const AppConfigFormFields = ({
               </ul>
             </div>
           ) : null}
-          {subdomain && subdomainIsValid ? (
+          {subdomain &&
+          subdomainIsValid &&
+          subdomain !== defaults?.config?.subdomain ? (
             subdomain !== debouncedSub || subLoading ? (
               <span className="text-sm">
                 <Loader className="animate-spin inline" /> Checking subdomain...

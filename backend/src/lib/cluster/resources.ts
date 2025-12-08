@@ -192,7 +192,7 @@ export const createAppConfigsFromDeployment = async (
     image: conf.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
-    subdomain: app.namespace,
+    subdomain: conf.subdomain,
     createIngress: conf.createIngress,
     port: conf.port,
     replicas: conf.replicas,

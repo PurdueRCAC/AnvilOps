@@ -76,7 +76,6 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       }),
     )
   ).filter(Boolean);
-  console.log(appValidationErrors);
   if (appValidationErrors.length > 0) {
     return json(400, res, {
       code: 400,

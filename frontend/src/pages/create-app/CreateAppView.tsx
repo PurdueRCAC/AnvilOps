@@ -94,7 +94,10 @@ export default function CreateAppView() {
 
             let subdomain = formState.subdomain;
 
-            if (!formState.subdomain && config.appDomain === undefined) {
+            if (
+              (!formState.subdomain && config.appDomain === undefined) ||
+              !formState.createIngress
+            ) {
               // Generate a subdomain value to be used as the namespace name
               // This should only happen if the APP_DOMAIN environment variable is missing and no publicly-available domain is known to expose users' apps on subdomains. In that case, we hide the subdomain field because it's irrelevant.
               subdomain =
@@ -109,7 +112,7 @@ export default function CreateAppView() {
                 projectId: formState.projectId,
                 name: appName,
                 createIngress: formState.createIngress,
-                subdomain: subdomain,
+                subdomain,
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
