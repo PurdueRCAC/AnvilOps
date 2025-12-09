@@ -1,1 +1,0 @@
-A minimal chart for a high-availability PostgreSQL deployment using Spilo. User must have permission to create Roles and RoleBindings.

@@ -1,19 +1,29 @@
 import { spawn } from "child_process";
-import fs from "fs";
 
-const extensions = new Set(fs.readdirSync("/templates/extensions"));
-
-const runHelm = ({ chartPath, namespace, kv, release }) => {
+export const runHelm = ({
+  chartURL,
+  namespace,
+  values,
+  release,
+}: {
+  chartURL: string;
+  namespace: string;
+  values: { [key: string]: string };
+  release: string;
+}) => {
+  const kvPairs = Object.keys(values).map((key, value) => `${key}=${value}`);
   const args = [
     "upgrade",
     "--install",
     release,
-    chartPath,
+    chartURL,
     "--namespace",
     namespace,
+    "--create-namespace",
     "--set",
-    kv.join(","),
+    kvPairs.join(","),
   ];
+
   return new Promise((resolve, reject) => {
     const p = spawn("helm", args, { stdio: ["ignore", "pipe", "pipe"] });
     let out = "",

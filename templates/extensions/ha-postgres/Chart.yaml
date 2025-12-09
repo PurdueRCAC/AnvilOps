@@ -1,5 +1,0 @@
-apiVersion: v1
-name: spilo
-description: Minimal Spilo/Patroni HA Postgres
-type: application
-version: 0.1.0

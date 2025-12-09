@@ -28,7 +28,6 @@ declare global {
     };
     type AppFlags = {
       enableCD: boolean;
-      isPreviewing: boolean;
     };
   }
   type ExtendedDeploymentConfig = Prisma.Result<
