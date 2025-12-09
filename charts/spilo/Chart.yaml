@@ -1,0 +1,7 @@
+apiVersion: v1
+name: spilo
+description: A minimal Spilo/Patroni HA Postgres deployment.
+type: application
+version: 0.1.0
+annotations:
+  note: Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
