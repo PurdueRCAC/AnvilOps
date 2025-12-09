@@ -1,4 +1,5 @@
-FROM node:24 AS base
+# syntax=docker/dockerfile:1
+FROM node:24-alpine AS base
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen
@@ -14,7 +15,7 @@ FROM base AS frontend_deps
 
 WORKDIR /app
 COPY frontend/package*.json .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 # FRONTEND: build for production
 FROM base AS frontend_build
@@ -32,7 +33,12 @@ FROM base AS backend_deps
 WORKDIR /app
 COPY backend/package*.json .
 COPY backend/patches/ ./patches
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts && npm run postinstall
+
+# BACKEND: remove devDependencies before node_modules is copied into the final image
+FROM backend_deps AS backend_prod_deps
+WORKDIR /app
+RUN npm prune --omit=dev
 
 # BACKEND: generate Prisma client
 FROM base AS backend_codegen
@@ -43,10 +49,20 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
+FROM alpine:3 AS patcher
+ARG GEDDES="false"
+WORKDIR /app
+
+COPY backend .
+RUN if [ "$GEDDES" = "true" ]; then \
+  apk add --no-cache patch && patch -p2 < geddes.diff; \
+  fi
+RUN rm geddes.diff
+
 # BACKEND: run type checker
 FROM backend_codegen AS backend_build
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
-COPY backend .
+COPY --from=patcher /app .
 RUN npx tsc --noEmit
 
 # SWAGGER UI: install packages and build
@@ -59,11 +75,14 @@ RUN npm ci && npm run build
 FROM base AS backend_run
 
 WORKDIR /app
+COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
-COPY --from=backend_deps /app/node_modules ./node_modules
+COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY openapi/*.yaml /openapi/
 COPY templates/templates.json ./templates.json
-COPY --from=backend_build /app .
+COPY --from=backend_build --exclude=**/node_modules/** /app .
 
 CMD ["npm", "run", "start:prod"]
+EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=10s --start-period=5s --retries=3 CMD ["wget", "-O-", "http://localhost:3000/api/liveness"]

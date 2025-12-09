@@ -12,9 +12,11 @@ anvilops:
     appDomain: http://minikube.local
     harborProjectName: anvilops
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
+    loginType: shibboleth
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
@@ -75,21 +77,12 @@ anvilops:
 
   affinity: {}
 
-appProxy:
-  image: registry.anvil.rcac.purdue.edu/anvilops/sandbox-proxy:latest
-  service:
-    type: ClusterIP
-    port: 80
-
-  ingress:
-    enabled: true
-    className: ""
-    port: 80
-    annotations:
+  apps:
+    ingress:
+      className: nginx
+      annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
-    host: "*.minikube.local"
-    tls: []
 
 postgres:
   generateCredentials: true
@@ -151,15 +144,6 @@ harbor:
       port: 5432
       username: anvilops
       existingSecret: postgres-credentials
-
-logging-operator:
-  # Set this to `true` to create Flow and Output resources specific to the logging operator in the cluster.
-  enabled: true
-  # Set this to `true` to install the kube-logging operator in the cluster.
-  # The operator is required, but if you already have it installed and configured with a `Logging` resource, you should set this to `false`.
-  install: true
-  logging:
-    enabled: true # create a Logging resource, which provisions Fluentd and FluentBit to tail logs from each pod
 
 tenants:
   storageClassName: standard

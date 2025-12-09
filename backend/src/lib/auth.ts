@@ -1,6 +1,7 @@
 import express from "express";
 import * as client from "openid-client";
 import { PermissionLevel } from "../generated/prisma/enums.ts";
+import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 import { db } from "./db.ts";
 import { env, parseCsv } from "./env.ts";
@@ -20,6 +21,10 @@ const code_challenge_method = "S256";
 const scope = "openid email profile org.cilogon.userinfo";
 const allowedIdps = parseCsv(env.ALLOWED_IDPS);
 
+const getIdentity = (claims: client.IDToken) => {
+  return claims[env.LOGIN_CLAIM] as string;
+};
+
 const router = express.Router();
 
 router.get("/login", async (req, res) => {
@@ -32,8 +37,8 @@ router.get("/login", async (req, res) => {
     scope,
     code_challenge,
     code_challenge_method,
-    selected_idp: process.env.ALLOWED_IDPS,
-    idp_hint: process.env.ALLOWED_IDPS,
+    selected_idp: env.ALLOWED_IDPS,
+    idp_hint: env.ALLOWED_IDPS,
   };
 
   const config = await getConfig();
@@ -60,14 +65,14 @@ router.get("/oauth_callback", async (req, res) => {
       },
     );
 
-    const { sub, email, name, idp, eppn } = tokens.claims();
+    const claims = tokens.claims();
 
-    if (allowedIdps && !allowedIdps.includes(idp.toString())) {
+    if (allowedIdps && !allowedIdps.includes(claims.idp.toString())) {
       return res.redirect("/error?type=login&code=IDP_ERROR");
     }
     const existingUser = await db.user.findUnique({
       where: {
-        ciLogonUserId: sub,
+        ciLogonUserId: claims.sub,
       },
     });
 
@@ -80,8 +85,9 @@ router.get("/oauth_callback", async (req, res) => {
     } else {
       let clusterUsername: string;
       if (isRancherManaged()) {
+        const identity = getIdentity(claims);
         try {
-          clusterUsername = await getRancherUserID(eppn as string);
+          clusterUsername = await getRancherUserID(identity as string);
           if (!clusterUsername) {
             throw new Error();
           }
@@ -91,16 +97,16 @@ router.get("/oauth_callback", async (req, res) => {
       }
       const newUser = await db.user.create({
         data: {
-          email: (email as string).toLowerCase(),
-          name: name as string,
-          ciLogonUserId: sub,
+          email: (claims.email as string).toLowerCase(),
+          name: claims.name as string,
+          ciLogonUserId: claims.sub,
           clusterUsername,
           orgs: {
             create: {
               permissionLevel: PermissionLevel.OWNER,
               organization: {
                 create: {
-                  name: `${name || (email as string) || sub}'s Apps`,
+                  name: `${claims.name || (claims.email as string) || claims.sub}'s Apps`,
                 },
               },
             },
@@ -131,6 +137,7 @@ router.post("/logout", (req, res, next) => {
 });
 
 const ALLOWED_ROUTES = [
+  "/liveness",
   "/deployment/update",
   "/github/webhook",
   "/logs/ingest",
@@ -148,7 +155,7 @@ router.use((req, res, next) => {
     res.status(401).json({ code: 401, message: "Unauthorized" });
     return;
   }
-  req.user = req.session["user"];
+  (req as AuthenticatedRequest).user = req.session["user"];
   next();
 });
 

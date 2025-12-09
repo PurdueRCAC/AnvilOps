@@ -1,5 +1,7 @@
 ---
 title: Railpack
+sidebar:
+  order: 4
 ---
 
 **Railpack** is a tool that allows AnvilOps to build users' applications without Dockerfiles for supported languages and frameworks.
@@ -26,6 +28,8 @@ Railpack generates instructions to download dependencies and compilers and build
 - Deno
 - Rust
 - Elixir
+- Gleam
+- .NET
 - Shell scripts (from a `start.sh` file in the root directory)
 
 For more information on each framework and how it is detected, see the [Railpack documentation](https://railpack.com/getting-started).

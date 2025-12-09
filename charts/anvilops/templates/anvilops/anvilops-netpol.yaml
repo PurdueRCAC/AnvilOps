@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: anvilops-allow-apps
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: anvilops
+  ingress:
+  - {}
+  policyTypes:
+    - Ingress

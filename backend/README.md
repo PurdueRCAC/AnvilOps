@@ -110,6 +110,10 @@ Copy this value into your configuration.
 
 Ensure that the user associated with the kubeconfig file has permissions to view Users, Projects, and ProjectRoleTemplateBindings, as well as to manage namespaces within the sandbox project.
 
+Finally, in order to link users with their Rancher accounts, AnvilOps needs additional information about how to match login information with user ids.
+
+Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE>/authConfigs` and use the `id` field for the configuration matching your selected login method. Also set the environment variable `LOGIN_CLAIM` to the CILogon OIDC claim that Rancher uses to set principalIds. See available claims at `https://www.cilogon.org/oidc`. It should represent the same value as the UID field of your Rancher authentication config.
+
 ### Kubernetes API
 
 A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
@@ -133,6 +137,8 @@ AnvilOps expects environment variables to be set to credentials of an account wi
 ## Running
 
 **Note**: We're using Node.js's new TypeScript type stripping support, which requires Node.js version 23.6 or higher. When running the server manually, make sure to pass the `--experimental-strip-types` flag. If you can't update Node.js, use [`ts-node`](https://typestrong.org/ts-node/docs/usage).
+
+**Note**: `regctl` must be installed on your system to fetch the image information needed to wrap images with the `log-shipper`. If you're running AnvilOps locally outside of one of the development or production container images, install `regctl` with one of the methods in this guide: https://regclient.org/install/.
 
 First, install packages with `npm install`.
 

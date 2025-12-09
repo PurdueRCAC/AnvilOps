@@ -7,14 +7,15 @@ import type {
   AppGroupCreateNestedOneWithoutAppsInput,
   DeploymentConfigCreateInput,
 } from "../generated/prisma/models.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -43,11 +44,12 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    validateDeploymentConfig(appData);
+    await validateDeploymentConfig({
+      ...appData,
+      collectLogs: true,
+    });
     validateAppGroup(appData.appGroup);
-    const subdomainRes = validateSubdomain(appData.subdomain);
     validateAppName(appData.name);
-    await subdomainRes;
   } catch (e) {
     return json(400, res, {
       code: 400,
@@ -138,19 +140,15 @@ export const createApp: HandlerMap["createApp"] = async (
   const cpu = Math.round(appData.cpuCores * 1000) + "m",
     memory = appData.memoryInMiB + "Mi";
   const deploymentConfig: DeploymentConfigCreateInput = {
+    collectLogs: true,
+    createIngress: appData.createIngress,
+    subdomain: appData.subdomain,
     env: appData.env,
-    fieldValues: {
-      replicas: 1,
-      port: appData.port,
-      servicePort: 80,
-      mounts: appData.mounts,
-      extra: {
-        postStart: appData.postStart,
-        preStop: appData.preStop,
-        requests: { cpu, memory, "nvidia.com/gpu": undefined },
-        limits: { cpu, memory, "nvidia.com/gpu": undefined },
-      },
-    },
+    requests: { cpu, memory },
+    limits: { cpu, memory },
+    replicas: 1,
+    port: appData.port,
+    mounts: appData.mounts,
     ...(appData.source === "git"
       ? {
           source: "GIT",
@@ -195,12 +193,18 @@ export const createApp: HandlerMap["createApp"] = async (
       };
       break;
   }
+
+  let namespace = appData.subdomain;
+  if (await namespaceInUse(getNamespace(namespace))) {
+    namespace += "-" + Math.floor(Math.random() * 10_000);
+  }
+
   try {
     app = await db.app.create({
       data: {
         name: appData.name,
         displayName: appData.name,
-        subdomain: appData.subdomain,
+        namespace,
         org: {
           connect: {
             id: appData.orgId,

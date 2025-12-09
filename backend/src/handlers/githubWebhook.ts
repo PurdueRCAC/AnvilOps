@@ -6,6 +6,7 @@ import type { App, Deployment } from "../generated/prisma/client.ts";
 import {
   DeploymentSource,
   DeploymentStatus,
+  type LogStream,
   type LogType,
 } from "../generated/prisma/enums.ts";
 import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
@@ -285,10 +286,9 @@ export async function buildAndDeploy({
           logs: {
             create: {
               timestamp: new Date(),
-              content: {
-                log: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
-              },
-              type: "SYSTEM",
+              content: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+              type: "BUILD",
+              stream: "stderr",
             },
           },
         },
@@ -360,6 +360,7 @@ export async function buildAndDeployFromRepo({
       deployment.id,
       "BUILD",
       "Error creating build job: " + JSON.stringify(e),
+      "stderr",
     );
     await db.deployment.update({
       where: { id: deployment.id },
@@ -481,13 +482,16 @@ export async function cancelAllOtherDeployments(
     },
   });
 
-  const octokit = await getOctokit(app.org.githubInstallationId);
+  let octokit: Octokit;
   for (const deployment of deployments) {
     if (
       !["STOPPED", "COMPLETE", "ERROR"].includes(deployment.status) &&
       deployment.checkRunId
     ) {
       // Should have a check run that is either queued or in_progress
+      if (!octokit) {
+        octokit = await getOctokit(app.org.githubInstallationId);
+      }
       const repo = await getRepoById(octokit, deployment.config.repositoryId);
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,
@@ -516,14 +520,16 @@ export async function log(
   deploymentId: number,
   type: LogType,
   content: string,
+  stream: LogStream = "stdout",
 ) {
   try {
     await db.log.create({
       data: {
         deploymentId,
         type,
-        content: { log: content },
+        content,
         timestamp: new Date(),
+        stream,
       },
     });
     await notifyLogStream(deploymentId);

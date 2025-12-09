@@ -13,7 +13,7 @@ import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppConfigFormFields, {
   type AppInfoFormData,
@@ -30,6 +30,7 @@ export default function CreateAppView() {
   const [search] = useSearchParams();
 
   const [formState, setFormState] = useState<AppInfoFormData>({
+    collectLogs: true,
     groupOption: "standalone",
     env: [],
     mounts: [],
@@ -45,20 +46,17 @@ export default function CreateAppView() {
     dockerfilePath: "Dockerfile",
     rootDir: "./",
     subdomain: "",
+    createIngress: true,
     cpuCores: 1,
     memoryInMiB: 1024,
   });
 
   const navigate = useNavigate();
 
-  const shouldShowDeploy = useMemo(() => {
-    return (
-      formState.orgId === undefined ||
-      user?.orgs.some(
-        (org) => org.id === formState.orgId && org.githubConnected,
-      )
-    );
-  }, [user, formState.orgId]);
+  const shouldShowDeploy =
+    formState.orgId === undefined ||
+    formState.source !== "git" ||
+    user?.orgs.some((org) => org.id === formState.orgId && org.githubConnected);
 
   const config = useAppConfig();
 
@@ -96,7 +94,10 @@ export default function CreateAppView() {
 
             let subdomain = formState.subdomain;
 
-            if (!formState.subdomain && config.appDomain === undefined) {
+            if (
+              (!formState.subdomain && config.appDomain === undefined) ||
+              !formState.createIngress
+            ) {
               // Generate a subdomain value to be used as the namespace name
               // This should only happen if the APP_DOMAIN environment variable is missing and no publicly-available domain is known to expose users' apps on subdomains. In that case, we hide the subdomain field because it's irrelevant.
               subdomain =
@@ -110,12 +111,11 @@ export default function CreateAppView() {
                 orgId: formState.orgId!,
                 projectId: formState.projectId,
                 name: appName,
-                subdomain: subdomain,
+                createIngress: formState.createIngress,
+                subdomain,
                 port: parseInt(formState.port!),
                 env: formState.env.filter((ev) => ev.name.length > 0),
                 mounts: formState.mounts.filter((m) => m.path.length > 0),
-                postStart: formState.postStart,
-                preStop: formState.preStop,
                 cpuCores: formState.cpuCores,
                 memoryInMiB: formState.memoryInMiB,
                 appGroup,

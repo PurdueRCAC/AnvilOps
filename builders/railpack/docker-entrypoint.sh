@@ -15,7 +15,7 @@ run_job() {
   set_status "BUILDING"
 
   git config --global advice.detachedHead false # The clone command below puts is in a "detached HEAD" state (https://git-scm.com/docs/git-checkout/2.47.1#_detached_head), but the warning isn't useful in a CI environment. This disables it.
-  git clone "$CLONE_URL" --depth=1 --shallow-submodules --revision="$REF" /work/repo
+  git clone "$CLONE_URL" --depth=1 --shallow-submodules --revision="$REF" /work/repo 2>&1
 
   build() {
     # Railpack is a tool that generates BuildKit LLB from a repository by looking at the files it contains and making an educated guess on the repo's technologies, package managers, etc.
@@ -37,7 +37,7 @@ run_job() {
       --export-cache type=registry,ref="$CACHE_TAG" \
       --import-cache type=registry,ref="$CACHE_TAG" \
       --output type=image,name="$IMAGE_TAG",push=true \
-      --progress plain
+      --progress plain 2>&1
   }
 
   if build ; then

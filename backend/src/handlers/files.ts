@@ -1,11 +1,11 @@
 import type { Response } from "express";
 import { Readable } from "node:stream";
-import type { AuthenticatedRequest } from "./index.ts";
-import { db } from "../lib/db.ts";
-import { forwardRequest } from "../lib/fileBrowser.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
+import { db } from "../lib/db.ts";
+import { forwardRequest } from "../lib/fileBrowser.ts";
 import { json, type HandlerMap } from "../types.ts";
+import type { AuthenticatedRequest } from "./index.ts";
 
 export const getAppFile: HandlerMap["getAppFile"] = async (
   ctx,
@@ -92,7 +92,7 @@ async function forward(
   });
 
   if (
-    !app.config.fieldValues.mounts.some((mount) =>
+    !app.config.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
     )
   ) {
@@ -101,7 +101,7 @@ async function forward(
   }
 
   const response = await forwardRequest(
-    getNamespace(app.subdomain),
+    getNamespace(app.namespace),
     volumeClaimName,
     path,
     requestInit,

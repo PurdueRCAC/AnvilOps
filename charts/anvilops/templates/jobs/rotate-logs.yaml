@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anvilops.fullname" . }}-rotate-logs
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  schedule: "0 0 * * *" # Run once daily at 12:00 AM local time
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: rotate-logs
+              image: {{ .Values.anvilops.image }}
+              command: ["/bin/sh", "-c"]
+              args: ["npm run job:rotate-logs"]
+              env:
+                - name: POSTGRES_USER
+                  value: anvilops
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: password
+                - name: POSTGRES_DB
+                  value: anvilops
+                - name: POSTGRES_HOSTNAME
+                  value: anvilops-postgres

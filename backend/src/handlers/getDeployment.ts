@@ -20,7 +20,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       config: true,
       app: {
         select: {
-          subdomain: true,
+          namespace: true,
           name: true,
           org: {
             select: { githubInstallationId: true },
@@ -54,7 +54,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
     api
       .listNamespacedPod({
-        namespace: getNamespace(deployment.app.subdomain),
+        namespace: getNamespace(deployment.app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
       .catch(
@@ -104,23 +104,31 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       failed,
     },
     config: {
-      branch: deployment.config.branch,
-      imageTag: deployment.config.imageTag,
-      mounts: deployment.config.fieldValues.mounts.map((mount) => ({
-        path: mount.path,
-        amountInMiB: mount.amountInMiB,
-      })),
-      source: deployment.config.source === "GIT" ? "git" : "image",
-      repositoryId: deployment.config.repositoryId,
-      event: deployment.config.event,
-      eventId: deployment.config.eventId,
-      commitHash: deployment.config.commitHash,
-      builder: deployment.config.builder,
-      dockerfilePath: deployment.config.dockerfilePath,
+      ...(deployment.config.source === "GIT"
+        ? {
+            source: "git",
+            branch: deployment.config.branch,
+            imageTag: deployment.config.imageTag,
+            repositoryId: deployment.config.repositoryId,
+            event: deployment.config.event,
+            eventId: deployment.config.eventId,
+            commitHash: deployment.config.commitHash,
+            builder: deployment.config.builder,
+            dockerfilePath: deployment.config.dockerfilePath,
+            rootDir: deployment.config.rootDir,
+          }
+        : {
+            source: "image",
+            imageTag: deployment.config.imageTag,
+          }),
       env: deployment.config.displayEnv,
-      port: deployment.config.fieldValues.port,
-      replicas: deployment.config.fieldValues.replicas,
-      rootDir: deployment.config.rootDir,
+      mounts: deployment.config.mounts,
+      port: deployment.config.port,
+      replicas: deployment.config.replicas,
+      createIngress: deployment.config.createIngress,
+      collectLogs: deployment.config.collectLogs,
+      requests: deployment.config.requests,
+      limits: deployment.config.limits,
     },
   });
 };

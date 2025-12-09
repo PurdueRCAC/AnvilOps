@@ -34,6 +34,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
           deployment: {
             select: {
               commitMessage: true,
+              status: true,
             },
           },
         },
@@ -48,7 +49,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   }
 
   try {
-    validateDeploymentConfig(appData.config);
+    await validateDeploymentConfig(appData.config);
     if (appData.appGroup) {
       validateAppGroup(appData.appGroup);
     }
@@ -136,19 +137,13 @@ export const updateApp: HandlerMap["updateApp"] = async (
     data.enableCD = appData.enableCD;
   }
 
+  if (appData.projectId && appData.projectId !== originalApp.projectId) {
+    data.projectId = appData.projectId;
+  }
+
   if (Object.keys(data).length > 0) {
     await db.app.update({ where: { id: originalApp.id }, data });
   }
-
-  await db.app.update({
-    where: { id: originalApp.id },
-    data: {
-      ...(appData.projectId &&
-        appData.projectId !== originalApp.projectId && {
-          projectId: appData.projectId,
-        }),
-    },
-  });
 
   const secret = randomBytes(32).toString("hex");
 
@@ -156,20 +151,14 @@ export const updateApp: HandlerMap["updateApp"] = async (
   const updatedConfig: DeploymentConfigCreateInput = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(currentConfig.getPlaintextEnv(), appConfig.env),
-    fieldValues: {
-      replicas: appConfig.replicas,
-      port: appConfig.port,
-      servicePort: 80,
-      mounts: appConfig.mounts,
-      extra: {
-        postStart: appConfig.postStart,
-        preStop: appConfig.preStop,
-        requests:
-          appConfig.requests as DeploymentConfigCreateInput["fieldValues"]["extra"]["requests"],
-        limits:
-          appConfig.limits as DeploymentConfigCreateInput["fieldValues"]["extra"]["limits"],
-      },
-    },
+    createIngress: appConfig.createIngress,
+    subdomain: appConfig.createIngress ? appConfig.subdomain : undefined,
+    collectLogs: appConfig.collectLogs,
+    replicas: appConfig.replicas,
+    port: appConfig.port,
+    mounts: appConfig.mounts,
+    requests: appConfig.requests,
+    limits: appConfig.limits,
     ...(appConfig.source === "git"
       ? {
           source: "GIT",
@@ -191,6 +180,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   if (
     updatedConfig.source === "GIT" &&
     (!currentConfig.imageTag ||
+      currentConfig.deployment.status === "ERROR" ||
       updatedConfig.branch !== currentConfig.branch ||
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
@@ -304,10 +294,9 @@ export const updateApp: HandlerMap["updateApp"] = async (
           logs: {
             create: {
               timestamp: new Date(),
-              content: {
-                log: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              },
-              type: "SYSTEM",
+              content: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+              type: "BUILD",
+              stream: "stderr",
             },
           },
         },

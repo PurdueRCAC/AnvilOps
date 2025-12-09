@@ -1,6 +1,7 @@
 import type {
   KubernetesObjectApi,
   V1EnvVar,
+  V1Ingress,
   V1Namespace,
   V1Secret,
 } from "@kubernetes/client-node";
@@ -11,12 +12,11 @@ import type {
   Organization,
 } from "../../generated/prisma/client.ts";
 import { getOctokit } from "../octokit.ts";
-import { createLogConfig } from "./resources/log.ts";
+import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
   createStatefulSetConfig,
   generateAutomaticEnvVars,
-  type DeploymentParams,
 } from "./resources/statefulset.ts";
 
 const NAMESPACE_PREFIX = "anvilops-";
@@ -146,7 +146,7 @@ export const createAppConfigsFromDeployment = async (
       | "name"
       | "displayName"
       | "logIngestSecret"
-      | "subdomain"
+      | "namespace"
       | "projectId"
     > & { appGroup: AppGroup; org: Pick<Organization, "githubInstallationId"> };
     config: ExtendedDeploymentConfig;
@@ -154,12 +154,15 @@ export const createAppConfigsFromDeployment = async (
 ) => {
   const app = deployment.app;
   const conf = deployment.config;
-  const namespaceName = getNamespace(app.subdomain);
+  const namespaceName = getNamespace(app.namespace);
 
   const namespace = createNamespaceConfig(namespaceName, app.projectId);
   const configs: K8sObject[] = [];
 
-  const octokit = await getOctokit(app.org.githubInstallationId);
+  const octokit =
+    deployment.config.source === "GIT"
+      ? await getOctokit(app.org.githubInstallationId)
+      : null;
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = await getEnvVars(
@@ -180,26 +183,33 @@ export const createAppConfigsFromDeployment = async (
     configs.unshift(secretConfig);
   }
 
-  const params: DeploymentParams = {
+  const params = {
+    deploymentId: deployment.id,
+    collectLogs: conf.collectLogs,
     name: app.name,
     namespace: namespaceName,
     serviceName: namespaceName,
     image: conf.imageTag,
     env: envVars,
-    ...conf.fieldValues,
+    logIngestSecret: app.logIngestSecret,
+    subdomain: conf.subdomain,
+    createIngress: conf.createIngress,
+    port: conf.port,
+    replicas: conf.replicas,
+    mounts: conf.mounts,
+    requests: conf.requests,
+    limits: conf.limits,
   };
 
   const svc = createServiceConfig(params);
+  const ingress = createIngressConfig(params);
+  const statefulSet = await createStatefulSetConfig(params);
 
-  const statefulSet = createStatefulSetConfig(params);
-
-  const logs = await createLogConfig(
-    namespaceName,
-    deployment.appId,
-    app.logIngestSecret,
-  );
-
-  configs.push(...logs, statefulSet, svc);
+  configs.push(statefulSet, svc);
+  if (ingress !== null) {
+    // ^ Can be null if APP_DOMAIN is not set, meaning no Ingress should be created for the app
+    configs.push(ingress);
+  }
 
   const appGroupLabel = `${deployment.app.appGroup.name.replaceAll(" ", "_")}-${deployment.app.appGroup.id}-${deployment.app.appGroup.orgId}`;
   const labels = {
@@ -216,12 +226,26 @@ export const createAppConfigsFromDeployment = async (
     applyLabels(config, labels);
   }
   const postCreate = async (api: KubernetesObjectApi) => {
-    // Clean up secrets from previous deployments of the app
+    // Clean up secrets and ingresses from previous deployments of the app
     const secrets = (await api
       .list("v1", "Secret", namespaceName)
-      .then((data) => data.items)) as V1Secret[];
+      .then((data) => data.items)
+      .then((data) =>
+        data.map((d) => ({ ...d, apiVersion: "v1", kind: "Secret" })),
+      )) as (V1Secret & K8sObject)[];
+    const ingresses = (await api
+      .list("networking.k8s.io/v1", "Ingress", namespaceName)
+      .then((data) => data.items)
+      .then((data) =>
+        data.map((d) => ({
+          ...d,
+          apiVersion: "networking.k8s.io/v1",
+          kind: "Ingress",
+        })),
+      )) as (V1Ingress & K8sObject)[];
+
     await Promise.all(
-      secrets
+      [...secrets, ...ingresses]
         .filter(
           (secret) =>
             parseInt(

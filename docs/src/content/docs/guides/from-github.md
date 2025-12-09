@@ -4,7 +4,19 @@ sidebar:
   order: 1
 ---
 
-If you have already installed the AnvilOps GitHub App for your organization, you can deploy applications from GitHub repositories that you have given the GitHub App access to.
+This tutorial will demonstrate:
+
+- How to deploy one of AnvilOps' template applications on Anvil Composable.
+- How to use Railpack to build applications without a Dockerfile.
+- How to use AnvilOps' GitHub integrations for continuous deployment.
+
+Follow along at `https://anvilops.rcac.purdue.edu`.
+
+### Prerequisites
+
+You will need to have the AnvilOps GitHub App installed for your organization. This allows AnvilOps to deploy repositories on the cluster. In particular, for this tutorial, the GitHub App is needed for AnvilOps to clone the template repository to your account.
+
+If you do not have access to your own project on Anvil Composable, select the `anvilops_sandbox` project.
 
 ### Initial Configuration
 
@@ -23,7 +35,7 @@ If you have already installed the AnvilOps GitHub App for your organization, you
 
 5. Look over the settings that have been autofilled.
 
-   **Build**: AnvilOps will use Railpack to detect the framework your repository uses([Astro](https://astro.build/)) and build it without extra configuration.
+   **Build**: AnvilOps will use Railpack to detect the framework the repository uses([Astro](https://astro.build/)) and build it without extra configuration.
 
    **Port**: The application will listen on port 80 for requests.
 
@@ -32,7 +44,7 @@ If you have already installed the AnvilOps GitHub App for your organization, you
    ![Build and deployment options for the AnvilOps demo app. The builder is Railpack, the subdomain is anvilops-demo-96ynq, and the port number is 80.](./tutorial/git-build-deploy.png)
 
 6. Click `Deploy`. In a few minutes, the application should be up and running at \
-   `https://<subdomain>.anvilops.rcac.purdue.edu`.
+   `https://<subdomain>.anvilcloud.rcac.purdue.edu`.
 
    ![A screenshot of the AnvilOps demo web app.](./tutorial/anvilops-git-demo-app.png)
 
@@ -40,11 +52,11 @@ If you have already installed the AnvilOps GitHub App for your organization, you
 
 Try pushing a commit to the repository to see how AnvilOps updates the deployment.
 
-1. Open the file `/src/pages/index.astro` in your repository.
+1. Open the file `/src/pages/index.astro`.
 
 2. Find the section that says `Try editing this text!` and change it to say `Hello, World!` or another phrase of your choice. Then commit and push your changes to the repository.
 
 3. Go back to the dashboard for your app in AnvilOps. Under `Recent Deployments`, you should see a new entry. If you click the `Logs` button for that deployment, you can watch the logs as AnvilOps rebuilds the application.
    ![A screenshot of the recent deployments for an AnvilOps app. The latest entry has the status Building.](./tutorial/git-recent-deployments.png)
 
-4. When the build completes, go back to `https://<subdomain>.anvilops.rcac.purdue.edu` and reload the page. It should have the updated text.
+4. When the build completes, go back to `https://<subdomain>.anvilcloud.rcac.purdue.edu` and reload the page. It should have the updated text.

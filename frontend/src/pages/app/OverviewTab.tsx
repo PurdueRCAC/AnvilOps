@@ -1,4 +1,5 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
+import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -19,6 +20,7 @@ import {
   Link2,
   Loader,
   LogsIcon,
+  Network,
   Tag,
   Undo2,
 } from "lucide-react";
@@ -137,13 +139,6 @@ export const OverviewTab = ({
 
   const appDomain = URL.parse(useAppConfig()?.appDomain ?? "");
 
-  let subdomain = "";
-  if (appDomain !== null) {
-    const temp = new URL(appDomain);
-    temp.hostname = app.subdomain + "." + temp.hostname;
-    subdomain = temp.toString();
-  }
-
   return (
     <>
       <RedeployModal
@@ -185,25 +180,46 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        {appDomain !== null && (
+        {appDomain !== null && app.config.createIngress && (
           <>
             <p className="flex items-center gap-2">
               <Link2 size={16} />
-              Subdomain
+              Public address
             </p>
             <p>
               <a
-                href={subdomain}
+                href={(() => {
+                  const temp = new URL(appDomain);
+                  temp.hostname = app.config.subdomain + "." + temp.hostname;
+                  return temp.toString();
+                })()}
                 className="underline flex gap-1 items-center"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {app.subdomain}.{appDomain?.hostname}
+                {app.config.subdomain}.{appDomain?.hostname}
                 <ExternalLink size={14} />
               </a>
             </p>
           </>
         )}
+        <p className="flex items-center gap-2">
+          <Network size={16} />
+          Internal address
+          <HelpTooltip size={16}>
+            Other workloads within the cluster can communicate with your
+            application using this address. <br />
+            Use this address when possible for improved speed and compatibility
+            with non-HTTP protocols.
+            <br />
+            End users cannot use this address, as it's only valid within the
+            cluster.
+          </HelpTooltip>
+        </p>
+        <p>
+          anvilops-{app.namespace}.anvilops-{app.namespace}
+          .svc.cluster.local
+        </p>
       </div>
       <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
@@ -219,26 +235,24 @@ export const OverviewTab = ({
           </>
         ) : null}
       </p>
-      <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
-        <thead>
-          <tr className="*:text-start *:pb-2 *:font-medium border-b">
-            <th>Created</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Logs</th>
-            <th>Rollback</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isPending ? (
-            <tr>
-              <td colSpan={4} className="text-center space-x-2">
-                <Loader className="animate-spin inline" />
-                <span>Loading past deployments...</span>
-              </td>
+      {isPending ? (
+        <div className="flex gap-2 items-center text-black-4">
+          <Loader className="animate-spin inline" />
+          <span>Loading past deployments...</span>
+        </div>
+      ) : (
+        <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
+          <thead>
+            <tr className="*:text-start *:pb-2 *:font-medium border-b">
+              <th>Created</th>
+              <th>Source</th>
+              <th>Status</th>
+              <th>Logs</th>
+              <th>Rollback</th>
             </tr>
-          ) : (
-            deployments?.map((d) => (
+          </thead>
+          <tbody>
+            {deployments?.map((d) => (
               <tr key={d.id}>
                 <td>
                   <div className="flex items-center gap-2">
@@ -323,52 +337,52 @@ export const OverviewTab = ({
                   </Button>
                 </td>
               </tr>
-            ))
+            ))}
+          </tbody>
+          {app.deploymentCount > pageLength && (
+            <tfoot>
+              <tr>
+                <td colSpan={4}>
+                  <div className="flex justify-center items-center gap-5">
+                    <Button
+                      variant="outline"
+                      disabled={page == 0}
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page - 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronLeft />
+                    </Button>
+                    <p className="text-black-2 text-center">
+                      Showing {page * pageLength + 1} to{" "}
+                      {Math.min(
+                        app.deploymentCount,
+                        page * pageLength + pageLength,
+                      )}{" "}
+                      of {app.deploymentCount}
+                    </p>
+                    <Button
+                      variant="outline"
+                      disabled={
+                        page * pageLength + pageLength >= app.deploymentCount
+                      }
+                      className="disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setPage((page) => page + 1);
+                        refetchDeployments();
+                      }}
+                    >
+                      <ChevronRight />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           )}
-        </tbody>
-        {app.deploymentCount > pageLength && (
-          <tfoot>
-            <tr>
-              <td colSpan={4}>
-                <div className="flex justify-center items-center gap-5">
-                  <Button
-                    variant="outline"
-                    disabled={page == 0}
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page - 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <p className="text-black-2 text-center">
-                    Showing {page * pageLength + 1} to{" "}
-                    {Math.min(
-                      app.deploymentCount,
-                      page * pageLength + pageLength,
-                    )}{" "}
-                    of {app.deploymentCount}
-                  </p>
-                  <Button
-                    variant="outline"
-                    disabled={
-                      page * pageLength + pageLength >= app.deploymentCount
-                    }
-                    className="disabled:cursor-not-allowed"
-                    onClick={() => {
-                      setPage((page) => page + 1);
-                      refetchDeployments();
-                    }}
-                  >
-                    <ChevronRight />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          </tfoot>
-        )}
-      </table>
+        </table>
+      )}
     </>
   );
 };

@@ -154,7 +154,7 @@ model App {
   updatedAt       DateTime          @updatedAt
   name            String
   displayName     String
-  subdomain       String            @unique
+  namespace       String            @unique
   imageRepo       String            @default("")
   deployments     Deployment[]
   logIngestSecret String            @unique
@@ -222,8 +222,20 @@ model DeploymentConfig {
   // > Image deployment source
   imageTag       String?
 
-  /// [ConfigFields]
-  fieldValues Json
+  collectLogs   Boolean @default(true)
+  createIngress Boolean @default(true)
+  subdomain     String?
+
+  replicas Int @default(1)
+  port     Int
+
+  ///[VolumeMount[]]              
+  mounts Json @default("[]")
+
+  ///[Resources]
+  limits   Json
+  ///[Resources]
+  requests Json
 
   // Reverse relation field for when this DeploymentConfig is an App's template config
   app App?
@@ -237,8 +249,9 @@ model Log {
   deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
   timestamp    DateTime
   index        Int        @default(0) // Used to order logs with the same timestamp
-  content      Json
+  content      String
   podName      String?
+  stream       LogStream
 }
 
 // A temporary object used to keep track of state while going through the GitHub OAuth flow
@@ -269,6 +282,11 @@ enum WebhookEvent {
   // GitHub webhook events to deploy on
   push
   workflow_run
+}
+
+enum LogStream {
+  stdout
+  stderr
 }
 
 enum LogType {

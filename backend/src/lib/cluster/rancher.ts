@@ -134,7 +134,7 @@ const getProjectAccessReview = async (userId: string, projectId: string) => {
 
 export const getRancherUserID = async (eppn: string) => {
   const users = await fetchRancherResource("users");
-  const principalId = `shibboleth_user://${eppn}`;
+  const principalId = `${env.LOGIN_TYPE}_user://${eppn}`;
   const user = users?.data?.find((user: any) =>
     user.principalIds.some((id: string) => id === principalId),
   );

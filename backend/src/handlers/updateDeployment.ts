@@ -36,7 +36,7 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           name: true,
           displayName: true,
           logIngestSecret: true,
-          subdomain: true,
+          namespace: true,
           org: { select: { githubInstallationId: true } },
           projectId: true,
           appGroup: true,
@@ -138,10 +138,9 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
           logs: {
             create: {
               timestamp: new Date(),
-              content: {
-                log: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              },
+              content: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
               type: "SYSTEM",
+              stream: "stderr",
             },
           },
         },
@@ -150,5 +149,5 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     }
   }
 
-  return json(200, res, {});
+  return json(200, res, undefined);
 };

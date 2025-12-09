@@ -1,5 +1,4 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
-import jsonpatch from "fast-json-patch";
 import crypto from "node:crypto";
 import type { Octokit } from "octokit";
 import type {
@@ -10,17 +9,28 @@ import type {
 import { env } from "../../env.ts";
 import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
+import { wrapWithLogExporter } from "./logs.ts";
 
-export type DeploymentParams = {
+interface DeploymentParams {
+  deploymentId: number;
+  collectLogs: boolean;
   name: string;
   namespace: string;
   serviceName: string;
   image: string;
   env: V1EnvVar[];
-} & PrismaJson.ConfigFields;
+  logIngestSecret: string;
+  subdomain: string;
+  createIngress: boolean;
+  port: number;
+  replicas: number;
+  mounts: PrismaJson.VolumeMount[];
+  requests: PrismaJson.Resources;
+  limits: PrismaJson.Resources;
+}
 
 export const generateAutomaticEnvVars = async (
-  octokit: Octokit,
+  octokit: Octokit | null,
   deployment: Pick<Deployment, "id" | "commitMessage"> & {
     config: Pick<
       DeploymentConfig,
@@ -29,9 +39,11 @@ export const generateAutomaticEnvVars = async (
       | "imageTag"
       | "repositoryId"
       | "commitHash"
-      | "fieldValues"
+      | "port"
+      | "subdomain"
+      | "createIngress"
     >;
-    app: Pick<App, "id" | "subdomain" | "displayName">;
+    app: Pick<App, "id" | "namespace" | "displayName">;
   },
 ): Promise<{ name: string; value: string }[]> => {
   const app = deployment.app;
@@ -39,21 +51,21 @@ export const generateAutomaticEnvVars = async (
   const list = [
     {
       name: "PORT",
-      value: deployment.config.fieldValues.port.toString(),
+      value: deployment.config.port.toString(),
       isSensitive: false,
     },
     {
       name: "ANVILOPS_CLUSTER_HOSTNAME",
-      value: `anvilops-${app.subdomain}.anvilops-${app.subdomain}.svc.cluster.local`,
+      value: `anvilops-${app.namespace}.anvilops-${app.namespace}.svc.cluster.local`,
     },
     {
       name: "ANVILOPS_APP_NAME",
       value: app.displayName,
     },
-    {
-      name: "ANVILOPS_SUBDOMAIN",
-      value: app.subdomain,
-    },
+    // {
+    //   name: "ANVILOPS_SUBDOMAIN",
+    //   value: app.subdomain,
+    // },
     {
       name: "ANVILOPS_APP_ID",
       value: app.id.toString(),
@@ -72,7 +84,7 @@ export const generateAutomaticEnvVars = async (
     },
   ];
 
-  if (deployment.config.source === "GIT") {
+  if (octokit && deployment.config.source === "GIT") {
     const repo = await getRepoById(octokit, deployment.config.repositoryId);
     list.push({
       name: "ANVILOPS_REPOSITORY_ID",
@@ -94,8 +106,8 @@ export const generateAutomaticEnvVars = async (
     });
   }
 
-  if (appDomain !== null) {
-    const hostname = `${app.subdomain}.${appDomain.host}`;
+  if (appDomain !== null && deployment.config.createIngress) {
+    const hostname = `${deployment.config.subdomain}.${appDomain.host}`;
     list.push({
       name: "ANVILOPS_HOSTNAME",
       value: hostname,
@@ -117,10 +129,10 @@ export const generateVolumeName = (mountPath: string) => {
   );
 };
 
-export const createStatefulSetConfig = (
+export const createStatefulSetConfig = async (
   params: DeploymentParams,
-): V1StatefulSet & K8sObject => {
-  const base: V1StatefulSet & K8sObject = {
+): Promise<V1StatefulSet & K8sObject> => {
+  let base: V1StatefulSet & K8sObject = {
     apiVersion: "apps/v1",
     kind: "StatefulSet",
     metadata: {
@@ -139,11 +151,15 @@ export const createStatefulSetConfig = (
         metadata: {
           labels: {
             app: params.name,
-            "anvilops.rcac.purdue.edu/collect-logs": "true",
           },
         },
         spec: {
           automountServiceAccountToken: false,
+          initContainers: [
+            // Set to an empty array (instead of undefined) so that disabling collectLogs in an existing app
+            // removes the initContainer that copies the log-shipper binary into the app container.
+          ],
+          volumes: [], // Same as above
           containers: [
             {
               name: params.name,
@@ -155,8 +171,10 @@ export const createStatefulSetConfig = (
                   protocol: "TCP",
                 },
               ],
-              // Parent paths of a JSON patch must exist for the patch to work without error
-              resources: {},
+              resources: {
+                requests: params.requests,
+                limits: params.limits,
+              },
               env: params.env,
               volumeMounts: params.mounts.map((mount) => ({
                 mountPath: mount.path,
@@ -182,68 +200,14 @@ export const createStatefulSetConfig = (
       },
     },
   };
-
-  return applyPatches(base, getExtraStsPatches(params.extra));
-};
-
-const StsExtraPatchPaths: Record<
-  keyof PrismaJson.ConfigFields["extra"],
-  string[]
-> = {
-  postStart: ["/spec/template/spec/containers/0/lifecycle/postStart"],
-  preStop: ["/spec/template/spec/containers/0/lifecycle/preStop"],
-  limits: ["/spec/template/spec/containers/0/resources/limits"],
-  requests: ["/spec/template/spec/containers/0/resources/requests"],
-};
-
-const getExtraStsPatches = (
-  fields: PrismaJson.ConfigFields["extra"],
-): jsonpatch.Operation[] => {
-  const patches = [] as jsonpatch.Operation[];
-  for (const [key, value] of Object.entries(fields)) {
-    if (!fields[key]) continue;
-
-    const field = key as keyof PrismaJson.ConfigFields["extra"];
-    switch (field) {
-      case "postStart":
-      case "preStop": {
-        patches.push(
-          ...StsExtraPatchPaths[field].map(
-            (path) =>
-              ({
-                op: "add",
-                path,
-                value: {
-                  exec: {
-                    command: ["/bin/sh", "-c", value],
-                  },
-                },
-              }) satisfies jsonpatch.Operation,
-          ),
-        );
-        break;
-      }
-      default: {
-        patches.push(
-          ...StsExtraPatchPaths[field].map(
-            (path) =>
-              ({ op: "add", path, value }) satisfies jsonpatch.Operation,
-          ),
-        );
-      }
-    }
+  if (params.collectLogs) {
+    base.spec.template = await wrapWithLogExporter(
+      "runtime",
+      params.logIngestSecret,
+      params.deploymentId,
+      base.spec.template,
+    );
   }
 
-  return patches;
+  return base;
 };
-
-function applyPatches<T extends object>(
-  document: T,
-  patches: jsonpatch.Operation[],
-): T {
-  try {
-    return jsonpatch.applyPatch(document, patches).newDocument as T;
-  } catch (err) {
-    console.error(err);
-  }
-}

@@ -1,3 +1,4 @@
+import type { Octokit } from "octokit";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -44,16 +45,18 @@ export const listDeployments: HandlerMap["listDeployments"] = async (
     select: { githubInstallationId: true },
   });
 
-  const octokit = await getOctokit(githubInstallationId);
-
   const distinctRepoIDs = [
     ...new Set(deployments.map((it) => it.config.repositoryId).filter(Boolean)),
   ];
+  let octokit: Octokit;
+  if (distinctRepoIDs.length > 0 && githubInstallationId) {
+    octokit = await getOctokit(githubInstallationId);
+  }
   const repos = await Promise.all(
     distinctRepoIDs.map(async (id) => {
       if (id) {
         try {
-          return await getRepoById(octokit, id);
+          return octokit ? await getRepoById(octokit, id) : null;
         } catch (error) {
           if (error?.status === 404) {
             // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.

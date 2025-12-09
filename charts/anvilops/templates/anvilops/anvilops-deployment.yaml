@@ -15,7 +15,6 @@ spec:
       annotations:
         {{- toYaml . | nindent 8 }}
         config/postgres-creds-sum: {{ include (print $.Template.BasePath "/secrets/postgres-credentials.yaml") . | sha256sum }}
-        config/log-ingest-secret-sum: {{ include (print $.Template.BasePath "/secrets/log-ingest-secret.yaml") . | sha256sum }}
       {{- end }}
       labels:
         {{- include "anvilops.labels" . | nindent 8 }}
@@ -36,6 +35,8 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          command: ["/bin/sh", "-c"]
+          args: ["npm run start:prod"]
           {{- with .Values.anvilops.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
@@ -46,13 +47,20 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: "/api/liveness"
+              port: 3000
+              initialDelaySeconds: 5
+              periodSeconds: 5
           volumeMounts:
             - name: cluster-config
               mountPath: /opt/config/cluster.json
               subPath: cluster.json
               readOnly: true
             - name: ca-cert
-              mountPath: /etc/ssl/certs
+              mountPath: /etc/ssl/certs/anvilops-tls.crt
+              subPath: anvilops-tls.crt
               readOnly: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: kube-auth
@@ -93,6 +101,14 @@ spec:
                   key: client-secret
             {{- with .Values.anvilops.env.allowedIdps }}
             - name: ALLOWED_IDPS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.anvilops.env.loginType }}
+            - name: LOGIN_TYPE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.anvilops.env.loginClaim }}
+            - name: LOGIN_CLAIM
               value: {{ . | quote }}
             {{- end }}
             - name: SESSION_SECRET
@@ -180,12 +196,6 @@ spec:
                 secretKeyRef:
                   name: image-delete-secret
                   key: password
-            - name: BUILD_LOGGING_INGEST_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: logging-ingest-secret
-                  key: secret
-                  optional: true
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
@@ -196,6 +206,12 @@ spec:
               value: {{ .Values.harbor.expose.ingress.hosts.core }}
             - name: CLUSTER_INTERNAL_BASE_URL
               value: "http://{{ include "anvilops.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: INGRESS_CLASS_NAME
+              value: {{ .Values.anvilops.apps.ingress.className }}
+            {{- with .Values.anvilops.apps.ingress.annotations }}
+            - name: INGRESS_ANNOTATIONS
+              value: {{ . | toJson | quote }}
+            {{- end }}
             - name: STORAGE_CLASS_NAME
               value: {{ .Values.tenants.storageClassName }}
             - name: STORAGE_ACCESS_MODES
@@ -212,6 +228,12 @@ spec:
               value: {{ .Values.anvilops.env.dockerfileBuilderImage }}
             - name: RAILPACK_BUILDER_IMAGE
               value: {{ .Values.anvilops.env.railpackBuilderImage }}
+            - name: LOG_SHIPPER_IMAGE
+              value: {{ .Values.anvilops.env.logShipperImage }}
+            {{- with .Values.anvilops.env.registryProtocol }}
+            - name: REGISTRY_PROTOCOL
+              value: {{ . }}
+            {{- end }}
       volumes:
         - name: cluster-config
           configMap:

@@ -1,12 +1,16 @@
 import type { V1Service } from "@kubernetes/client-node";
-import type { DeploymentParams } from "./statefulset.ts";
 import type { K8sObject } from "../resources.ts";
 
+interface ServiceParams {
+  name: string;
+  namespace: string;
+  serviceName: string;
+  port: number;
+  servicePort?: number;
+}
+
 export const createServiceConfig = (
-  app: Pick<
-    DeploymentParams,
-    "name" | "namespace" | "serviceName" | "port" | "servicePort"
-  >,
+  app: ServiceParams,
 ): V1Service & K8sObject => {
   return {
     apiVersion: "v1",
@@ -22,7 +26,7 @@ export const createServiceConfig = (
       },
       ports: [
         {
-          port: app.servicePort,
+          port: app.servicePort ?? 80,
           targetPort: app.port,
           protocol: "TCP",
         },

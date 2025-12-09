@@ -10,7 +10,6 @@ import {
   deleteNamespace,
   getClientForClusterUsername,
   getClientsForRequest,
-  namespaceInUse,
   svcK8s,
 } from "../lib/cluster/kubernetes.ts";
 import {
@@ -52,6 +51,7 @@ import { listDeployments } from "./listDeployments.ts";
 import { listOrgRepos } from "./listOrgRepos.ts";
 import { listRepoBranches } from "./listRepoBranches.ts";
 import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { livenessProbe } from "./liveness.ts";
 import { removeUserFromOrg } from "./removeUserFromOrg.ts";
 import { revokeInvitation } from "./revokeInvitation.ts";
 import { updateApp } from "./updateApp.ts";
@@ -195,7 +195,7 @@ export const handlers = {
 
     if (
       org.appGroups.some((it) =>
-        it.apps.some((app) => app.config.source === "GIT"),
+        it.apps.some((app) => app.config?.source === "GIT"),
       ) &&
       org.githubInstallationId
     ) {
@@ -205,49 +205,55 @@ export const handlers = {
     const appGroupRes: components["schemas"]["Org"]["appGroups"] =
       await Promise.all(
         org.appGroups.map(async (group) => {
-          const apps = await Promise.all(
-            group.apps.map(async (app) => {
-              let repoURL: string;
-              if (app.config.source === "GIT" && org.githubInstallationId) {
-                try {
-                  const repo = await getRepoById(
-                    octokit,
-                    app.config.repositoryId,
-                  );
-                  repoURL = repo.html_url;
-                } catch (error: any) {
-                  if (error?.status === 404) {
-                    // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
-                    return;
+          const apps = (
+            await Promise.all(
+              group.apps
+                .filter((app) => !!app.config)
+                .map(async (app) => {
+                  let repoURL: string;
+                  if (app.config.source === "GIT" && org.githubInstallationId) {
+                    try {
+                      const repo = await getRepoById(
+                        octokit,
+                        app.config.repositoryId,
+                      );
+                      repoURL = repo.html_url;
+                    } catch (error: any) {
+                      if (error?.status === 404) {
+                        // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
+                        return;
+                      }
+                      throw error; // Rethrow all other kinds of errors
+                    }
                   }
-                  throw error; // Rethrow all other kinds of errors
-                }
-              }
 
-              const latestCompleteDeployment = app.deployments.find(
-                (deploy) => deploy.status === "COMPLETE",
-              );
-              const selectedDeployment =
-                latestCompleteDeployment ?? app.deployments[0];
+                  const latestCompleteDeployment = app.deployments.find(
+                    (deploy) => deploy.status === "COMPLETE",
+                  );
+                  const selectedDeployment =
+                    latestCompleteDeployment ?? app.deployments[0];
 
-              const appDomain = URL.parse(env.APP_DOMAIN);
+                  const appDomain = URL.parse(env.APP_DOMAIN);
 
-              return {
-                id: app.id,
-                displayName: app.displayName,
-                status: selectedDeployment?.status,
-                source: selectedDeployment?.config.source,
-                imageTag: selectedDeployment?.config.imageTag,
-                repositoryURL: repoURL,
-                branch: app.config.branch,
-                commitHash: selectedDeployment?.config.commitHash,
-                link:
-                  selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
-                    ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
-                    : undefined,
-              };
-            }),
-          );
+                  return {
+                    id: app.id,
+                    displayName: app.displayName,
+                    status: selectedDeployment?.status,
+                    source: selectedDeployment?.config.source,
+                    imageTag: selectedDeployment?.config.imageTag,
+                    repositoryURL: repoURL,
+                    branch: app.config.branch,
+                    commitHash: selectedDeployment?.config.commitHash,
+                    link:
+                      selectedDeployment?.status === "COMPLETE" &&
+                      env.APP_DOMAIN &&
+                      app.config.createIngress
+                        ? `${appDomain.protocol}//${app.config.subdomain}.${appDomain.host}`
+                        : undefined,
+                  };
+                }),
+            )
+          ).filter(Boolean);
           return { ...group, apps };
         }),
       );
@@ -323,7 +329,7 @@ export const handlers = {
             app.projectId === env["SANDBOX_ID"]
               ? svcK8s["KubernetesObjectApi"]
               : userApi;
-          await deleteNamespace(api, getNamespace(app.subdomain));
+          await deleteNamespace(api, getNamespace(app.namespace));
         } catch (err) {
           console.error(err);
         }
@@ -380,7 +386,7 @@ export const handlers = {
           ["AppsV1Api"],
         );
         return await api.readNamespacedStatefulSet({
-          namespace: getNamespace(app.subdomain),
+          namespace: getNamespace(app.namespace),
           name: app.name,
         });
       } catch {}
@@ -415,20 +421,24 @@ export const handlers = {
       updatedAt: app.updatedAt.toISOString(),
       repositoryId: repoId,
       repositoryURL: repoURL,
-      subdomain: app.subdomain,
       cdEnabled: app.enableCD,
+      namespace: app.namespace,
       config: {
-        port: currentConfig.fieldValues.port,
+        createIngress: currentConfig.createIngress,
+        subdomain: currentConfig.createIngress
+          ? currentConfig.subdomain
+          : undefined,
+        collectLogs: currentConfig.collectLogs,
+        port: currentConfig.port,
         env: currentConfig.displayEnv,
-        replicas: currentConfig.fieldValues.replicas,
-        mounts: currentConfig.fieldValues.mounts.map((mount) => ({
+        replicas: currentConfig.replicas,
+        mounts: currentConfig.mounts.map((mount) => ({
           amountInMiB: mount.amountInMiB,
           path: mount.path,
           volumeClaimName: generateVolumeName(mount.path),
         })),
-        requests: currentConfig.fieldValues.extra.requests,
-        limits: currentConfig.fieldValues.extra.limits,
-        ...currentConfig.fieldValues.extra,
+        limits: currentConfig.limits,
+        requests: currentConfig.requests,
         ...(currentConfig.source === "GIT"
           ? {
               source: "git",
@@ -496,15 +506,11 @@ export const handlers = {
       return json(400, res, { code: 400, message: "Invalid subdomain." });
     }
 
-    const namespaceExists = namespaceInUse(getNamespace(subdomain));
-    const subdomainUsedByApp = db.app.count({
-      where: { subdomain },
+    // const namespaceExists = namespaceInUse(getNamespace(subdomain));
+    const subdomainUsedByApp = await db.app.count({
+      where: { config: { subdomain } },
     });
-    // Check database in addition to resources in case the namespace is taken but not finished creating
-    const canUse = (await Promise.all([namespaceExists, subdomainUsedByApp]))
-      .map((value) => !!value)
-      .reduce((prev, cur) => prev && !cur, true);
-    return json(200, res, { available: canUse });
+    return json(200, res, { available: !subdomainUsedByApp });
   },
   listOrgGroups: async function (
     ctx: Context<never, { orgId: number }>,
@@ -586,5 +592,6 @@ export const handlers = {
   inviteUser,
   removeUserFromOrg,
   revokeInvitation,
+  livenessProbe,
 } satisfies HandlerMap;
 Object.freeze(handlers);

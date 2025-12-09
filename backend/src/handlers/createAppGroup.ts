@@ -3,14 +3,15 @@ import { type Octokit } from "octokit";
 import type { App } from "../generated/prisma/client.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -57,19 +58,22 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   } catch (e) {
     return json(400, res, { code: 400, message: e.message });
   }
-  const appValidationErrors = data.apps
-    .map(async (app) => {
-      try {
-        const subdomainRes = validateSubdomain(app.subdomain);
-        validateDeploymentConfig(app);
-        validateAppName(app.name);
-        await subdomainRes;
-        return null;
-      } catch (e) {
-        return e;
-      }
-    })
-    .filter(Boolean);
+  const appValidationErrors = (
+    await Promise.all(
+      data.apps.map(async (app) => {
+        try {
+          await validateDeploymentConfig({
+            ...app,
+            collectLogs: true,
+          });
+          validateAppName(app.name);
+          return null;
+        } catch (e) {
+          return e;
+        }
+      }),
+    )
+  ).filter(Boolean);
   if (appValidationErrors.length > 0) {
     return json(400, res, {
       code: 400,
@@ -160,19 +164,26 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       orgId: data.orgId,
     },
   });
-  const appConfigs = data.apps.map((app) => {
-    return {
-      name: app.name,
-      displayName: app.name,
-      subdomain: app.subdomain,
-      orgId: app.orgId,
-      // This cluster username will be used to automatically update the app after a build job or webhook payload
-      clusterUsername,
-      projectId: app.projectId,
-      appGroupId,
-      logIngestSecret: randomBytes(48).toString("hex"),
-    };
-  });
+  const appConfigs = await Promise.all(
+    data.apps.map(async (app) => {
+      let namespace = app.subdomain;
+      if (await namespaceInUse(getNamespace(namespace))) {
+        namespace += "-" + Math.floor(Math.random() * 10_000);
+      }
+
+      return {
+        name: app.name,
+        displayName: app.name,
+        namespace,
+        orgId: app.orgId,
+        // This cluster username will be used to automatically update the app after a build job or webhook payload
+        clusterUsername,
+        projectId: app.projectId,
+        appGroupId,
+        logIngestSecret: randomBytes(48).toString("hex"),
+      };
+    }),
+  );
 
   let apps: App[];
   try {
@@ -221,19 +232,15 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           }
 
           const deploymentConfig: DeploymentConfigCreateInput = {
+            collectLogs: true,
+            createIngress: configParams.createIngress,
+            subdomain: configParams.subdomain,
             env: configParams.env,
-            fieldValues: {
-              replicas: 1,
-              port: configParams.port,
-              servicePort: 80,
-              mounts: configParams.mounts,
-              extra: {
-                postStart: configParams.postStart,
-                preStop: configParams.preStop,
-                limits: { cpu, memory, "nvidia.com/gpu": undefined },
-                requests: { cpu, memory, "nvidia.com/gpu": undefined },
-              },
-            },
+            requests: { cpu, memory },
+            limits: { cpu, memory },
+            replicas: 1,
+            port: configParams.port,
+            mounts: configParams.mounts,
             ...(configParams.source === "git"
               ? {
                   source: "GIT",

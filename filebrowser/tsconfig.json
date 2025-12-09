@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "module": "nodenext",
+    "lib": ["ESNext"],
     "skipDefaultLibCheck": true
-  }
+  },
+  "files": ["index.ts"]
 }

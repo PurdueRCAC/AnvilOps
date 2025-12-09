@@ -5,36 +5,44 @@ anvilops:
   image: anvilops/anvilops
   env:
     baseURL: http://localhost:3000
-    appDomain: http://127.0.0.1.nip.io:3001 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
+    appDomain: http://127.0.0.1.nip.io:3000 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
+    loginType: shibboleth
+    loginClaim: eppn
     fileBrowserImage: anvilops/file-browser
     dockerfileBuilderImage: anvilops/dockerfile-builder
     railpackBuilderImage: anvilops/railpack-builder
+    logShipperImage: anvilops/log-shipper
+    registryProtocol: http
+  dnsResolver: kube-dns.kube-system.svc.cluster.local
+  cluster:
+    name: "Local"
+    faq:
+      question: "What is the Anvil Composable Subsystem?"
+      answer: "Anvil Composable Subsystem is a Kubernetes based private cloud managed with Rancher that provides a platform for creating composable infrastructure on demand. This cloud-style flexibility provides researchers the ability to self-deploy and manage persistent services to complement HPC workflows and run container-based data analysis tools and applications."
+      link: https://www.rcac.purdue.edu/knowledge/anvil/composable
   serviceAccount:
     create: false
     secretName: kube-auth
   ingress:
     className: nginx
     hosts:
-      - host: anvilops.rcac.purdue.edu
+      - host: localhost
         paths:
           - path: /
             pathType: Prefix
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - anvilops.rcac.purdue.edu
-appProxy:
-  image: anvilops/sandbox-proxy
-  ingress:
-    enabled: true
-    className: nginx
-    host: "*.anvilops.rcac.purdue.edu"
-    tls:
-      - secretName: tls-cert
-        hosts:
-          - "*.anvilops.rcac.purdue.edu"
+  securityContext:
+    # These settings are required for Tilt's Live Reload feature, which copies files into the container at runtime.
+    # When we aren't running as root, the script that copies the files doesn't have permission to write to the files it needs to write.
+    # https://github.com/tilt-dev/tilt/blob/95096909efe883a6df10617cdafc1bfee6cf67fc/internal/containerupdate/tar.go#L24
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+  apps:
+    ingress:
+      className: nginx
+      annotations:
 postgres:
   generateCredentials: false
   image: postgres:17
@@ -53,9 +61,6 @@ harbor:
     ingress:
       hosts:
         core: registry.anvil.rcac.purdue.edu
-logging-operator:
-  enabled: false
-  install: false
 tenants:
   storageClassName: standard
   accessModes: [ReadWriteOnce]

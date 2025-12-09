@@ -1,7 +1,11 @@
 import { Prisma } from "../src/generated/prisma/client.ts";
 import { db } from "../src/lib/db.ts";
 
-const Resources = ["cpu", "memory", "nvidia.com/gpu"] as const;
+const Resources = ["cpu", "memory"] as const;
+type BaseResources = {
+  cpu?: string;
+  memory?: string;
+};
 declare global {
   namespace PrismaJson {
     type EnvVar = {
@@ -10,22 +14,12 @@ declare global {
       isSensitive: boolean;
     };
 
-    type ResourceRequests = Record<
-      (typeof Resources)[number],
-      string | undefined
-    >;
-    type ConfigFields = {
-      replicas: number;
-      port: number;
-      servicePort: number;
-      mounts: { path: string; amountInMiB: number }[];
-      extra: {
-        postStart?: string;
-        preStop?: string;
-        limits: ResourceRequests;
-        requests: ResourceRequests;
-      };
+    type Resources = BaseResources & {
+      [resource: string]: string;
     };
+
+    type VolumeMount = { path: string; amountInMiB: number };
+
     type AppFlags = {
       enableCD: boolean;
     };

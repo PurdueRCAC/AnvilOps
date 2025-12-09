@@ -100,3 +100,8 @@ app.kubernetes.io/name: {{ include "anvilops.name" . }}-buildkitd
 {{ include "anvilops.commonSelectorLabels" . }}
 app.kubernetes.io/name: {{ include "anvilops.name" . }}-postgres
 {{- end }}
+
+{{/* Common labels that AnvilOps apps share */}}
+{{- define "anvilops.appLabels" -}}
+app.kubernetes.io/managed-by: anvilops
+{{- end}}

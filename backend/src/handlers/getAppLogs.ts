@@ -1,4 +1,4 @@
-import { V1PodList } from "@kubernetes/client-node";
+import type { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
 import stream from "node:stream";
 import type { components } from "../generated/openapi.ts";
@@ -17,6 +17,15 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     where: {
       id: ctx.request.params.appId,
       org: { users: { some: { userId: req.user.id } } },
+    },
+    select: {
+      projectId: true,
+      namespace: true,
+      deployments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { config: { select: { collectLogs: true } } },
+      },
     },
   });
 
@@ -61,57 +70,50 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     }
   }
 
-  let isFetchingFromK8sApi = false;
+  // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
+  const collectLogs = app.deployments?.[0]?.config?.collectLogs;
 
-  const fetchNewLogs = async () => {
-    if (isFetchingFromK8sApi) {
-      // The user has seen logs from the K8s API. This only happens when there are no logs in the DB at the time the response starts.
-      // To prevent duplication, close the connection. The client will reopen it and fetch logs exclusively from the DB now that they exist.
-      res.end();
-      return;
-    }
-    // Fetch them in reverse order so that we can take only the 500 most recent lines
-    const newLogs = await db.log.findMany({
-      where: {
-        id: { gt: lastLogId },
-        deploymentId: ctx.request.params.deploymentId,
-        type: ctx.request.query.type,
-      },
-      orderBy: [{ timestamp: "desc" }, { index: "desc" }],
-      take: 500,
-    });
-    if (newLogs.length > 0) {
-      lastLogId = newLogs[0].id;
-    }
-    for (let i = newLogs.length - 1; i >= 0; i--) {
-      const log = newLogs[i];
-      await sendLog({
-        id: log.id,
-        type: log.type,
-        log: (log.content as any).log as string,
-        pod: log.podName,
-        time: log.timestamp.toISOString(),
+  if (collectLogs || ctx.request.query.type === "BUILD") {
+    const fetchNewLogs = async () => {
+      // Fetch them in reverse order so that we can take only the 500 most recent lines
+      const newLogs = await db.log.findMany({
+        where: {
+          id: { gt: lastLogId },
+          deploymentId: ctx.request.params.deploymentId,
+          type: ctx.request.query.type,
+        },
+        orderBy: [{ timestamp: "desc" }, { index: "desc" }],
+        take: 500,
       });
-    }
-    return newLogs.length > 0;
-  };
+      if (newLogs.length > 0) {
+        lastLogId = newLogs[0].id;
+      }
+      for (let i = newLogs.length - 1; i >= 0; i--) {
+        const log = newLogs[i];
+        await sendLog({
+          id: log.id,
+          type: log.type,
+          stream: log.stream,
+          log: log.content as string,
+          pod: log.podName,
+          time: log.timestamp.toISOString(),
+        });
+      }
+    };
 
-  // When new logs come in, send them to the client
-  const unsubscribe = await subscribe(
-    `deployment_${ctx.request.params.deploymentId}_logs`,
-    fetchNewLogs,
-  );
+    // When new logs come in, send them to the client
+    const unsubscribe = await subscribe(
+      `deployment_${ctx.request.params.deploymentId}_logs`,
+      fetchNewLogs,
+    );
 
-  req.on("close", async () => {
-    await unsubscribe();
-  });
+    req.on("close", async () => {
+      await unsubscribe();
+    });
 
-  // Send all previous logs now
-  const found = await fetchNewLogs();
-
-  if (!found && ctx.request.query.type === "RUNTIME") {
-    // Temporary workaround: if there are no runtime logs, try to fetch them from the pod directly.
-    isFetchingFromK8sApi = true;
+    // Send all previous logs now
+    await fetchNewLogs();
+  } else {
     const { CoreV1Api: core, Log: log } = await getClientsForRequest(
       req.user.id,
       app.projectId,
@@ -120,7 +122,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     let pods: V1PodList;
     try {
       pods = await core.listNamespacedPod({
-        namespace: getNamespace(app.subdomain),
+        namespace: getNamespace(app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
       });
     } catch (err) {
@@ -134,7 +136,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
       const abortController = await log.log(
-        getNamespace(app.subdomain),
+        getNamespace(app.namespace),
         podName,
         pod.spec.containers[0].name,
         logStream,
@@ -154,6 +156,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
             await sendLog({
               type: "RUNTIME",
               log: text.join(" "),
+              stream: "stdout",
               pod: podName,
               time: date,
               id: podIndex * 100_000_000 + i,

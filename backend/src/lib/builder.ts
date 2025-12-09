@@ -7,6 +7,7 @@ import type {
 } from "../generated/prisma/client.ts";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
+import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
 import { db } from "./db.ts";
 import { env } from "./env.ts";
@@ -22,24 +23,11 @@ export type CreateJobFromDeploymentInput = Parameters<
 
 async function createJobFromDeployment(
   deployment: Pick<Deployment, "id" | "commitMessage" | "appId" | "secret"> & {
-    config: Pick<
-      ExtendedDeploymentConfig,
-      | "source"
-      | "repositoryId"
-      | "branch"
-      | "commitHash"
-      | "imageTag"
-      | "builder"
-      | "dockerfilePath"
-      | "imageTag"
-      | "repositoryId"
-      | "rootDir"
-      | "env"
-      | "envKey"
-      | "getPlaintextEnv"
-      | "fieldValues"
-    >;
-    app: Pick<App, "id" | "displayName" | "subdomain" | "imageRepo"> & {
+    config: ExtendedDeploymentConfig;
+    app: Pick<
+      App,
+      "id" | "displayName" | "namespace" | "imageRepo" | "logIngestSecret"
+    > & {
       org: Pick<Organization, "githubInstallationId">;
     };
   },
@@ -86,6 +74,127 @@ async function createJobFromDeployment(
     .update(JSON.stringify(envVars))
     .digest("hex");
 
+  const podTemplate = {
+    metadata: {
+      labels: {
+        "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
+        "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
+      },
+    },
+    spec: {
+      automountServiceAccountToken: false,
+      containers: [
+        {
+          name: "builder",
+          image:
+            config.builder === "dockerfile"
+              ? env.DOCKERFILE_BUILDER_IMAGE
+              : env.RAILPACK_BUILDER_IMAGE,
+          env: [
+            { name: "CLONE_URL", value: cloneURL },
+            { name: "REF", value: config.commitHash },
+            {
+              name: "IMAGE_TAG",
+              value: deployment.config.imageTag as ImageTag,
+            },
+            {
+              name: "CACHE_TAG",
+              value: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:build-cache`,
+            },
+            { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
+            {
+              name: "DEPLOYMENT_API_URL",
+              value: `${env.CLUSTER_INTERNAL_BASE_URL}/api`,
+            },
+            {
+              name: "BUILDKITD_ADDRESS",
+              value: env.BUILDKITD_ADDRESS,
+            },
+            { name: "DOCKER_CONFIG", value: "/creds" },
+            { name: "ROOT_DIRECTORY", value: config.rootDir },
+            { name: "SECRET_CHECKSUM", value: secretHash },
+            {
+              name: "BUILDKIT_SECRET_DEFS",
+              value: envVars
+                .map(
+                  (envVar, i) =>
+                    `--secret id=${envVar.name.replaceAll('"', '\\"')},env=ANVILOPS_SECRET_${i}`,
+                )
+                .join(" "),
+            },
+            ...envVars.map((envVar, i) => ({
+              name: `ANVILOPS_SECRET_${i}`,
+              valueFrom: {
+                secretKeyRef: {
+                  name: secretName,
+                  key: envVar.name,
+                },
+              },
+            })),
+            // Railpack builder only
+            ...(config.builder === "railpack"
+              ? [
+                  {
+                    name: "RAILPACK_ENV_ARGS",
+                    value: envVars
+                      .map(
+                        (envVar) =>
+                          `--env ${envVar.name.replaceAll('"', '\\"')}=null`, // The value doesn't matter here - Railpack expects it, but only the name is used to create a secret reference.
+                      )
+                      .join(" "),
+                  },
+                ]
+              : []),
+            // Dockerfile builder only
+            ...(config.builder === "dockerfile"
+              ? [
+                  {
+                    name: "DOCKERFILE_PATH",
+                    value: config.dockerfilePath,
+                  },
+                ]
+              : []),
+          ],
+          imagePullPolicy: "Always",
+          lifecycle: {
+            preStop: {
+              exec: {
+                command: ["/bin/sh", "-c", "/var/run/pre-stop.sh"],
+              },
+            },
+          },
+          volumeMounts: [
+            {
+              mountPath: "/certs",
+              name: "buildkitd-tls-certs",
+              readOnly: true,
+            },
+            {
+              mountPath: "/creds",
+              name: "registry-credentials",
+              readOnly: true,
+            },
+          ],
+        },
+      ],
+      volumes: [
+        {
+          name: "buildkitd-tls-certs",
+          secret: { secretName: "buildkit-client-certs" },
+        },
+        {
+          name: "registry-credentials",
+          secret: {
+            secretName: "image-push-secret",
+            defaultMode: 511,
+            items: [{ key: ".dockerconfigjson", path: "config.json" }],
+          },
+        },
+      ],
+      restartPolicy: "Never",
+    },
+  };
+
   const job = await svcK8s["BatchV1Api"].createNamespacedJob({
     namespace: env.CURRENT_NAMESPACE,
     body: {
@@ -100,128 +209,12 @@ async function createJobFromDeployment(
         ttlSecondsAfterFinished: 5 * 60, // Delete jobs 5 minutes after they complete
         backoffLimit: 1, // Retry builds up to 1 time if they exit with a non-zero status code
         activeDeadlineSeconds: 30 * 60, // Kill builds after 30 minutes
-        template: {
-          metadata: {
-            labels: {
-              "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
-              "anvilops.rcac.purdue.edu/deployment-id":
-                deployment.id.toString(),
-              "anvilops.rcac.purdue.edu/collect-logs": "true",
-            },
-          },
-          spec: {
-            automountServiceAccountToken: false,
-            containers: [
-              {
-                name: "builder",
-                image:
-                  config.builder === "dockerfile"
-                    ? env.DOCKERFILE_BUILDER_IMAGE
-                    : env.RAILPACK_BUILDER_IMAGE,
-                env: [
-                  { name: "CLONE_URL", value: cloneURL },
-                  { name: "REF", value: config.commitHash },
-                  {
-                    name: "IMAGE_TAG",
-                    value: deployment.config.imageTag as ImageTag,
-                  },
-                  {
-                    name: "CACHE_TAG",
-                    value: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:build-cache`,
-                  },
-                  { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
-                  {
-                    name: "DEPLOYMENT_API_URL",
-                    value: `${env.CLUSTER_INTERNAL_BASE_URL}/api`,
-                  },
-                  {
-                    name: "BUILDKITD_ADDRESS",
-                    value: env.BUILDKITD_ADDRESS,
-                  },
-                  { name: "DOCKER_CONFIG", value: "/creds" },
-                  { name: "ROOT_DIRECTORY", value: config.rootDir },
-                  { name: "SECRET_CHECKSUM", value: secretHash },
-                  {
-                    name: "BUILDKIT_SECRET_DEFS",
-                    value: envVars
-                      .map(
-                        (envVar, i) =>
-                          `--secret id=${envVar.name.replaceAll('"', '\\"')},env=ANVILOPS_SECRET_${i}`,
-                      )
-                      .join(" "),
-                  },
-                  ...envVars.map((envVar, i) => ({
-                    name: `ANVILOPS_SECRET_${i}`,
-                    valueFrom: {
-                      secretKeyRef: {
-                        name: secretName,
-                        key: envVar.name,
-                      },
-                    },
-                  })),
-                  // Railpack builder only
-                  ...(config.builder === "railpack"
-                    ? [
-                        {
-                          name: "RAILPACK_ENV_ARGS",
-                          value: envVars
-                            .map(
-                              (envVar) =>
-                                `--env ${envVar.name.replaceAll('"', '\\"')}=null`, // The value doesn't matter here - Railpack expects it, but only the name is used to create a secret reference.
-                            )
-                            .join(" "),
-                        },
-                      ]
-                    : []),
-                  // Dockerfile builder only
-                  ...(config.builder === "dockerfile"
-                    ? [
-                        {
-                          name: "DOCKERFILE_PATH",
-                          value: config.dockerfilePath,
-                        },
-                      ]
-                    : []),
-                ],
-                imagePullPolicy: "Always",
-                lifecycle: {
-                  preStop: {
-                    exec: {
-                      command: ["/bin/sh", "-c", "/var/run/pre-stop.sh"],
-                    },
-                  },
-                },
-                volumeMounts: [
-                  {
-                    mountPath: "/certs",
-                    name: "buildkitd-tls-certs",
-                    readOnly: true,
-                  },
-                  {
-                    mountPath: "/creds",
-                    name: "registry-credentials",
-                    readOnly: true,
-                  },
-                ],
-              },
-            ],
-            volumes: [
-              {
-                name: "buildkitd-tls-certs",
-                secret: { secretName: "buildkit-client-certs" },
-              },
-              {
-                name: "registry-credentials",
-                secret: {
-                  secretName: "image-push-secret",
-                  defaultMode: 511,
-                  items: [{ key: ".dockerconfigjson", path: "config.json" }],
-                },
-              },
-            ],
-            restartPolicy: "Never",
-          },
-        },
+        template: await wrapWithLogExporter(
+          "build",
+          app.logIngestSecret,
+          deployment.id,
+          podTemplate,
+        ),
       },
     },
   });
@@ -341,8 +334,9 @@ export async function dequeueBuildJob(): Promise<string> {
           select: {
             id: true,
             displayName: true,
-            subdomain: true,
             imageRepo: true,
+            logIngestSecret: true,
+            namespace: true,
             org: { select: { githubInstallationId: true } },
           },
         },
