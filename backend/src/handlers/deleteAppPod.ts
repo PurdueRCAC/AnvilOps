@@ -23,7 +23,7 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
   );
 
   await api.deleteNamespacedPod({
-    namespace: getNamespace(app.subdomain),
+    namespace: getNamespace(app.namespace),
     name: ctx.request.params.podName,
   });
 

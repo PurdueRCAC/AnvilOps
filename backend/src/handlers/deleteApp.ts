@@ -29,7 +29,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     return json(404, res, { code: 404, message: "App not found" });
   }
 
-  const { subdomain, projectId, imageRepo } = app;
+  const { namespace, projectId, imageRepo } = app;
   const lastDeployment = await db.app.getMostRecentDeployment(appId);
   const config = await db.deployment.getConfig(lastDeployment.id);
 
@@ -40,7 +40,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
         projectId,
         ["KubernetesObjectApi"],
       );
-      await deleteNamespace(api, getNamespace(subdomain));
+      await deleteNamespace(api, getNamespace(namespace));
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }

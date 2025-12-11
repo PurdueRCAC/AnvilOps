@@ -17,6 +17,7 @@ interface DeploymentParams {
   env: V1EnvVar[];
   logIngestSecret: string;
   subdomain: string;
+  createIngress: boolean;
   port: number;
   replicas: number;
   mounts: PrismaJson.VolumeMount[];
@@ -39,7 +40,7 @@ export const generateAutomaticEnvVars = async (
     },
     {
       name: "ANVILOPS_CLUSTER_HOSTNAME",
-      value: `anvilops-${app.subdomain}.anvilops-${app.subdomain}.svc.cluster.local`,
+      value: `anvilops-${app.namespace}.anvilops-${app.namespace}.svc.cluster.local`,
     },
     {
       name: "ANVILOPS_APP_NAME",
@@ -47,7 +48,7 @@ export const generateAutomaticEnvVars = async (
     },
     {
       name: "ANVILOPS_SUBDOMAIN",
-      value: app.subdomain,
+      value: config.subdomain,
     },
     {
       name: "ANVILOPS_APP_ID",
@@ -89,8 +90,8 @@ export const generateAutomaticEnvVars = async (
     });
   }
 
-  if (appDomain !== null) {
-    const hostname = `${app.subdomain}.${appDomain.host}`;
+  if (appDomain !== null && config.createIngress) {
+    const hostname = `${config.subdomain}.${appDomain.host}`;
     list.push({
       name: "ANVILOPS_HOSTNAME",
       value: hostname,

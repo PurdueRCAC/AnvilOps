@@ -46,7 +46,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
     api
       .listNamespacedPod({
-        namespace: getNamespace(app.subdomain),
+        namespace: getNamespace(app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
       .catch(
@@ -121,6 +121,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       collectLogs: config.collectLogs,
       requests: config.requests,
       limits: config.limits,
+      createIngress: config.createIngress,
     },
   });
 };

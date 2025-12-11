@@ -106,7 +106,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     let pods: V1PodList;
     try {
       pods = await core.listNamespacedPod({
-        namespace: getNamespace(app.subdomain),
+        namespace: getNamespace(app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${ctx.request.params.deploymentId}`,
       });
     } catch (err) {
@@ -120,7 +120,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
       const abortController = await log.log(
-        getNamespace(app.subdomain),
+        getNamespace(app.namespace),
         podName,
         pod.spec.containers[0].name,
         logStream,

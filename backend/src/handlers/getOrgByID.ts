@@ -73,8 +73,10 @@ export const getOrgByID: HandlerMap["getOrgByID"] = async (
         branch: config.branch,
         commitHash: config.commitHash,
         link:
-          selectedDeployment?.status === "COMPLETE" && env.APP_DOMAIN
-            ? `${appDomain.protocol}//${app.subdomain}.${appDomain.host}`
+          selectedDeployment?.status === "COMPLETE" &&
+          env.APP_DOMAIN &&
+          config.createIngress
+            ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
             : undefined,
       };
     }),

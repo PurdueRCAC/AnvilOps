@@ -2,13 +2,14 @@ import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
 import { ConflictError, db } from "../db/index.ts";
 import type { App, DeploymentConfigCreate } from "../db/models.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -37,13 +38,11 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     await Promise.all(
       data.apps.map(async (app) => {
         try {
-          const subdomainRes = validateSubdomain(app.subdomain);
           await validateDeploymentConfig({
             ...app,
             collectLogs: true,
           });
           validateAppName(app.name);
-          await subdomainRes;
           return null;
         } catch (e) {
           return e;
@@ -137,19 +136,27 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
   }
 
   const appGroupId = await db.appGroup.create(data.orgId, data.name, false);
-  const appConfigs = data.apps.map((app) => {
-    return {
-      name: app.name,
-      displayName: app.name,
-      subdomain: app.subdomain,
-      orgId: app.orgId,
-      // This cluster username will be used to automatically update the app after a build job or webhook payload
-      clusterUsername,
-      projectId: app.projectId,
-      appGroupId,
-      logIngestSecret: randomBytes(48).toString("hex"),
-    };
-  });
+
+  const appConfigs = await Promise.all(
+    data.apps.map(async (app) => {
+      let namespace = app.subdomain;
+      if (await namespaceInUse(getNamespace(namespace))) {
+        namespace += "-" + Math.floor(Math.random() * 10_000);
+      }
+
+      return {
+        name: app.name,
+        displayName: app.name,
+        namespace,
+        orgId: app.orgId,
+        // This cluster username will be used to automatically update the app after a build job or webhook payload
+        clusterUsername,
+        projectId: app.projectId,
+        appGroupId,
+        logIngestSecret: randomBytes(48).toString("hex"),
+      };
+    }),
+  );
 
   const apps: App[] = [];
   try {
@@ -193,6 +200,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 
           const deploymentConfig: DeploymentConfigCreate = {
             collectLogs: true,
+            createIngress: configParams.createIngress,
+            subdomain: configParams.subdomain,
             env: configParams.env,
             requests: { cpu, memory },
             limits: { cpu, memory },

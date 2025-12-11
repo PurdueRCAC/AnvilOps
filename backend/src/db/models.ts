@@ -65,7 +65,7 @@ export interface App {
   orgId: number;
   name: string;
   displayName: string;
-  subdomain: string;
+  namespace: string;
   projectId: string;
   imageRepo: string;
   appGroupId: number;
@@ -112,6 +112,8 @@ export interface DeploymentConfig {
   dockerfilePath?: string;
   imageTag?: string;
   collectLogs: boolean;
+  createIngress: boolean;
+  subdomain: string | undefined;
   requests: PrismaJson.Resources;
   limits: PrismaJson.Resources;
   replicas: number;
@@ -140,7 +142,7 @@ export interface AppCreate {
   orgId: number;
   appGroupId: number;
   name: string;
-  subdomain: string;
+  namespace: string;
   clusterUsername: string;
   projectId: string;
 }

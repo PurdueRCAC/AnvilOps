@@ -3,13 +3,14 @@ import { type Octokit } from "octokit";
 import { db } from "../db/index.ts";
 import type { App, DeploymentConfigCreate } from "../db/models.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
+import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
+import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -31,11 +32,12 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await validateDeploymentConfig({ ...appData, collectLogs: true });
+    await validateDeploymentConfig({
+      ...appData,
+      collectLogs: true,
+    });
     validateAppGroup(appData.appGroup);
-    const subdomainRes = validateSubdomain(appData.subdomain);
     validateAppName(appData.name);
-    await subdomainRes;
   } catch (e) {
     return json(400, res, {
       code: 400,
@@ -124,6 +126,8 @@ export const createApp: HandlerMap["createApp"] = async (
     memory = appData.memoryInMiB + "Mi";
   const deploymentConfig: DeploymentConfigCreate = {
     collectLogs: true,
+    createIngress: appData.createIngress,
+    subdomain: appData.subdomain,
     env: appData.env,
     requests: { cpu, memory },
     limits: { cpu, memory },
@@ -168,6 +172,11 @@ export const createApp: HandlerMap["createApp"] = async (
       break;
   }
 
+  let namespace = appData.subdomain;
+  if (await namespaceInUse(getNamespace(namespace))) {
+    namespace += "-" + Math.floor(Math.random() * 10_000);
+  }
+
   try {
     app = await db.app.create({
       orgId: appData.orgId,
@@ -175,7 +184,7 @@ export const createApp: HandlerMap["createApp"] = async (
       name: appData.name,
       clusterUsername: clusterUsername,
       projectId: appData.projectId,
-      subdomain: appData.subdomain,
+      namespace,
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {

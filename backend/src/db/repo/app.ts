@@ -74,7 +74,9 @@ export class AppRepo {
 
   async isSubdomainInUse(subdomain: string): Promise<boolean> {
     return (
-      (await this.client.app.count({ where: { subdomain: subdomain } })) > 0
+      (await this.client.app.count({
+        where: { config: { subdomain: subdomain } },
+      })) > 0
     );
   }
 
@@ -94,7 +96,7 @@ export class AppRepo {
           data: {
             name: appData.name,
             displayName: appData.name,
-            subdomain: appData.subdomain,
+            namespace: appData.namespace,
             org: {
               connect: {
                 id: appData.orgId,

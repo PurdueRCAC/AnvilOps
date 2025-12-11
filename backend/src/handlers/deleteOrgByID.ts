@@ -46,7 +46,7 @@ export const deleteOrgByID: HandlerMap["deleteOrgByID"] = async (
           app.projectId === env.SANDBOX_ID
             ? svcK8s["KubernetesObjectApi"]
             : userApi;
-        await deleteNamespace(api, getNamespace(app.subdomain));
+        await deleteNamespace(api, getNamespace(app.namespace));
       } catch (err) {
         console.error(err);
       }

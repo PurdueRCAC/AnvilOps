@@ -1,6 +1,4 @@
 import { db } from "../db/index.ts";
-import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -18,11 +16,7 @@ export const isSubdomainAvailable: HandlerMap["isSubdomainAvailable"] = async (
     return json(400, res, { code: 400, message: "Invalid subdomain." });
   }
 
-  const [namespaceExists, subdomainUsedByApp] = await Promise.all([
-    namespaceInUse(getNamespace(subdomain)),
-    // Check database in addition to resources in case the namespace is taken but not finished creating
-    db.app.isSubdomainInUse(subdomain),
-  ]);
+  const subdomainUsedByApp = await db.app.isSubdomainInUse(subdomain);
 
-  return json(200, res, { available: !namespaceExists && !subdomainUsedByApp });
+  return json(200, res, { available: !subdomainUsedByApp });
 };

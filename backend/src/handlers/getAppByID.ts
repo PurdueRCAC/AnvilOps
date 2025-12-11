@@ -30,7 +30,7 @@ export const getAppByID: HandlerMap["getAppByID"] = async (
         ["AppsV1Api"],
       );
       return await api.readNamespacedStatefulSet({
-        namespace: getNamespace(app.subdomain),
+        namespace: getNamespace(app.namespace),
         name: app.name,
       });
     } catch {}
@@ -67,9 +67,13 @@ export const getAppByID: HandlerMap["getAppByID"] = async (
     updatedAt: app.updatedAt.toISOString(),
     repositoryId: repoId,
     repositoryURL: repoURL,
-    subdomain: app.subdomain,
     cdEnabled: app.enableCD,
+    namespace: app.namespace,
     config: {
+      createIngress: currentConfig.createIngress,
+      subdomain: currentConfig.createIngress
+        ? currentConfig.subdomain
+        : undefined,
       collectLogs: currentConfig.collectLogs,
       port: currentConfig.port,
       env: currentConfig.displayEnv,

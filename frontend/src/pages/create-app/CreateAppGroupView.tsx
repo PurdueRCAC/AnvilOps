@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,7 @@ export default function CreateAppGroupView() {
     builder: "railpack" as "railpack",
     event: "push" as "push",
     subdomain: "",
+    createIngress: true,
     rootDir: "./",
     dockerfilePath: "Dockerfile",
     cpuCores: 1,
@@ -82,6 +84,8 @@ export default function CreateAppGroupView() {
     );
   }, [groupName]);
 
+  const config = useAppConfig();
+
   return (
     <div className="flex max-w-prose mx-auto">
       <form
@@ -92,11 +96,24 @@ export default function CreateAppGroupView() {
           try {
             const apps = appStates.map(
               (appState): components["schemas"]["NewAppWithoutGroupInfo"] => {
+                const appName = getAppName(appState);
+                let subdomain = appState.subdomain;
+                if (
+                  (!subdomain && !config.appDomain) ||
+                  !appState.createIngress
+                ) {
+                  subdomain =
+                    appName.replaceAll(/[^a-zA-Z0-9-_]/g, "_") +
+                    "-" +
+                    Math.floor(Math.random() * 10_000);
+                }
+
                 return {
                   orgId: orgId!,
                   projectId: appState.projectId,
-                  name: getAppName(appState),
-                  subdomain: appState.subdomain,
+                  name: appName,
+                  subdomain,
+                  createIngress: appState.createIngress,
                   port: parseInt(appState.port!),
                   env: appState.env.filter((ev) => ev.name.length > 0),
                   mounts: appState.mounts.filter((m) => m.path.length > 0),

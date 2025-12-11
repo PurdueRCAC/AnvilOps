@@ -52,6 +52,8 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
         requests: config.requests,
         limits: config.limits,
         mounts: config.mounts,
+        createIngress: config.createIngress,
+        subdomain: config.subdomain,
         collectLogs: config.collectLogs,
         source: "GIT",
         event: config.event,

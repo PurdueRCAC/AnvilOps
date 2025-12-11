@@ -91,7 +91,7 @@ export const getAppStatus: HandlerMap["getAppStatus"] = async (
     }
   };
 
-  const ns = getNamespace(app.subdomain);
+  const ns = getNamespace(app.namespace);
 
   const close = (err: any) => {
     if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {

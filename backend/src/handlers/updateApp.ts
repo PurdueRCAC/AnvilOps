@@ -115,6 +115,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
   const updatedConfig: DeploymentConfigCreate = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
     env: withSensitiveEnv(currentConfig.getEnv(), appConfig.env),
+    createIngress: appConfig.createIngress,
+    subdomain: appConfig.subdomain,
     collectLogs: appConfig.collectLogs,
     replicas: appConfig.replicas,
     port: appConfig.port,

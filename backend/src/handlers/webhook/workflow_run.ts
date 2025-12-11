@@ -58,6 +58,8 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
             requests: config.requests,
             limits: config.limits,
             mounts: config.mounts,
+            createIngress: config.createIngress,
+            subdomain: config.subdomain,
             collectLogs: config.collectLogs,
             source: "GIT",
             env: config.getEnv(),
