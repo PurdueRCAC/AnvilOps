@@ -1,5 +1,4 @@
 import bodyParser from "body-parser";
-import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -7,9 +6,9 @@ import session from "express-session";
 import morgan from "morgan";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { db } from "./db/index.ts";
 import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
-import { DATABASE_URL } from "./lib/db.ts";
 import { env } from "./lib/env.ts";
 
 const app = express();
@@ -17,7 +16,6 @@ const port = process.env.PORT ?? 3000;
 
 app.use(cookieParser());
 
-const PgSession = connectPgSimple(session);
 app.use(
   session({
     secret: env.SESSION_SECRET,
@@ -30,9 +28,7 @@ app.use(
       maxAge: 18 * 60 * 60 * 1000, // 18 hr
       httpOnly: true,
     },
-    store: new PgSession({
-      conString: DATABASE_URL,
-    }),
+    store: db.sessionStore,
   }),
 );
 

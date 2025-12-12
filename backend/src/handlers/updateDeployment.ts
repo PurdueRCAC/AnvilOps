@@ -1,3 +1,4 @@
+import { db } from "../db/index.ts";
 import { dequeueBuildJob } from "../lib/builder.ts";
 import {
   createOrUpdateApp,
@@ -5,11 +6,9 @@ import {
 } from "../lib/cluster/kubernetes.ts";
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { log } from "./githubWebhook.ts";
-import { notifyLogStream } from "./ingestLogs.ts";
 
 export const updateDeployment: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -25,29 +24,16 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => status === it)) {
     return json(400, res, { code: 400, message: "Invalid status." });
   }
-  const deployment = await db.deployment.update({
-    where: { secret: secret },
-    data: { status: status as "BUILDING" | "DEPLOYING" | "ERROR" },
-    include: {
-      config: true,
-      app: {
-        select: {
-          id: true,
-          name: true,
-          displayName: true,
-          logIngestSecret: true,
-          namespace: true,
-          org: { select: { githubInstallationId: true } },
-          projectId: true,
-          appGroup: true,
-        },
-      },
-    },
-  });
+  const deployment = await db.deployment.getFromSecret(secret);
 
   if (!deployment) {
     return json(404, res, { code: 404, message: "Deployment not found." });
   }
+
+  await db.deployment.setStatus(
+    deployment.id,
+    status as "BUILDING" | "DEPLOYING" | "ERROR",
+  );
 
   log(
     deployment.id,
@@ -55,16 +41,23 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     "Deployment status has been updated to " + status,
   );
 
+  const app = await db.app.getById(deployment.appId);
+  const [appGroup, config, org] = await Promise.all([
+    db.appGroup.getById(app.appGroupId),
+    db.deployment.getConfig(deployment.id),
+    db.org.getById(app.orgId),
+  ]);
+
   if (
     (status === "DEPLOYING" || status === "ERROR") &&
     deployment.checkRunId !== null
   ) {
     try {
       // The build completed. Update the check run with the result of the build (success or failure).
-      const octokit = await getOctokit(deployment.app.org.githubInstallationId);
+      const octokit = await getOctokit(org.githubInstallationId);
 
       // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
-      const repo = await getRepoById(octokit, deployment.config.repositoryId);
+      const repo = await getRepoById(octokit, config.repositoryId);
 
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,
@@ -85,15 +78,14 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   }
 
   if (status === "DEPLOYING") {
-    const app = await db.app.findUnique({
-      where: {
-        id: deployment.appId,
-      },
-      include: { appGroup: true },
-    });
-
     const { namespace, configs, postCreate } =
-      await createAppConfigsFromDeployment(deployment);
+      await createAppConfigsFromDeployment(
+        org,
+        app,
+        appGroup,
+        deployment,
+        config,
+      );
 
     try {
       const api = getClientForClusterUsername(
@@ -105,47 +97,22 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
       await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
       log(deployment.id, "BUILD", "Deployment succeeded");
 
-      // Update statuses - this should be the only complete deployment
       await Promise.all([
-        db.deployment.update({
-          where: { id: deployment.id },
-          data: { status: "COMPLETE" },
-        }),
-        db.deployment.updateMany({
-          where: {
-            id: { not: deployment.id },
-            appId: app.id,
-            status: "COMPLETE",
-          },
-          data: { status: "STOPPED" },
-        }),
+        db.deployment.setStatus(deployment.id, "COMPLETE"),
         // The update was successful. Update App with the reference to the latest successful config.
-        db.app.update({
-          where: { id: deployment.appId },
-          data: { configId: deployment.configId },
-        }),
+        db.app.setConfig(app.id, config.id),
       ]);
 
       dequeueBuildJob(); // TODO - error handling for this line
     } catch (err) {
       console.error(err);
-      await db.deployment.update({
-        where: {
-          id: deployment.id,
-        },
-        data: {
-          status: "ERROR",
-          logs: {
-            create: {
-              timestamp: new Date(),
-              content: `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              type: "SYSTEM",
-              stream: "stderr",
-            },
-          },
-        },
-      });
-      await notifyLogStream(deployment.id);
+      await db.deployment.setStatus(deployment.id, "ERROR");
+      await log(
+        deployment.id,
+        "BUILD",
+        `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+        "stderr",
+      );
     }
   }
 

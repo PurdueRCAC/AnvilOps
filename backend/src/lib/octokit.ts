@@ -1,7 +1,7 @@
 import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import { Octokit, RequestError } from "octokit";
+import { db } from "../db/index.ts";
 import { get, getOrCreate, set } from "./cache.ts";
-import { db } from "./db.ts";
 import { env } from "./env.ts";
 
 const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
@@ -41,10 +41,7 @@ export async function getOctokit(installationId: number) {
   } catch (e) {
     if ((e as RequestError)?.status === 404) {
       // Installation not found. Remove it from its organization(s).
-      await db.organization.updateMany({
-        where: { githubInstallationId: installationId },
-        data: { githubInstallationId: null },
-      });
+      await db.org.unlinkInstallationFromAllOrgs(installationId);
       throw new InstallationNotFoundError(e);
     }
     throw e;

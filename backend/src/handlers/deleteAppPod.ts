@@ -1,6 +1,6 @@
+import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -9,11 +9,8 @@ export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const app = await db.app.findFirst({
-    where: {
-      id: ctx.request.params.appId,
-      org: { users: { some: { userId: req.user.id } } },
-    },
+  const app = await db.app.getById(ctx.request.params.appId, {
+    requireUser: { id: req.user.id },
   });
   if (!app) {
     return json(404, res, { code: 404, message: "App not found." });

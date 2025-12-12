@@ -1,9 +1,8 @@
 import express from "express";
 import * as client from "openid-client";
-import { PermissionLevel } from "../generated/prisma/enums.ts";
+import { db } from "../db/index.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
-import { db } from "./db.ts";
 import { env, parseCsv } from "./env.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
@@ -70,11 +69,7 @@ router.get("/oauth_callback", async (req, res) => {
     if (allowedIdps && !allowedIdps.includes(claims.idp.toString())) {
       return res.redirect("/error?type=login&code=IDP_ERROR");
     }
-    const existingUser = await db.user.findUnique({
-      where: {
-        ciLogonUserId: claims.sub,
-      },
-    });
+    const existingUser = await db.user.getByCILogonUserId(claims.sub);
 
     if (existingUser) {
       (req.session as any).user = {
@@ -95,24 +90,13 @@ router.get("/oauth_callback", async (req, res) => {
           return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
         }
       }
-      const newUser = await db.user.create({
-        data: {
-          email: (claims.email as string).toLowerCase(),
-          name: claims.name as string,
-          ciLogonUserId: claims.sub,
-          clusterUsername,
-          orgs: {
-            create: {
-              permissionLevel: PermissionLevel.OWNER,
-              organization: {
-                create: {
-                  name: `${claims.name || (claims.email as string) || claims.sub}'s Apps`,
-                },
-              },
-            },
-          },
-        },
-      });
+
+      const newUser = await db.user.createUserWithPersonalOrg(
+        claims.email as string,
+        claims.name as string,
+        claims.sub,
+        clusterUsername,
+      );
 
       (req.session as any).user = {
         id: newUser.id,

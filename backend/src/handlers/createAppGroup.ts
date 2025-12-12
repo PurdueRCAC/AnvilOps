@@ -1,12 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
-import type { App } from "../generated/prisma/client.ts";
-import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { ConflictError, db } from "../db/index.ts";
+import type { App, DeploymentConfigCreate } from "../db/models.ts";
 import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
-import { canManageProject } from "../lib/cluster/rancher.ts";
+import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
@@ -24,33 +22,11 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 ) => {
   const data = ctx.request.requestBody;
 
-  const organization = await db.organization.findUnique({
-    where: {
-      id: data.orgId,
-      users: {
-        some: {
-          userId: req.user.id,
-        },
-      },
-    },
-    include: {
-      appGroups: {
-        where: {
-          name: data.name,
-        },
-      },
-    },
+  const organization = await db.org.getById(data.orgId, {
+    requireUser: { id: req.user.id },
   });
-
   if (!organization) {
     return json(400, res, { code: 400, message: "Organization not found" });
-  }
-
-  if (organization.appGroups.length != 0) {
-    return json(400, res, {
-      code: 400,
-      message: `App group ${data.name} already exists`,
-    });
   }
 
   try {
@@ -74,6 +50,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
       }),
     )
   ).filter(Boolean);
+
   if (appValidationErrors.length > 0) {
     return json(400, res, {
       code: 400,
@@ -81,23 +58,23 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     });
   }
 
-  const { clusterUsername } = await db.user.findUnique({
-    where: { id: req.user.id },
-  });
+  const { clusterUsername } = await db.user.getById(req.user.id);
 
-  const permissionResults = await Promise.all(
-    data.apps.map(async (app) => ({
-      project: app.projectId,
-      canManage: await canManageProject(clusterUsername, app.projectId),
-    })),
-  );
+  if (isRancherManaged()) {
+    const permissionResults = await Promise.all(
+      data.apps.map(async (app) => ({
+        project: app.projectId,
+        canManage: await canManageProject(clusterUsername, app.projectId),
+      })),
+    );
 
-  for (const result of permissionResults) {
-    if (!result.canManage) {
-      return json(400, res, {
-        code: 400,
-        message: `Project ${result.project} not found`,
-      });
+    for (const result of permissionResults) {
+      if (!result.canManage) {
+        return json(400, res, {
+          code: 400,
+          message: `Project ${result.project} not found`,
+        });
+      }
     }
   }
 
@@ -158,12 +135,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     }
   }
 
-  const { id: appGroupId } = await db.appGroup.create({
-    data: {
-      name: data.name,
-      orgId: data.orgId,
-    },
-  });
+  const appGroupId = await db.appGroup.create(data.orgId, data.name, false);
+
   const appConfigs = await Promise.all(
     data.apps.map(async (app) => {
       let namespace = app.subdomain;
@@ -185,28 +158,22 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     }),
   );
 
-  let apps: App[];
+  const apps: App[] = [];
   try {
-    apps = await db.$transaction(async (tx) => {
-      return await tx.app.createManyAndReturn({
-        data: appConfigs,
-      });
-    });
+    for (const app of appConfigs) {
+      apps.push(await db.app.create(app));
+    }
   } catch (err) {
-    if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
-      // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
-      const message =
-        err.meta?.target === "subdomain"
-          ? "Subdomain must be unique."
-          : "App group already exists in organization.";
+    if (err instanceof ConflictError && err.message === "subdomain") {
       return json(409, res, {
         code: 409,
-        message,
+        message: "Subdomain must be unique.",
       });
+    } else {
+      return json(500, res, { code: 500, message: "Unable to create app." });
     }
-    console.error(err);
-    return json(500, res, { code: 500, message: "Unable to create app." });
   }
+
   try {
     await Promise.all(
       apps.map((app, idx) =>
@@ -231,7 +198,7 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
             commitMessage = latestCommit.commit.message;
           }
 
-          const deploymentConfig: DeploymentConfigCreateInput = {
+          const deploymentConfig: DeploymentConfigCreate = {
             collectLogs: true,
             createIngress: configParams.createIngress,
             subdomain: configParams.subdomain,
@@ -260,8 +227,8 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
           };
 
           await buildAndDeploy({
-            orgId: app.orgId,
-            appId: app.id,
+            org: organization,
+            app: app,
             imageRepo: app.imageRepo,
             commitMessage: commitMessage,
             config: deploymentConfig,

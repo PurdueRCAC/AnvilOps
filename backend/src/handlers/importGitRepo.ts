@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { db } from "../lib/db.ts";
+import { db } from "../db/index.ts";
 import { env } from "../lib/env.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
 import { getOctokit } from "../lib/octokit.ts";
@@ -11,11 +11,8 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
     const { sourceURL, destIsOrg, destOwner, destRepo, makePrivate } =
       ctx.request.requestBody;
 
-    const org = await db.organization.findFirst({
-      where: {
-        id: ctx.request.params.orgId,
-        users: { some: { userId: req.user.id, permissionLevel: "OWNER" } },
-      },
+    const org = await db.org.getById(ctx.request.params.orgId, {
+      requireUser: { id: req.user.id, permissionLevel: "OWNER" },
     });
 
     if (!org) {
@@ -29,17 +26,15 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
       });
     }
 
-    const state = await db.repoImportState.create({
-      data: {
-        destRepoName: destRepo,
-        destRepoOwner: destOwner,
-        makePrivate,
-        srcRepoURL: sourceURL,
-        userId: req.user.id,
-        orgId: org.id,
-        destIsOrg: destIsOrg,
-      },
-    });
+    const stateId = await db.repoImportState.create(
+      req.user.id,
+      org.id,
+      destIsOrg,
+      destOwner,
+      destRepo,
+      makePrivate,
+      sourceURL,
+    );
 
     const octokit = await getOctokit(org.githubInstallationId);
     const isLocalRepo = !!(await getLocalRepo(octokit, URL.parse(sourceURL)));
@@ -47,18 +42,12 @@ export const importGitRepoCreateState: HandlerMap["importGitRepoCreateState"] =
     if (destIsOrg || isLocalRepo) {
       // We can create the repo now
       // Fall into the importGitRepo handler directly
-      return await importRepoHandler(
-        state.id,
-        undefined,
-        req.user.id,
-        req,
-        res,
-      );
+      return await importRepoHandler(stateId, undefined, req.user.id, req, res);
     } else {
       // We need a user access token
       const redirectURL = `${req.protocol}://${req.host}/import-repo`;
       return json(200, res, {
-        url: `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${state.id}&redirect_uri=${encodeURIComponent(redirectURL)}`,
+        url: `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${stateId}&redirect_uri=${encodeURIComponent(redirectURL)}`,
       });
     }
   };
@@ -84,24 +73,16 @@ async function importRepoHandler(
   req: Request,
   res: Response,
 ) {
-  const state = await db.repoImportState.findUnique({
-    where: {
-      id: stateId,
-      userId: userId,
-      createdAt: {
-        // Only consider states that were created in the last 5 minutes
-        gte: new Date(new Date().getTime() - 5 * 60 * 1000),
-      },
-    },
-    include: { org: { select: { githubInstallationId: true } } },
-  });
+  const state = await db.repoImportState.get(stateId, userId);
 
   if (!state) {
     return json(404, res, {});
   }
 
+  const org = await db.org.getById(state.orgId);
+
   const repoId = await importRepo(
-    state.org.githubInstallationId,
+    org.githubInstallationId,
     URL.parse(state.srcRepoURL),
     state.destIsOrg,
     state.destRepoOwner,
@@ -119,7 +100,7 @@ async function importRepoHandler(
     });
   }
 
-  await db.repoImportState.delete({ where: { id: state.id } });
+  await db.repoImportState.delete(state.id);
 
   // The repository was created successfully. If repoId is null, then
   // we're not 100% sure that it was created, but no errors were thrown.

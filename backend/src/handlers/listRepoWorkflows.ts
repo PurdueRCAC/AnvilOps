@@ -1,5 +1,5 @@
 import { RequestError } from "octokit";
-import { db } from "../lib/db.ts";
+import { db } from "../db/index.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -9,12 +9,8 @@ export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const org = await db.organization.findFirst({
-    where: {
-      id: ctx.request.params.orgId,
-      users: { some: { userId: req.user.id } },
-    },
-    select: { githubInstallationId: true },
+  const org = await db.org.getById(ctx.request.params.orgId, {
+    requireUser: { id: req.user.id },
   });
 
   if (!org) {

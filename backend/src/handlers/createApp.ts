@@ -1,16 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { type Octokit } from "octokit";
-import { type App } from "../generated/prisma/client.ts";
-import { DeploymentSource } from "../generated/prisma/enums.ts";
+import { db } from "../db/index.ts";
+import type { App, DeploymentConfigCreate } from "../db/models.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import type {
-  AppGroupCreateNestedOneWithoutAppsInput,
-  DeploymentConfigCreateInput,
-} from "../generated/prisma/models.ts";
 import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
@@ -28,15 +23,8 @@ export const createApp: HandlerMap["createApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
 
-  const organization = await db.organization.findUnique({
-    where: {
-      id: appData.orgId,
-      users: {
-        some: {
-          userId: req.user.id,
-        },
-      },
-    },
+  const organization = await db.org.getById(appData.orgId, {
+    requireUser: { id: req.user.id },
   });
 
   if (!organization) {
@@ -63,10 +51,7 @@ export const createApp: HandlerMap["createApp"] = async (
       return json(400, res, { code: 400, message: "Project ID is required" });
     }
 
-    let { clusterUsername: username } = await db.user.findUnique({
-      where: { id: req.user.id },
-      select: { clusterUsername: true },
-    });
+    let { clusterUsername: username } = await db.user.getById(req.user.id);
     if (!(await canManageProject(username, appData.projectId))) {
       return json(400, res, { code: 400, message: "Project not found" });
     }
@@ -105,12 +90,12 @@ export const createApp: HandlerMap["createApp"] = async (
 
     if (appData.event === "workflow_run" && appData.eventId) {
       try {
-        const workflows = await octokit
-          .request({
+        const workflows = await (
+          octokit.request({
             method: "GET",
             url: `/repositories/${repo.id}/actions/workflows`,
-          })
-          .then((res) => res.data.workflows);
+          }) as ReturnType<typeof octokit.rest.actions.listRepoWorkflows>
+        ).then((res) => res.data.workflows);
         if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
           return json(400, res, { code: 400, message: "Workflow not found" });
         }
@@ -139,7 +124,7 @@ export const createApp: HandlerMap["createApp"] = async (
 
   const cpu = Math.round(appData.cpuCores * 1000) + "m",
     memory = appData.memoryInMiB + "Mi";
-  const deploymentConfig: DeploymentConfigCreateInput = {
+  const deploymentConfig: DeploymentConfigCreate = {
     collectLogs: true,
     createIngress: appData.createIngress,
     subdomain: appData.subdomain,
@@ -166,31 +151,24 @@ export const createApp: HandlerMap["createApp"] = async (
           imageTag: appData.imageTag,
         }),
   };
-  let appGroup: AppGroupCreateNestedOneWithoutAppsInput;
+  let appGroupId: number;
   switch (appData.appGroup.type) {
     case "standalone":
-      appGroup = {
-        create: {
-          name: `${appData.name}-${randomBytes(4).toString("hex")}`,
-          org: { connect: { id: appData.orgId } },
-          isMono: true,
-        },
-      };
+      appGroupId = await db.appGroup.create(
+        appData.orgId,
+        `${appData.name}-${randomBytes(4).toString("hex")}`,
+        true,
+      );
       break;
     case "create-new":
-      appGroup = {
-        create: {
-          name: appData.appGroup.name,
-          org: { connect: { id: appData.orgId } },
-        },
-      };
+      appGroupId = await db.appGroup.create(
+        appData.orgId,
+        appData.appGroup.name,
+        false,
+      );
       break;
     default:
-      appGroup = {
-        connect: {
-          id: appData.appGroup.id,
-        },
-      };
+      appGroupId = appData.appGroup.id;
       break;
   }
 
@@ -201,28 +179,12 @@ export const createApp: HandlerMap["createApp"] = async (
 
   try {
     app = await db.app.create({
-      data: {
-        name: appData.name,
-        displayName: appData.name,
-        namespace,
-        org: {
-          connect: {
-            id: appData.orgId,
-          },
-        },
-
-        // This cluster username will be used to automatically update the app after a build job or webhook payload
-        // TODO: make this a setting in the UI
-        clusterUsername,
-        projectId: appData.projectId,
-        logIngestSecret: randomBytes(48).toString("hex"),
-        appGroup,
-      },
-    });
-
-    app = await db.app.update({
-      where: { id: app.id },
-      data: { imageRepo: `app-${appData.orgId}-${app.id}` },
+      orgId: appData.orgId,
+      appGroupId: appGroupId,
+      name: appData.name,
+      clusterUsername: clusterUsername,
+      projectId: appData.projectId,
+      namespace,
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
@@ -242,8 +204,8 @@ export const createApp: HandlerMap["createApp"] = async (
 
   try {
     await buildAndDeploy({
-      orgId: appData.orgId,
-      appId: app.id,
+      org: organization,
+      app,
       imageRepo: app.imageRepo,
       commitMessage: commitMessage,
       config: deploymentConfig,
@@ -259,14 +221,3 @@ export const createApp: HandlerMap["createApp"] = async (
 
   return json(200, res, { id: app.id });
 };
-
-export function convertSource(input: string) {
-  switch (input) {
-    case "git":
-      return DeploymentSource.GIT;
-    case "image":
-      return DeploymentSource.IMAGE;
-    default:
-      return null;
-  }
-}

@@ -1,5 +1,4 @@
-import { PermissionLevel } from "../generated/prisma/enums.ts";
-import { db } from "../lib/db.ts";
+import { db } from "../db/index.ts";
 import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { createState, verifyState } from "./githubAppInstall.ts";
@@ -64,22 +63,7 @@ export const githubInstallCallback: HandlerMap["githubInstallCallback"] =
     }
 
     // 3) Save the installation ID temporarily
-    const org = await db.organization.update({
-      where: {
-        id: orgId,
-        users: {
-          some: {
-            userId: userId,
-            permissionLevel: { in: [PermissionLevel.OWNER] },
-          },
-        },
-      },
-      data: { newInstallationId: installationId },
-    });
-
-    if (org === null) {
-      return githubConnectError(res, "");
-    }
+    await db.org.setTemporaryInstallationId(orgId, userId, installationId);
 
     // 4) Generate a new `state`
     const newState = await createState(

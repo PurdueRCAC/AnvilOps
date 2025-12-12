@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { db } from "../db/index.ts";
 import type { GitHubOAuthState } from "../generated/prisma/client.ts";
 import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
-import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";
@@ -31,22 +31,17 @@ export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
   res,
 ) => {
   const orgId = ctx.request.params.orgId;
-  const org = await db.organization.findUnique({
-    where: {
-      id: orgId,
-      users: {
-        some: {
-          userId: req.user.id,
-          permissionLevel: {
-            in: [PermissionLevel.OWNER],
-          },
-        },
-      },
-      githubInstallationId: {
-        equals: null,
-      },
-    },
+
+  const org = await db.org.getById(orgId, {
+    requireUser: { id: req.user.id, permissionLevel: PermissionLevel.OWNER },
   });
+
+  if (org.githubInstallationId) {
+    return json(400, res, {
+      code: 400,
+      message: "This organization is already linked to GitHub.",
+    });
+  }
 
   if (org === null) {
     return json(404, res, { code: 404, message: "Organization not found." });
@@ -75,37 +70,10 @@ export async function createState(
   orgId: number,
 ) {
   const random = randomBytes(64).toString("base64url");
-
-  // deleteMany does not throw if there is no state for the user
-  await db.gitHubOAuthState.deleteMany({ where: { userId: userId } });
-
-  const affectedUser = await db.user.update({
-    where: { id: userId },
-    data: {
-      githubOAuthState: {
-        create: { action, orgId, random },
-      },
-    },
-  });
-
-  if (affectedUser == null) {
-    throw new Error("User not found");
-  }
-
+  await db.user.setOAuthState(orgId, userId, action, random);
   return random;
 }
 
 export async function verifyState(random: string): Promise<GitHubOAuthState> {
-  const state = await db.gitHubOAuthState.delete({
-    where: {
-      random: random,
-    },
-    include: { user: true },
-  });
-
-  if (state === null) {
-    throw new Error("No matching user found");
-  }
-
-  return state;
+  return await db.user.getAndDeleteOAuthState(random);
 }

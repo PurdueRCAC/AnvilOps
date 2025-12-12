@@ -1,8 +1,8 @@
 import type { Response } from "express";
 import { Readable } from "node:stream";
+import { db } from "../db/index.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
-import { db } from "../lib/db.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -83,16 +83,16 @@ async function forward(
   requestInit: RequestInit,
   res: Response,
 ) {
-  const app = await db.app.findFirst({
-    where: {
-      id: appId,
-      org: { users: { some: { userId } } },
-    },
-    include: { config: true },
-  });
+  const app = await db.app.getById(appId, { requireUser: { id: userId } });
+
+  if (!app) {
+    return json(404, res, {});
+  }
+
+  const config = await db.app.getDeploymentConfig(appId);
 
   if (
-    !app.config.mounts.some((mount) =>
+    !config.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
     )
   ) {

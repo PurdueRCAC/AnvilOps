@@ -1,5 +1,4 @@
-import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import { db } from "../lib/db.ts";
+import { ConflictError, db, NotFoundError } from "../db/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -8,10 +7,7 @@ export const inviteUser: HandlerMap["inviteUser"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const otherUser = await db.user.findFirst({
-    where: { email: ctx.request.requestBody.email.toLowerCase() },
-    select: { id: true },
-  });
+  const otherUser = await db.user.getByEmail(ctx.request.requestBody.email);
 
   if (otherUser === null) {
     return json(404, res, {
@@ -29,28 +25,16 @@ export const inviteUser: HandlerMap["inviteUser"] = async (
   }
 
   try {
-    await db.organization.update({
-      where: {
-        users: { some: { userId: req.user.id } },
-        id: ctx.request.params.orgId,
-      },
-      data: {
-        outgoingInvitations: {
-          create: {
-            inviteeId: otherUser.id,
-            inviterId: req.user.id,
-          },
-        },
-      },
-    });
+    await db.invitation.send(
+      ctx.request.params.orgId,
+      req.user.id,
+      otherUser.id,
+    );
   } catch (e: any) {
-    if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
-      // https://www.prisma.io/docs/orm/reference/error-reference#p2025
-      // "An operation failed because it depends on one or more records that were required but not found."
+    if (e instanceof NotFoundError && e.message === "organization") {
       return json(404, res, { code: 404, message: "Organization not found." });
     }
-    if (e instanceof PrismaClientKnownRequestError && e.code === "P2002") {
-      // Unique constraint failed
+    if (e instanceof ConflictError && e.message === "user") {
       return json(400, res, {
         code: 400,
         message: "That user has already been invited to this organization.",

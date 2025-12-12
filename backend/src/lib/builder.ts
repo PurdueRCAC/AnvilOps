@@ -1,15 +1,16 @@
 import { PatchStrategy, setHeaderOptions } from "@kubernetes/client-node";
 import { createHash, randomBytes } from "node:crypto";
+import { db } from "../db/index.ts";
 import type {
   App,
   Deployment,
+  DeploymentConfig,
   Organization,
-} from "../generated/prisma/client.ts";
+} from "../db/models.ts";
 import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
-import { db } from "./db.ts";
 import { env } from "./env.ts";
 import { getOctokit, getRepoById } from "./octokit.ts";
 
@@ -17,24 +18,14 @@ export type ImageTag = `${string}/${string}/${string}:${string}`;
 
 const MAX_JOBS = 6;
 
-export type CreateJobFromDeploymentInput = Parameters<
-  typeof createJobFromDeployment
->[0];
-
 async function createJobFromDeployment(
-  deployment: Pick<Deployment, "id" | "commitMessage" | "appId" | "secret"> & {
-    config: ExtendedDeploymentConfig;
-    app: Pick<
-      App,
-      "id" | "displayName" | "namespace" | "imageRepo" | "logIngestSecret"
-    > & {
-      org: Pick<Organization, "githubInstallationId">;
-    };
-  },
+  org: Organization,
+  app: App,
+  deployment: Deployment,
+  config: DeploymentConfig,
 ) {
-  const { app, config } = deployment;
-  const octokit = await getOctokit(app.org.githubInstallationId);
-  const repo = await getRepoById(octokit, deployment.config.repositoryId);
+  const octokit = await getOctokit(org.githubInstallationId);
+  const repo = await getRepoById(octokit, config.repositoryId);
   const cloneURL = await generateCloneURLWithCredentials(
     octokit,
     repo.html_url,
@@ -44,9 +35,14 @@ async function createJobFromDeployment(
   const secretName = `anvilops-temp-build-secrets-${app.id}-${deployment.id}`;
   const jobName = `build-image-${app.imageRepo}-${label}`;
 
-  const envVars = deployment.config.getPlaintextEnv();
+  const envVars = config.getEnv();
 
-  const extraEnv = await generateAutomaticEnvVars(octokit, deployment);
+  const extraEnv = await generateAutomaticEnvVars(
+    octokit,
+    deployment,
+    config,
+    app,
+  );
   extraEnv.push({ name: "CI", value: "1" });
   for (const envVar of extraEnv) {
     if (!envVars.some((it) => it.name === envVar.name)) {
@@ -93,10 +89,7 @@ async function createJobFromDeployment(
           env: [
             { name: "CLONE_URL", value: cloneURL },
             { name: "REF", value: config.commitHash },
-            {
-              name: "IMAGE_TAG",
-              value: deployment.config.imageTag as ImageTag,
-            },
+            { name: "IMAGE_TAG", value: config.imageTag },
             {
               name: "CACHE_TAG",
               value: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:build-cache`,
@@ -257,28 +250,30 @@ async function createJobFromDeployment(
   return job;
 }
 
-export async function createBuildJob(deployment: CreateJobFromDeploymentInput) {
-  if (!["dockerfile", "railpack"].includes(deployment.config.builder)) {
+export async function createBuildJob(
+  ...params: Parameters<typeof createJobFromDeployment>
+) {
+  const deployment = params[2] satisfies Deployment;
+  const config = params[3] satisfies DeploymentConfig;
+
+  if (!["dockerfile", "railpack"].includes(config.builder)) {
     throw new Error(
       "Invalid builder: " +
-        deployment.config.builder +
+        config.builder +
         ". Expected dockerfile or railpack.",
     );
   }
 
   // Mark this deployment as "queued" - we'll run it when another job finishes.
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { status: "QUEUED" },
-    });
+    await db.deployment.setStatus(deployment.id, "QUEUED");
     return null;
   }
 
   console.log(
     `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
   );
-  const job = await createJobFromDeployment(deployment);
+  const job = await createJobFromDeployment(...params);
 
   return job.metadata.uid;
 }
@@ -293,6 +288,7 @@ export async function cancelBuildJobsForApp(appId: number) {
 
 async function countActiveBuildJobs() {
   const jobs = await svcK8s["BatchV1Api"].listNamespacedJob({
+    // TODO filter for a certain label that indicates that this Job is a build job
     namespace: env.CURRENT_NAMESPACE,
   });
 
@@ -307,51 +303,19 @@ export async function dequeueBuildJob(): Promise<string> {
 
   // Remove the job at the front of the queue, locking the row
   // so it cannot be dequeued twice
-  const [result] = await db.$queryRaw<{ id: number }[]>`
-    WITH next as (
-      SELECT id FROM "Deployment"
-        WHERE status = 'QUEUED'
-        ORDER BY "createdAt"
-        FOR UPDATE SKIP LOCKED
-        LIMIT 1
-    )
-    UPDATE "Deployment" SET status = 'PENDING'
-      WHERE id IN (SELECT id FROM next)
-      RETURNING id
-  `;
+  const deployment = await db.deployment.getNextInQueue();
 
-  if (result) {
-    const deployment = await db.deployment.findUnique({
-      where: { id: result.id },
-      select: {
-        id: true,
-        appId: true,
-        secret: true,
-        config: true,
-        commitMessage: true,
-        // commitHash: true,
-        app: {
-          select: {
-            id: true,
-            displayName: true,
-            imageRepo: true,
-            logIngestSecret: true,
-            namespace: true,
-            org: { select: { githubInstallationId: true } },
-          },
-        },
-      },
-    });
-    console.log(
-      `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
-    );
-    const job = await createJobFromDeployment(deployment);
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { builderJobId: job.metadata.uid },
-    });
-    return job.metadata.uid;
-  } else {
-    console.log("Build job queue is empty.");
+  if (!deployment) {
+    return null;
   }
+
+  const app = await db.app.getById(deployment.appId);
+  const org = await db.org.getById(app.orgId);
+  const config = await db.deployment.getConfig(deployment.id);
+
+  console.log(
+    `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
+  );
+  const job = await createJobFromDeployment(org, app, deployment, config);
+  return job.metadata.uid;
 }

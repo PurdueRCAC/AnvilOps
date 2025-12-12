@@ -1,19 +1,23 @@
 import { Webhooks } from "@octokit/webhooks";
-import { randomBytes } from "node:crypto";
 import type { Octokit } from "octokit";
+import { db, NotFoundError } from "../db/index.ts";
+import type {
+  App,
+  Deployment,
+  DeploymentConfig,
+  DeploymentConfigCreate,
+  Organization,
+} from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import type { App, Deployment } from "../generated/prisma/client.ts";
 import {
   DeploymentSource,
   DeploymentStatus,
   type LogStream,
   type LogType,
 } from "../generated/prisma/enums.ts";
-import type { DeploymentConfigCreateWithoutDeploymentInput } from "../generated/prisma/models.ts";
 import {
   cancelBuildJobsForApp,
   createBuildJob,
-  type CreateJobFromDeploymentInput,
   type ImageTag,
 } from "../lib/builder.ts";
 import {
@@ -22,7 +26,6 @@ import {
 } from "../lib/cluster/kubernetes.ts";
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { env } from "../lib/env.ts";
 import {
   getInstallationAccessToken,
@@ -30,7 +33,6 @@ import {
   getRepoById,
 } from "../lib/octokit.ts";
 import { json, type HandlerMap } from "../types.ts";
-import { notifyLogStream } from "./ingestLogs.ts";
 import { handlePush } from "./webhook/push.ts";
 import { handleWorkflowRun } from "./webhook/workflow_run.ts";
 
@@ -71,10 +73,9 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             .requestBody as components["schemas"]["webhook-repository-deleted"];
           // Unlink the repository from all of its associated apps
           // Every deployment from that repository will now be listed as directly from the produced container image
-          await db.deploymentConfig.updateMany({
-            where: { repositoryId: payload.repository.id },
-            data: { repositoryId: null, branch: null, source: "IMAGE" },
-          });
+          await db.deployment.unlinkRepositoryFromAllDeployments(
+            payload.repository.id,
+          );
           return json(200, res, {});
         }
         default: {
@@ -89,26 +90,10 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-created"];
           // This webhook is sent when the GitHub App is installed or a request to install the GitHub App is approved. Here, we care about the latter.
-
-          // Make sure the installation wasn't already added to an AnvilOps organization
-          const count = await db.organization.count({
-            where: { githubInstallationId: payload.installation.id },
-          });
-          if (count > 0) {
-            return json(200, res, {
-              message: "Installation is already linked to organization",
-            });
-          }
-
-          // Find the person who requested the app installation and add a record linked to their account that allows them to link the installation to an organization of their choosing
-          const user = await db.user.findFirst({
-            where: { githubUserId: payload.sender.id },
-          });
-          if (user === null) {
-            return json(200, res, {
-              message:
-                "No AnvilOps user found that matches the installation request's sender",
-            });
+          if (!payload.requester) {
+            // Since this installation has no requester, it was created without going to an organization admin for approval. That means it's already been linked to an AnvilOps organization in src/handlers/githubOAuthCallback.ts.
+            // TODO: Verify that the requester field is what I think it is. GitHub doesn't provide any description of it in their API docs.
+            return json(200, res, {});
           }
 
           if (payload.installation.app_id.toString() !== env.GITHUB_APP_ID) {
@@ -116,16 +101,25 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
             return json(422, res, { message: "Unknown app ID" });
           }
 
-          await db.unassignedInstallation.create({
-            data: {
-              installationId: payload.installation.id,
-              userId: user.id,
-              targetName:
-                payload.installation.account["login"] ??
+          // Find the person who requested the app installation and add a record linked to their account that allows them to link the installation to an organization of their choosing
+          try {
+            await db.user.createUnassignedInstallation(
+              payload.requester.id,
+              payload.installation.id,
+              payload.installation["login"] ??
                 payload.installation.account.name,
-              url: payload.installation.html_url,
-            },
-          });
+              payload.installation.html_url,
+            );
+          } catch (e) {
+            if (e instanceof NotFoundError && e.message === "user") {
+              return json(200, res, {
+                message:
+                  "No AnvilOps user found that matches the installation request's sender",
+              });
+            } else {
+              throw e;
+            }
+          }
 
           return json(200, res, {
             message: "Unassigned installation created successfully",
@@ -135,17 +129,7 @@ export const githubWebhook: HandlerMap["githubWebhook"] = async (
           const payload = ctx.request
             .requestBody as components["schemas"]["webhook-installation-deleted"];
           // Unlink the GitHub App installation from the organization
-          await db.organization.updateMany({
-            where: { githubInstallationId: payload.installation.id },
-            data: { githubInstallationId: null },
-          });
-          await db.organization.updateMany({
-            where: { newInstallationId: payload.installation.id },
-            data: { newInstallationId: null },
-          });
-          await db.unassignedInstallation.deleteMany({
-            where: { installationId: payload.installation.id },
-          });
+          await db.org.unlinkInstallationFromAllOrgs(payload.installation.id);
           return json(200, res, {});
         }
         default: {
@@ -186,128 +170,96 @@ export async function generateCloneURLWithCredentials(
 }
 
 type BuildAndDeployOptions = {
-  orgId: number;
-  appId: number;
+  org: Organization;
+  app: App;
   imageRepo: string;
   commitMessage: string;
-  config: DeploymentConfigCreateWithoutDeploymentInput;
+  config: DeploymentConfigCreate;
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
   | { createCheckRun: false }
 );
 
 export async function buildAndDeploy({
-  orgId,
-  appId,
+  org,
+  app,
   imageRepo,
   commitMessage,
-  config,
+  config: configIn,
   ...opts
 }: BuildAndDeployOptions) {
   const imageTag =
-    config.source === DeploymentSource.IMAGE
-      ? (config.imageTag as ImageTag)
-      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
-  const secret = randomBytes(32).toString("hex");
+    configIn.source === DeploymentSource.IMAGE
+      ? (configIn.imageTag as ImageTag)
+      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${configIn.commitHash}` as const);
 
-  const deployment = await db.deployment.create({
-    data: {
-      app: { connect: { id: appId } },
-      commitMessage: commitMessage,
-      secret: secret,
-      config: {
-        create: { ...config, imageTag },
-      },
-    },
-    select: {
-      id: true,
-      appId: true,
-      commitMessage: true,
-      secret: true,
-      checkRunId: true,
-      config: true,
-      app: {
-        include: {
-          appGroup: true,
-          org: { select: { githubInstallationId: true } },
-        },
-      },
-    },
-  });
+  const [deployment, appGroup] = await Promise.all([
+    db.deployment.create({
+      appId: app.id,
+      commitMessage,
+      config: { ...configIn, imageTag },
+    }),
+    db.appGroup.getById(app.appGroupId),
+  ]);
 
-  if (!deployment.app.configId) {
+  const config = await db.deployment.getConfig(deployment.id);
+
+  if (!app.configId) {
     // Only set the app's config reference if we are creating the app.
     // If updating, first wait for the build to complete successfully
     // and set this in updateDeployment.
-    await db.app.update({
-      where: { id: appId },
-      data: {
-        config: { connect: { id: deployment.config.id } },
-      },
-    });
+    await db.app.setConfig(app.id, deployment.configId);
   }
 
-  await cancelAllOtherDeployments(deployment.id, deployment.app, true);
+  await cancelAllOtherDeployments(org, app, deployment.id, true);
 
   if (config.source === "GIT") {
-    buildAndDeployFromRepo({ deployment, opts });
+    buildAndDeployFromRepo(org, app, deployment, config, opts);
   } else if (config.source === "IMAGE") {
     log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment(deployment);
+        await createAppConfigsFromDeployment(
+          org,
+          app,
+          appGroup,
+          deployment,
+          config,
+        );
       const api = getClientForClusterUsername(
-        deployment.app.clusterUsername,
+        app.clusterUsername,
         "KubernetesObjectApi",
-        shouldImpersonate(deployment.app.projectId),
+        shouldImpersonate(app.projectId),
       );
-      await createOrUpdateApp(
-        api,
-        deployment.app.name,
-        namespace,
-        configs,
-        postCreate,
-      );
+      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
       log(deployment.id, "BUILD", "Deployment succeeded");
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: { status: DeploymentStatus.COMPLETE },
-      });
+      await db.deployment.setStatus(deployment.id, DeploymentStatus.COMPLETE);
     } catch (e) {
       console.error(
         `Failed to create Kubernetes resources for deployment ${deployment.id}`,
         e,
       );
-      await db.deployment.update({
-        where: { id: deployment.id },
-        data: {
-          status: DeploymentStatus.ERROR,
-          logs: {
-            create: {
-              timestamp: new Date(),
-              content: `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
-              type: "BUILD",
-              stream: "stderr",
-            },
-          },
-        },
-      });
-      await notifyLogStream(deployment.id);
+      await db.deployment.setStatus(deployment.id, DeploymentStatus.ERROR);
+      log(
+        deployment.id,
+        "BUILD",
+        `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+        "stderr",
+      );
     }
   }
 }
 
-type BuildFromRepoOptions = {
-  deployment: CreateJobFromDeploymentInput & Pick<Deployment, "checkRunId">;
+export async function buildAndDeployFromRepo(
+  org: Organization,
+  app: App,
+  deployment: Deployment,
+  config: DeploymentConfig,
   opts:
     | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
-    | { createCheckRun: false };
-};
-export async function buildAndDeployFromRepo({
-  deployment,
-  opts,
-}: BuildFromRepoOptions) {
+    | { createCheckRun: false },
+) {
   let checkRun:
     | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
     | Awaited<ReturnType<Octokit["rest"]["checks"]["update"]>>
@@ -332,7 +284,7 @@ export async function buildAndDeployFromRepo({
       } else {
         // Create a check on their commit that says the build is "in progress"
         checkRun = await opts.octokit.rest.checks.create({
-          head_sha: deployment.config.commitHash,
+          head_sha: config.commitHash,
           name: "AnvilOps",
           status: "in_progress",
           details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
@@ -353,7 +305,7 @@ export async function buildAndDeployFromRepo({
 
   let jobId: string | undefined;
   try {
-    jobId = await createBuildJob(deployment);
+    jobId = await createBuildJob(org, app, deployment, config);
     log(deployment.id, "BUILD", "Created build job with ID " + jobId);
   } catch (e) {
     log(
@@ -362,10 +314,7 @@ export async function buildAndDeployFromRepo({
       "Error creating build job: " + JSON.stringify(e),
       "stderr",
     );
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { status: "ERROR" },
-    });
+    await db.deployment.setStatus(deployment.id, "ERROR");
     if (opts.createCheckRun && checkRun.data.id) {
       // If a check run was created, make sure it's marked as failed
       try {
@@ -386,15 +335,12 @@ export async function buildAndDeployFromRepo({
     throw new Error("Failed to create build job", { cause: e });
   }
 
-  await db.deployment.update({
-    where: { id: deployment.id },
-    data: { builderJobId: jobId, checkRunId: checkRun?.data?.id },
-  });
+  await db.deployment.setCheckRunId(deployment.id, checkRun?.data?.id);
 }
 
 export async function createPendingWorkflowDeployment({
-  orgId,
-  appId,
+  org,
+  app,
   imageRepo,
   commitMessage,
   config,
@@ -406,30 +352,17 @@ export async function createPendingWorkflowDeployment({
       ? (config.imageTag as ImageTag)
       : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
 
-  const secret = randomBytes(32).toString("hex");
   const deployment = await db.deployment.create({
-    data: {
-      app: { connect: { id: appId } },
-      commitMessage: commitMessage,
-      secret,
-      config: {
-        create: { ...config, imageTag },
-      },
-      workflowRunId,
-    },
-    select: {
-      id: true,
-      appId: true,
-      app: {
-        include: {
-          appGroup: true,
-          org: { select: { githubInstallationId: true } },
-        },
-      },
+    appId: app.id,
+    commitMessage,
+    workflowRunId,
+    config: {
+      ...config,
+      imageTag,
     },
   });
 
-  await cancelAllOtherDeployments(deployment.id, deployment.app);
+  await cancelAllOtherDeployments(org, app, deployment.id, false);
 
   let checkRun:
     | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
@@ -455,42 +388,32 @@ export async function createPendingWorkflowDeployment({
     }
   }
   if (checkRun) {
-    await db.deployment.update({
-      where: { id: deployment.id },
-      data: { checkRunId: checkRun.data.id },
-    });
+    await db.deployment.setCheckRunId(deployment.id, checkRun.data.id);
   }
 }
 
 export async function cancelAllOtherDeployments(
+  org: Organization,
+  app: App,
   deploymentId: number,
-  app: App & { org: { githubInstallationId?: number } },
   cancelComplete = false,
 ) {
   await cancelBuildJobsForApp(app.id);
 
-  const deployments = await db.deployment.findMany({
-    where: {
-      id: { not: deploymentId },
-      appId: app.id,
-      status: {
-        notIn: cancelComplete ? ["ERROR"] : ["COMPLETE", "ERROR"],
-      },
-    },
-    include: {
-      config: true,
-    },
-  });
+  const statuses = Object.keys(DeploymentStatus) as DeploymentStatus[];
+  const deployments = await db.app.getDeploymentsWithStatus(
+    app.id,
+    cancelComplete
+      ? statuses.filter((it) => it != "ERROR")
+      : statuses.filter((it) => it != "ERROR" && it != "COMPLETE"),
+  );
 
   let octokit: Octokit;
   for (const deployment of deployments) {
-    if (
-      !["STOPPED", "COMPLETE", "ERROR"].includes(deployment.status) &&
-      deployment.checkRunId
-    ) {
+    if (deployment.id !== deploymentId && !!deployment.checkRunId) {
       // Should have a check run that is either queued or in_progress
       if (!octokit) {
-        octokit = await getOctokit(app.org.githubInstallationId);
+        octokit = await getOctokit(org.githubInstallationId);
       }
       const repo = await getRepoById(octokit, deployment.config.repositoryId);
       await octokit.rest.checks.update({
@@ -507,13 +430,6 @@ export async function cancelAllOtherDeployments(
       );
     }
   }
-
-  await db.deployment.updateMany({
-    where: {
-      id: { in: deployments.map((deploy) => deploy.id) },
-    },
-    data: { status: "STOPPED" },
-  });
 }
 
 export async function log(
@@ -523,16 +439,16 @@ export async function log(
   stream: LogStream = "stdout",
 ) {
   try {
-    await db.log.create({
-      data: {
+    await db.deployment.insertLogs([
+      {
         deploymentId,
-        type,
         content,
-        timestamp: new Date(),
+        type,
         stream,
+        podName: undefined,
+        timestamp: new Date(),
       },
-    });
-    await notifyLogStream(deploymentId);
+    ]);
   } catch {
     // Don't let errors bubble up and disrupt the deployment process
   }
