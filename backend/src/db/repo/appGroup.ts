@@ -1,4 +1,5 @@
-import type { PrismaClientType } from "../index.ts";
+import { PrismaClientKnownRequestError } from "../../generated/prisma/internal/prismaNamespace.ts";
+import { ConflictError, type PrismaClientType } from "../index.ts";
 import type { AppGroup } from "../models.ts";
 
 export class AppGroupRepo {
@@ -9,16 +10,24 @@ export class AppGroupRepo {
   }
 
   async create(orgId: number, name: string, isMono: boolean) {
-    const group = await this.client.appGroup.create({
-      data: {
-        orgId: orgId,
-        name: name,
-        isMono: isMono,
-      },
-      select: { id: true },
-    });
+    try {
+      const group = await this.client.appGroup.create({
+        data: {
+          orgId: orgId,
+          name: name,
+          isMono: isMono,
+        },
+        select: { id: true },
+      });
 
-    return group.id;
+      return group.id;
+    } catch (e) {
+      if (e instanceof PrismaClientKnownRequestError && e.code === "P2002") {
+        // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
+        throw new ConflictError("name", e);
+      }
+      throw e;
+    }
   }
 
   async getById(appGroupId: number): Promise<AppGroup> {

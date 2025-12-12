@@ -1,11 +1,9 @@
-import { randomBytes } from "node:crypto";
-import { db } from "../db/index.ts";
-import type { GitHubOAuthState } from "../generated/prisma/client.ts";
-import {
-  PermissionLevel,
-  type GitHubOAuthAction,
-} from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
+import {
+  OrgAlreadyLinkedError,
+  OrgNotFoundError,
+} from "../service/common/errors.ts";
+import { createGitHubAppInstallState } from "../service/githubAppInstall.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -25,55 +23,35 @@ import type { AuthenticatedRequest } from "./index.ts";
  *
  * This endpoint handles step 1 of the process.
  */
-export const githubAppInstall: HandlerMap["githubAppInstall"] = async (
+export const githubAppInstallHandler: HandlerMap["githubAppInstall"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const orgId = ctx.request.params.orgId;
-
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: req.user.id, permissionLevel: PermissionLevel.OWNER },
-  });
-
-  if (org.githubInstallationId) {
-    return json(400, res, {
-      code: 400,
-      message: "This organization is already linked to GitHub.",
-    });
-  }
-
-  if (org === null) {
-    return json(404, res, { code: 404, message: "Organization not found." });
-  }
-
-  let state: string;
   try {
-    state = await createState("CREATE_INSTALLATION", req.user.id, orgId);
+    const newState = await createGitHubAppInstallState(
+      ctx.request.params.orgId,
+      req.user.id,
+    );
+
+    return redirect(
+      302,
+      res,
+      `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${newState}`,
+    );
+
+    // When GitHub redirects back, we handle it in githubInstallCallback.ts
   } catch (e) {
-    console.error("Error creating state", e);
-    return githubConnectError(res, "STATE_FAIL");
+    if (e instanceof OrgAlreadyLinkedError) {
+      json(400, res, {
+        code: 400,
+        message: "This organization is already linked to GitHub.",
+      });
+    } else if (e instanceof OrgNotFoundError) {
+      return json(404, res, { code: 404, message: "Organization not found." });
+    } else {
+      console.error("Error creating GitHub OAuth state:", e);
+      return githubConnectError(res, "STATE_FAIL");
+    }
   }
-
-  return redirect(
-    302,
-    res,
-    `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${state}`,
-  );
-
-  // When GitHub redirects back, we handle it in githubInstallCallback.ts
 };
-
-export async function createState(
-  action: GitHubOAuthAction,
-  userId: number,
-  orgId: number,
-) {
-  const random = randomBytes(64).toString("base64url");
-  await db.user.setOAuthState(orgId, userId, action, random);
-  return random;
-}
-
-export async function verifyState(random: string): Promise<GitHubOAuthState> {
-  return await db.user.getAndDeleteOAuthState(random);
-}

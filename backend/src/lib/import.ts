@@ -1,11 +1,13 @@
 import crypto from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { Octokit } from "octokit";
-import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
-
 import { env } from "./env.ts";
-import { getOctokit, getUserOctokit } from "./octokit.ts";
+import {
+  generateCloneURLWithCredentials,
+  getOctokit,
+  getUserOctokit,
+} from "./octokit.ts";
 
 export async function getLocalRepo(octokit: Octokit, url: URL) {
   if (url.host === new URL(env.GITHUB_BASE_URL).host) {

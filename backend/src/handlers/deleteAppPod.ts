@@ -1,31 +1,24 @@
-import { db } from "../db/index.ts";
-import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
+import { AppNotFoundError } from "../service/common/errors.ts";
+import { deleteAppPod } from "../service/deleteAppPod.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const deleteAppPod: HandlerMap["deleteAppPod"] = async (
+export const deleteAppPodHandler: HandlerMap["deleteAppPod"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const app = await db.app.getById(ctx.request.params.appId, {
-    requireUser: { id: req.user.id },
-  });
-  if (!app) {
-    return json(404, res, { code: 404, message: "App not found." });
+  try {
+    await deleteAppPod(
+      ctx.request.params.appId,
+      ctx.request.params.podName,
+      req.user.id,
+    );
+  } catch (e) {
+    if (e instanceof AppNotFoundError) {
+      return json(404, res, { code: 404, message: "App not found." });
+    }
+    throw e;
   }
-
-  const { CoreV1Api: api } = await getClientsForRequest(
-    req.user.id,
-    app.projectId,
-    ["CoreV1Api"],
-  );
-
-  await api.deleteNamespacedPod({
-    namespace: getNamespace(app.namespace),
-    name: ctx.request.params.podName,
-  });
-
   return json(204, res, {});
 };

@@ -1,47 +1,50 @@
 import { type Request as ExpressRequest } from "express";
 import { type HandlerMap } from "../types.ts";
-import { acceptInvitation } from "./acceptInvitation.ts";
-import { claimOrg } from "./claimOrg.ts";
-import { createApp } from "./createApp.ts";
-import { createAppGroup } from "./createAppGroup.ts";
-import { createOrg } from "./createOrg.ts";
-import { deleteApp } from "./deleteApp.ts";
-import { deleteAppPod } from "./deleteAppPod.ts";
-import { deleteOrgByID } from "./deleteOrgByID.ts";
+import { acceptInvitationHandler } from "./acceptInvitation.ts";
+import { claimOrgHandler } from "./claimOrg.ts";
+import { createAppHandler } from "./createApp.ts";
+import { createAppGroupHandler } from "./createAppGroup.ts";
+import { createOrgHandler } from "./createOrg.ts";
+import { deleteAppHandler } from "./deleteApp.ts";
+import { deleteAppPodHandler } from "./deleteAppPod.ts";
+import { deleteOrgByIDHandler } from "./deleteOrgByID.ts";
 import {
-  deleteAppFile,
-  downloadAppFile,
-  getAppFile,
-  writeAppFile,
+  deleteAppFileHandler,
+  downloadAppFileHandler,
+  getAppFileHandler,
+  writeAppFileHandler,
 } from "./files.ts";
-import { getAppByID } from "./getAppByID.ts";
-import { getAppLogs } from "./getAppLogs.ts";
-import { getAppStatus } from "./getAppStatus.ts";
-import { getDeployment } from "./getDeployment.ts";
-import { getInstallation } from "./getInstallation.ts";
-import { getOrgByID } from "./getOrgByID.ts";
-import { getSettings } from "./getSettings.ts";
-import { getTemplates } from "./getTemplates.ts";
-import { getUser } from "./getUser.ts";
-import { githubAppInstall } from "./githubAppInstall.ts";
-import { githubInstallCallback } from "./githubInstallCallback.ts";
-import { githubOAuthCallback } from "./githubOAuthCallback.ts";
-import { githubWebhook } from "./githubWebhook.ts";
-import { importGitRepo, importGitRepoCreateState } from "./importGitRepo.ts";
-import { ingestLogs } from "./ingestLogs.ts";
-import { inviteUser } from "./inviteUser.ts";
-import { isSubdomainAvailable } from "./isSubdomainAvailable.ts";
-import { listDeployments } from "./listDeployments.ts";
-import { listOrgGroups } from "./listOrgGroups.ts";
-import { listOrgRepos } from "./listOrgRepos.ts";
-import { listRepoBranches } from "./listRepoBranches.ts";
-import { listRepoWorkflows } from "./listRepoWorkflows.ts";
+import { getAppByIDHandler } from "./getAppByID.ts";
+import { getAppLogsHandler } from "./getAppLogs.ts";
+import { getAppStatusHandler } from "./getAppStatus.ts";
+import { getDeploymentHandler } from "./getDeployment.ts";
+import { getInstallationHandler } from "./getInstallation.ts";
+import { getOrgByIDHandler } from "./getOrgByID.ts";
+import { getSettingsHandler } from "./getSettings.ts";
+import { getTemplatesHandler } from "./getTemplates.ts";
+import { getUserHandler } from "./getUser.ts";
+import { githubAppInstallHandler } from "./githubAppInstall.ts";
+import { githubInstallCallbackHandler } from "./githubInstallCallback.ts";
+import { githubOAuthCallbackHandler } from "./githubOAuthCallback.ts";
+import { githubWebhookHandler } from "./githubWebhook.ts";
+import {
+  importGitRepoCreateStateHandler,
+  importGitRepoHandler,
+} from "./importGitRepo.ts";
+import { ingestLogsHandler } from "./ingestLogs.ts";
+import { inviteUserHandler } from "./inviteUser.ts";
+import { isSubdomainAvailableHandler } from "./isSubdomainAvailable.ts";
+import { listDeploymentsHandler } from "./listDeployments.ts";
+import { listOrgGroupsHandler } from "./listOrgGroups.ts";
+import { listOrgReposHandler } from "./listOrgRepos.ts";
+import { listRepoBranchesHandler } from "./listRepoBranches.ts";
+import { listRepoWorkflowsHandler } from "./listRepoWorkflows.ts";
 import { livenessProbe } from "./liveness.ts";
-import { removeUserFromOrg } from "./removeUserFromOrg.ts";
-import { revokeInvitation } from "./revokeInvitation.ts";
-import { setAppCD } from "./setAppCD.ts";
-import { updateApp } from "./updateApp.ts";
-import { updateDeployment } from "./updateDeployment.ts";
+import { removeUserFromOrgHandler } from "./removeUserFromOrg.ts";
+import { revokeInvitationHandler } from "./revokeInvitation.ts";
+import { setAppCDHandler } from "./setAppCD.ts";
+import { updateAppHandler } from "./updateApp.ts";
+import { updateDeploymentHandler } from "./updateDeployment.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
@@ -52,45 +55,45 @@ export type AuthenticatedRequest = ExpressRequest & {
 };
 
 export const handlers = {
-  acceptInvitation,
-  claimOrg,
-  createApp,
-  createAppGroup,
-  createOrg,
-  deleteApp,
-  deleteAppFile,
-  deleteAppPod,
-  deleteOrgByID,
-  downloadAppFile,
-  getAppByID,
-  getAppFile,
-  getAppLogs,
-  getAppStatus,
-  getDeployment,
-  getInstallation,
-  getOrgByID,
-  getSettings,
-  getTemplates,
-  getUser,
-  githubAppInstall,
-  githubInstallCallback,
-  githubOAuthCallback,
-  githubWebhook,
-  importGitRepo,
-  importGitRepoCreateState,
-  ingestLogs,
-  inviteUser,
-  isSubdomainAvailable,
-  listDeployments,
-  listOrgGroups,
-  listOrgRepos,
-  listRepoBranches,
-  listRepoWorkflows,
+  acceptInvitation: acceptInvitationHandler,
+  claimOrg: claimOrgHandler,
+  createApp: createAppHandler,
+  createAppGroup: createAppGroupHandler,
+  createOrg: createOrgHandler,
+  deleteApp: deleteAppHandler,
+  deleteAppFile: deleteAppFileHandler,
+  deleteAppPod: deleteAppPodHandler,
+  deleteOrgByID: deleteOrgByIDHandler,
+  downloadAppFile: downloadAppFileHandler,
+  getAppByID: getAppByIDHandler,
+  getAppFile: getAppFileHandler,
+  getAppLogs: getAppLogsHandler,
+  getAppStatus: getAppStatusHandler,
+  getDeployment: getDeploymentHandler,
+  getInstallation: getInstallationHandler,
+  getOrgByID: getOrgByIDHandler,
+  getSettings: getSettingsHandler,
+  getTemplates: getTemplatesHandler,
+  getUser: getUserHandler,
+  githubAppInstall: githubAppInstallHandler,
+  githubInstallCallback: githubInstallCallbackHandler,
+  githubOAuthCallback: githubOAuthCallbackHandler,
+  githubWebhook: githubWebhookHandler,
+  importGitRepo: importGitRepoHandler,
+  importGitRepoCreateState: importGitRepoCreateStateHandler,
+  ingestLogs: ingestLogsHandler,
+  inviteUser: inviteUserHandler,
+  isSubdomainAvailable: isSubdomainAvailableHandler,
+  listDeployments: listDeploymentsHandler,
+  listOrgGroups: listOrgGroupsHandler,
+  listOrgRepos: listOrgReposHandler,
+  listRepoBranches: listRepoBranchesHandler,
+  listRepoWorkflows: listRepoWorkflowsHandler,
   livenessProbe,
-  removeUserFromOrg,
-  revokeInvitation,
-  setAppCD,
-  updateApp,
-  updateDeployment,
-  writeAppFile,
+  removeUserFromOrg: removeUserFromOrgHandler,
+  revokeInvitation: revokeInvitationHandler,
+  setAppCD: setAppCDHandler,
+  updateApp: updateAppHandler,
+  updateDeployment: updateDeploymentHandler,
+  writeAppFile: writeAppFileHandler,
 } as const satisfies HandlerMap;

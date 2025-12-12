@@ -656,7 +656,7 @@ paths:
 
       responses:
         "200":
-          description: Success
+          description: GitHub Authorization Required
           content:
             application/json:
               schema:
@@ -666,8 +666,17 @@ paths:
                     type: string
                     format: uri
                 required: [url]
-        "308":
-          description: Redirect to Import Repo endpoint (copying the Git repository immediately without needing permission grant from user)
+        "201":
+          description: Success (Repo created)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoId:
+                    type: number
+                    format: int64
+                required: [repoId]
         "400":
           description: Validation failed
           content:
@@ -716,17 +725,12 @@ paths:
                 type: object
                 properties:
                   orgId:
-                    description: AnvilOps organization ID that has access to the imported repository. Present if the repo was created successfully
                     type: number
                     format: int64
                   repoId:
-                    description: Present if the repo was created successfully
                     type: number
                     format: int64
-                  url:
-                    description: Present if creating from a template failed and the user needs to authorize
-                    type: string
-                    format: uri
+                required: [orgId, repoId]
         "400":
           description: Validation failed
           content:

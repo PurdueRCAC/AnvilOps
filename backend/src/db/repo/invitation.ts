@@ -91,11 +91,11 @@ export class InvitationRepo {
       if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
         // https://www.prisma.io/docs/orm/reference/error-reference#p2025
         // "An operation failed because it depends on one or more records that were required but not found."
-        throw new NotFoundError("organization");
+        throw new NotFoundError("organization", e);
       }
       if (e instanceof PrismaClientKnownRequestError && e.code === "P2002") {
         // Unique constraint failed
-        throw new ConflictError("user");
+        throw new ConflictError("user", e);
       }
       throw e;
     }
