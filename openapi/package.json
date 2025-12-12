@@ -3,6 +3,6 @@
     "generate": "openapi-typescript openapi.yaml -o ../backend/src/generated/openapi.ts && mkdir -p ../frontend/src/generated && cp ../backend/src/generated/openapi.ts ../frontend/src/generated/openapi.ts"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.8.0"
+    "openapi-typescript": "^7.10.1"
   }
 }

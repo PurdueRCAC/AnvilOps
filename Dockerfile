@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts && npm run post
 # BACKEND: remove devDependencies before node_modules is copied into the final image
 FROM backend_deps AS backend_prod_deps
 WORKDIR /app
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --omit=optional
 
 # BACKEND: generate Prisma client
 FROM base AS backend_codegen

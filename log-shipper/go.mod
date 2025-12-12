@@ -1,3 +1,3 @@
 module github.rcac.purdue.edu/RCAC-Staff/AnvilOps/log-shipper
 
-go 1.24.7
+go 1.25.4
