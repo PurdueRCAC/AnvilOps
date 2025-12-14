@@ -19,8 +19,12 @@ export class NotFoundError extends Error {}
 export class ConflictError extends Error {}
 
 export type PrismaClientType = PrismaClient<
-  { adapter: PrismaPg; omit: { deployment: { secret: true } } },
   never,
+  {
+    /* omit */ deployment: {
+      secret: true;
+    };
+  },
   DefaultArgs
 >;
 
