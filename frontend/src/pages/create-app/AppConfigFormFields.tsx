@@ -118,7 +118,6 @@ const AppConfigFormFields = ({
       )
     : { data: null, isPending: false };
 
-  console.log(defaults);
   const MAX_SUBDOMAIN_LENGTH = 54;
   const subdomainIsValid =
     subdomain.length < MAX_SUBDOMAIN_LENGTH &&
