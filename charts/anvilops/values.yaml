@@ -106,6 +106,15 @@ buildkitd:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Enable this to set the `hostUsers: false` option on the `buildkitd` Deployment.
+  # This remaps the root UID/GID that buildkitd expects in the container to a different UID/GID on the host,
+  # which reduces the impact of container escape vulnerabilities. Without user namespaces, a container escape
+  # on a privileged container (like buildkitd) would result in an attacker having root permissions on the node.
+  #
+  # Only enable this option if your cluster supports it.
+  # Check for support: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#set-up-a-node-to-support-user-namespaces
+  # More on motivation: https://github.com/kubernetes/enhancements/tree/217d790720c5aef09b8bd4d6ca96284a0affe6c2/keps/sig-node/127-user-namespaces#motivation
+  enableUserNamespaces: false
 
 harbor:
   # Set this to `true` to install the Harbor container image registry in the cluster.
