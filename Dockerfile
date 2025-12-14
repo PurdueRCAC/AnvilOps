@@ -72,7 +72,16 @@ COPY swagger-ui .
 RUN npm ci && npm run build
 
 # Combine frontend & backend and run the app
-FROM base AS backend_run
+FROM gcr.io/distroless/nodejs24-debian12:nonroot
+
+EXPOSE 3000
+
+# https://github.com/krallin/tini
+ENV TINI_VERSION=v0.19.0
+ADD --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+
+ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
+CMD ["/app/src/index.ts"]
 
 WORKDIR /app
 COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
@@ -82,7 +91,3 @@ COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY openapi/*.yaml /openapi/
 COPY templates/templates.json ./templates.json
 COPY --from=backend_build --exclude=**/node_modules/** /app .
-
-CMD ["npm", "run", "start:prod"]
-EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=10s --start-period=5s --retries=3 CMD ["wget", "-O-", "http://localhost:3000/api/liveness"]

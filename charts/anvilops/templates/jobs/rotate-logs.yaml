@@ -14,9 +14,8 @@ spec:
           restartPolicy: Never
           containers:
             - name: rotate-logs
-              image: {{ .Values.anvilops.image }}
-              command: ["/bin/sh", "-c"]
-              args: ["npm run job:rotate-logs"]
+              image: {{ .Values.anvilops.image | quote }}
+              args: ["./src/jobs/rotateLogs.ts"]
               env:
                 - name: POSTGRES_USER
                   value: anvilops

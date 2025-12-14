@@ -36,6 +36,11 @@ RUN npm run prisma:generate
 # Run the backend
 FROM base AS backend_run
 
+ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
+CMD ["./src/index.ts"]
+
+EXPOSE 3000
+
 WORKDIR /app
 COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --from=backend_prod_deps /app/node_modules ./node_modules
@@ -44,6 +49,3 @@ COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma
 COPY openapi/*.yaml /openapi/
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY backend/ .
-
-CMD ["npm", "run", "start:prod"]
-EXPOSE 3000

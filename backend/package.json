@@ -5,11 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env --experimental-strip-types src/index.ts",
-    "start:prod": "node --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
     "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
-    "postinstall": "patch-package",
-    "job:rotate-logs": "node --experimental-strip-types src/jobs/rotateLogs.ts"
+    "postinstall": "patch-package"
   },
   "author": "",
   "license": "UNLICENSED",

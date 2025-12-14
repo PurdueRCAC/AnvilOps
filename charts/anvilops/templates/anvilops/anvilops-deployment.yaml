@@ -35,14 +35,13 @@ spec:
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          command: ["/bin/sh", "-c"]
-          args: ["npm run start:prod"]
           {{- with .Values.anvilops.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
+          args: ["./src/index.ts"]
           ports:
             - name: http
               containerPort: 3000

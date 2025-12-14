@@ -15,4 +15,13 @@ FROM typecheck AS run
 WORKDIR /work
 RUN npm prune --omit=dev --omit=optional
 
-CMD ["npm", "run", "start"]
+FROM gcr.io/distroless/nodejs24-debian12:nonroot
+
+# https://github.com/krallin/tini
+ENV TINI_VERSION=v0.19.0
+ADD --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ENTRYPOINT ["/tini", "--"]
+
+WORKDIR /app
+COPY --from=run /work /app
+CMD ["/nodejs/bin/node", "/app/index.ts"]
