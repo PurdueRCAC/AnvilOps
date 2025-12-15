@@ -78,16 +78,19 @@ EXPOSE 3000
 
 # https://github.com/krallin/tini
 ENV TINI_VERSION=v0.19.0
-ADD --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 
 ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app
-COPY --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
-COPY --from=swagger_build /app/dist ./public/openapi
-COPY --from=frontend_build /app/dist ./public
-COPY --from=backend_prod_deps /app/node_modules ./node_modules
-COPY openapi/*.yaml /openapi/
-COPY templates/templates.json ./templates.json
-COPY --from=backend_build --exclude=**/node_modules/** /app .
+COPY --chown=65532:65532 --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
+COPY --chown=65532:65532 --from=swagger_build /app/dist ./public/openapi
+COPY --chown=65532:65532 --from=frontend_build /app/dist ./public
+COPY --chown=65532:65532 --from=backend_prod_deps /app/node_modules ./node_modules
+COPY --chown=65532:65532 openapi/*.yaml /openapi/
+COPY --chown=65532:65532 templates/templates.json ./templates.json
+COPY --chown=65532:65532 --from=backend_build --exclude=**/node_modules/** /app .
+
+USER 65532
+# ^ This user already exists in the distroless base image

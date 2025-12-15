@@ -37,7 +37,7 @@ else:
     "anvilops/anvilops", "../",
     only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
   )
-docker_build("anvilops/anvilops-migrate-db", "../", dockerfile="./db-migrate.Dockerfile", only=["backend/package.json", "backend/package-lock.json", "backend/prisma", "backend/prisma.config.ts"])
+docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/Dockerfile", only=["package.json", "package-lock.json", "prisma", "prisma.config.ts"])
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
@@ -97,13 +97,16 @@ for i, object in enumerate(parsed):
         variable["value"] = registry_host
     # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
     object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
+    if separate_frontend_and_backend:
+      # Allow live_update to edit files in containers
+      object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["readOnlyRootFilesystem"] = False
+      object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsNonRoot"] = False
+      object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsUser"] = 0
+      object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsGroup"] = 0
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
     object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/etc/buildkit"})
-  # Make the database migration Job use our lighter local development image
-  if object["kind"] == "Job" and object["metadata"]["name"] == "anvilops-migrate-db":
-    object["spec"]["template"]["spec"]["containers"][0]["image"] = "anvilops/anvilops-migrate-db"
   # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
   if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"

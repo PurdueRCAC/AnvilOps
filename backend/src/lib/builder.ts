@@ -171,6 +171,21 @@ async function createJobFromDeployment(
               name: "registry-credentials",
               readOnly: true,
             },
+            {
+              mountPath: "/home/appuser",
+              name: "temp",
+              subPath: "home",
+            },
+            ...(config.builder === "railpack"
+              ? [
+                  // Railpack needs an additional directory to be writable
+                  {
+                    mountPath: "/tmp/railpack/mise",
+                    name: "temp",
+                    subPath: "mise",
+                  },
+                ]
+              : []),
           ],
           resources: {
             limits: {
@@ -181,6 +196,15 @@ async function createJobFromDeployment(
               cpu: "250m",
               memory: "128Mi",
             },
+          },
+          securityContext: {
+            capabilities: {
+              drop: ["ALL"],
+            },
+            runAsNonRoot: true,
+            runAsUser: 65532,
+            runAsGroup: 65532,
+            readOnlyRootFilesystem: true,
           },
         },
       ],
@@ -195,6 +219,12 @@ async function createJobFromDeployment(
             secretName: "image-push-secret",
             defaultMode: 511,
             items: [{ key: ".dockerconfigjson", path: "config.json" }],
+          },
+        },
+        {
+          name: "temp",
+          emptyDir: {
+            sizeLimit: "1Gi",
           },
         },
       ],

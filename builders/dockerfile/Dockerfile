@@ -9,12 +9,16 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends git=1:2.52.0-0ppa1~ubuntu24.04.1 && \
     rm -rf /var/lib/apt/lists/*
 
+RUN groupadd -g 65532 -r appuser && \
+    useradd  -u 65532 -m -g appuser appuser
+
 COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
 
-COPY --chmod=755 pre-stop.sh /var/run
-COPY --chmod=755 docker-entrypoint.sh /var/run
+COPY --chown=appuser:appuser --chmod=500 pre-stop.sh /var/run
+COPY --chown=appuser:appuser --chmod=500 docker-entrypoint.sh /var/run
 
-WORKDIR /work
+WORKDIR /home/appuser
 
+USER appuser
 ENTRYPOINT ["/bin/sh"]
 CMD ["-c", "/var/run/docker-entrypoint.sh"]

@@ -12,6 +12,7 @@ COPY *.go ./
 RUN CGO_ENABLED=0 go build
 
 FROM scratch
+USER 65532:65532
 
 COPY --from=busybox:1.37-musl /bin/cp /bin/cp 
 COPY --from=build /work/log-shipper /bin/log-shipper

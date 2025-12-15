@@ -5,6 +5,7 @@ anvilops:
   replicaCount: 1
 
   image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:latest
+  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:latest
   imagePullPolicy: IfNotPresent
 
   env:

@@ -19,11 +19,13 @@ FROM gcr.io/distroless/nodejs24-debian12:nonroot
 
 # https://github.com/krallin/tini
 ENV TINI_VERSION=v0.19.0
-ADD --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 ENTRYPOINT ["/tini", "--"]
 
 WORKDIR /app
-COPY --from=run /work /app
+COPY --chown=65532:65532 --from=run /work /app
 CMD ["/nodejs/bin/node", "/app/index.ts"]
 
+USER 65532
+# ^ This user already exists in the distroless base image
 HEALTHCHECK --interval=3s --timeout=3s --start-period=5s --retries=3 CMD [ "/nodejs/bin/node", "/app/healthcheck.ts" ]

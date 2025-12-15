@@ -97,7 +97,7 @@ async function getFileBrowserAddress(
                     httpGet: {
                       port: 8080,
                       path: "/livez",
-                      scheme: "http",
+                      scheme: "HTTP",
                     },
                   },
                   resources: {
@@ -109,6 +109,15 @@ async function getFileBrowserAddress(
                       cpu: "250m",
                       memory: "128Mi",
                     },
+                  },
+                  securityContext: {
+                    capabilities: {
+                      drop: ["ALL"],
+                    },
+                    runAsNonRoot: true,
+                    runAsUser: 65532,
+                    runAsGroup: 65532,
+                    readOnlyRootFilesystem: true,
                   },
                 },
               ],

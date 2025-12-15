@@ -233,6 +233,13 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
+          securityContext:
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
           resources:
             requests:
               cpu: 512m

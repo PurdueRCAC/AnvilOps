@@ -28,6 +28,13 @@ spec:
                   value: anvilops
                 - name: POSTGRES_HOSTNAME
                   value: anvilops-postgres
+              securityContext:
+                capabilities:
+                  drop: [ALL]
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                runAsUser: 65532
+                runAsGroup: 65532
               resources:
                 requests:
                   cpu: 500m

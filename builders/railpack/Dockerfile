@@ -28,17 +28,21 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends git=1:2.52.0-0ppa1~ubuntu24.04.1 && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
+RUN groupadd -g 65532 -r appuser && \
+    useradd  -u 65532 -m -g appuser appuser
+
+COPY --chown=appuser:appuser --from=moby/buildkit:rootless /usr/bin/buildctl /usr/bin/buildctl
 
 ARG MISE_VERSION
-COPY --from=mise --chmod=755 /usr/local/bin/mise /tmp/railpack/mise/mise-${MISE_VERSION}
+COPY --chown=appuser:appuser --chmod=500 --from=mise /usr/local/bin/mise /usr/bin/mise/mise-${MISE_VERSION}
 
-COPY --from=railpack --chmod=755 /usr/local/bin/railpack /usr/bin/railpack
+COPY --chown=appuser:appuser --chmod=500 --from=railpack /usr/local/bin/railpack /usr/bin/railpack
 
-COPY --chmod=755 pre-stop.sh /var/run
-COPY --chmod=755 docker-entrypoint.sh /var/run
+COPY --chown=appuser:appuser --chmod=500 pre-stop.sh /var/run
+COPY --chown=appuser:appuser --chmod=500 docker-entrypoint.sh /var/run
 
-WORKDIR /work
+WORKDIR /home/appuser
 
+USER appuser
 ENTRYPOINT ["/bin/sh"]
 CMD ["-c", "/var/run/docker-entrypoint.sh"]

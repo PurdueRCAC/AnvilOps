@@ -13,8 +13,7 @@ spec:
     spec:
       containers:
         - name: migrate
-          image: {{ .Values.anvilops.image }}
-          command: ["/bin/sh", "-c"]
+          image: {{ .Values.anvilops.dbMigrateImage | quote }}
           env:
             - name: POSTGRES_USER
               value: anvilops
@@ -27,10 +26,15 @@ spec:
               value: anvilops
             - name: POSTGRES_HOSTNAME
               value: anvilops-postgres
-          args: 
-            - |
-              export DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOSTNAME/$POSTGRES_DB"
-              npx prisma migrate deploy
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOSTNAME)/$(POSTGRES_DB)"
+          securityContext:
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
           resources:
             requests:
               cpu: 500m
