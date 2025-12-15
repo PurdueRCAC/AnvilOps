@@ -123,14 +123,15 @@ To install AnvilOps on a Kubernetes cluster for production use, follow the insta
 
 AnvilOps is a collection of many subprojects which build into a few container images.
 
-| Image                         | Subproject(s)                                     | Deployed...          |
-| ----------------------------- | ------------------------------------------------- | -------------------- |
-| `anvilops/anvilops`           | backend, frontend, openapi, swagger-ui, templates | Once                 |
-| `anvilops/app-proxy`          | infra/sandbox/proxy                               | Once                 |
-| `anvilops/log-shipper`        | log-shipper                                       | Once per application |
-| `anvilops/dockerfile-builder` | builders/dockerfile                               | Once per build       |
-| `anvilops/railpack-builder`   | builders/railpack                                 | Once per build       |
-| `anvilops/file-browser`       | filebrowser                                       | On demand            |
+| Image                         | Subproject(s)                                     | Deployed...                |
+| ----------------------------- | ------------------------------------------------- | -------------------------- |
+| `anvilops/anvilops`           | backend, frontend, openapi, swagger-ui, templates | Once                       |
+| `anvilops/migrate-db`         | backend                                           | Once per Helm Chart update |
+| `anvilops/app-proxy`          | infra/sandbox/proxy                               | Once                       |
+| `anvilops/log-shipper`        | log-shipper                                       | Once per application       |
+| `anvilops/dockerfile-builder` | builders/dockerfile                               | Once per build             |
+| `anvilops/railpack-builder`   | builders/railpack                                 | Once per build             |
+| `anvilops/file-browser`       | filebrowser                                       | On demand                  |
 
 Every subproject has a `README.md` file with more information about its purpose and how to use it.
 
@@ -143,7 +144,6 @@ Every subproject has a `README.md` file with more information about its purpose 
 | `docs`              | AnvilOps end user documentation                                  | Astro, HTML                                   |
 | `filebrowser`       | A container image that powers the persistent volume file browser | Node.js, TypeScript                           |
 | `frontend`          | The AnvilOps web dashboard and landing page                      | React, Vite, TypeScript, TailwindCSS          |
-| `infra`             | FluxCD configurations for Purdue's AnvilOps deployments          | YAML                                          |
 | `log-shipper`       | Sends logs from users' apps to the AnvilOps backend              | Go                                            |
 | `openapi`           | OpenAPI spec                                                     | YAML                                          |
 | `swagger-ui`        | Auto-generated API docs                                          |                                               |

@@ -150,4 +150,8 @@ export class UserRepo {
       },
     });
   }
+
+  async deleteById(userId: number) {
+    await this.client.user.delete({ where: { id: userId } });
+  }
 }

@@ -1,0 +1,48 @@
+load('ext://restart_process', 'docker_build_with_restart')
+parent = load_dynamic("../Tiltfile")
+
+docker_build_with_restart("anvilops/test", "../../",
+  dockerfile="./test.Dockerfile",
+  entrypoint="npx prisma migrate reset --force && npx vitest run",
+  live_update=[
+    sync("../backend/src", "/app/src"),
+    sync("../backend/test", "/app/test")
+  ],
+  only=["backend", "templates", "openapi"]
+)
+
+for obj in parent["parsed"]:
+  if obj["kind"] == "Deployment" and obj["metadata"]["name"] == "anvilops":
+    c = dict(obj["spec"]["template"]["spec"]["containers"][0]) # dict(x) makes a copy of a dict x
+
+    c["image"] = "anvilops/test"
+    c["securityContext"] = None
+    c["resources"] = None
+    c["livenessProbe"] = None
+
+    c["env"] = list(c["env"])
+    for i, v in enumerate(c["env"]):
+      if v["name"] == "POSTGRES_DB":
+        c["env"][i] = {"name": "POSTGRES_DB", "value": "anvilops_test"}
+    
+    c["env"].append({"name": "DATABASE_URL", "value": "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOSTNAME)/$(POSTGRES_DB)"})
+    
+    test_job = {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "metadata": {
+        "name": "anvilops-tests",
+      }
+    }
+    test_job["spec"] = {
+      "backoffLimit": 0, # Don't retry unless explicitly asked to do so
+      "template": {
+        "spec": {
+          "containers": [c],
+          "volumes": obj["spec"]["template"]["spec"]["volumes"],
+          "restartPolicy": "Never"
+        }
+      }
+    }
+
+    k8s_yaml(encode_yaml_stream([test_job]))

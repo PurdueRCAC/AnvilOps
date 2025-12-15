@@ -26,10 +26,10 @@ anvilops:
   nameOverride: ""
   fullnameOverride: ""
 
-  securityContext:
-    runAsUser: 1001
-    runAsGroup: 1001
-    runAsNonRoot: true
+  #securityContext:
+  #  runAsUser: 1001
+  #  runAsGroup: 1001
+  #  runAsNonRoot: true
 
   # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
   serviceAccount:

@@ -89,7 +89,7 @@ yaml = helm(
 )
 
 parsed = decode_yaml_stream(yaml)
-for i, object in enumerate(parsed):
+for object in parsed:
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
