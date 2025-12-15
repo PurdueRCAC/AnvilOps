@@ -89,7 +89,7 @@ yaml = helm(
 )
 
 parsed = decode_yaml_stream(yaml)
-for object in parsed:
+for i, object in enumerate(parsed):
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
@@ -110,6 +110,8 @@ for object in parsed:
   # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
   if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
+  if config.tilt_subcommand == "ci" and object["kind"] == "CronJob" and object["metadata"]["name"] == "anvilops-rotate-logs":
+    parsed.pop(i)
 
 # Allow AnvilOps's buildkitd instance to use the built-in registry insecurely (over HTTP)
 k8s_yaml(blob("""
