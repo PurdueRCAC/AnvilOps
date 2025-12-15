@@ -16,7 +16,7 @@ async function getTestUser() {
       "user@anvilops.local",
       "user",
       randomUUID(),
-      randomUUID(),
+      null,
     );
   }
   return user;

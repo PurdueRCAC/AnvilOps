@@ -12,6 +12,7 @@ docker_build_with_restart("anvilops/test", "../../",
 )
 
 for obj in parent["parsed"]:
+  # Copy the AnvilOps deployment, but make it point to our test image and database
   if obj["kind"] == "Deployment" and obj["metadata"]["name"] == "anvilops":
     c = dict(obj["spec"]["template"]["spec"]["containers"][0]) # dict(x) makes a copy of a dict x
 
