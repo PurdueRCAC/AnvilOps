@@ -84,7 +84,7 @@ ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app
-COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
+COPY --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --from=swagger_build /app/dist ./public/openapi
 COPY --from=frontend_build /app/dist ./public
 COPY --from=backend_prod_deps /app/node_modules ./node_modules

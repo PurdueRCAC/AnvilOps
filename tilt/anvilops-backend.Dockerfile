@@ -42,7 +42,7 @@ CMD ["./src/index.ts"]
 EXPOSE 3000
 
 WORKDIR /app
-COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
+COPY --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY templates/templates.json ./templates.json
 COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma
