@@ -118,6 +118,7 @@ async function getFileBrowserAddress(
                     runAsUser: 65532,
                     runAsGroup: 65532,
                     readOnlyRootFilesystem: true,
+                    allowPrivilegeEscalation: false,
                   },
                 },
               ],

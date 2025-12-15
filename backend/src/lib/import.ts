@@ -159,7 +159,6 @@ async function copyRepoManually(
               {
                 name: "importer",
                 image: "alpine/git:v2.49.0",
-                // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
                 env: [
                   { name: "CLONE_URL", value: cloneURL },
                   { name: "PUSH_URL", value: pushURL },
@@ -201,6 +200,13 @@ git push -u origin main`,
                     cpu: "500m",
                     memory: "512Mi",
                   },
+                },
+                securityContext: {
+                  // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
+                  capabilities: {
+                    drop: ["ALL"],
+                  },
+                  allowPrivilegeEscalation: false,
                 },
               },
             ],
