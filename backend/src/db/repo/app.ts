@@ -123,6 +123,7 @@ export class AppRepo {
             err,
           );
         }
+        throw err;
       }
 
       // Use the new app's ID to generate the imageRepo field

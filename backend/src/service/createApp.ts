@@ -11,7 +11,6 @@ import {
   validateAppGroup,
   validateAppName,
   validateDeploymentConfig,
-  validateSubdomain,
 } from "../lib/validate.ts";
 import {
   DeploymentError,
@@ -34,11 +33,9 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
   try {
     await validateDeploymentConfig({ ...appData, collectLogs: true });
     validateAppGroup(appData.appGroup);
-    const subdomainRes = validateSubdomain(appData.subdomain);
     validateAppName(appData.name);
-    await subdomainRes;
   } catch (e) {
-    throw new ValidationError(e.message, e);
+    throw new ValidationError(e.message, { cause: e });
   }
 
   let clusterUsername: string;
@@ -188,6 +185,7 @@ export async function createApp(
         "App group name conflicts with an existing app group.",
       );
     }
+    throw err;
   }
 
   try {
