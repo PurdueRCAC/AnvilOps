@@ -4,11 +4,12 @@ on:
     branches: [main]
     paths:
       - "filebrowser/**"
+      - ".github/workflows/build-publish-filebrowser.yml"
   workflow_dispatch:
 jobs:
   push_to_registry:
     name: Push file browser image to registry
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

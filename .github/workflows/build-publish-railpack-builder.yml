@@ -5,12 +5,13 @@ on:
     branches: [main]
     paths:
       - "builders/railpack/**"
+      - ".github/workflows/build-publish-railpack-builder.yml"
   workflow_dispatch:
 
 jobs:
   push_to_registry:
     name: Push Railpack Builder Docker image to Harbor
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

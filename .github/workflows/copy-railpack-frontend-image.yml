@@ -5,7 +5,7 @@ on:
     paths: [.github/workflows/copy-railpack-frontend-image.yml]
 jobs:
   push_to_registry:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Copy railpack-frontend image to private registry
     steps:
       - name: Log in to container registry

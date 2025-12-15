@@ -5,12 +5,13 @@ on:
     branches: [main]
     paths:
       - "builders/dockerfile/**"
+      - ".github/workflows/build-publish-dockerfile-builder.yml"
   workflow_dispatch:
 
 jobs:
   push_to_registry:
     name: Push Dockerfile Builder Docker image to Harbor
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

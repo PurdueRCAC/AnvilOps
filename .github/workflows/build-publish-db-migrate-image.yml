@@ -7,11 +7,12 @@ on:
       - "backend/package.json"
       - "backend/package-lock.json"
       - "backend/prisma.config.ts"
+      - ".github/workflows/build-publish-db-migrate-image.yml"
   workflow_dispatch:
 jobs:
   push_to_registry:
     name: Push DB migration image to registry
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

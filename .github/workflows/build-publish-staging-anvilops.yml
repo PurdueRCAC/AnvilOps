@@ -13,7 +13,7 @@ on:
 jobs:
   push_to_registry:
     name: Push AnvilOps Docker image to Harbor (Development)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
