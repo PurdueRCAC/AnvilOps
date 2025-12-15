@@ -10,7 +10,8 @@ set_status() {
 }
 
 run_job() {
-  cd /work
+  mkdir -p /home/appuser/repo
+  cd /home/appuser/repo
 
   set_status "BUILDING"
 

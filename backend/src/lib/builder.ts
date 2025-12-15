@@ -1,4 +1,8 @@
-import { PatchStrategy, setHeaderOptions } from "@kubernetes/client-node";
+import {
+  PatchStrategy,
+  setHeaderOptions,
+  type V1Pod,
+} from "@kubernetes/client-node";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import type {
@@ -73,7 +77,7 @@ async function createJobFromDeployment(
     .update(JSON.stringify(envVars))
     .digest("hex");
 
-  const podTemplate = {
+  const podTemplate: V1Pod = {
     metadata: {
       labels: {
         "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
@@ -170,7 +174,42 @@ async function createJobFromDeployment(
               name: "registry-credentials",
               readOnly: true,
             },
+            {
+              mountPath: "/home/appuser",
+              name: "temp",
+              subPath: "home",
+            },
+            ...(config.builder === "railpack"
+              ? [
+                  // Railpack needs an additional directory to be writable
+                  {
+                    mountPath: "/tmp/railpack/mise",
+                    name: "temp",
+                    subPath: "mise",
+                  },
+                ]
+              : []),
           ],
+          resources: {
+            limits: {
+              cpu: "500m",
+              memory: "500Mi",
+            },
+            requests: {
+              cpu: "250m",
+              memory: "128Mi",
+            },
+          },
+          securityContext: {
+            capabilities: {
+              drop: ["ALL"],
+            },
+            runAsNonRoot: true,
+            runAsUser: 65532,
+            runAsGroup: 65532,
+            readOnlyRootFilesystem: true,
+            allowPrivilegeEscalation: false,
+          },
         },
       ],
       volumes: [
@@ -184,6 +223,12 @@ async function createJobFromDeployment(
             secretName: "image-push-secret",
             defaultMode: 511,
             items: [{ key: ".dockerconfigjson", path: "config.json" }],
+          },
+        },
+        {
+          name: "temp",
+          emptyDir: {
+            sizeLimit: "1Gi",
           },
         },
       ],

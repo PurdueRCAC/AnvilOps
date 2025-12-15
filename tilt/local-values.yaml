@@ -3,6 +3,7 @@
 
 anvilops:
   image: anvilops/anvilops
+  dbMigrateImage: anvilops/migrate-db
   env:
     baseURL: http://localhost:3000
     appDomain: http://127.0.0.1.nip.io:3000 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
@@ -15,7 +16,6 @@ anvilops:
     railpackBuilderImage: anvilops/railpack-builder
     logShipperImage: anvilops/log-shipper
     registryProtocol: http
-  dnsResolver: kube-dns.kube-system.svc.cluster.local
   cluster:
     name: "Local"
     faq:

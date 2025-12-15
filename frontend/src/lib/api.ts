@@ -4,6 +4,7 @@ import {
   QueryClient,
   type DefaultError,
   type Mutation,
+  type MutationFunctionContext,
   type QueryOptions,
 } from "@tanstack/react-query";
 import createFetchClient from "openapi-fetch";
@@ -26,7 +27,12 @@ const onError = (
   error: DefaultError,
   ...args:
     | [QueryOptions]
-    | [unknown, unknown, Mutation<unknown, unknown, unknown>]
+    | [
+        unknown,
+        unknown,
+        Mutation<unknown, unknown, unknown>,
+        MutationFunctionContext,
+      ]
 ) => {
   if (
     ("code" in error && error?.code === 401) ||

@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts && npm run post
 # BACKEND: remove devDependencies before node_modules is copied into the final image
 FROM backend_deps AS backend_prod_deps
 WORKDIR /app
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --omit=optional
 
 # BACKEND: generate Prisma client
 FROM base AS backend_codegen
@@ -72,17 +72,25 @@ COPY swagger-ui .
 RUN npm ci && npm run build
 
 # Combine frontend & backend and run the app
-FROM base AS backend_run
+FROM gcr.io/distroless/nodejs24-debian12:nonroot
+
+EXPOSE 3000
+
+# https://github.com/krallin/tini
+ENV TINI_VERSION=v0.19.0
+ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+
+ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
+CMD ["/app/src/index.ts"]
 
 WORKDIR /app
-COPY --from=regclient/regctl:v0.9.2-alpine /usr/local/bin/regctl /usr/local/bin/regctl
-COPY --from=swagger_build /app/dist ./public/openapi
-COPY --from=frontend_build /app/dist ./public
-COPY --from=backend_prod_deps /app/node_modules ./node_modules
-COPY openapi/*.yaml /openapi/
-COPY templates/templates.json ./templates.json
-COPY --from=backend_build --exclude=**/node_modules/** /app .
+COPY --chown=65532:65532 --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
+COPY --chown=65532:65532 --from=swagger_build /app/dist ./public/openapi
+COPY --chown=65532:65532 --from=frontend_build /app/dist ./public
+COPY --chown=65532:65532 --from=backend_prod_deps /app/node_modules ./node_modules
+COPY --chown=65532:65532 openapi/*.yaml /openapi/
+COPY --chown=65532:65532 templates/templates.json ./templates.json
+COPY --chown=65532:65532 --from=backend_build --exclude=**/node_modules/** /app .
 
-CMD ["npm", "run", "start:prod"]
-EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=10s --start-period=5s --retries=3 CMD ["wget", "-O-", "http://localhost:3000/api/liveness"]
+USER 65532
+# ^ This user already exists in the distroless base image

@@ -13,12 +13,12 @@ on:
 jobs:
   push_to_registry:
     name: Push AnvilOps Docker image to Harbor
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Log in to container registry
         run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu

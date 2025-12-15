@@ -16,6 +16,9 @@ spec:
       labels:
         {{- include "anvilops.buildkitd.labels" . | nindent 8 }}
     spec:
+      {{ if .Values.buildkitd.enableUserNamespaces -}}
+      hostUsers: false
+      {{- end }}
       containers:
         - name: buildkitd
           image: moby/buildkit:master

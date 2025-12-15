@@ -1,8 +1,8 @@
 diff --git a/node_modules/openapi-backend/backend.js b/node_modules/openapi-backend/backend.js
-index 1c13bb5..e024440 100644
+index 330013d..8604e93 100644
 --- a/node_modules/openapi-backend/backend.js
 +++ b/node_modules/openapi-backend/backend.js
-@@ -336,6 +336,13 @@ class OpenAPIBackend {
+@@ -365,6 +365,13 @@ class OpenAPIBackend {
                  }
                  return notImplementedHandler(context, ...handlerArgs);
              }
@@ -12,12 +12,12 @@ index 1c13bb5..e024440 100644
 +                context.request.params = context.validation.coerced.params;
 +                context.request.headers = context.validation.coerced.headers;
 +            }
-+            
++
              // handle route
-             return routeHandler(context, ...handlerArgs);
+             return operationHandler(context, ...handlerArgs);
          }).bind(this)();
 diff --git a/node_modules/openapi-backend/validation.js b/node_modules/openapi-backend/validation.js
-index 914a03e..757de3d 100644
+index c76f207..28b78cc 100644
 --- a/node_modules/openapi-backend/validation.js
 +++ b/node_modules/openapi-backend/validation.js
 @@ -174,7 +174,7 @@ class OpenAPIValidator {
@@ -37,3 +37,16 @@ index 914a03e..757de3d 100644
              }
          }
          if (_.isEmpty(result.errors)) {
+@@ -452,9 +453,9 @@ class OpenAPIValidator {
+         // schema for operation requestBody
+         if (operation.requestBody) {
+             const requestBody = operation.requestBody;
+-            const jsonbody = requestBody.content['application/json'] ||
+-                requestBody.content['multipart/form-data'] ||
+-                requestBody.content['application/x-www-form-urlencoded'];
++            // AnvilOps patch: revert this commit: https://github.com/openapistack/openapi-backend/commit/aa2549601bf4936013185fbe66bb388a81d65f64
++            // due to issues with multipart/form-data requests not having a requestBody property
++            const jsonbody = requestBody.content['application/json'];
+             if (jsonbody && jsonbody.schema) {
+                 const requestBodySchema = {
+                     title: 'Request',

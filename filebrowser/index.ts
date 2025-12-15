@@ -29,14 +29,20 @@ async function handle(
   req: IncomingMessage,
   res: ServerResponse<IncomingMessage>,
 ) {
+  const url = URL.parse(req.url, `http://${req.headers.host}`);
+  const search = url.searchParams;
+
+  if (url.pathname === "/livez") {
+    res.writeHead(200);
+    res.write("OK");
+    return res.end();
+  }
+
   if (req.headers["authorization"]?.toString() !== authToken) {
     res.writeHead(403);
     res.write("Forbidden");
     res.end();
   }
-
-  const url = URL.parse(req.url, `http://${req.headers.host}`);
-  const search = url.searchParams;
 
   switch (url.pathname) {
     case "/file":
