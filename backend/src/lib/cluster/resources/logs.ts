@@ -66,6 +66,10 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
         mountPath: "/mnt/log-shipper-volume",
       },
     ],
+    resources: {
+      requests: { cpu: "100m", memory: "50Mi" },
+      limits: { cpu: "100m", memory: "50Mi" },
+    },
   });
 
   for (const container of clone.spec.containers) {

@@ -191,6 +191,16 @@ git push -u origin main`,
                     name: "work-dir",
                   },
                 ],
+                resources: {
+                  requests: {
+                    cpu: "500m",
+                    memory: "512Mi",
+                  },
+                  limits: {
+                    cpu: "500m",
+                    memory: "512Mi",
+                  },
+                },
               },
             ],
             volumes: [

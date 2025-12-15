@@ -31,4 +31,11 @@ spec:
             - |
               export DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOSTNAME/$POSTGRES_DB"
               npx prisma migrate deploy
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       restartPolicy: Never

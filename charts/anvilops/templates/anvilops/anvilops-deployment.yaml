@@ -233,6 +233,13 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
+          resources:
+            requests:
+              cpu: 512m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
       volumes:
         - name: cluster-config
           configMap:

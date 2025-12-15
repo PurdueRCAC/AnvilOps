@@ -1,4 +1,8 @@
-import { PatchStrategy, setHeaderOptions } from "@kubernetes/client-node";
+import {
+  PatchStrategy,
+  setHeaderOptions,
+  type V1Pod,
+} from "@kubernetes/client-node";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import type {
@@ -70,7 +74,7 @@ async function createJobFromDeployment(
     .update(JSON.stringify(envVars))
     .digest("hex");
 
-  const podTemplate = {
+  const podTemplate: V1Pod = {
     metadata: {
       labels: {
         "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
@@ -168,6 +172,16 @@ async function createJobFromDeployment(
               readOnly: true,
             },
           ],
+          resources: {
+            limits: {
+              cpu: "500m",
+              memory: "500Mi",
+            },
+            requests: {
+              cpu: "250m",
+              memory: "128Mi",
+            },
+          },
         },
       ],
       volumes: [

@@ -100,6 +100,16 @@ async function getFileBrowserAddress(
                       scheme: "http",
                     },
                   },
+                  resources: {
+                    limits: {
+                      cpu: "500m",
+                      memory: "500Mi",
+                    },
+                    requests: {
+                      cpu: "250m",
+                      memory: "128Mi",
+                    },
+                  },
                 },
               ],
               volumes: [

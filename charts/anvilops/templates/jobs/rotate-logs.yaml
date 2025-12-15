@@ -28,3 +28,10 @@ spec:
                   value: anvilops
                 - name: POSTGRES_HOSTNAME
                   value: anvilops-postgres
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
