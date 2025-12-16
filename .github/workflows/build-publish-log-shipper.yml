@@ -4,16 +4,17 @@ on:
     branches: [main]
     paths:
       - "log-shipper/**"
+      - ".github/workflows/build-publish-log-shipper.yml"
   workflow_dispatch:
 jobs:
   push_to_registry:
     name: Push custom log shipper image to registry
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Checkout files
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             log-shipper/

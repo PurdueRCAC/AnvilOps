@@ -14,9 +14,8 @@ spec:
           restartPolicy: Never
           containers:
             - name: rotate-logs
-              image: {{ .Values.anvilops.image }}
-              command: ["/bin/sh", "-c"]
-              args: ["npm run job:rotate-logs"]
+              image: {{ .Values.anvilops.image | quote }}
+              args: ["./src/jobs/rotateLogs.ts"]
               env:
                 - name: POSTGRES_USER
                   value: anvilops
@@ -29,3 +28,18 @@ spec:
                   value: anvilops
                 - name: POSTGRES_HOSTNAME
                   value: anvilops-postgres
+              securityContext:
+                capabilities:
+                  drop: [ALL]
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                allowPrivilegeEscalation: false
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi

@@ -4,5 +4,5 @@
     "lib": ["ESNext"],
     "skipDefaultLibCheck": true
   },
-  "files": ["index.ts"]
+  "files": ["index.ts", "healthcheck.ts"]
 }

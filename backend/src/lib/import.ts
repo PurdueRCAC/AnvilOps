@@ -191,6 +191,23 @@ git push -u origin main`,
                     name: "work-dir",
                   },
                 ],
+                resources: {
+                  requests: {
+                    cpu: "500m",
+                    memory: "512Mi",
+                  },
+                  limits: {
+                    cpu: "500m",
+                    memory: "512Mi",
+                  },
+                },
+                securityContext: {
+                  // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
+                  capabilities: {
+                    drop: ["ALL"],
+                  },
+                  allowPrivilegeEscalation: false,
+                },
               },
             ],
             volumes: [

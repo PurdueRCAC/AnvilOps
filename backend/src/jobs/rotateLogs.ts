@@ -12,7 +12,7 @@ async function rotateLogs() {
   const connectionString = `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOSTNAME}/${process.env.POSTGRES_DB}`;
 
   const db = new PrismaClient({
-    // Note: We can't import `db` from db.ts because of side effects. db.ts expects some environment variables that aren't present when we run this job.
+    // Note: We can't import `db` from db/index.ts because of side effects. db/index.ts expects some environment variables that aren't present when we run this job.
     adapter: new PrismaPg({ connectionString }),
   });
 

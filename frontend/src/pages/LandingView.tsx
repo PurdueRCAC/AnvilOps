@@ -31,10 +31,12 @@ import {
 import { RiNextjsLine, RiRemixRunLine } from "react-icons/ri";
 import {
   SiAstro,
+  SiCplusplus,
   SiDeno,
   SiDjango,
   SiDotnet,
   SiElixir,
+  SiFastapi,
   SiNuxtdotjs,
   SiRuby,
   SiRubyonrails,
@@ -198,6 +200,9 @@ export default function LandingView() {
           <a rel="nofollow" href="https://djangoproject.com/">
             <SiDjango size={56} className="text-black-4 hover:text-gold-4" />
           </a>
+          <a rel="nofollow" href="https://fastapi.tiangolo.com/">
+            <SiFastapi size={56} className="text-black-4 hover:text-gold-4" />
+          </a>
           <a rel="nofollow" href="https://go.dev/">
             <BiLogoGoLang
               size={56}
@@ -254,6 +259,9 @@ export default function LandingView() {
           <a rel="nofollow" href="https://dotnet.microsoft.com/">
             <SiDotnet size={56} className="text-black-4 hover:text-gold-4" />
           </a>
+          <p>
+            <SiCplusplus size={56} className="text-black-4 hover:text-gold-4" />
+          </p>
         </div>
         <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
         <Accordion type="single" collapsible>
@@ -293,9 +301,9 @@ export default function LandingView() {
                 Railpack
               </a>{" "}
               supports, including Node.js (including Next.js, Remix, Vite,
-              Astro, Nuxt, and Angular), Python (including Django), Go, PHP
-              (including Laravel), HTML, Java (including Spring Boot), Ruby,
-              Deno, Rust, Elixir, Gleam, .NET, and shell scripts.
+              Astro, Nuxt, and Angular), Python (including Django and FastAPI),
+              Go, PHP (including Laravel), HTML, Java (including Spring Boot),
+              Ruby, Deno, Rust, Elixir, Gleam, .NET, C/C++, and shell scripts.
             </AccordionContent>
           </AccordionItem>
         </Accordion>

@@ -40,6 +40,13 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: anvilops
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
       {{- if .Values.harbor.install }}
       volumes:
         - name: init-harbor-db-script

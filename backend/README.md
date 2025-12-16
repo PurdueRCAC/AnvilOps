@@ -145,7 +145,7 @@ First, install packages with `npm install`.
 To work on the project locally, run `npm run dev`.
 The app will restart whenever you make changes to `index.ts`.
 
-In production, run `npm run start`.
+To run without automatically reloading whenever source files change, run `npm run start`.
 
 The server runs on port 3000 by default.
 

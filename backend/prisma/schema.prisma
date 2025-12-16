@@ -1,11 +1,11 @@
 generator client {
   provider               = "prisma-client"
+  engineType             = "client"
   output                 = "../src/generated/prisma"
   runtime                = "nodejs"
   moduleFormat           = "esm"
   generatedFileExtension = "ts"
   importFileExtension    = "ts"
-  previewFeatures        = ["driverAdapters", "queryCompiler"]
 }
 
 generator json {
@@ -15,7 +15,6 @@ generator json {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -186,12 +185,11 @@ model Deployment {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   commitMessage String?
-  builderJobId  String?
   checkRunId    Int?
 
   // Used to update a deployment when the correct workflow run finishes
   workflowRunId Int?             @unique
-  status        DeploymentStatus @default(PENDING)
+  status        DeploymentStatus @default(QUEUED)
   // A random value used by the builder (in place of the deployment ID) to make changes to this Deployment.
   // API clients should only be able to update deployments if they have the deployment's secret or some other form of authorization.
   secret        String?          @unique
@@ -290,8 +288,6 @@ enum LogStream {
 }
 
 enum LogType {
-  // System logs created by the AnvilOps backend
-  SYSTEM
   // Logs from users' image builds
   BUILD
   // Logs from users' pods
@@ -311,8 +307,8 @@ enum DeploymentStatus {
   COMPLETE
   // There was a problem somewhere during the process
   ERROR
-  // Deployment is no longer active
-  STOPPED
+  // The deployment was building or deploying, but it was cancelled in favor of another deployment
+  CANCELLED
 }
 
 model Session {

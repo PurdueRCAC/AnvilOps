@@ -12,10 +12,10 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
-import { db } from "../db.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
+import { db } from "../../db/index.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -81,12 +81,7 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
   const impersonate = shouldImpersonate(projectId);
   const clusterUsername = !impersonate
     ? null
-    : await db.user
-        .findUnique({
-          where: { id: reqUserId },
-          select: { clusterUsername: true },
-        })
-        .then((user) => user.clusterUsername);
+    : await db.user.getById(reqUserId).then((user) => user.clusterUsername);
 
   return apiClassNames.reduce((result, apiClassName) => {
     return {

@@ -1,10 +1,10 @@
 import type { V1PodList } from "@kubernetes/client-node";
 import { once } from "node:events";
 import stream from "node:stream";
+import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { db, subscribe } from "../lib/db.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -13,20 +13,8 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const app = await db.app.findFirst({
-    where: {
-      id: ctx.request.params.appId,
-      org: { users: { some: { userId: req.user.id } } },
-    },
-    select: {
-      projectId: true,
-      namespace: true,
-      deployments: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { config: { select: { collectLogs: true } } },
-      },
-    },
+  const app = await db.app.getById(ctx.request.params.appId, {
+    requireUser: { id: req.user.id },
   });
 
   if (app === null) {
@@ -71,25 +59,21 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   }
 
   // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
-  const collectLogs = app.deployments?.[0]?.config?.collectLogs;
+  const config = await db.app.getDeploymentConfig(app.id);
+  const collectLogs = config?.collectLogs;
 
   if (collectLogs || ctx.request.query.type === "BUILD") {
     const fetchNewLogs = async () => {
-      // Fetch them in reverse order so that we can take only the 500 most recent lines
-      const newLogs = await db.log.findMany({
-        where: {
-          id: { gt: lastLogId },
-          deploymentId: ctx.request.params.deploymentId,
-          type: ctx.request.query.type,
-        },
-        orderBy: [{ timestamp: "desc" }, { index: "desc" }],
-        take: 500,
-      });
+      const newLogs = await db.deployment.getLogs(
+        ctx.request.params.deploymentId,
+        lastLogId,
+        ctx.request.query.type,
+        500,
+      );
       if (newLogs.length > 0) {
         lastLogId = newLogs[0].id;
       }
-      for (let i = newLogs.length - 1; i >= 0; i--) {
-        const log = newLogs[i];
+      for (const log of newLogs) {
         await sendLog({
           id: log.id,
           type: log.type,
@@ -102,7 +86,7 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     };
 
     // When new logs come in, send them to the client
-    const unsubscribe = await subscribe(
+    const unsubscribe = await db.subscribe(
       `deployment_${ctx.request.params.deploymentId}_logs`,
       fetchNewLogs,
     );

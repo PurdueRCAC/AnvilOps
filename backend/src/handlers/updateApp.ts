@@ -1,47 +1,34 @@
-import { type Response as ExpressResponse } from "express";
 import { randomBytes } from "node:crypto";
-import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import type { DeploymentConfigCreateInput } from "../generated/prisma/models.ts";
+import { db, NotFoundError } from "../db/index.ts";
+import type { DeploymentConfigCreate } from "../db/models.ts";
 import {
   createOrUpdateApp,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { db } from "../lib/db.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
-import { buildAndDeploy, cancelAllOtherDeployments } from "./githubWebhook.ts";
+import {
+  buildAndDeploy,
+  cancelAllOtherDeployments,
+  log,
+} from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
 export const updateApp: HandlerMap["updateApp"] = async (
   ctx,
   req: AuthenticatedRequest,
-  res: ExpressResponse,
+  res,
 ) => {
   const appData = ctx.request.requestBody;
   const appConfig = appData.config;
 
-  const originalApp = await db.app.findUnique({
-    where: {
-      id: ctx.request.params.appId,
-      org: { users: { some: { userId: req.user.id } } },
-    },
-    include: {
-      config: {
-        include: {
-          deployment: {
-            select: {
-              commitMessage: true,
-              status: true,
-            },
-          },
-        },
-      },
-      org: { select: { githubInstallationId: true } },
-      appGroup: true,
-    },
+  // ---------------- Input validation ----------------
+
+  const originalApp = await db.app.getById(ctx.request.params.appId, {
+    requireUser: { id: req.user.id },
   });
 
   if (!originalApp) {
@@ -61,98 +48,75 @@ export const updateApp: HandlerMap["updateApp"] = async (
   }
 
   if (appData.projectId) {
-    const { clusterUsername } = await db.user.findUnique({
-      where: { id: req.user.id },
-    });
-    if (!(await canManageProject(clusterUsername, appData.projectId))) {
+    const user = await db.user.getById(req.user.id);
+    if (!(await canManageProject(user.clusterUsername, appData.projectId))) {
       return json(404, res, { code: 404, message: "Project not found" });
     }
   }
 
+  // ---------------- App group updates ----------------
+
   if (appData.appGroup?.type === "add-to") {
+    // Add the app to an existing group
     if (appData.appGroup.id !== originalApp.appGroupId) {
-      const originalGroupId = originalApp.appGroupId;
       try {
-        await db.app.update({
-          where: { id: originalApp.id },
-          data: {
-            appGroup: {
-              connect: { id: appData.appGroup.id },
-            },
-          },
-        });
-        const remainingApps = await db.app.count({
-          where: { appGroupId: originalGroupId },
-        });
-        if (remainingApps === 0)
-          await db.appGroup.delete({ where: { id: originalGroupId } });
+        await db.app.setGroup(originalApp.id, appData.appGroup.id);
       } catch (err) {
-        if (
-          err instanceof PrismaClientKnownRequestError &&
-          err.code === "P2025"
-        ) {
-          // https://www.prisma.io/docs/orm/reference/error-reference#p2025
-          // "An operation failed because it depends on one or more records that were required but not found. {cause}"
+        if (err instanceof NotFoundError) {
           return json(404, res, { code: 404, message: "App group not found" });
         }
       }
     }
   } else if (appData.appGroup) {
-    const originalGroupId = originalApp.appGroupId;
+    // Create a new group
     const name =
       appData.appGroup.type === "standalone"
         ? `${appData.name}-${randomBytes(4).toString("hex")}`
         : appData.appGroup.name;
-    await db.app.update({
-      where: { id: originalApp.id },
-      data: {
-        appGroup: {
-          create: {
-            name: name,
-            org: { connect: { id: originalApp.orgId } },
-            isMono: appData.appGroup.type === "standalone",
-          },
-        },
-      },
-    });
 
-    const remainingApps = await db.app.count({
-      where: { appGroupId: originalGroupId },
-    });
-    if (remainingApps === 0) {
-      await db.appGroup.delete({ where: { id: originalGroupId } });
-    }
+    const newGroupId = await db.appGroup.create(
+      originalApp.orgId,
+      name,
+      appData.appGroup.type === "standalone",
+    );
+
+    await db.app.setGroup(originalApp.id, newGroupId);
   }
 
-  const data = {} as Record<string, any>;
+  // ---------------- App model updates ----------------
+
+  const updates = {} as Record<string, any>;
   if (appData.name !== undefined) {
-    data.displayName = appData.name;
+    updates.displayName = appData.name;
   }
 
-  // if (appData.projectId !== undefined) {
-  //   data.projectId = appData.projectId;
-  // }
+  if (appData.projectId !== undefined) {
+    updates.projectId = appData.projectId;
+  }
 
   if (appData.enableCD !== undefined) {
-    data.enableCD = appData.enableCD;
+    updates.enableCD = appData.enableCD;
   }
 
-  if (appData.projectId && appData.projectId !== originalApp.projectId) {
-    data.projectId = appData.projectId;
+  if (Object.keys(updates).length > 0) {
+    await db.app.update(originalApp.id, updates);
   }
 
-  if (Object.keys(data).length > 0) {
-    await db.app.update({ where: { id: originalApp.id }, data });
-  }
+  // ---------------- Create updated deployment configuration ----------------
 
-  const secret = randomBytes(32).toString("hex");
+  const app = await db.app.getById(originalApp.id);
+  const [appGroup, org, currentConfig, currentDeployment] = await Promise.all([
+    db.appGroup.getById(app.appGroupId),
+    db.org.getById(app.orgId),
+    db.app.getDeploymentConfig(app.id),
+    db.app.getCurrentDeployment(app.id),
+  ]);
 
-  const currentConfig = originalApp.config;
-  const updatedConfig: DeploymentConfigCreateInput = {
+  const updatedConfig: DeploymentConfigCreate = {
     // Null values for unchanged sensitive vars need to be replaced with their true values
-    env: withSensitiveEnv(currentConfig.getPlaintextEnv(), appConfig.env),
+    env: withSensitiveEnv(currentConfig.getEnv(), appConfig.env),
     createIngress: appConfig.createIngress,
-    subdomain: appConfig.createIngress ? appConfig.subdomain : undefined,
+    subdomain: appConfig.subdomain,
     collectLogs: appConfig.collectLogs,
     replicas: appConfig.replicas,
     port: appConfig.port,
@@ -164,7 +128,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
           source: "GIT",
           branch: appConfig.branch,
           repositoryId: appConfig.repositoryId,
-          commitHash: appConfig.commitHash ?? originalApp.config.commitHash,
+          commitHash: appConfig.commitHash ?? currentConfig.commitHash,
           builder: appConfig.builder,
           rootDir: appConfig.rootDir,
           dockerfilePath: appConfig.dockerfilePath,
@@ -177,10 +141,12 @@ export const updateApp: HandlerMap["updateApp"] = async (
         }),
   };
 
+  // ---------------- Rebuild if necessary ----------------
+
   if (
     updatedConfig.source === "GIT" &&
     (!currentConfig.imageTag ||
-      currentConfig.deployment.status === "ERROR" ||
+      currentDeployment.status === "ERROR" ||
       updatedConfig.branch !== currentConfig.branch ||
       updatedConfig.repositoryId !== currentConfig.repositoryId ||
       updatedConfig.builder !== currentConfig.builder ||
@@ -191,7 +157,7 @@ export const updateApp: HandlerMap["updateApp"] = async (
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
-    const octokit = await getOctokit(originalApp.org.githubInstallationId);
+    const octokit = await getOctokit(org.githubInstallationId);
     const repo = await getRepoById(octokit, updatedConfig.repositoryId);
     try {
       const latestCommit = (
@@ -204,8 +170,8 @@ export const updateApp: HandlerMap["updateApp"] = async (
       ).data[0];
 
       await buildAndDeploy({
-        appId: originalApp.id,
-        orgId: originalApp.orgId,
+        app: originalApp,
+        org: org,
         imageRepo: originalApp.imageRepo,
         commitMessage: latestCommit.commit.message,
         config: updatedConfig,
@@ -221,86 +187,56 @@ export const updateApp: HandlerMap["updateApp"] = async (
       });
     }
   } else {
-    // Create a new deployment from the template
+    // ---------------- Redeploy the app with the new configuration ----------------
     const deployment = await db.deployment.create({
-      data: {
-        config: {
-          create: {
-            ...updatedConfig,
-            imageTag:
-              // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
-              // Use the one that the user specified or the most recent successful one.
-              updatedConfig.imageTag ?? currentConfig.imageTag,
-          },
-        },
-        status: "DEPLOYING",
-        app: { connect: { id: originalApp.id } },
-        commitMessage: currentConfig.deployment.commitMessage,
-        secret,
+      config: {
+        ...updatedConfig,
+        imageTag:
+          // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
+          // Use the one that the user specified or the most recent successful one.
+          updatedConfig.imageTag ?? currentConfig.imageTag,
       },
-      select: {
-        commitMessage: true,
-        id: true,
-        appId: true,
-        app: {
-          include: {
-            appGroup: true,
-            org: { select: { githubInstallationId: true } },
-          },
-        },
-        config: true,
-      },
+      status: "DEPLOYING",
+      appId: originalApp.id,
+      commitMessage: currentDeployment.commitMessage,
     });
+
+    const config = await db.deployment.getConfig(deployment.id);
 
     try {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment(deployment);
+        await createAppConfigsFromDeployment(
+          org,
+          app,
+          appGroup,
+          deployment,
+          config,
+        );
 
       const { KubernetesObjectApi: api } = await getClientsForRequest(
         req.user.id,
-        deployment.app.projectId,
+        app.projectId,
         ["KubernetesObjectApi"],
       );
-      await createOrUpdateApp(
-        api,
-        originalApp.name,
-        namespace,
-        configs,
-        postCreate,
-      );
+      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
 
       await Promise.all([
-        cancelAllOtherDeployments(deployment.id, deployment.app, true),
-        db.deployment.update({
-          where: { id: deployment.id },
-          data: { status: "COMPLETE" },
-        }),
-        db.app.update({
-          where: { id: ctx.request.params.appId },
-          data: { config: { connect: { id: deployment.config.id } } },
-        }),
+        cancelAllOtherDeployments(org, app, deployment.id, true),
+        db.deployment.setStatus(deployment.id, "COMPLETE"),
+        db.app.setConfig(ctx.request.params.appId, deployment.configId),
       ]);
     } catch (err) {
       console.error(
         `Failed to update Kubernetes resources for deployment ${deployment.id}`,
         err,
       );
-      await db.deployment.update({
-        where: {
-          id: deployment.id,
-        },
-        data: {
-          status: "ERROR",
-          logs: {
-            create: {
-              timestamp: new Date(),
-              content: `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
-              type: "BUILD",
-              stream: "stderr",
-            },
-          },
-        },
-      });
+      await db.deployment.setStatus(deployment.id, "ERROR");
+      await log(
+        deployment.id,
+        "BUILD",
+        `Failed to update Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+        "stderr",
+      );
       return json(200, res, {});
     }
   }

@@ -1,5 +1,4 @@
-import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import { db } from "../lib/db.ts";
+import { db, NotFoundError } from "../db/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -8,31 +7,21 @@ export const removeUserFromOrg: HandlerMap["removeUserFromOrg"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const membership = await db.organizationMembership.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: req.user.id,
-        organizationId: ctx.request.params.orgId,
-      },
-      permissionLevel: "OWNER",
-    },
+  const org = await db.org.getById(ctx.request.params.orgId, {
+    requireUser: { id: req.user.id, permissionLevel: "OWNER" },
   });
 
-  if (!membership) {
+  if (!org) {
     return json(403, res, {});
   }
 
   try {
-    await db.organizationMembership.delete({
-      where: {
-        userId_organizationId: {
-          userId: ctx.request.params.userId,
-          organizationId: ctx.request.params.orgId,
-        },
-      },
-    });
+    await db.org.removeMember(
+      ctx.request.params.orgId,
+      ctx.request.params.userId,
+    );
   } catch (e: any) {
-    if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
+    if (e instanceof NotFoundError) {
       return json(404, res, { code: 404, message: "Not found." });
     }
 

@@ -89,6 +89,37 @@ async function getFileBrowserAddress(
                       value: randomBytes(48).toString("hex"),
                     },
                   ],
+                  livenessProbe: {
+                    initialDelaySeconds: 3,
+                    periodSeconds: 3,
+                    timeoutSeconds: 1,
+                    failureThreshold: 3,
+                    httpGet: {
+                      port: 8080,
+                      path: "/livez",
+                      scheme: "HTTP",
+                    },
+                  },
+                  resources: {
+                    limits: {
+                      cpu: "500m",
+                      memory: "500Mi",
+                    },
+                    requests: {
+                      cpu: "250m",
+                      memory: "128Mi",
+                    },
+                  },
+                  securityContext: {
+                    capabilities: {
+                      drop: ["ALL"],
+                    },
+                    runAsNonRoot: true,
+                    runAsUser: 65532,
+                    runAsGroup: 65532,
+                    readOnlyRootFilesystem: true,
+                    allowPrivilegeEscalation: false,
+                  },
                 },
               ],
               volumes: [

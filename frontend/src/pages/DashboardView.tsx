@@ -1,36 +1,10 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { UserContext } from "@/components/UserProvider";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import {
-  Container,
-  EllipsisVertical,
-  ExternalLink,
-  GitBranch,
-  Loader,
-  Plus,
-} from "lucide-react";
-import { Fragment, useContext, useState, type ReactNode } from "react";
+import { Container, ExternalLink, GitBranch, Loader, Plus } from "lucide-react";
+import { Fragment, useContext } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { Status } from "./app/AppView";
 
 export default function DashboardView() {
@@ -129,11 +103,6 @@ const AppGroup = ({ appGroup }: { appGroup: AppGroupType }) => {
       {!appGroup.isMono && (
         <div className="mb-2 text-lg flex items-center gap-2">
           <h3>{appGroup.name}</h3>
-          <DeleteGroupDialog appGroup={appGroup}>
-            <Button variant="ghost" className="rounded-full" size="icon">
-              <EllipsisVertical />
-            </Button>
-          </DeleteGroupDialog>
         </div>
       )}
       <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -142,89 +111,6 @@ const AppGroup = ({ appGroup }: { appGroup: AppGroupType }) => {
         ))}
       </div>
     </section>
-  );
-};
-
-const DeleteGroupDialog = ({
-  appGroup,
-  children,
-}: {
-  appGroup: AppGroupType;
-  children: ReactNode;
-}) => {
-  const { refetch } = useContext(UserContext);
-
-  const [nameText, setNameText] = useState("");
-
-  const { mutateAsync: deleteAppGroupAction } = api.useMutation(
-    "post",
-    "/app/group/{appGroupId}/delete",
-  );
-
-  const deleteAppGroup = async (appGroupId: number) => {
-    try {
-      await deleteAppGroupAction({
-        params: { path: { appGroupId } },
-        body: { keepNamespace: false },
-      });
-    } catch (e) {
-      toast.error("There was a problem deleting your project.");
-      return;
-    }
-    toast.success("Your project has been deleted.");
-    refetch?.({});
-  };
-
-  return (
-    <DropdownMenu onOpenChange={() => setNameText("")}>
-      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent sideOffset={0} className="relative left-1/2">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-              Delete App Group
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm delete group</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone.
-                <ul className="*:list-disc *:ml-4 mt-2 mb-4">
-                  <li>
-                    All AnvilOps apps in this group, as well as associated
-                    deployments and infrastructure, will be deleted.
-                  </li>
-                  <li>
-                    All subdomains used by apps in this group will become
-                    available for other projects to use.
-                  </li>
-                  <li>Your Git repositories will be unaffected.</li>
-                </ul>
-                <p className="mb-2">
-                  Type the group name <b>{appGroup.name}</b> to continue.
-                </p>
-                <Input
-                  placeholder={appGroup.name}
-                  value={nameText}
-                  onChange={(e) => setNameText(e.currentTarget.value)}
-                />
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={nameText !== appGroup.name}
-                onClick={async () => deleteAppGroup(appGroup.id)}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 };
 
