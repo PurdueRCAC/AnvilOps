@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { assert, describe, test } from "vitest";
 import { db } from "../../src/db/index.ts";
 import type { User } from "../../src/db/models.ts";
 import {
@@ -32,7 +32,7 @@ describe("createApp", async (c) => {
     const appId = await create({
       appGroup: { type: "standalone" },
       source: "image",
-      imageTag: "nginx:latest",
+      imageTag: process.env.TEST_ANVILOPS_SAMPLE_IMAGE,
       cpuCores: 1,
       memoryInMiB: 512,
       createIngress: false,
@@ -42,6 +42,14 @@ describe("createApp", async (c) => {
       orgId,
       port: 80,
       subdomain: getTestNamespace(),
+    });
+
+    test("from Dockerfile", () => {
+      assert.fail("Not implemented yet");
+    });
+
+    test("from Railpack", () => {
+      assert.fail("Not implemented yet");
     });
 
     console.log(appId);

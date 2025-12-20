@@ -11,6 +11,9 @@ docker_build_with_restart("anvilops/test", "../../",
   only=["backend", "templates", "openapi"]
 )
 
+# Build a sample app to test AnvilOps deployments from an existing image
+docker_build("anvilops/sample", "sample/", match_in_env_vars=True)
+
 for obj in parent["parsed"]:
   # Copy the AnvilOps deployment, but make it point to our test image and database
   if obj["kind"] == "Deployment" and obj["metadata"]["name"] == "anvilops":
@@ -27,6 +30,9 @@ for obj in parent["parsed"]:
         c["env"][i] = {"name": "POSTGRES_DB", "value": "anvilops_test"}
     
     c["env"].append({"name": "DATABASE_URL", "value": "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOSTNAME)/$(POSTGRES_DB)"})
+
+    # Show Tilt that we're using the anvilops/sample image so that it builds it before deploying the tests
+    c["env"].append({"name": "TEST_ANVILOPS_SAMPLE_IMAGE", "value": "anvilops/sample"})
     
     test_job = {
       "apiVersion": "batch/v1",
@@ -47,3 +53,4 @@ for obj in parent["parsed"]:
     }
 
     k8s_yaml(encode_yaml_stream([test_job]))
+
