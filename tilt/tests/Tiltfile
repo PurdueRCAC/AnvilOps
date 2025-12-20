@@ -5,8 +5,8 @@ docker_build_with_restart("anvilops/test", "../../",
   dockerfile="./test.Dockerfile",
   entrypoint="npx prisma migrate reset --force && npx vitest run",
   live_update=[
-    sync("../backend/src", "/app/src"),
-    sync("../backend/test", "/app/test")
+    sync("../../backend/src", "/app/src"),
+    sync("../../backend/test", "/app/test")
   ],
   only=["backend", "templates", "openapi"]
 )
