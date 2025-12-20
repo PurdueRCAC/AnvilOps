@@ -31,6 +31,7 @@ import { importGitRepo, importGitRepoCreateState } from "./importGitRepo.ts";
 import { ingestLogs } from "./ingestLogs.ts";
 import { inviteUser } from "./inviteUser.ts";
 import { isSubdomainAvailable } from "./isSubdomainAvailable.ts";
+import { listCharts } from "./listCharts.ts";
 import { listDeployments } from "./listDeployments.ts";
 import { listOrgGroups } from "./listOrgGroups.ts";
 import { listOrgRepos } from "./listOrgRepos.ts";
@@ -81,6 +82,7 @@ export const handlers = {
   ingestLogs,
   inviteUser,
   isSubdomainAvailable,
+  listCharts,
   listDeployments,
   listOrgGroups,
   listOrgRepos,

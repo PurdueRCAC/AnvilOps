@@ -1828,6 +1828,35 @@ paths:
                     - subdomain
                     - env
                     - mounts
+
+  /templates/charts:
+    description: List custom AnvilOps helm charts.
+    get:
+      operationId: listCharts
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    note:
+                      type: string
+                    url:
+                      type: string
+                    urlType:
+                      type: string
+                    version:
+                      type: string
+                    valueSpec:
+                      type: object
+                      additionalProperties: true
+                  required: [name, note, url, urlType, version]
 components:
   schemas:
     UserOrg:
@@ -2131,11 +2160,13 @@ components:
         - config
     DeploymentConfig:
       type: object
-      allOf:
-        - oneOf:
-            - $ref: "#/components/schemas/GitDeploymentOptions"
-            - $ref: "#/components/schemas/ImageDeploymentOptions"
-        - $ref: "#/components/schemas/KnownDeploymentOptions"
+      oneOf:
+        - allOf:
+            - oneOf:
+                - $ref: "#/components/schemas/GitDeploymentOptions"
+                - $ref: "#/components/schemas/ImageDeploymentOptions"
+            - $ref: "#/components/schemas/KnownDeploymentOptions"
+        - $ref: "#/components/schemas/HelmDeploymentOptions"
     KnownDeploymentOptions:
       type: object
       properties:
@@ -2229,6 +2260,23 @@ components:
           type: string
         # Deployment options
       required: [source, imageTag]
+    HelmDeploymentOptions:
+      properties:
+        source:
+          type: string
+          enum: [helm]
+        url:
+          type: string
+        urlType:
+          type: string
+          enum: [absolute, oci, repository]
+        version:
+          type: string
+        values:
+          type: object
+          additionalProperties: true
+      required: [source, url, urlType]
+
     Mount:
       type: object
       properties:

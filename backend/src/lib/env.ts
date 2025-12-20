@@ -150,6 +150,14 @@ const variables = {
    */
   CURRENT_NAMESPACE: { required: true },
   /**
+   * The name of the project in which custom AnvilOps charts are stored.
+   */
+  CHART_PROJECT_NAME: { required: false },
+  /**
+   * The base URL of the registry's API, e.g. https://registry.anvil.rcac.purdue.edu/api/v2.0
+   */
+  REGISTRY_API_URL: { required: true },
+  /**
    * The hostname for the image registry, e.g. registry.anvil.rcac.purdue.edu
    */
   REGISTRY_HOSTNAME: { required: true },

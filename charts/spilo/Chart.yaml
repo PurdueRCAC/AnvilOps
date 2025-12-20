@@ -2,6 +2,41 @@ apiVersion: v1
 name: spilo
 description: A minimal Spilo/Patroni HA Postgres deployment.
 type: application
-version: 0.1.0
+version: 0.1.1
 annotations:
-  note: Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
+  anvilops-note: |
+    Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
+    The usernames of the superuser, admin, and replication user respectively are 'postgres', 'admin', and 'standby'.
+  anvilops-values: |
+    {
+      "passwords": [
+      {
+        "name": "superuser",
+        "displayName": "Superuser Password",
+        "random": true
+      },
+      {
+        "name": "replication",
+        "displayName": "Replication Password",
+        "random": true
+      },
+      {
+        "name": "admin",
+        "displayName": "Admin Password",
+        "random": "true"
+      }
+      ],
+      "storage": [
+      {
+        "name": "className",
+        "displayName": "Storage Class",
+        "default": "standard"
+      },
+      {
+        "name": "size",
+        "displayName": "Size",
+        "type": "number",
+        "unit": "Gi"
+      }
+      ]
+    }

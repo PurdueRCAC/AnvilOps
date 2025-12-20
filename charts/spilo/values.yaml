@@ -1,11 +1,6 @@
-passwords:
-  superuser: "change-me"
-  replication: "change-me"
-  admin: "change-me"
+passwords: {}
 
-storage:
-  className: "standard"
-  size: "5Gi"
+storage: {}
 
 image:
   repository: registry.opensource.zalan.do/acid/spilo-11
