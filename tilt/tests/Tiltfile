@@ -1,4 +1,5 @@
 load('ext://restart_process', 'docker_build_with_restart')
+load('ext://deployment', 'deployment_yaml', 'service_yaml')
 parent = load_dynamic("../Tiltfile")
 
 docker_build_with_restart("anvilops/test", "../../",
@@ -10,6 +11,13 @@ docker_build_with_restart("anvilops/test", "../../",
   ],
   only=["backend", "templates", "openapi"]
 )
+
+# Expose a server that hosts a sample Git repository, used to clone a repository with `git clone http://test-file-server.default.svc.cluster.local/sample/.git`
+docker_build("anvilops/test-file-server", ".", dockerfile="./file-server/Dockerfile")
+k8s_yaml(deployment_yaml("test-file-server", "anvilops/test-file-server", ports=[{"containerPort": 80}]))
+k8s_yaml(service_yaml("test-file-server", ports=["80:80"]))
+
+k8s_resource("anvilops-tests", resource_deps=["test-file-server"])
 
 # Build a sample app to test AnvilOps deployments from an existing image
 docker_build("anvilops/sample", "sample/", match_in_env_vars=True)
@@ -39,15 +47,15 @@ for obj in parent["parsed"]:
       "kind": "Job",
       "metadata": {
         "name": "anvilops-tests",
-      }
-    }
-    test_job["spec"] = {
-      "backoffLimit": 0, # Don't retry unless explicitly asked to do so
-      "template": {
-        "spec": {
-          "containers": [c],
-          "volumes": obj["spec"]["template"]["spec"]["volumes"],
-          "restartPolicy": "Never"
+      },
+      "spec": {
+        "backoffLimit": 0, # Don't retry unless explicitly asked to do so
+        "template": {
+          "spec": {
+            "containers": [c],
+            "volumes": obj["spec"]["template"]["spec"]["volumes"],
+            "restartPolicy": "Never"
+          }
         }
       }
     }
