@@ -38,6 +38,15 @@ spec:
           {{- with .Values.anvilops.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
+          {{- else -}}
+          securityContext:
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
@@ -233,14 +242,6 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
-          securityContext:
-            capabilities:
-              drop: [ALL]
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
           resources:
             requests:
               cpu: 512m

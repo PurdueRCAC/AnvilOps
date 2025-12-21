@@ -98,7 +98,7 @@ export async function getAppByID(appId: number, userId: number) {
     },
     appGroup: {
       standalone: appGroup.isMono,
-      name: !appGroup.isMono ? appGroup.name : undefined,
+      name: appGroup.name,
       id: app.appGroupId,
     },
     activeDeployment: activeDeployment ? parseInt(activeDeployment) : undefined,

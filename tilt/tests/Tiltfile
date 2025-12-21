@@ -1,0 +1,78 @@
+load('ext://restart_process', 'docker_build_with_restart')
+load('ext://deployment', 'deployment_yaml', 'service_yaml')
+parent = load_dynamic("../Tiltfile")
+
+IN_CI = config.tilt_subcommand == "ci"
+
+docker_build("anvilops/test", "../../",
+  dockerfile="./test.Dockerfile",
+  entrypoint="npx vitest run" if IN_CI else "npx vitest watch", # Run once if we're in CI and continuously in development
+  live_update=[
+    sync("../../backend/src", "/app/src"),
+    sync("../../backend/test", "/app/test")
+  ],
+  only=["backend", "templates", "openapi"]
+)
+
+# We're deploying anvilops/test, not the anvilops/anvilops image that the main Tiltfile is building
+update_settings(suppress_unused_image_warnings=["anvilops/anvilops"])
+
+# Expose a server that hosts a sample Git repository, used to clone a repository with `git clone http://test-file-server.default.svc.cluster.local/sample/.git`
+docker_build("anvilops/test-file-server", ".", dockerfile="./file-server/Dockerfile")
+k8s_yaml(deployment_yaml("test-file-server", "anvilops/test-file-server", ports=[{"containerPort": 80}]))
+k8s_yaml(service_yaml("test-file-server", ports=["80:80"]))
+
+k8s_resource("anvilops", resource_deps=["test-file-server"])
+
+# Build a sample app to test AnvilOps deployments from an existing image
+docker_build("anvilops/sample", "sample/", match_in_env_vars=True)
+
+anvilops_yaml = parent["anvilops_yaml"]
+
+# Copy the AnvilOps deployment, but make it point to our test image and database
+anvilops_yaml = decode_yaml(encode_yaml(anvilops_yaml)) # Create a deep copy of anvilops_yaml so that we can mutate it
+c = anvilops_yaml["spec"]["template"]["spec"]["containers"][0]
+
+c["image"] = "anvilops/test"
+c["securityContext"] = None
+c["resources"] = None
+c["livenessProbe"] = None
+
+c["env"] = list(c["env"])
+for i, v in enumerate(c["env"]):
+  if v["name"] == "POSTGRES_DB":
+    c["env"][i] = {"name": "POSTGRES_DB", "value": "anvilops_test"}
+
+c["env"].append({"name": "DATABASE_URL", "value": "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOSTNAME)/$(POSTGRES_DB)"})
+
+# Show Tilt that we're using the anvilops/sample image so that it builds it before deploying the tests
+c["env"].append({"name": "TEST_ANVILOPS_SAMPLE_IMAGE", "value": "anvilops/sample"})
+
+if config.tilt_subcommand == "ci":
+  # Run the tests as a Job so that the correct exit code is recorded
+  c["env"].append({"name": "CI", "value": "1"})
+  test_job = {
+    "apiVersion": "batch/v1",
+    "kind": "Job",
+    "metadata": {
+      "name": "anvilops-tests",
+      "labels": {
+        "app": "anvilops-tests"
+      }
+    },
+    "spec": {
+      "backoffLimit": 0, # Don't retry unless explicitly asked to do so
+      "template": {
+        "spec": {
+          "containers": [c],
+          "volumes": anvilops_yaml["spec"]["template"]["spec"]["volumes"],
+          "restartPolicy": "Never"
+        }
+      }
+    }
+  }
+
+  k8s_yaml(encode_yaml_stream([test_job]))
+else:
+  # Run the tests as a regular Deployment so that they can quickly rerun when changes are made
+  k8s_yaml(encode_yaml_stream([anvilops_yaml]))

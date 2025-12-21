@@ -5,11 +5,13 @@ load('ext://deployment', 'deployment_create')
 load('ext://helm_remote', 'helm_remote')
 dotenv(fn='../backend/.env')
 
+IN_TEST = config.main_path.endswith("tests/Tiltfile")
+
 # Should the frontend and backend be deployed separately?
 # If enabled, changes will apply much faster at the expense of a development environment that looks less like production.
 separate_frontend_and_backend = True
 
-if separate_frontend_and_backend:
+if separate_frontend_and_backend and not IN_TEST:
   docker_build(
     "anvilops-frontend", "../",
     dockerfile="./anvilops-frontend.Dockerfile",
@@ -88,8 +90,11 @@ yaml = helm(
   values=['./local-values.yaml']
 )
 
+anvilops_yaml = None # used in tilt/tests/Tiltfile
 parsed = decode_yaml_stream(yaml)
-for i, object in enumerate(parsed):
+
+for i in range(len(parsed) - 1, 0, -1):
+  object = parsed[i]
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
     for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
@@ -103,6 +108,10 @@ for i, object in enumerate(parsed):
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsNonRoot"] = False
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsUser"] = 0
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsGroup"] = 0
+    if IN_TEST:
+      # AnvilOps is deployed differently in tests; see tilt/tests/Tiltfile
+      parsed.pop(i)
+    anvilops_yaml = object
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
@@ -110,6 +119,12 @@ for i, object in enumerate(parsed):
   # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
   if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
+  if (config.tilt_subcommand == "ci" or IN_TEST) and object["kind"] == "CronJob" and object["metadata"]["name"] == "anvilops-rotate-logs":
+    parsed.pop(i)
+  if IN_TEST and object["kind"] == "Job" and object["metadata"]["name"] == "anvilops-migrate-db":
+    # In tests, database migration is handled without this migration job
+    parsed.pop(i)
+    update_settings(suppress_unused_image_warnings=["anvilops/migrate-db"])
 
 # Allow AnvilOps's buildkitd instance to use the built-in registry insecurely (over HTTP)
 k8s_yaml(blob("""

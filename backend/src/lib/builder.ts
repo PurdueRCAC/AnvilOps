@@ -39,7 +39,7 @@ async function createJobFromDeployment(
   );
 
   const label = randomBytes(4).toString("hex");
-  const secretName = `anvilops-temp-build-secrets-${app.id}-${deployment.id}`;
+  const secretName = `anvilops-temp-build-secrets-${app.id}-${deployment.id}-${label}`;
   const jobName = `build-image-${app.imageRepo}-${label}`;
 
   const envVars = config.getEnv();

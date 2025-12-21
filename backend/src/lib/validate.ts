@@ -1,4 +1,5 @@
 import type { components } from "../generated/openapi.ts";
+import { ValidationError } from "../service/common/errors.ts";
 import { namespaceInUse } from "./cluster/kubernetes.ts";
 import {
   getNamespace,
@@ -50,7 +51,10 @@ export async function validateDeploymentConfig(
     throw new Error("Invalid port number: must be between 0 and 65535");
   }
 
-  validateEnv(env);
+  const envResult = validateEnv(env);
+  if (!envResult.valid) {
+    throw new ValidationError(envResult.message);
+  }
 
   validateMounts(mounts);
 
@@ -121,6 +125,8 @@ export const validateEnv = (env: PrismaJson.EnvVar[]) => {
     }
     envNames.add(envVar.name);
   }
+
+  return { valid: true };
 };
 
 export const validateSubdomain = async (subdomain: string) => {
