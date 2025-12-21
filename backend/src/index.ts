@@ -113,7 +113,7 @@ if (existsSync(publicDir) && statSync(publicDir).isDirectory()) {
   });
 }
 
-app.listen(port, (err) => {
+export const server = app.listen(port, (err) => {
   if (err !== undefined) {
     console.error(err);
   } else {
