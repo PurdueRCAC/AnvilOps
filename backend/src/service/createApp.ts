@@ -6,7 +6,7 @@ import type { components } from "../generated/openapi.ts";
 import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getLatestCommit, getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
   validateAppGroup,
   validateAppName,
@@ -69,10 +69,10 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
       repo = await getRepoById(octokit, appData.repositoryId);
     } catch (err) {
       if (err.status === 404) {
-        throw new ValidationError("Invalid repository ID");
+        throw new ValidationError("Invalid repository ID", { cause: err });
       }
 
-      throw new Error("Failed to look up GitHub repository", err);
+      throw new Error("Failed to look up GitHub repository", { cause: err });
     }
 
     if (appData.event === "workflow_run" && appData.eventId) {
@@ -87,17 +87,15 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
           throw new ValidationError("Workflow not found");
         }
       } catch (err) {
-        throw new Error("Failed to look up GitHub workflows", err);
+        throw new Error("Failed to look up GitHub workflows", { cause: err });
       }
     }
 
-    const latestCommit = (
-      await octokit.rest.repos.listCommits({
-        per_page: 1,
-        owner: repo.owner.login,
-        repo: repo.name,
-      })
-    ).data[0];
+    const latestCommit = await getLatestCommit(
+      octokit,
+      repo.owner.login,
+      repo.name,
+    );
 
     commitSha = latestCommit.sha;
     commitMessage = latestCommit.commit.message;

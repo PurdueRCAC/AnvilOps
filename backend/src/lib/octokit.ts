@@ -106,3 +106,17 @@ export async function generateCloneURLWithCredentials(
   url.password = token;
   return url.toString();
 }
+
+export async function getLatestCommit(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+) {
+  return (
+    await octokit.rest.repos.listCommits({
+      per_page: 1,
+      owner,
+      repo,
+    })
+  ).data[0];
+}

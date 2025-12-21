@@ -1,11 +1,13 @@
 import {
   ApiException,
   AppsV1Api,
+  BatchV1Api,
   KubeConfig,
   type ApiConstructor,
+  type KubernetesObject,
 } from "@kubernetes/client-node";
 import { setTimeout } from "node:timers/promises";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { db } from "../../src/db/index.ts";
 import type { User } from "../../src/db/models.ts";
 import { DeploymentStatus } from "../../src/generated/prisma/enums.ts";
@@ -22,7 +24,7 @@ import { getTestNamespace, getTestUser } from "../fixtures/user.ts";
 const kc = new KubeConfig();
 kc.loadFromDefault();
 
-async function waitForCreate<T, C>(
+async function waitForCreate<T extends KubernetesObject, C>(
   clientType: ApiConstructor<C>,
   check: (client: C) => Promise<T>,
 ): Promise<T> {
@@ -30,7 +32,17 @@ async function waitForCreate<T, C>(
   const client = kc.makeApiClient(clientType);
   for (let i = 0; i < 20; i++) {
     try {
-      return await check(client);
+      const response = await check(client);
+      if (
+        response.kind?.endsWith("List") &&
+        "items" in response &&
+        Array.isArray(response.items) &&
+        response.items.length === 0
+      ) {
+        // For list requests, treat an empty list as a "not found"
+        throw new ApiException(404, "No items found in response", response, {});
+      }
+      return response;
     } catch (e) {
       if (e instanceof ApiException && e.code === 404) {
         // Not found; continue waiting
@@ -80,7 +92,7 @@ describe("createApp", async (c) => {
   const create = async (config: NewApp) =>
     createApp(config, await validateAppConfig(user.id, config));
 
-  test("from Docker image", async () => {
+  test("from existing Docker image", async (c) => {
     const config = {
       appGroup: { type: "standalone" },
       source: "image",
@@ -129,9 +141,79 @@ describe("createApp", async (c) => {
     expect(await response.text()).toEqual("Hello, world!\n");
   }, /* timeout = */ 60_000);
 
-  // test("from Dockerfile", () => {
-  //   assert.fail("Not implemented yet");
-  // });
+  test("from Dockerfile", async () => {
+    vi.mock(import("../../src/lib/octokit.ts"), () => ({
+      getOctokit: () => Promise.resolve(undefined),
+      getRepoById: () =>
+        Promise.resolve({
+          id: -1,
+          owner: { login: "anvilops-user" },
+          name: "sample",
+        } as any),
+      getLatestCommit: () =>
+        Promise.resolve({
+          sha: "main", // Normally this is a commit hash, but Git will accept any ref when cloning the repo
+          commit: { message: "Initial commit" },
+        } as any),
+      generateCloneURLWithCredentials: () =>
+        Promise.resolve(
+          "http://test-file-server.default.svc.cluster.local/git/sample.git",
+        ),
+    }));
+    // Pretend that the GitHub App is installed
+    await db.org.setInstallationId(orgId, -1);
+
+    const config = {
+      appGroup: { type: "standalone" },
+      cpuCores: 1,
+      memoryInMiB: 512,
+      createIngress: true,
+      env: [],
+      mounts: [],
+      name: "test-app",
+      orgId,
+      port: 8080,
+      subdomain: getTestNamespace(),
+      // Git-specific options
+      source: "git",
+      repositoryId: -1,
+      rootDir: "./",
+      event: "push",
+      eventId: undefined,
+      // Dockerfile-specific options
+      builder: "dockerfile",
+      dockerfilePath: "./Dockerfile",
+    } satisfies NewApp;
+
+    const appId = await create(config);
+    const app = await getAppByID(appId, user.id);
+    const ns = getNamespace(app.namespace);
+    let deployment = await db.app.getMostRecentDeployment(app.id);
+
+    const buildJob = await waitForCreate(BatchV1Api, (c) =>
+      c.listNamespacedJob({
+        namespace: "default",
+        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
+      }),
+    );
+
+    console.log(buildJob);
+
+    const sts = await waitForCreate(AppsV1Api, (c) =>
+      c.readNamespacedStatefulSet({
+        namespace: ns,
+        name: app.name,
+      }),
+    );
+
+    deployment = await db.app.getMostRecentDeployment(app.id); // Get the deployment's new status
+    expect(deployment.status).toEqual(DeploymentStatus.COMPLETE);
+
+    const clusterInternalURL = `http://${ns}.${ns}.svc.cluster.local`;
+
+    const response = await waitForStatusCode(clusterInternalURL, 200);
+    expect(await response.text()).toEqual("Hello, world!\n");
+  }, /* timeout = */ 120_000);
 
   // test("from Railpack", () => {
   //   assert.fail("Not implemented yet");

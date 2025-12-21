@@ -50,6 +50,7 @@ c["env"].append({"name": "TEST_ANVILOPS_SAMPLE_IMAGE", "value": "anvilops/sample
 
 if config.tilt_subcommand == "ci":
   # Run the tests as a Job so that the correct exit code is recorded
+  c["env"].append({"name": "CI", "value": "1"})
   test_job = {
     "apiVersion": "batch/v1",
     "kind": "Job",
