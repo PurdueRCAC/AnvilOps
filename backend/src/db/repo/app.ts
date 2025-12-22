@@ -60,11 +60,14 @@ export class AppRepo {
     return await this.client.app.findMany({
       where: {
         config: {
-          source: DeploymentSource.GIT,
-          repositoryId: repoId,
-          event,
-          eventId,
-          branch,
+          appType: "WORKLOAD",
+          workloadConfig: {
+            source: DeploymentSource.GIT,
+            repositoryId: repoId,
+            event,
+            eventId,
+            branch,
+          },
         },
         org: { githubInstallationId: { not: null } },
         enableCD: true,
@@ -75,7 +78,12 @@ export class AppRepo {
   async isSubdomainInUse(subdomain: string): Promise<boolean> {
     return (
       (await this.client.app.count({
-        where: { config: { subdomain: subdomain } },
+        where: {
+          config: {
+            appType: "WORKLOAD",
+            workloadConfig: { subdomain },
+          },
+        },
       })) > 0
     );
   }

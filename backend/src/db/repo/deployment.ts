@@ -10,13 +10,7 @@ import {
 } from "../../generated/prisma/models/DeploymentConfig.ts";
 import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
-import type {
-  Deployment,
-  DeploymentConfig,
-  DeploymentConfigCreate,
-  DeploymentWithSourceInfo,
-  Log,
-} from "../models.ts";
+import type { Deployment, DeploymentWithSourceInfo, Log } from "../models.ts";
 
 export class DeploymentRepo {
   private client: PrismaClientType;
@@ -298,10 +292,9 @@ export class DeploymentRepo {
       include: {
         config: {
           select: {
-            source: true,
-            commitHash: true,
-            imageTag: true,
-            repositoryId: true,
+            appType: true,
+            workloadConfig: true,
+            helmConfig: true,
           },
         },
       },
@@ -313,10 +306,11 @@ export class DeploymentRepo {
     return deployments.map((deployment) => ({
       ...deployment,
       config: undefined,
-      source: deployment.config.source,
-      commitHash: deployment.config.commitHash,
-      imageTag: deployment.config.imageTag,
-      repositoryId: deployment.config.repositoryId,
+      appType: deployment.config.appType,
+      source: deployment.config.workloadConfig.source,
+      commitHash: deployment.config.workloadConfig.commitHash,
+      imageTag: deployment.config.workloadConfig.imageTag,
+      repositoryId: deployment.config.workloadConfig.repositoryId,
     }));
   }
 }

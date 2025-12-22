@@ -1,6 +1,7 @@
 import type {
   DeploymentSource,
   DeploymentStatus,
+  HelmUrlType,
   ImageBuilder,
   PermissionLevel,
   WebhookEvent,
@@ -97,7 +98,7 @@ export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
   source?: DeploymentSource;
 }
 
-export interface DeploymentConfig {
+export interface WorkloadConfig {
   id: number;
   displayEnv: PrismaJson.EnvVar[];
   getEnv(): PrismaJson.EnvVar[];
@@ -121,11 +122,19 @@ export interface DeploymentConfig {
   mounts: PrismaJson.VolumeMount[];
 }
 
-export type DeploymentConfigCreate = Omit<
-  DeploymentConfig,
+export type WorkloadConfigCreate = Omit<
+  WorkloadConfig,
   "id" | "displayEnv" | "getEnv"
 > & {
   env: PrismaJson.EnvVar[];
+};
+
+export type HelmConfig = {
+  id: number;
+  url: string;
+  version: string;
+  urlType: HelmUrlType;
+  values?: any;
 };
 
 export interface Log {
