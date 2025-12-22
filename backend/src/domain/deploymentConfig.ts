@@ -4,6 +4,7 @@ import { components } from "../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../lib/cluster/resources.ts";
 import { getImageConfig } from "../lib/cluster/resources/logs.ts";
 import { getRepoById } from "../lib/octokit.ts";
+import { isRFC1123 } from "../lib/validate.ts";
 import { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
 
 export class DeploymentConfigValidator {
@@ -134,7 +135,7 @@ export class DeploymentConfigValidator {
   }
 
   private async validateSubdomain(subdomain: string) {
-    if (subdomain.length > MAX_SUBDOMAIN_LEN || !this.isRFC1123(subdomain)) {
+    if (subdomain.length > MAX_SUBDOMAIN_LEN || !isRFC1123(subdomain)) {
       throw new Error(
         "Subdomain must contain only lowercase alphanumeric characters or '-', " +
           "start and end with an alphanumeric character, " +
@@ -145,12 +146,5 @@ export class DeploymentConfigValidator {
     if (await this.appRepo.isSubdomainInUse(subdomain)) {
       throw new Error("Subdomain is in use");
     }
-  }
-
-  private isRFC1123(value: string) {
-    return (
-      value.length <= 63 &&
-      value.match(/[a-zA-Z0-9]([-a-z0-9]*[a-z0-9])?$/) !== null
-    );
   }
 }

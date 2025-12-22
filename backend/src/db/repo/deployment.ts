@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type {
+  AppType,
   DeploymentStatus,
   LogType,
   PermissionLevel,
@@ -14,6 +15,7 @@ import type {
   Deployment,
   DeploymentWithSourceInfo,
   HelmConfig,
+  HelmConfigCreate,
   Log,
   WorkloadConfig,
   WorkloadConfigCreate,
@@ -74,13 +76,15 @@ export class DeploymentRepo {
 
   async create({
     appId,
+    appType,
     config,
     commitMessage,
     workflowRunId,
     status,
   }: {
     appId: number;
-    config: WorkloadConfigCreate;
+    appType: AppType;
+    config: WorkloadConfigCreate | HelmConfigCreate;
     commitMessage: string | null;
     workflowRunId?: number;
     status?: DeploymentStatus;
@@ -90,10 +94,20 @@ export class DeploymentRepo {
         app: { connect: { id: appId } },
         config: {
           create: {
-            appType: "WORKLOAD",
-            workloadConfig: {
-              create: DeploymentRepo.encryptEnv(config),
-            },
+            appType: appType,
+            ...(appType === "WORKLOAD"
+              ? {
+                  workloadConfig: {
+                    create: DeploymentRepo.encryptEnv(
+                      config as WorkloadConfigCreate,
+                    ),
+                  },
+                }
+              : {
+                  helmConfig: {
+                    create: config as HelmConfigCreate,
+                  },
+                }),
           },
         },
         commitMessage,
@@ -174,7 +188,7 @@ export class DeploymentRepo {
       );
     }
 
-    return deployment.config.helmConfig;
+    return { ...deployment.config.helmConfig, source: "HELM" };
   }
 
   private static encryptEnv(
@@ -334,10 +348,10 @@ export class DeploymentRepo {
       ...deployment,
       config: undefined,
       appType: deployment.config.appType,
-      source: deployment.config.workloadConfig.source,
-      commitHash: deployment.config.workloadConfig.commitHash,
-      imageTag: deployment.config.workloadConfig.imageTag,
-      repositoryId: deployment.config.workloadConfig.repositoryId,
+      source: deployment.config.workloadConfig?.source,
+      commitHash: deployment.config.workloadConfig?.commitHash,
+      imageTag: deployment.config.workloadConfig?.imageTag,
+      repositoryId: deployment.config.workloadConfig?.repositoryId,
     }));
   }
 }

@@ -4,9 +4,10 @@ import { db, NotFoundError } from "../db/index.ts";
 import type {
   App,
   Deployment,
-  DeploymentConfig,
-  DeploymentConfigCreate,
+  GitConfigCreate,
+  HelmConfigCreate,
   Organization,
+  WorkloadConfigCreate,
 } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
 import {
@@ -27,6 +28,7 @@ import {
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { env } from "../lib/env.ts";
+import { upgrade } from "../lib/helm.ts";
 import {
   getInstallationAccessToken,
   getOctokit,
@@ -174,7 +176,7 @@ type BuildAndDeployOptions = {
   app: App;
   imageRepo: string;
   commitMessage: string;
-  config: DeploymentConfigCreate;
+  config: WorkloadConfigCreate | GitConfigCreate | HelmConfigCreate;
 } & (
   | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
   | { createCheckRun: false }
@@ -188,6 +190,20 @@ export async function buildAndDeploy({
   config: configIn,
   ...opts
 }: BuildAndDeployOptions) {
+  if (configIn.source === "HELM") {
+    configIn = configIn as HelmConfigCreate;
+    const deployment = await db.deployment.create({
+      appId: app.id,
+      commitMessage,
+      appType: "HELM",
+      config: configIn,
+    });
+    await deployFromHelm(app, deployment, configIn);
+    return;
+  }
+
+  configIn = configIn as WorkloadConfigCreate;
+
   const imageTag =
     configIn.source === DeploymentSource.IMAGE
       ? (configIn.imageTag as ImageTag)
@@ -197,6 +213,7 @@ export async function buildAndDeploy({
     db.deployment.create({
       appId: app.id,
       commitMessage,
+      appType: "WORKLOAD",
       config: { ...configIn, imageTag },
     }),
     db.appGroup.getById(app.appGroupId),
@@ -248,6 +265,36 @@ export async function buildAndDeploy({
         "stderr",
       );
     }
+  }
+}
+
+async function deployFromHelm(
+  app: App,
+  deployment: Deployment,
+  config: HelmConfigCreate,
+) {
+  log(deployment.id, "BUILD", "Deploying directly from Helm chart...");
+  try {
+    await upgrade({
+      urlType: config.urlType,
+      chartURL: config.url,
+      version: config.version,
+      namespace: app.namespace,
+      release: app.name,
+      values: config.values,
+    });
+  } catch (e) {
+    console.error(
+      `Failed to create Kubernetes resources for deployment ${deployment.id}`,
+      e,
+    );
+    await db.deployment.setStatus(deployment.id, DeploymentStatus.ERROR);
+    log(
+      deployment.id,
+      "BUILD",
+      `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+      "stderr",
+    );
   }
 }
 

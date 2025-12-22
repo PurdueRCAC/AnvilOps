@@ -143,6 +143,7 @@ export type GitConfigCreate = WorkloadConfigCreate & {
 
 export type HelmConfig = {
   id: number;
+  source: "HELM";
   url: string;
   version: string;
   urlType: HelmUrlType;

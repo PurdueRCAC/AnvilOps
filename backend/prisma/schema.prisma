@@ -255,9 +255,8 @@ model WorkloadConfig {
 }
 
 enum HelmUrlType {
-  OCI
-  REPOSITORY
-  ABSOLUTE
+  oci
+  absolute
 }
 
 model HelmConfig {

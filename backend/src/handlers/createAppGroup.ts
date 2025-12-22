@@ -1,16 +1,6 @@
-import { randomBytes } from "node:crypto";
-import { type Octokit } from "octokit";
 import { ConflictError, db } from "../db/index.ts";
-import type { App, DeploymentConfigCreate } from "../db/models.ts";
-import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
-import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import {
-  validateAppGroup,
-  validateAppName,
-  validateDeploymentConfig,
-} from "../lib/validate.ts";
+import type { App } from "../db/models.ts";
+import { appValidator, deploymentController } from "../domain/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -29,140 +19,44 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     return json(400, res, { code: 400, message: "Organization not found" });
   }
 
+  const user = await db.user.getById(req.user.id);
+  let metadata: Awaited<
+    ReturnType<typeof deploymentController.prepareDeploymentMetadata>
+  >[];
   try {
-    validateAppGroup({ type: "create-new", name: data.name });
+    appValidator.validateAppGroupName(data.name);
+    appValidator.validateApps(organization, user, ...data.apps);
+    metadata = await Promise.all(
+      data.apps.map((app) =>
+        deploymentController.prepareDeploymentMetadata(
+          app.config,
+          organization.id,
+        ),
+      ),
+    );
   } catch (e) {
     return json(400, res, { code: 400, message: e.message });
   }
-  const appValidationErrors = (
-    await Promise.all(
-      data.apps.map(async (app) => {
-        try {
-          await validateDeploymentConfig({
-            ...app,
-            collectLogs: true,
-          });
-          validateAppName(app.name);
-          return null;
-        } catch (e) {
-          return e;
-        }
-      }),
-    )
-  ).filter(Boolean);
 
-  if (appValidationErrors.length > 0) {
-    return json(400, res, {
-      code: 400,
-      message: JSON.stringify(appValidationErrors),
-    });
-  }
-
-  const { clusterUsername } = await db.user.getById(req.user.id);
-
-  if (isRancherManaged()) {
-    const permissionResults = await Promise.all(
-      data.apps.map(async (app) => ({
-        project: app.projectId,
-        canManage: await canManageProject(clusterUsername, app.projectId),
-      })),
-    );
-
-    for (const result of permissionResults) {
-      if (!result.canManage) {
-        return json(400, res, {
-          code: 400,
-          message: `Project ${result.project} not found`,
-        });
-      }
-    }
-  }
-
-  let octokit: Octokit;
-  if (data.apps.some((app) => app.source === "git")) {
-    if (!organization.githubInstallationId) {
-      return json(403, res, {
-        code: 403,
-        message:
-          "The AnvilOps GitHub App is not installed in this organization.",
-      });
-    } else {
-      octokit = await getOctokit(organization.githubInstallationId);
-    }
-
-    for (const app of data.apps) {
-      if (app.source !== "git") continue;
-
-      try {
-        await getRepoById(octokit, app.repositoryId);
-      } catch (err) {
-        if (err.status === 404) {
-          return json(400, res, {
-            code: 400,
-            message: `Invalid repository id ${app.repositoryId} for app ${app.name}`,
-          });
-        }
-
-        console.error(err);
-        return json(500, res, {
-          code: 500,
-          message: `Failed to look up repository for app ${app.name}`,
-        });
-      }
-
-      if (app.event === "workflow_run") {
-        try {
-          const workflows = await octokit
-            .request({
-              method: "GET",
-              url: `/repositories/${app.repositoryId}/actions/workflows`,
-            })
-            .then((res) => res.data.workflows);
-          if (!workflows.some((workflow) => workflow.id == app.eventId)) {
-            return json(400, res, {
-              code: 400,
-              message: `Invalid workflow id ${app.eventId} for app ${app.name}`,
-            });
-          }
-        } catch (err) {
-          console.error(err);
-          return json(500, res, {
-            code: 500,
-            message: `Failed to look up workflow for app ${app.name}`,
-          });
-        }
-      }
-    }
-  }
-
-  const appGroupId = await db.appGroup.create(data.orgId, data.name, false);
-
-  const appConfigs = await Promise.all(
-    data.apps.map(async (app) => {
-      let namespace = app.subdomain;
-      if (await namespaceInUse(getNamespace(namespace))) {
-        namespace += "-" + Math.floor(Math.random() * 10_000);
-      }
-
-      return {
-        name: app.name,
-        displayName: app.name,
-        namespace,
-        orgId: app.orgId,
-        // This cluster username will be used to automatically update the app after a build job or webhook payload
-        clusterUsername,
-        projectId: app.projectId,
-        appGroupId,
-        logIngestSecret: randomBytes(48).toString("hex"),
-      };
-    }),
+  const appGroupId = await db.appGroup.create(
+    organization.id,
+    data.name,
+    false,
   );
-
-  const apps: App[] = [];
+  let apps: App[];
   try {
-    for (const app of appConfigs) {
-      apps.push(await db.app.create(app));
-    }
+    apps = await Promise.all(
+      apps.map((app) =>
+        db.app.create({
+          orgId: organization.id,
+          appGroupId,
+          name: app.name,
+          namespace: app.namespace,
+          clusterUsername: user?.clusterUsername,
+          projectId: app.projectId,
+        }),
+      ),
+    );
   } catch (err) {
     if (err instanceof ConflictError && err.message === "subdomain") {
       return json(409, res, {
@@ -174,64 +68,21 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
     }
   }
 
+  const appsAndMetadata = apps.map((app, idx) => ({
+    app,
+    metadata: metadata[idx],
+  }));
   try {
     await Promise.all(
-      apps.map((app, idx) =>
+      appsAndMetadata.map((pair) =>
         (async () => {
-          let commitSha = "unknown",
-            commitMessage = "Initial deployment";
-
-          const configParams = data.apps[idx];
-          const cpu = Math.round(configParams.cpuCores * 1000) + "m",
-            memory = configParams.memoryInMiB + "Mi";
-          if (configParams.source === "git") {
-            const repo = await getRepoById(octokit, configParams.repositoryId);
-            const latestCommit = (
-              await octokit.rest.repos.listCommits({
-                per_page: 1,
-                owner: repo.owner.login,
-                repo: repo.name,
-              })
-            ).data[0];
-
-            commitSha = latestCommit.sha;
-            commitMessage = latestCommit.commit.message;
-          }
-
-          const deploymentConfig: DeploymentConfigCreate = {
-            collectLogs: true,
-            createIngress: configParams.createIngress,
-            subdomain: configParams.subdomain,
-            env: configParams.env,
-            requests: { cpu, memory },
-            limits: { cpu, memory },
-            replicas: 1,
-            port: configParams.port,
-            mounts: configParams.mounts,
-            ...(configParams.source === "git"
-              ? {
-                  source: "GIT",
-                  repositoryId: configParams.repositoryId,
-                  event: configParams.event,
-                  eventId: configParams.eventId,
-                  branch: configParams.branch,
-                  commitHash: commitSha,
-                  builder: configParams.builder,
-                  dockerfilePath: configParams.dockerfilePath,
-                  rootDir: configParams.rootDir,
-                }
-              : {
-                  source: "IMAGE",
-                  imageTag: configParams.imageTag,
-                }),
-          };
-
+          const { app, metadata } = pair;
           await buildAndDeploy({
             org: organization,
-            app: app,
+            app,
             imageRepo: app.imageRepo,
-            commitMessage: commitMessage,
-            config: deploymentConfig,
+            commitMessage: metadata.commitMessage,
+            config: metadata.config,
             createCheckRun: false,
           });
         })(),

@@ -22,8 +22,11 @@ import {
 
 const NAMESPACE_PREFIX = "anvilops-";
 
+// Subdomain must pass RFC 1123
+export const MAX_SUBDOMAIN_LEN = 63;
+
 // Namespace must pass RFC 1123 (and service must pass RFC 1035)
-export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
+export const MAX_NAMESPACE_LEN = 63 - NAMESPACE_PREFIX.length;
 
 // app.kubernetes.io/part-of label must pass RFC 1123
 // `-{groupId}-{organizationId}` is appended to group name to create the label value

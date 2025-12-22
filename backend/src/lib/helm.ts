@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { parse as yamlParse } from "yaml";
+import { HelmUrlType } from "../generated/prisma/enums.ts";
 
 type Dependency = {
   name: string;
@@ -60,28 +61,43 @@ export const getChart = async (
 };
 
 export const upgrade = ({
+  urlType,
   chartURL,
+  version,
   namespace,
   values,
   release,
 }: {
+  urlType: HelmUrlType;
   chartURL: string;
+  version: string;
   namespace: string;
   values: { [key: string]: string };
   release: string;
 }) => {
   const kvPairs = Object.keys(values).map((key, value) => `${key}=${value}`);
-  const args = [
+  let args = [
     "upgrade",
     "--install",
-    release,
-    chartURL,
     "--namespace",
     namespace,
     "--create-namespace",
     "--set",
     kvPairs.join(","),
   ];
+  switch (urlType) {
+    // example: helm install mynginx https://example.com/charts/nginx-1.2.3.tgz
+    case "absolute": {
+      args.push(release, chartURL);
+      break;
+    }
+
+    // example: helm install mynginx --version 1.2.3 oci://example.com/charts/nginx
+    case "oci": {
+      args.push(release, "--version", version, chartURL);
+      break;
+    }
+  }
 
   return runHelm(args);
 };

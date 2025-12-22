@@ -2278,13 +2278,13 @@ components:
           type: string
         urlType:
           type: string
-          enum: [absolute, oci, repository]
+          enum: [absolute, oci]
         version:
           type: string
         values:
           type: object
           additionalProperties: true
-      required: [source, url, urlType]
+      required: [source, url, urlType, version]
 
     Mount:
       type: object
@@ -2451,12 +2451,15 @@ components:
               required: [type, id]
         createIngress:
           type: boolean
+        namespace:
+          type: string
         config:
           $ref: "#/components/schemas/DeploymentConfig"
       required:
         - name
         - orgId
         - createIngress
+        - namespace
         - config
     NewAppWithoutGroupInfo:
       type: object
@@ -2466,39 +2469,20 @@ components:
             name:
               type: string
             # Source options
-            orgId:
-              type: integer
-              format: int64
             projectId:
               type: string
-            subdomain:
+            namespace:
               type: string
-              format: hostname
-            port:
-              type: integer
-              format: int64
-            env:
-              $ref: "#/components/schemas/Envs"
-            mounts:
-              type: array
-              items:
-                $ref: "#/components/schemas/Mount"
-            cpuCores:
-              type: number
-            memoryInMiB:
-              type: integer
             createIngress:
               type: boolean
+            config:
+              $ref: "#/components/schemas/DeploymentConfig"
           required:
             - name
-            - orgId
-            - subdomain
-            - port
-            - env
-            - mounts
-            - cpuCores
-            - memoryInMiB
+            - projectId
+            - namespace
             - createIngress
+            - config
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
             - $ref: "#/components/schemas/ImageDeploymentOptions"

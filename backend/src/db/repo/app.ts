@@ -238,7 +238,7 @@ export class AppRepo {
         app.config.workloadConfig,
       );
     } else {
-      return app.config.helmConfig;
+      return { ...app.config.helmConfig, source: "HELM" };
     }
   }
 

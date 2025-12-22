@@ -1,15 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
-import type { App } from "../db/models.ts";
-import {
-  deploymentConfigValidator,
-  deploymentController,
-} from "../domain/index.ts";
+import { App } from "../db/models.ts";
+import { appValidator, deploymentController } from "../domain/index.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
-import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
-import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { validateAppGroup, validateAppName } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
@@ -29,77 +22,53 @@ export const createApp: HandlerMap["createApp"] = async (
     return json(400, res, { code: 400, message: "Organization not found" });
   }
 
+  let appGroupId: number;
+
+  if (appData.appGroup.type === "add-to") {
+    appGroupId = appData.appGroup.id;
+    if (!(await db.appGroup.getById(appGroupId))) {
+      return json(400, res, { code: 400, message: "App group not found" });
+    }
+  } else {
+    let groupName =
+      appData.appGroup.type === "create-new"
+        ? appData.appGroup.name
+        : `${appData.name}-${randomBytes(4).toString("hex")}`;
+    try {
+      appValidator.validateAppGroupName(groupName);
+    } catch (e) {
+      return json(400, res, { code: 400, message: e.message });
+    }
+    appGroupId = await db.appGroup.create(
+      appData.orgId,
+      groupName,
+      appData.appGroup.type === "standalone",
+    );
+  }
+
+  const user = await db.user.getById(req.user.id);
+  let metadata: Awaited<
+    ReturnType<typeof deploymentController.prepareDeploymentMetadata>
+  >;
   try {
-    if (appData.config.appType === "workload") {
-      await deploymentConfigValidator.validateCommonWorkloadConfig(
-        appData.config,
-      );
-    }
-    validateAppGroup(appData.appGroup);
-    validateAppName(appData.name);
+    await appValidator.validateApps(organization, user, appData);
+    metadata = await deploymentController.prepareDeploymentMetadata(
+      appData.config,
+      organization.id,
+    );
   } catch (e) {
-    return json(400, res, {
-      code: 400,
-      message: e.message,
-    });
-  }
-
-  let clusterUsername: string;
-  if (isRancherManaged()) {
-    if (!appData.projectId) {
-      return json(400, res, { code: 400, message: "Project ID is required" });
-    }
-
-    let { clusterUsername: username } = await db.user.getById(req.user.id);
-    if (!(await canManageProject(username, appData.projectId))) {
-      return json(400, res, { code: 400, message: "Project not found" });
-    }
-
-    clusterUsername = username;
-  }
-
-  if (appData.config.source === "git" && !organization.githubInstallationId) {
-    return json(403, res, {
-      code: 403,
-      message: "The AnvilOps GitHub App is not installed in this organization.",
-    });
+    return json(400, res, { code: 400, message: e.message });
   }
 
   let app: App;
-  let appGroupId: number;
-  switch (appData.appGroup.type) {
-    case "standalone":
-      appGroupId = await db.appGroup.create(
-        appData.orgId,
-        `${appData.name}-${randomBytes(4).toString("hex")}`,
-        true,
-      );
-      break;
-    case "create-new":
-      appGroupId = await db.appGroup.create(
-        appData.orgId,
-        appData.appGroup.name,
-        false,
-      );
-      break;
-    default:
-      appGroupId = appData.appGroup.id;
-      break;
-  }
-
-  let namespace = appData.config.subdomain;
-  if (await namespaceInUse(getNamespace(namespace))) {
-    namespace += "-" + Math.floor(Math.random() * 10_000);
-  }
-
   try {
     app = await db.app.create({
-      orgId: appData.orgId,
-      appGroupId: appGroupId,
-      name: appData.name,
-      clusterUsername: clusterUsername,
-      projectId: appData.projectId,
-      namespace,
+      orgId: organization.id,
+      appGroupId,
+      name: app.name,
+      namespace: app.namespace,
+      clusterUsername: user?.clusterUsername,
+      projectId: app.projectId,
     });
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
@@ -113,15 +82,10 @@ export const createApp: HandlerMap["createApp"] = async (
         message,
       });
     }
-    console.error(err);
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 
-  const { config, commitMessage } =
-    await deploymentController.prepareDeploymentMetadata(
-      appData.config,
-      appData.orgId,
-    );
+  const { config, commitMessage } = metadata;
 
   try {
     await buildAndDeploy({

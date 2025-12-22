@@ -1,5 +1,9 @@
 import { Octokit } from "octokit";
-import { GitConfigCreate } from "../db/models.ts";
+import {
+  GitConfigCreate,
+  HelmConfigCreate,
+  WorkloadConfigCreate,
+} from "../db/models.ts";
 import { components } from "../generated/openapi.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { type DeploymentConfigValidator } from "./deploymentConfig.ts";
@@ -24,7 +28,10 @@ export class DeploymentController {
   async prepareDeploymentMetadata(
     config: components["schemas"]["DeploymentConfig"],
     orgId: number,
-  ) {
+  ): Promise<{
+    config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate;
+    commitMessage: string;
+  }> {
     let commitHash = "unknown",
       commitMessage = "Initial deployment";
 
@@ -58,19 +65,22 @@ export class DeploymentController {
         commitMessage = latestCommit.commit.message;
 
         return {
-          config: this.createGitConfig(config, commitHash, repo.id),
+          config: await this.createGitConfig(config, commitHash, repo.id),
           commitMessage,
         };
       }
       case "image": {
         deploymentConfigValidator.validateImageConfig(config);
         return {
-          config: this.createCommonWorkloadConfig(config),
+          config: {
+            ...this.createCommonWorkloadConfig(config),
+            source: "IMAGE",
+          },
           commitMessage,
         };
       }
       case "helm": {
-        return { config, commitMessage };
+        return { config: { ...config, source: "HELM" }, commitMessage };
       }
     }
   }
