@@ -5,12 +5,19 @@ import type {
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
 import {
-  type DeploymentConfigCreateInput,
-  type DeploymentConfigModel as PrismaDeploymentConfig,
-} from "../../generated/prisma/models/DeploymentConfig.ts";
+  WorkloadConfigCreateInput,
+  type WorkloadConfigModel as PrismaWorkloadConfig,
+} from "../../generated/prisma/models.ts";
 import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
-import type { Deployment, DeploymentWithSourceInfo, Log } from "../models.ts";
+import type {
+  Deployment,
+  DeploymentWithSourceInfo,
+  HelmConfig,
+  Log,
+  WorkloadConfig,
+  WorkloadConfigCreate,
+} from "../models.ts";
 
 export class DeploymentRepo {
   private client: PrismaClientType;
@@ -73,7 +80,7 @@ export class DeploymentRepo {
     status,
   }: {
     appId: number;
-    config: DeploymentConfigCreate;
+    config: WorkloadConfigCreate;
     commitMessage: string | null;
     workflowRunId?: number;
     status?: DeploymentStatus;
@@ -81,7 +88,14 @@ export class DeploymentRepo {
     return await this.client.deployment.create({
       data: {
         app: { connect: { id: appId } },
-        config: { create: DeploymentRepo.encryptEnv(config) },
+        config: {
+          create: {
+            appType: "WORKLOAD",
+            workloadConfig: {
+              create: DeploymentRepo.encryptEnv(config),
+            },
+          },
+        },
         commitMessage,
         workflowRunId,
         secret: randomBytes(32).toString("hex"),
@@ -141,27 +155,40 @@ export class DeploymentRepo {
     });
   }
 
-  async getConfig(deploymentId: number): Promise<DeploymentConfig> {
+  async getConfig(deploymentId: number): Promise<WorkloadConfig | HelmConfig> {
     const deployment = await this.client.deployment.findUnique({
       where: { id: deploymentId },
-      select: { config: true },
+      select: {
+        config: {
+          include: {
+            workloadConfig: true,
+            helmConfig: true,
+          },
+        },
+      },
     });
 
-    return DeploymentRepo.preprocessDeploymentConfig(deployment.config);
+    if (deployment.config.appType === "WORKLOAD") {
+      return DeploymentRepo.preprocessDeploymentConfig(
+        deployment.config.workloadConfig,
+      );
+    }
+
+    return deployment.config.helmConfig;
   }
 
   private static encryptEnv(
-    config: DeploymentConfigCreate,
-  ): DeploymentConfigCreateInput {
-    const copy = structuredClone(config) as DeploymentConfigCreateInput;
+    config: WorkloadConfigCreate,
+  ): WorkloadConfigCreateInput {
+    const copy = structuredClone(config) as WorkloadConfigCreateInput;
     copy.envKey = generateKey();
     copy.env = encryptEnv(copy.env, copy.envKey);
     return copy;
   }
 
   static preprocessDeploymentConfig(
-    config: PrismaDeploymentConfig,
-  ): DeploymentConfig {
+    config: PrismaWorkloadConfig,
+  ): WorkloadConfig {
     if (config === null) {
       return null;
     }
@@ -236,7 +263,7 @@ export class DeploymentRepo {
   }
 
   async unlinkRepositoryFromAllDeployments(repoId: number) {
-    await this.client.deploymentConfig.updateMany({
+    await this.client.workloadConfig.updateMany({
       where: { repositoryId: repoId },
       data: { repositoryId: null, branch: null, source: "IMAGE" },
     });

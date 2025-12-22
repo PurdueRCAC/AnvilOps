@@ -15,7 +15,8 @@ import type {
   App,
   AppCreate,
   Deployment,
-  DeploymentConfig,
+  HelmConfig,
+  WorkloadConfig,
 } from "../models.ts";
 import { DeploymentRepo } from "./deployment.ts";
 
@@ -217,13 +218,28 @@ export class AppRepo {
     return app.config.deployment;
   }
 
-  async getDeploymentConfig(appId: number): Promise<DeploymentConfig> {
+  async getDeploymentConfig(
+    appId: number,
+  ): Promise<WorkloadConfig | HelmConfig> {
     const app = await this.client.app.findUnique({
       where: { id: appId },
-      include: { config: true },
+      include: {
+        config: {
+          include: {
+            workloadConfig: true,
+            helmConfig: true,
+          },
+        },
+      },
     });
 
-    return DeploymentRepo.preprocessDeploymentConfig(app.config);
+    if (app.config.appType === "WORKLOAD") {
+      return DeploymentRepo.preprocessDeploymentConfig(
+        app.config.workloadConfig,
+      );
+    } else {
+      return app.config.helmConfig;
+    }
   }
 
   async setConfig(appId: number, configId: number) {

@@ -1,17 +1,15 @@
 import { randomBytes } from "node:crypto";
-import { type Octokit } from "octokit";
 import { db } from "../db/index.ts";
-import type { App, DeploymentConfigCreate } from "../db/models.ts";
+import type { App } from "../db/models.ts";
+import {
+  deploymentConfigValidator,
+  deploymentController,
+} from "../domain/index.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import {
-  validateAppGroup,
-  validateAppName,
-  validateDeploymentConfig,
-} from "../lib/validate.ts";
+import { validateAppGroup, validateAppName } from "../lib/validate.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
@@ -32,10 +30,11 @@ export const createApp: HandlerMap["createApp"] = async (
   }
 
   try {
-    await validateDeploymentConfig({
-      ...appData,
-      collectLogs: true,
-    });
+    if (appData.config.appType === "workload") {
+      await deploymentConfigValidator.validateCommonWorkloadConfig(
+        appData.config,
+      );
+    }
     validateAppGroup(appData.appGroup);
     validateAppName(appData.name);
   } catch (e) {
@@ -59,98 +58,14 @@ export const createApp: HandlerMap["createApp"] = async (
     clusterUsername = username;
   }
 
-  let commitSha = "unknown",
-    commitMessage = "Initial deployment";
-
-  if (appData.source === "git") {
-    if (!organization.githubInstallationId) {
-      return json(403, res, {
-        code: 403,
-        message:
-          "The AnvilOps GitHub App is not installed in this organization.",
-      });
-    }
-
-    let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
-
-    try {
-      octokit = await getOctokit(organization.githubInstallationId);
-      repo = await getRepoById(octokit, appData.repositoryId);
-    } catch (err) {
-      if (err.status === 404) {
-        return json(400, res, { code: 400, message: "Invalid repository id" });
-      }
-
-      console.error(err);
-      return json(500, res, {
-        code: 500,
-        message: "Failed to look up GitHub repository.",
-      });
-    }
-
-    if (appData.event === "workflow_run" && appData.eventId) {
-      try {
-        const workflows = await (
-          octokit.request({
-            method: "GET",
-            url: `/repositories/${repo.id}/actions/workflows`,
-          }) as ReturnType<typeof octokit.rest.actions.listRepoWorkflows>
-        ).then((res) => res.data.workflows);
-        if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
-          return json(400, res, { code: 400, message: "Workflow not found" });
-        }
-      } catch (err) {
-        console.error(err);
-        return json(500, res, {
-          code: 500,
-          message: "Failed to look up GitHub workflows.",
-        });
-      }
-    }
-
-    const latestCommit = (
-      await octokit.rest.repos.listCommits({
-        per_page: 1,
-        owner: repo.owner.login,
-        repo: repo.name,
-      })
-    ).data[0];
-
-    commitSha = latestCommit.sha;
-    commitMessage = latestCommit.commit.message;
+  if (appData.config.source === "git" && !organization.githubInstallationId) {
+    return json(403, res, {
+      code: 403,
+      message: "The AnvilOps GitHub App is not installed in this organization.",
+    });
   }
 
   let app: App;
-
-  const cpu = Math.round(appData.cpuCores * 1000) + "m",
-    memory = appData.memoryInMiB + "Mi";
-  const deploymentConfig: DeploymentConfigCreate = {
-    collectLogs: true,
-    createIngress: appData.createIngress,
-    subdomain: appData.subdomain,
-    env: appData.env,
-    requests: { cpu, memory },
-    limits: { cpu, memory },
-    replicas: 1,
-    port: appData.port,
-    mounts: appData.mounts,
-    ...(appData.source === "git"
-      ? {
-          source: "GIT",
-          repositoryId: appData.repositoryId,
-          event: appData.event,
-          eventId: appData.eventId,
-          branch: appData.branch,
-          commitHash: commitSha,
-          builder: appData.builder,
-          dockerfilePath: appData.dockerfilePath,
-          rootDir: appData.rootDir,
-        }
-      : {
-          source: "IMAGE",
-          imageTag: appData.imageTag,
-        }),
-  };
   let appGroupId: number;
   switch (appData.appGroup.type) {
     case "standalone":
@@ -172,7 +87,7 @@ export const createApp: HandlerMap["createApp"] = async (
       break;
   }
 
-  let namespace = appData.subdomain;
+  let namespace = appData.config.subdomain;
   if (await namespaceInUse(getNamespace(namespace))) {
     namespace += "-" + Math.floor(Math.random() * 10_000);
   }
@@ -202,13 +117,19 @@ export const createApp: HandlerMap["createApp"] = async (
     return json(500, res, { code: 500, message: "Unable to create app." });
   }
 
+  const { config, commitMessage } =
+    await deploymentController.prepareDeploymentMetadata(
+      appData.config,
+      appData.orgId,
+    );
+
   try {
     await buildAndDeploy({
       org: organization,
       app,
       imageRepo: app.imageRepo,
       commitMessage: commitMessage,
-      config: deploymentConfig,
+      config,
       createCheckRun: false,
     });
   } catch (e) {

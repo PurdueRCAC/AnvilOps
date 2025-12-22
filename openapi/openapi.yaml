@@ -2271,6 +2271,9 @@ components:
         appType:
           type: string
           enum: [helm]
+        source:
+          type: string
+          enum: [helm]
         url:
           type: string
         urlType:

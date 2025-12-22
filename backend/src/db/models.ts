@@ -129,6 +129,18 @@ export type WorkloadConfigCreate = Omit<
   env: PrismaJson.EnvVar[];
 };
 
+export type GitConfigCreate = WorkloadConfigCreate & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
+};
+
 export type HelmConfig = {
   id: number;
   url: string;
@@ -136,6 +148,8 @@ export type HelmConfig = {
   urlType: HelmUrlType;
   values?: any;
 };
+
+export type HelmConfigCreate = Omit<HelmConfig, "id">;
 
 export interface Log {
   id: number;
