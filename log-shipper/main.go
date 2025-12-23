@@ -291,12 +291,14 @@ func send(lines []LogLine, env *EnvVars) {
 			errorLogger.Printf("Error uploading logs: %v %v\n", res.StatusCode, string(body))
 		}
 
-		for _, line := range lines {
-			if line.attempts <= MAX_UPLOAD_ATTEMPTS {
-				line.attempts++
-				select {
-				case uploadQueue <- line:
-				default: // Same as above
+		if res.StatusCode >= 500 { // Only retry internal server errors
+			for _, line := range lines {
+				if line.attempts <= MAX_UPLOAD_ATTEMPTS {
+					line.attempts++
+					select {
+					case uploadQueue <- line:
+					default: // Same as above
+					}
 				}
 			}
 		}

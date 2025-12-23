@@ -1,249 +1,51 @@
-import { randomBytes } from "node:crypto";
-import { type Octokit } from "octokit";
-import { ConflictError, db } from "../db/index.ts";
-import type { App, DeploymentConfigCreate } from "../db/models.ts";
-import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
-import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import {
-  validateAppGroup,
-  validateAppName,
-  validateDeploymentConfig,
-} from "../lib/validate.ts";
+  AppCreateError,
+  DeploymentError,
+  OrgNotFoundError,
+  ValidationError,
+} from "../service/common/errors.ts";
+import { createAppGroup } from "../service/createAppGroup.ts";
 import { json, type HandlerMap } from "../types.ts";
-import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const createAppGroup: HandlerMap["createAppGroup"] = async (
+export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
   const data = ctx.request.requestBody;
 
-  const organization = await db.org.getById(data.orgId, {
-    requireUser: { id: req.user.id },
-  });
-  if (!organization) {
-    return json(400, res, { code: 400, message: "Organization not found" });
-  }
-
   try {
-    validateAppGroup({ type: "create-new", name: data.name });
+    await createAppGroup(req.user.id, data.orgId, data.name, data.apps);
   } catch (e) {
-    return json(400, res, { code: 400, message: e.message });
-  }
-  const appValidationErrors = (
-    await Promise.all(
-      data.apps.map(async (app) => {
-        try {
-          await validateDeploymentConfig({
-            ...app,
-            collectLogs: true,
-          });
-          validateAppName(app.name);
-          return null;
-        } catch (e) {
-          return e;
-        }
-      }),
-    )
-  ).filter(Boolean);
-
-  if (appValidationErrors.length > 0) {
-    return json(400, res, {
-      code: 400,
-      message: JSON.stringify(appValidationErrors),
-    });
-  }
-
-  const { clusterUsername } = await db.user.getById(req.user.id);
-
-  if (isRancherManaged()) {
-    const permissionResults = await Promise.all(
-      data.apps.map(async (app) => ({
-        project: app.projectId,
-        canManage: await canManageProject(clusterUsername, app.projectId),
-      })),
-    );
-
-    for (const result of permissionResults) {
-      if (!result.canManage) {
+    if (e instanceof AppCreateError) {
+      const ex = e.cause!;
+      if (ex instanceof OrgNotFoundError) {
+        return json(400, res, { code: 400, message: "Organization not found" });
+      } else if (ex instanceof ValidationError) {
         return json(400, res, {
           code: 400,
-          message: `Project ${result.project} not found`,
+          message: ex.message,
         });
-      }
-    }
-  }
-
-  let octokit: Octokit;
-  if (data.apps.some((app) => app.source === "git")) {
-    if (!organization.githubInstallationId) {
-      return json(403, res, {
-        code: 403,
-        message:
-          "The AnvilOps GitHub App is not installed in this organization.",
-      });
-    } else {
-      octokit = await getOctokit(organization.githubInstallationId);
-    }
-
-    for (const app of data.apps) {
-      if (app.source !== "git") continue;
-
-      try {
-        await getRepoById(octokit, app.repositoryId);
-      } catch (err) {
-        if (err.status === 404) {
-          return json(400, res, {
-            code: 400,
-            message: `Invalid repository id ${app.repositoryId} for app ${app.name}`,
-          });
-        }
-
-        console.error(err);
+      } else if (ex instanceof DeploymentError) {
+        // The app was created, but a Deployment couldn't be created
         return json(500, res, {
           code: 500,
-          message: `Failed to look up repository for app ${app.name}`,
+          message: `Failed to create a deployment for ${e.appName}.`,
+        });
+      } else {
+        console.error(ex);
+        return json(500, res, {
+          code: 500,
+          message: `There was a problem creating ${e.appName}.`,
         });
       }
-
-      if (app.event === "workflow_run") {
-        try {
-          const workflows = await octokit
-            .request({
-              method: "GET",
-              url: `/repositories/${app.repositoryId}/actions/workflows`,
-            })
-            .then((res) => res.data.workflows);
-          if (!workflows.some((workflow) => workflow.id == app.eventId)) {
-            return json(400, res, {
-              code: 400,
-              message: `Invalid workflow id ${app.eventId} for app ${app.name}`,
-            });
-          }
-        } catch (err) {
-          console.error(err);
-          return json(500, res, {
-            code: 500,
-            message: `Failed to look up workflow for app ${app.name}`,
-          });
-        }
-      }
-    }
-  }
-
-  const appGroupId = await db.appGroup.create(data.orgId, data.name, false);
-
-  const appConfigs = await Promise.all(
-    data.apps.map(async (app) => {
-      let namespace = app.subdomain;
-      if (await namespaceInUse(getNamespace(namespace))) {
-        namespace += "-" + Math.floor(Math.random() * 10_000);
-      }
-
-      return {
-        name: app.name,
-        displayName: app.name,
-        namespace,
-        orgId: app.orgId,
-        // This cluster username will be used to automatically update the app after a build job or webhook payload
-        clusterUsername,
-        projectId: app.projectId,
-        appGroupId,
-        logIngestSecret: randomBytes(48).toString("hex"),
-      };
-    }),
-  );
-
-  const apps: App[] = [];
-  try {
-    for (const app of appConfigs) {
-      apps.push(await db.app.create(app));
-    }
-  } catch (err) {
-    if (err instanceof ConflictError && err.message === "subdomain") {
-      return json(409, res, {
-        code: 409,
-        message: "Subdomain must be unique.",
+    } else if (e instanceof ValidationError) {
+      return json(400, res, {
+        code: 400,
+        message: e.message,
       });
-    } else {
-      return json(500, res, { code: 500, message: "Unable to create app." });
     }
+    throw e;
   }
-
-  try {
-    await Promise.all(
-      apps.map((app, idx) =>
-        (async () => {
-          let commitSha = "unknown",
-            commitMessage = "Initial deployment";
-
-          const configParams = data.apps[idx];
-          const cpu = Math.round(configParams.cpuCores * 1000) + "m",
-            memory = configParams.memoryInMiB + "Mi";
-          if (configParams.source === "git") {
-            const repo = await getRepoById(octokit, configParams.repositoryId);
-            const latestCommit = (
-              await octokit.rest.repos.listCommits({
-                per_page: 1,
-                owner: repo.owner.login,
-                repo: repo.name,
-              })
-            ).data[0];
-
-            commitSha = latestCommit.sha;
-            commitMessage = latestCommit.commit.message;
-          }
-
-          const deploymentConfig: DeploymentConfigCreate = {
-            collectLogs: true,
-            createIngress: configParams.createIngress,
-            subdomain: configParams.subdomain,
-            env: configParams.env,
-            requests: { cpu, memory },
-            limits: { cpu, memory },
-            replicas: 1,
-            port: configParams.port,
-            mounts: configParams.mounts,
-            ...(configParams.source === "git"
-              ? {
-                  source: "GIT",
-                  repositoryId: configParams.repositoryId,
-                  event: configParams.event,
-                  eventId: configParams.eventId,
-                  branch: configParams.branch,
-                  commitHash: commitSha,
-                  builder: configParams.builder,
-                  dockerfilePath: configParams.dockerfilePath,
-                  rootDir: configParams.rootDir,
-                }
-              : {
-                  source: "IMAGE",
-                  imageTag: configParams.imageTag,
-                }),
-          };
-
-          await buildAndDeploy({
-            org: organization,
-            app: app,
-            imageRepo: app.imageRepo,
-            commitMessage: commitMessage,
-            config: deploymentConfig,
-            createCheckRun: false,
-          });
-        })(),
-      ),
-    );
-  } catch (err) {
-    console.error(err);
-    return json(500, res, {
-      code: 500,
-      message: "Failed to create deployments for your apps.",
-    });
-  }
-
-  return json(200, res, {});
 };

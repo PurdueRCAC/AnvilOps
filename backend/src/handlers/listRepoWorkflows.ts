@@ -1,47 +1,32 @@
-import { RequestError } from "octokit";
-import { db } from "../db/index.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import {
+  InstallationNotFoundError,
+  OrgNotFoundError,
+  RepositoryNotFoundError,
+} from "../service/common/errors.ts";
+import { listRepoWorkflows } from "../service/listRepoWorkflows.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const listRepoWorkflows: HandlerMap["listRepoWorkflows"] = async (
+export const listRepoWorkflowsHandler: HandlerMap["listRepoWorkflows"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const org = await db.org.getById(ctx.request.params.orgId, {
-    requireUser: { id: req.user.id },
-  });
-
-  if (!org) {
-    return json(404, res, { code: 404, message: "Organization not found" });
-  }
-
-  if (org.githubInstallationId == null) {
-    return json(403, res, { code: 403, message: "GitHub not connected" });
-  }
   try {
-    const octokit = await getOctokit(org.githubInstallationId);
-    const workflows = (await octokit
-      .request({
-        method: "GET",
-        url: `/repositories/${ctx.request.params.repoId}/actions/workflows`,
-      })
-      .then((res) => res.data.workflows)) as Awaited<
-      ReturnType<typeof octokit.rest.actions.getWorkflow>
-    >["data"][];
-    return json(200, res, {
-      workflows: workflows.map((workflow) => ({
-        id: workflow.id,
-        name: workflow.name,
-        path: workflow.path,
-      })),
-    });
+    const workflows = await listRepoWorkflows(
+      ctx.request.params.orgId,
+      req.user.id,
+      ctx.request.params.repoId,
+    );
+    return json(200, res, { workflows });
   } catch (e) {
-    if (e instanceof RequestError && e.status === 404) {
+    if (e instanceof OrgNotFoundError) {
+      return json(404, res, { code: 404, message: "Organization not found" });
+    } else if (e instanceof InstallationNotFoundError) {
+      return json(403, res, { code: 403, message: "GitHub not connected" });
+    } else if (e instanceof RepositoryNotFoundError) {
       return json(404, res, { code: 404, message: "Repository not found" });
     }
-
     throw e;
   }
 };

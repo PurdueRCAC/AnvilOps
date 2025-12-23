@@ -1,6 +1,9 @@
 import { api } from "@/lib/api";
+import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
+import { FormContext } from "@/pages/create-app/CreateAppView";
 import { Info, Library, Loader, X } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -15,9 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
-import { toast } from "sonner";
-import { FormContext } from "@/pages/create-app/CreateAppView";
 
 export const ImportRepoDialog = ({
   orgId,
@@ -108,11 +108,11 @@ export const ImportRepoDialog = ({
               },
               params: { path: { orgId } },
             });
-            if (result.url) {
+            if ("url" in result) {
               window.location.href = result.url;
             } else if ("repoId" in result) {
               // We were able to create the repo immediately without creating a popup for GitHub authorization
-              const repoId = result.repoId as number;
+              const repoId = result.repoId;
               await refresh();
               // Set the repo after the <Select> rerenders with the updated list of repositories
               setTimeout(() => setRepo(repoId, repoState.name));

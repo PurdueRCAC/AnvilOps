@@ -1,43 +1,32 @@
-import { RequestError } from "octokit";
-import { db } from "../db/index.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import {
+  InstallationNotFoundError,
+  OrgNotFoundError,
+  RepositoryNotFoundError,
+} from "../service/common/errors.ts";
+import { listRepoBranches } from "../service/listRepoBranches.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const listRepoBranches: HandlerMap["listRepoBranches"] = async (
+export const listRepoBranchesHandler: HandlerMap["listRepoBranches"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const org = await db.org.getById(ctx.request.params.orgId, {
-    requireUser: { id: req.user.id },
-  });
-
-  if (!org) {
-    return json(404, res, { code: 404, message: "Organization not found" });
-  }
-
-  if (org.githubInstallationId === null) {
-    return json(403, res, { code: 403, message: "GitHub not connected" });
-  }
-
   try {
-    const octokit = await getOctokit(org.githubInstallationId);
-    const repo = await getRepoById(octokit, ctx.request.params.repoId);
-    const branches = await octokit.rest.repos.listBranches({
-      owner: repo.owner.login,
-      repo: repo.name,
-    });
-
-    return json(200, res, {
-      default: repo.default_branch,
-      branches: branches.data.map((branch) => branch.name),
-    });
+    const branches = await listRepoBranches(
+      ctx.request.params.orgId,
+      req.user.id,
+      ctx.request.params.repoId,
+    );
+    return json(200, res, branches);
   } catch (e) {
-    if (e instanceof RequestError && e.status == 404) {
+    if (e instanceof OrgNotFoundError) {
+      return json(404, res, { code: 404, message: "Organization not found" });
+    } else if (e instanceof InstallationNotFoundError) {
+      return json(403, res, { code: 403, message: "GitHub not connected" });
+    } else if (e instanceof RepositoryNotFoundError) {
       return json(404, res, { code: 404, message: "Repository not found" });
     }
-
     throw e;
   }
 };

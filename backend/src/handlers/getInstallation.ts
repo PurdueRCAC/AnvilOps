@@ -1,38 +1,29 @@
-import { db } from "../db/index.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import { InstallationNotFoundError } from "../lib/octokit.ts";
+import { OrgNotFoundError } from "../service/common/errors.ts";
+import { getInstallation } from "../service/getInstallation.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const getInstallation: HandlerMap["getInstallation"] = async (
+export const getInstallationHandler: HandlerMap["getInstallation"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const org = await db.org.getById(ctx.request.params.orgId, {
-    requireUser: { id: req.user.id },
-  });
-
-  if (!org) {
-    return json(404, res, { code: 404, message: "Organization not found." });
+  try {
+    const installation = await getInstallation(
+      ctx.request.params.orgId,
+      req.user.id,
+    );
+    return json(200, res, installation);
+  } catch (e) {
+    if (e instanceof OrgNotFoundError) {
+      return json(404, res, { code: 404, message: "Organization not found." });
+    } else if (e instanceof InstallationNotFoundError) {
+      return json(404, res, {
+        code: 404,
+        message: "GitHub app not installed.",
+      });
+    }
+    throw e;
   }
-
-  if (!org.githubInstallationId) {
-    return json(404, res, { code: 404, message: "GitHub app not installed." });
-  }
-
-  const octokit = await getOctokit(org.githubInstallationId);
-  const installation = await octokit.rest.apps.getInstallation({
-    installation_id: org.githubInstallationId,
-  });
-
-  return json(200, res, {
-    hasAllRepoAccess: installation.data.repository_selection === "all",
-    targetId: installation.data.target_id,
-    targetType: installation.data.target_type as "User" | "Organization",
-    targetName:
-      // `slug` is present when `account` is an Organization, and `login` is present when it's a User
-      "slug" in installation.data.account
-        ? installation.data.account.slug
-        : installation.data.account.login,
-  });
 };
