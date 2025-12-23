@@ -102,6 +102,7 @@ export interface WorkloadConfig {
   id: number;
   displayEnv: PrismaJson.EnvVar[];
   getEnv(): PrismaJson.EnvVar[];
+  appType: "workload";
   source: DeploymentSource;
   repositoryId?: number;
   branch?: string;
@@ -114,7 +115,7 @@ export interface WorkloadConfig {
   imageTag?: string;
   collectLogs: boolean;
   createIngress: boolean;
-  subdomain: string | undefined;
+  subdomain?: string;
   requests: PrismaJson.Resources;
   limits: PrismaJson.Resources;
   replicas: number;
@@ -127,6 +128,18 @@ export type WorkloadConfigCreate = Omit<
   "id" | "displayEnv" | "getEnv"
 > & {
   env: PrismaJson.EnvVar[];
+};
+
+export type GitConfig = WorkloadConfig & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
 };
 
 export type GitConfigCreate = WorkloadConfigCreate & {
@@ -143,6 +156,7 @@ export type GitConfigCreate = WorkloadConfigCreate & {
 
 export type HelmConfig = {
   id: number;
+  appType: "helm";
   source: "HELM";
   url: string;
   version: string;

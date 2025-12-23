@@ -1,4 +1,6 @@
 import { db } from "../../db/index.ts";
+import { GitConfig } from "../../db/models.ts";
+import { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { components } from "../../generated/openapi.ts";
 import { getOctokit } from "../../lib/octokit.ts";
 import { json, type HandlerMap } from "../../types.ts";
@@ -37,7 +39,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
 
   for (const app of apps) {
     const org = await db.org.getById(app.orgId);
-    const config = await db.app.getDeploymentConfig(app.id);
+    const config = (await db.app.getDeploymentConfig(app.id)) as GitConfig;
     const octokit = await getOctokit(org.githubInstallationId);
 
     await buildAndDeploy({
@@ -45,27 +47,7 @@ export const handlePush: HandlerMap["githubWebhook"] = async (
       app: app,
       imageRepo: app.imageRepo,
       commitMessage: payload.head_commit.message,
-      config: {
-        // Reuse the config from the previous deployment
-        port: config.port,
-        replicas: config.replicas,
-        requests: config.requests,
-        limits: config.limits,
-        mounts: config.mounts,
-        createIngress: config.createIngress,
-        subdomain: config.subdomain,
-        collectLogs: config.collectLogs,
-        source: "GIT",
-        event: config.event,
-        env: config.getEnv(),
-        repositoryId: config.repositoryId,
-        branch: config.branch,
-        commitHash: payload.head_commit.id,
-        builder: config.builder,
-        rootDir: config.rootDir,
-        dockerfilePath: config.dockerfilePath,
-        imageTag: config.imageTag,
-      },
+      config: DeploymentRepo.cloneWorkloadConfig(config),
       createCheckRun: true,
       octokit,
       owner: payload.repository.owner.login,

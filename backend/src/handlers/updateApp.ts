@@ -1,18 +1,27 @@
 import { randomBytes } from "node:crypto";
 import { db, NotFoundError } from "../db/index.ts";
-import type { DeploymentConfigCreate } from "../db/models.ts";
+import {
+  Deployment,
+  HelmConfig,
+  HelmConfigCreate,
+  WorkloadConfig,
+  WorkloadConfigCreate,
+} from "../db/models.ts";
+import {
+  appValidator,
+  deploymentConfigValidator,
+  deploymentService,
+} from "../domain/index.ts";
 import {
   createOrUpdateApp,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
-import { canManageProject } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import { type HandlerMap, json } from "../types.ts";
 import {
   buildAndDeploy,
   cancelAllOtherDeployments,
+  deployFromHelm,
   log,
 } from "./githubWebhook.ts";
 import { type AuthenticatedRequest } from "./index.ts";
@@ -35,23 +44,27 @@ export const updateApp: HandlerMap["updateApp"] = async (
     return json(404, res, { code: 404, message: "App not found" });
   }
 
+  const organization = await db.org.getById(originalApp.orgId);
+  const user = await db.user.getById(req.user.id);
+  let metadata: Awaited<
+    ReturnType<typeof deploymentService.prepareDeploymentMetadata>
+  >;
   try {
-    await validateDeploymentConfig(appData.config);
-    if (appData.appGroup) {
-      validateAppGroup(appData.appGroup);
+    if (appData.config.appType === "workload") {
+      await deploymentConfigValidator.validateCommonWorkloadConfig(
+        appData.config,
+      );
     }
+    await appValidator.validateApps(organization, user, appData);
+    metadata = await deploymentService.prepareDeploymentMetadata(
+      appData.config,
+      organization.id,
+    );
   } catch (e) {
     return json(400, res, {
       code: 400,
       message: e.message,
     });
-  }
-
-  if (appData.projectId) {
-    const user = await db.user.getById(req.user.id);
-    if (!(await canManageProject(user.clusterUsername, appData.projectId))) {
-      return json(404, res, { code: 404, message: "Project not found" });
-    }
   }
 
   // ---------------- App group updates ----------------
@@ -73,6 +86,11 @@ export const updateApp: HandlerMap["updateApp"] = async (
       appData.appGroup.type === "standalone"
         ? `${appData.name}-${randomBytes(4).toString("hex")}`
         : appData.appGroup.name;
+    try {
+      appValidator.validateAppGroupName(name);
+    } catch (e) {
+      return json(400, res, { code: 400, message: e.message });
+    }
 
     const newGroupId = await db.appGroup.create(
       originalApp.orgId,
@@ -112,68 +130,19 @@ export const updateApp: HandlerMap["updateApp"] = async (
     db.app.getCurrentDeployment(app.id),
   ]);
 
-  const updatedConfig: DeploymentConfigCreate = {
-    // Null values for unchanged sensitive vars need to be replaced with their true values
-    env: withSensitiveEnv(currentConfig.getEnv(), appConfig.env),
-    createIngress: appConfig.createIngress,
-    subdomain: appConfig.subdomain,
-    collectLogs: appConfig.collectLogs,
-    replicas: appConfig.replicas,
-    port: appConfig.port,
-    mounts: appConfig.mounts,
-    requests: appConfig.requests,
-    limits: appConfig.limits,
-    ...(appConfig.source === "git"
-      ? {
-          source: "GIT",
-          branch: appConfig.branch,
-          repositoryId: appConfig.repositoryId,
-          commitHash: appConfig.commitHash ?? currentConfig.commitHash,
-          builder: appConfig.builder,
-          rootDir: appConfig.rootDir,
-          dockerfilePath: appConfig.dockerfilePath,
-          event: appConfig.event,
-          eventId: appConfig.eventId,
-        }
-      : {
-          source: "IMAGE",
-          imageTag: appConfig.imageTag,
-        }),
-  };
+  const { config: updatedConfig, commitMessage } = metadata;
 
   // ---------------- Rebuild if necessary ----------------
 
-  if (
-    updatedConfig.source === "GIT" &&
-    (!currentConfig.imageTag ||
-      currentDeployment.status === "ERROR" ||
-      updatedConfig.branch !== currentConfig.branch ||
-      updatedConfig.repositoryId !== currentConfig.repositoryId ||
-      updatedConfig.builder !== currentConfig.builder ||
-      (updatedConfig.builder === "dockerfile" &&
-        updatedConfig.dockerfilePath !== currentConfig.dockerfilePath) ||
-      updatedConfig.rootDir !== currentConfig.rootDir ||
-      updatedConfig.commitHash !== currentConfig.commitHash)
-  ) {
+  if (shouldBuildOnUpdate(currentConfig, updatedConfig, currentDeployment)) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
-    const octokit = await getOctokit(org.githubInstallationId);
-    const repo = await getRepoById(octokit, updatedConfig.repositoryId);
     try {
-      const latestCommit = (
-        await octokit.rest.repos.listCommits({
-          per_page: 1,
-          owner: repo.owner.login,
-          repo: repo.name,
-          sha: updatedConfig.branch,
-        })
-      ).data[0];
-
       await buildAndDeploy({
         app: originalApp,
         org: org,
         imageRepo: originalApp.imageRepo,
-        commitMessage: latestCommit.commit.message,
+        commitMessage,
         config: updatedConfig,
         createCheckRun: false,
       });
@@ -186,22 +155,38 @@ export const updateApp: HandlerMap["updateApp"] = async (
         message: "Failed to create a deployment for your app.",
       });
     }
+  } else if (updatedConfig.appType === "helm") {
+    const deployment = await db.deployment.create({
+      appId: app.id,
+      commitMessage,
+      appType: "helm",
+      config: updatedConfig,
+    });
+    await cancelAllOtherDeployments(org, app, deployment.id, true);
+    await deployFromHelm(app, deployment, updatedConfig);
+    return json(200, res, {});
   } else {
     // ---------------- Redeploy the app with the new configuration ----------------
+    // To reach this block, the update must be:
+    // (1) from a Git deployment to a similar Git deployment, in which case the current imageTag is reused
+    // (2) from any deployment type to an image deployment, in which case the updatedConfig will have an imageTag
     const deployment = await db.deployment.create({
       config: {
         ...updatedConfig,
         imageTag:
           // In situations where a rebuild isn't required (given when we get to this point), we need to use the previous image tag.
           // Use the one that the user specified or the most recent successful one.
-          updatedConfig.imageTag ?? currentConfig.imageTag,
+          updatedConfig.imageTag ?? (currentConfig as WorkloadConfig).imageTag,
       },
       status: "DEPLOYING",
+      appType: "workload",
       appId: originalApp.id,
       commitMessage: currentDeployment.commitMessage,
     });
 
-    const config = await db.deployment.getConfig(deployment.id);
+    const config = (await db.deployment.getConfig(
+      deployment.id,
+    )) as WorkloadConfig;
 
     try {
       const { namespace, configs, postCreate } =
@@ -241,6 +226,47 @@ export const updateApp: HandlerMap["updateApp"] = async (
     }
   }
   return json(200, res, {});
+};
+
+const shouldBuildOnUpdate = (
+  oldConfig: WorkloadConfig | HelmConfig,
+  newConfig: WorkloadConfigCreate | HelmConfigCreate,
+  currentDeployment: Deployment,
+) => {
+  // Only Git apps need to be built
+  if (newConfig.source !== "GIT") {
+    return false;
+  }
+
+  // Either this app has not been built in the past, or it has not been built successfully
+  if (
+    oldConfig.source !== "GIT" ||
+    !oldConfig.imageTag ||
+    currentDeployment.status === "ERROR"
+  ) {
+    return true;
+  }
+
+  // The code has changed
+  if (
+    newConfig.branch !== oldConfig.branch ||
+    newConfig.repositoryId != oldConfig.repositoryId ||
+    newConfig.commitHash != oldConfig.commitHash
+  ) {
+    return true;
+  }
+
+  // Build options have changed
+  if (
+    newConfig.builder != oldConfig.builder ||
+    newConfig.rootDir != oldConfig.rootDir ||
+    (newConfig.builder === "dockerfile" &&
+      newConfig.dockerfilePath != oldConfig.dockerfilePath)
+  ) {
+    return true;
+  }
+
+  return false;
 };
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext

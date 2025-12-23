@@ -61,7 +61,7 @@ export class AppRepo {
     return await this.client.app.findMany({
       where: {
         config: {
-          appType: "WORKLOAD",
+          appType: "workload",
           workloadConfig: {
             source: DeploymentSource.GIT,
             repositoryId: repoId,
@@ -81,7 +81,7 @@ export class AppRepo {
       (await this.client.app.count({
         where: {
           config: {
-            appType: "WORKLOAD",
+            appType: "workload",
             workloadConfig: { subdomain },
           },
         },
@@ -233,12 +233,14 @@ export class AppRepo {
       },
     });
 
-    if (app.config.appType === "WORKLOAD") {
-      return DeploymentRepo.preprocessDeploymentConfig(
-        app.config.workloadConfig,
-      );
+    if (app.config.appType === "workload") {
+      return DeploymentRepo.preprocessWorkloadConfig(app.config.workloadConfig);
     } else {
-      return { ...app.config.helmConfig, source: "HELM" };
+      return {
+        ...app.config.helmConfig,
+        source: "HELM",
+        appType: app.config.appType,
+      };
     }
   }
 
@@ -256,7 +258,7 @@ export class AppRepo {
   }
 
   async getDeploymentsWithStatus(appId: number, statuses: DeploymentStatus[]) {
-    return await this.client.deployment.findMany({
+    const deployments = await this.client.deployment.findMany({
       where: {
         appId: appId,
         status: {
@@ -264,8 +266,33 @@ export class AppRepo {
         },
       },
       include: {
-        config: true,
+        config: {
+          include: {
+            workloadConfig: true,
+            helmConfig: true,
+          },
+        },
       },
+    });
+
+    return deployments.map((deployment) => {
+      if (deployment.config.workloadConfig) {
+        return {
+          ...deployment,
+          config: DeploymentRepo.preprocessWorkloadConfig(
+            deployment.config.workloadConfig,
+          ) satisfies WorkloadConfig,
+        };
+      } else {
+        return {
+          ...deployment,
+          config: {
+            ...deployment.config.helmConfig,
+            source: "HELM",
+            appType: "helm",
+          } satisfies HelmConfig,
+        };
+      }
     });
   }
 

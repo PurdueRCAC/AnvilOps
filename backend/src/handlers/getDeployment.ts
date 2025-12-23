@@ -1,5 +1,6 @@
 import type { V1Pod } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
+import { deploymentConfigValidator } from "../domain/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
@@ -87,7 +88,7 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
 
   return json(200, res, {
     repositoryURL,
-    commitHash: config.commitHash,
+    commitHash: config.source === "GIT" ? config.commitHash : "unknown",
     commitMessage: deployment.commitMessage,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
@@ -100,28 +101,6 @@ export const getDeployment: HandlerMap["getDeployment"] = async (
       total: pods.items.length,
       failed,
     },
-    config: {
-      branch: config.branch,
-      imageTag: config.imageTag,
-      mounts: config.mounts.map((mount) => ({
-        path: mount.path,
-        amountInMiB: mount.amountInMiB,
-      })),
-      source: config.source === "GIT" ? "git" : "image",
-      repositoryId: config.repositoryId,
-      event: config.event,
-      eventId: config.eventId,
-      commitHash: config.commitHash,
-      builder: config.builder,
-      dockerfilePath: config.dockerfilePath,
-      env: config.displayEnv,
-      port: config.port,
-      replicas: config.replicas,
-      rootDir: config.rootDir,
-      collectLogs: config.collectLogs,
-      requests: config.requests,
-      limits: config.limits,
-      createIngress: config.createIngress,
-    },
+    config: deploymentConfigValidator.formatDeploymentConfig(config),
   });
 };

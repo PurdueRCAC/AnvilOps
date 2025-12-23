@@ -2031,7 +2031,7 @@ components:
             - CANCELLED
         source:
           type: string
-          enum: [GIT, IMAGE]
+          enum: [GIT, IMAGE, HELM]
         imageTag:
           type: string
           nullable: true
@@ -2205,6 +2205,7 @@ components:
           additionalProperties:
             type: string
       required:
+        - appType
         - port
         - replicas
         - env
@@ -2246,16 +2247,7 @@ components:
               enum: [dockerfile, railpack]
             imageTag:
               type: string
-          required:
-            [
-              source,
-              dockerfilePath,
-              rootDir,
-              repositoryId,
-              event,
-              eventId,
-              builder,
-            ]
+          required: [source, rootDir, repositoryId, event, eventId, builder]
     ImageDeploymentOptions:
       properties:
         source:
@@ -2449,8 +2441,6 @@ components:
                   type: integer
                   format: int64
               required: [type, id]
-        createIngress:
-          type: boolean
         namespace:
           type: string
         config:
@@ -2473,15 +2463,12 @@ components:
               type: string
             namespace:
               type: string
-            createIngress:
-              type: boolean
             config:
               $ref: "#/components/schemas/DeploymentConfig"
           required:
             - name
             - projectId
             - namespace
-            - createIngress
             - config
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"

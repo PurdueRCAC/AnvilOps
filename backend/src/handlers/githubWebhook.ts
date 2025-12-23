@@ -4,6 +4,7 @@ import { db, NotFoundError } from "../db/index.ts";
 import type {
   App,
   Deployment,
+  GitConfig,
   GitConfigCreate,
   HelmConfigCreate,
   Organization,
@@ -195,9 +196,10 @@ export async function buildAndDeploy({
     const deployment = await db.deployment.create({
       appId: app.id,
       commitMessage,
-      appType: "HELM",
+      appType: "helm",
       config: configIn,
     });
+    await cancelAllOtherDeployments(org, app, deployment.id, true);
     await deployFromHelm(app, deployment, configIn);
     return;
   }
@@ -213,7 +215,7 @@ export async function buildAndDeploy({
     db.deployment.create({
       appId: app.id,
       commitMessage,
-      appType: "WORKLOAD",
+      appType: "workload",
       config: { ...configIn, imageTag },
     }),
     db.appGroup.getById(app.appGroupId),
@@ -231,7 +233,7 @@ export async function buildAndDeploy({
   await cancelAllOtherDeployments(org, app, deployment.id, true);
 
   if (config.source === "GIT") {
-    buildAndDeployFromRepo(org, app, deployment, config, opts);
+    buildAndDeployFromRepo(org, app, deployment, config as GitConfig, opts);
   } else if (config.source === "IMAGE") {
     log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
@@ -268,7 +270,7 @@ export async function buildAndDeploy({
   }
 }
 
-async function deployFromHelm(
+export async function deployFromHelm(
   app: App,
   deployment: Deployment,
   config: HelmConfigCreate,
@@ -302,7 +304,7 @@ export async function buildAndDeployFromRepo(
   org: Organization,
   app: App,
   deployment: Deployment,
-  config: DeploymentConfig,
+  config: GitConfig,
   opts:
     | { createCheckRun: true; octokit: Octokit; owner: string; repo: string }
     | { createCheckRun: false },
@@ -393,13 +395,17 @@ export async function createPendingWorkflowDeployment({
   config,
   workflowRunId,
   ...opts
-}: BuildAndDeployOptions & { workflowRunId: number }) {
+}: BuildAndDeployOptions & {
+  workflowRunId: number;
+  config: WorkloadConfigCreate;
+}) {
   const imageTag =
     config.source === DeploymentSource.IMAGE
       ? (config.imageTag as ImageTag)
       : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
 
   const deployment = await db.deployment.create({
+    appType: "workload",
     appId: app.id,
     commitMessage,
     workflowRunId,
@@ -462,7 +468,8 @@ export async function cancelAllOtherDeployments(
       if (!octokit) {
         octokit = await getOctokit(org.githubInstallationId);
       }
-      const repo = await getRepoById(octokit, deployment.config.repositoryId);
+      const config = deployment.config as GitConfig;
+      const repo = await getRepoById(octokit, config.repositoryId);
       await octokit.rest.checks.update({
         check_run_id: deployment.checkRunId,
         owner: repo.owner.login,

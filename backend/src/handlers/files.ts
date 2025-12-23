@@ -91,6 +91,13 @@ async function forward(
 
   const config = await db.app.getDeploymentConfig(appId);
 
+  if (config.appType !== "workload") {
+    return json(400, res, {
+      code: 400,
+      message: "File browsing is supported only for Git and image deployments",
+    });
+  }
+
   if (
     !config.mounts.some((mount) =>
       volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),

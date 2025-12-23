@@ -68,16 +68,18 @@ export const getOrgByID: HandlerMap["getOrgByID"] = async (
         displayName: app.displayName,
         status: selectedDeployment?.status,
         source: config.source,
-        imageTag: config.imageTag,
-        repositoryURL: repoURL,
-        branch: config.branch,
-        commitHash: config.commitHash,
-        link:
-          selectedDeployment?.status === "COMPLETE" &&
-          env.APP_DOMAIN &&
-          config.createIngress
-            ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
-            : undefined,
+        ...(config.appType === "workload" && {
+          imageTag: config.imageTag,
+          repositoryURL: repoURL,
+          branch: config.branch,
+          commitHash: config.commitHash,
+          link:
+            selectedDeployment?.status === "COMPLETE" &&
+            env.APP_DOMAIN &&
+            config.createIngress
+              ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
+              : undefined,
+        }),
       };
     }),
   );

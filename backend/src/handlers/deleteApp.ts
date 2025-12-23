@@ -44,7 +44,7 @@ export const deleteApp: HandlerMap["deleteApp"] = async (
     } catch (err) {
       console.error("Failed to delete namespace:", err);
     }
-  } else if (config.collectLogs) {
+  } else if (config.appType === "workload" && config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
     config.collectLogs = false; // <-- Disable log shipping
 

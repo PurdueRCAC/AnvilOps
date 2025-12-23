@@ -30,6 +30,11 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
     return json(404, res, { code: 404, message: "Deployment not found." });
   }
 
+  const config = await db.deployment.getConfig(deployment.id);
+  if (config.source !== "GIT") {
+    return json(400, res, { code: 400, message: "Cannot update deployment" });
+  }
+
   await db.deployment.setStatus(
     deployment.id,
     status as "BUILDING" | "DEPLOYING" | "ERROR",
@@ -42,9 +47,8 @@ export const updateDeployment: HandlerMap["updateDeployment"] = async (
   );
 
   const app = await db.app.getById(deployment.appId);
-  const [appGroup, config, org] = await Promise.all([
+  const [appGroup, org] = await Promise.all([
     db.appGroup.getById(app.appGroupId),
-    db.deployment.getConfig(deployment.id),
     db.org.getById(app.orgId),
   ]);
 

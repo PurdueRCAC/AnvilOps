@@ -1,6 +1,6 @@
 import { ConflictError, db } from "../db/index.ts";
 import type { App } from "../db/models.ts";
-import { appValidator, deploymentController } from "../domain/index.ts";
+import { appValidator, deploymentService } from "../domain/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -21,14 +21,14 @@ export const createAppGroup: HandlerMap["createAppGroup"] = async (
 
   const user = await db.user.getById(req.user.id);
   let metadata: Awaited<
-    ReturnType<typeof deploymentController.prepareDeploymentMetadata>
+    ReturnType<typeof deploymentService.prepareDeploymentMetadata>
   >[];
   try {
     appValidator.validateAppGroupName(data.name);
     appValidator.validateApps(organization, user, ...data.apps);
     metadata = await Promise.all(
       data.apps.map((app) =>
-        deploymentController.prepareDeploymentMetadata(
+        deploymentService.prepareDeploymentMetadata(
           app.config,
           organization.id,
         ),

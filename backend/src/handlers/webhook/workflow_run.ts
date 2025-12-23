@@ -1,4 +1,6 @@
 import { db } from "../../db/index.ts";
+import { GitConfig, WorkloadConfig } from "../../db/models.ts";
+import { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { components } from "../../generated/openapi.ts";
 import { getOctokit } from "../../lib/octokit.ts";
 import { json, type HandlerMap } from "../../types.ts";
@@ -43,7 +45,9 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
   if (payload.action === "requested") {
     for (const app of apps) {
       const org = await db.org.getById(app.orgId);
-      const config = await db.app.getDeploymentConfig(app.id);
+      const config = (await db.app.getDeploymentConfig(
+        app.id,
+      )) as WorkloadConfig;
       const octokit = await getOctokit(org.githubInstallationId);
       try {
         await createPendingWorkflowDeployment({
@@ -51,28 +55,7 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
           app: app,
           imageRepo: app.imageRepo,
           commitMessage: payload.workflow_run.head_commit.message,
-          config: {
-            // Reuse the config from the previous deployment
-            port: config.port,
-            replicas: config.replicas,
-            requests: config.requests,
-            limits: config.limits,
-            mounts: config.mounts,
-            createIngress: config.createIngress,
-            subdomain: config.subdomain,
-            collectLogs: config.collectLogs,
-            source: "GIT",
-            env: config.getEnv(),
-            repositoryId: config.repositoryId,
-            branch: config.branch,
-            commitHash: payload.workflow_run.head_commit.id,
-            builder: config.builder,
-            rootDir: config.rootDir,
-            dockerfilePath: config.dockerfilePath,
-            imageTag: config.imageTag,
-            event: config.event,
-            eventId: config.eventId,
-          },
+          config: DeploymentRepo.cloneWorkloadConfig(config),
           workflowRunId: payload.workflow_run.id,
           createCheckRun: true,
           octokit,
@@ -90,7 +73,9 @@ export const handleWorkflowRun: HandlerMap["githubWebhook"] = async (
         app.id,
         payload.workflow_run.id,
       );
-      const config = await db.deployment.getConfig(deployment.id);
+      const config = (await db.deployment.getConfig(
+        deployment.id,
+      )) as GitConfig;
 
       if (!deployment || deployment.status !== "PENDING") {
         // If the app was deleted, nothing to do

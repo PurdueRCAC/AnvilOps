@@ -1,8 +1,10 @@
 import { Octokit } from "octokit";
+import { HelmConfig, WorkloadConfig } from "../db/models.ts";
 import { AppRepo } from "../db/repo/app.ts";
 import { components } from "../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../lib/cluster/resources.ts";
 import { getImageConfig } from "../lib/cluster/resources/logs.ts";
+import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { getRepoById } from "../lib/octokit.ts";
 import { isRFC1123 } from "../lib/validate.ts";
 import { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
@@ -11,6 +13,57 @@ export class DeploymentConfigValidator {
   private appRepo: AppRepo;
   constructor(appRepo: AppRepo) {
     this.appRepo = appRepo;
+  }
+
+  // Produces a DeploymentConfig object to be returned from the API, as described in the OpenAPI spec.
+  formatDeploymentConfig(
+    config: WorkloadConfig | HelmConfig,
+  ): components["schemas"]["DeploymentConfig"] {
+    if (config.appType === "workload") {
+      return this.formatWorkloadConfig(config);
+    } else {
+      return {
+        ...config,
+        source: "helm",
+      };
+    }
+  }
+
+  private formatWorkloadConfig(
+    config: WorkloadConfig,
+  ): components["schemas"]["WorkloadConfigOptions"] {
+    return {
+      appType: "workload",
+      createIngress: config.createIngress,
+      subdomain: config.createIngress ? config.subdomain : undefined,
+      collectLogs: config.collectLogs,
+      port: config.port,
+      env: config.displayEnv,
+      replicas: config.replicas,
+      requests: config.requests,
+      limits: config.limits,
+      mounts: config.mounts.map((mount) => ({
+        amountInMiB: mount.amountInMiB,
+        path: mount.path,
+        volumeClaimName: generateVolumeName(mount.path),
+      })),
+      ...(config.source === "GIT"
+        ? {
+            source: "git" as const,
+            branch: config.branch,
+            dockerfilePath: config.dockerfilePath,
+            rootDir: config.rootDir,
+            builder: config.builder,
+            repositoryId: config.repositoryId,
+            event: config.event,
+            eventId: config.eventId,
+            commitHash: config.commitHash,
+          }
+        : {
+            source: "image" as const,
+            imageTag: config.imageTag,
+          }),
+    };
   }
 
   async validateCommonWorkloadConfig(

@@ -10,7 +10,7 @@ import { type DeploymentConfigValidator } from "./deploymentConfig.ts";
 import { deploymentConfigValidator } from "./index.ts";
 import { GitWorkloadConfig } from "./types.ts";
 
-export class DeploymentController {
+export class DeploymentService {
   private readonly validator: DeploymentConfigValidator;
   private readonly getOctokitFn: typeof getOctokit;
   private readonly getRepoByIdFn: typeof getRepoById;
@@ -53,16 +53,26 @@ export class DeploymentController {
 
         await this.validator.validateGitConfig(config, octokit, repo);
 
-        const latestCommit = (
-          await octokit.rest.repos.listCommits({
-            per_page: 1,
+        if (config.commitHash) {
+          commitHash = config.commitHash;
+          const commit = await octokit.rest.git.getCommit({
             owner: repo.owner.login,
             repo: repo.name,
-          })
-        ).data[0];
+            commit_sha: commitHash,
+          });
+          commitMessage = commit.data.message;
+        } else {
+          const latestCommit = (
+            await octokit.rest.repos.listCommits({
+              per_page: 1,
+              owner: repo.owner.login,
+              repo: repo.name,
+            })
+          ).data[0];
 
-        commitHash = latestCommit.sha;
-        commitMessage = latestCommit.commit.message;
+          commitHash = latestCommit.sha;
+          commitMessage = latestCommit.commit.message;
+        }
 
         return {
           config: await this.createGitConfig(config, commitHash, repo.id),
@@ -75,12 +85,16 @@ export class DeploymentController {
           config: {
             ...this.createCommonWorkloadConfig(config),
             source: "IMAGE",
+            appType: "workload",
           },
           commitMessage,
         };
       }
       case "helm": {
-        return { config: { ...config, source: "HELM" }, commitMessage };
+        return {
+          config: { ...config, source: "HELM", appType: "helm" },
+          commitMessage,
+        };
       }
     }
   }
@@ -89,6 +103,7 @@ export class DeploymentController {
     config: components["schemas"]["WorkloadConfigOptions"],
   ) {
     return {
+      appType: "workload" as const,
       collectLogs: config.collectLogs,
       createIngress: config.createIngress,
       subdomain: config.subdomain,
@@ -114,8 +129,11 @@ export class DeploymentController {
       repositoryId,
       branch: config.branch,
       event: config.event,
+      eventId: config.eventId,
       commitHash,
       builder: config.builder,
+      dockerfilePath: config.dockerfilePath,
+      rootDir: config.rootDir,
       imageTag: undefined,
     } satisfies GitConfigCreate;
   }

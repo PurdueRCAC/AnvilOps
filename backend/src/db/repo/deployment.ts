@@ -95,7 +95,7 @@ export class DeploymentRepo {
         config: {
           create: {
             appType: appType,
-            ...(appType === "WORKLOAD"
+            ...(appType === "workload"
               ? {
                   workloadConfig: {
                     create: DeploymentRepo.encryptEnv(
@@ -182,13 +182,17 @@ export class DeploymentRepo {
       },
     });
 
-    if (deployment.config.appType === "WORKLOAD") {
-      return DeploymentRepo.preprocessDeploymentConfig(
+    if (deployment.config.appType === "workload") {
+      return DeploymentRepo.preprocessWorkloadConfig(
         deployment.config.workloadConfig,
       );
     }
 
-    return { ...deployment.config.helmConfig, source: "HELM" };
+    return {
+      ...deployment.config.helmConfig,
+      source: "HELM",
+      appType: deployment.config.appType,
+    };
   }
 
   private static encryptEnv(
@@ -200,7 +204,7 @@ export class DeploymentRepo {
     return copy;
   }
 
-  static preprocessDeploymentConfig(
+  static preprocessWorkloadConfig(
     config: PrismaWorkloadConfig,
   ): WorkloadConfig {
     if (config === null) {
@@ -216,6 +220,7 @@ export class DeploymentRepo {
 
     return {
       ...config,
+      appType: "workload",
       getEnv() {
         return decrypted;
       },
@@ -223,6 +228,19 @@ export class DeploymentRepo {
         envVar.isSensitive ? { ...envVar, value: null } : envVar,
       ),
     };
+  }
+
+  static cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {
+    if (config === null) {
+      return null;
+    }
+    const newConfig = structuredClone(config);
+    const env = config.getEnv();
+    delete newConfig.displayEnv;
+    delete newConfig.getEnv;
+    delete newConfig.id;
+
+    return { ...newConfig, env };
   }
 
   async checkLogIngestSecret(deploymentId: number, logIngestSecret: string) {

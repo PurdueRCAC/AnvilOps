@@ -9,8 +9,8 @@ import type {
   App,
   AppGroup,
   Deployment,
-  DeploymentConfig,
   Organization,
+  WorkloadConfig,
 } from "../../db/models.ts";
 import { getOctokit } from "../octokit.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
@@ -147,7 +147,7 @@ export const createAppConfigsFromDeployment = async (
   app: App,
   appGroup: AppGroup,
   deployment: Deployment,
-  conf: DeploymentConfig,
+  conf: WorkloadConfig,
 ) => {
   const namespaceName = getNamespace(app.namespace);
 

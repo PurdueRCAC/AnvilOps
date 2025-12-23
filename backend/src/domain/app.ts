@@ -10,11 +10,10 @@ import {
 import { isRFC1123 } from "../lib/validate.ts";
 import { DeploymentConfigValidator } from "./deploymentConfig.ts";
 
-interface NewApp {
-  name: string;
+interface App {
+  name?: string;
   projectId?: string;
-  createIngress: boolean;
-  namespace: string;
+  namespace?: string;
   config: components["schemas"]["DeploymentConfig"];
 }
 
@@ -26,13 +25,18 @@ export class AppValidator {
     this.configValidator = configValidator;
   }
 
-  async validateApps(
-    organization: Organization,
-    user: User,
-    ...apps: NewApp[]
-  ) {
+  async validateApps(organization: Organization, user: User, ...apps: App[]) {
     const appValidationErrors = (
-      await Promise.all(apps.map((app) => this.validateNewApp(app, user)))
+      await Promise.all(
+        apps.map(async (app) => {
+          try {
+            await this.validateNewApp(app, user);
+            return null;
+          } catch (e) {
+            return e.message;
+          }
+        }),
+      )
     ).filter(Boolean);
     if (appValidationErrors.length != 0) {
       throw new AppValidationError(JSON.stringify(appValidationErrors));
@@ -50,7 +54,7 @@ export class AppValidator {
     }
   }
 
-  private async validateNewApp(app: NewApp, user: { clusterUsername: string }) {
+  private async validateNewApp(app: App, user: { clusterUsername: string }) {
     if (isRancherManaged()) {
       if (!app.projectId) {
         throw new AppValidationError("Project ID is required");
@@ -65,23 +69,27 @@ export class AppValidator {
       await this.configValidator.validateCommonWorkloadConfig(app.config);
     }
 
-    if (
-      !(
-        0 < app.namespace.length && app.namespace.length <= MAX_NAMESPACE_LEN
-      ) ||
-      !isRFC1123(app.namespace)
-    ) {
-      throw new AppValidationError(
-        "Namespace must contain only lowercase alphanumeric characters or '-', " +
-          "start with an alphabetic character and end with an alphanumeric character, " +
-          `and contain at most ${MAX_NAMESPACE_LEN} characters`,
-      );
-    }
+    if (app.namespace) {
+      if (
+        !(
+          0 < app.namespace.length && app.namespace.length <= MAX_NAMESPACE_LEN
+        ) ||
+        !isRFC1123(app.namespace)
+      ) {
+        throw new AppValidationError(
+          "Namespace must contain only lowercase alphanumeric characters or '-', " +
+            "start with an alphabetic character and end with an alphanumeric character, " +
+            `and contain at most ${MAX_NAMESPACE_LEN} characters`,
+        );
+      }
 
-    if (await namespaceInUse(app.namespace)) {
-      throw new AppValidationError("Namespace is in use");
+      if (await namespaceInUse(app.namespace)) {
+        throw new AppValidationError("Namespace is in use");
+      }
     }
-    this.validateAppName(app.name);
+    if (app.name) {
+      this.validateAppName(app.name);
+    }
   }
 
   validateAppGroupName(name: string) {

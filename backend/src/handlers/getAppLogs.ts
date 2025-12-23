@@ -21,6 +21,14 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
     return json(404, res, { code: 404, message: "App not found." });
   }
 
+  const config = await db.app.getDeploymentConfig(app.id);
+  if (config.appType != "workload") {
+    return json(400, res, {
+      code: 400,
+      message: "Log browsing is supported only for Git and image deployments",
+    });
+  }
+
   res.set({
     "Cache-Control": "no-cache",
     "Content-Type": "text/event-stream",
@@ -59,7 +67,6 @@ export const getAppLogs: HandlerMap["getAppLogs"] = async (
   }
 
   // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
-  const config = await db.app.getDeploymentConfig(app.id);
   const collectLogs = config?.collectLogs;
 
   if (collectLogs || ctx.request.query.type === "BUILD") {

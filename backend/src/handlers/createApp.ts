@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import { App } from "../db/models.ts";
-import { appValidator, deploymentController } from "../domain/index.ts";
+import { appValidator, deploymentService } from "../domain/index.ts";
 import { PrismaClientKnownRequestError } from "../generated/prisma/internal/prismaNamespace.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -20,6 +20,20 @@ export const createApp: HandlerMap["createApp"] = async (
 
   if (!organization) {
     return json(400, res, { code: 400, message: "Organization not found" });
+  }
+
+  const user = await db.user.getById(req.user.id);
+  let metadata: Awaited<
+    ReturnType<typeof deploymentService.prepareDeploymentMetadata>
+  >;
+  try {
+    await appValidator.validateApps(organization, user, appData);
+    metadata = await deploymentService.prepareDeploymentMetadata(
+      appData.config,
+      organization.id,
+    );
+  } catch (e) {
+    return json(400, res, { code: 400, message: e.message });
   }
 
   let appGroupId: number;
@@ -44,20 +58,6 @@ export const createApp: HandlerMap["createApp"] = async (
       groupName,
       appData.appGroup.type === "standalone",
     );
-  }
-
-  const user = await db.user.getById(req.user.id);
-  let metadata: Awaited<
-    ReturnType<typeof deploymentController.prepareDeploymentMetadata>
-  >;
-  try {
-    await appValidator.validateApps(organization, user, appData);
-    metadata = await deploymentController.prepareDeploymentMetadata(
-      appData.config,
-      organization.id,
-    );
-  } catch (e) {
-    return json(400, res, { code: 400, message: e.message });
   }
 
   let app: App;
