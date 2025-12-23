@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "AppType" AS ENUM ('WORKLOAD', 'HELM');
+CREATE TYPE "AppType" AS ENUM ('workload', 'helm');
 
 -- CreateEnum
 CREATE TYPE "HelmUrlType" AS ENUM ('oci', 'absolute');
