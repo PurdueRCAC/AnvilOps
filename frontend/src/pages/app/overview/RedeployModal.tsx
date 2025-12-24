@@ -403,7 +403,7 @@ export const RedeployModal = ({
                   defaults={{ config: pastDeployment?.config }}
                 />
                 {(redeployState.configState.source !== "git" ||
-                  selectedOrg?.githubConnected) && (
+                  selectedOrg?.gitProvider !== null) && (
                   <Button
                     className="mt-4 float-right"
                     type="button"

@@ -1,9 +1,9 @@
 import type { Response } from "express";
-import { InstallationNotFoundError } from "../lib/octokit.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
+  InstallationNotFoundError,
   OrgNotFoundError,
 } from "../service/common/errors.ts";
 import { processGitHubOAuthResponse } from "../service/githubOAuthCallback.ts";

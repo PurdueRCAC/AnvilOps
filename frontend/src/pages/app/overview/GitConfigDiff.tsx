@@ -53,7 +53,7 @@ export const GitConfigDiff = ({
       enabled:
         orgId !== undefined &&
         state.source === "git" &&
-        selectedOrg?.githubConnected,
+        selectedOrg?.gitProvider !== null,
     },
   );
 

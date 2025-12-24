@@ -2,8 +2,11 @@ import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
+import {
+  AppNotFoundError,
+  InstallationNotFoundError,
+} from "./common/errors.ts";
 
 export async function getAppByID(appId: number, userId: number) {
   const [app, recentDeployment, deploymentCount] = await Promise.all([
@@ -41,15 +44,20 @@ export async function getAppByID(appId: number, userId: number) {
   ]);
 
   // Fetch repository info if this app is deployed from a Git repository
-  const { repoId, repoURL } = await (async () => {
-    if (currentConfig.source === "GIT" && org.githubInstallationId) {
-      const octokit = await getOctokit(org.githubInstallationId);
-      const repo = await getRepoById(octokit, currentConfig.repositoryId);
-      return { repoId: repo.id, repoURL: repo.html_url };
-    } else {
-      return { repoId: undefined, repoURL: undefined };
+  let repoId = currentConfig.repositoryId,
+    repoURL: string = undefined;
+
+  if (currentConfig.source === "GIT") {
+    try {
+      const gitProvider = await getGitProvider(org.id);
+      const repo = await gitProvider.getRepoById(currentConfig.repositoryId);
+      repoURL = repo.htmlURL;
+    } catch (e) {
+      if (!(e instanceof InstallationNotFoundError)) {
+        throw e;
+      }
     }
-  })();
+  }
 
   return {
     id: app.id,

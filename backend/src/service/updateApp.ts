@@ -8,7 +8,7 @@ import {
 } from "../lib/cluster/kubernetes.ts";
 import { canManageProject } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { validateAppGroup, validateDeploymentConfig } from "../lib/validate.ts";
 import {
   buildAndDeploy,
@@ -157,23 +157,18 @@ export async function updateApp(
   ) {
     // If source is git, start a new build if the app was not successfully built in the past,
     // or if branches or repositories or any build settings were changed.
-    const octokit = await getOctokit(org.githubInstallationId);
-    const repo = await getRepoById(octokit, updatedConfig.repositoryId);
+    const gitProvider = await getGitProvider(org.id);
     try {
-      const latestCommit = (
-        await octokit.rest.repos.listCommits({
-          per_page: 1,
-          owner: repo.owner.login,
-          repo: repo.name,
-          sha: updatedConfig.branch,
-        })
-      ).data[0];
+      const latestCommit = await gitProvider.getLatestCommit(
+        updatedConfig.repositoryId,
+        updatedConfig.branch,
+      );
 
       await buildAndDeploy({
         app: originalApp,
         org: org,
         imageRepo: originalApp.imageRepo,
-        commitMessage: latestCommit.commit.message,
+        commitMessage: latestCommit.message,
         config: updatedConfig,
         createCheckRun: false,
       });
