@@ -64,7 +64,9 @@ export const GitDeploymentFields = ({
     { params: { path: { orgId: orgId! } } },
     {
       enabled:
-        orgId !== undefined && source === "git" && selectedOrg?.githubConnected,
+        orgId !== undefined &&
+        source === "git" &&
+        selectedOrg?.gitProvider !== null,
     },
   );
 

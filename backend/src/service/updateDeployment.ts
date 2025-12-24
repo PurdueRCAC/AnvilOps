@@ -6,7 +6,7 @@ import {
 } from "../lib/cluster/kubernetes.ts";
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { DeploymentNotFoundError, ValidationError } from "./common/errors.ts";
 import { log } from "./githubWebhook.ts";
 
@@ -48,18 +48,14 @@ export async function updateDeployment(secret: string, newStatus: string) {
   ) {
     try {
       // The build completed. Update the check run with the result of the build (success or failure).
-      const octokit = await getOctokit(org.githubInstallationId);
+      const gitProvider = await getGitProvider(org.id);
 
-      // Get the repo's name and owner from its ID, just in case the name or owner changed in the middle of the deployment
-      const repo = await getRepoById(octokit, config.repositoryId);
+      await gitProvider.updateCheckStatus(
+        config.repositoryId,
+        deployment.checkRunId,
+        newStatus === "DEPLOYING" ? "success" : "failure",
+      );
 
-      await octokit.rest.checks.update({
-        check_run_id: deployment.checkRunId,
-        status: "completed",
-        conclusion: newStatus === "DEPLOYING" ? "success" : "failure",
-        owner: repo.owner.login,
-        repo: repo.name,
-      });
       log(
         deployment.id,
         "BUILD",

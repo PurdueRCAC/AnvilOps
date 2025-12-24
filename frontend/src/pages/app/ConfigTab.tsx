@@ -70,7 +70,7 @@ export const ConfigTab = ({
 
   const enableSaveButton =
     formState.source !== "git" ||
-    user?.orgs?.find((it) => it.id === app.orgId)?.githubConnected;
+    user?.orgs?.find((it) => it.id === app.orgId)?.gitProvider !== null;
 
   return (
     <form

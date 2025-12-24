@@ -1,6 +1,8 @@
-import { InstallationNotFoundError } from "../lib/octokit.ts";
 import { claimOrg } from "../service/claimOrg.ts";
-import { OrgNotFoundError } from "../service/common/errors.ts";
+import {
+  InstallationNotFoundError,
+  OrgNotFoundError,
+} from "../service/common/errors.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 

@@ -81,7 +81,7 @@ export const AppConfigDiff = ({
     : undefined;
 
   const showDeploymentOptions =
-    state.source !== "git" || selectedOrg?.githubConnected;
+    state.source !== "git" || selectedOrg?.gitProvider !== null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -131,7 +131,7 @@ export const AppConfigDiff = ({
         </div>
       </div>
       {state.source === "git" ? (
-        selectedOrg?.githubConnected ? (
+        selectedOrg?.gitProvider !== null ? (
           <GitConfigDiff
             disabled={disabled}
             orgId={orgId}

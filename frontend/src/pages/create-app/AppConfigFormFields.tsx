@@ -643,7 +643,7 @@ const AppConfigFormFields = ({
         </Select>
       </div>
       {source === "git" ? (
-        selectedOrg?.githubConnected ? (
+        selectedOrg?.gitProvider !== null ? (
           <GitDeploymentFields
             orgId={orgId}
             state={state}
@@ -709,7 +709,8 @@ const AppConfigFormFields = ({
         </>
       ) : null}
 
-      {(source !== "git" || selectedOrg?.githubConnected) && DeploymentOptions}
+      {(source !== "git" || selectedOrg?.gitProvider !== null) &&
+        DeploymentOptions}
     </>
   );
 };

@@ -15,11 +15,7 @@ import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
 import { env } from "./env.ts";
-import {
-  generateCloneURLWithCredentials,
-  getOctokit,
-  getRepoById,
-} from "./octokit.ts";
+import { getGitProvider } from "./git/gitProvider.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
@@ -31,12 +27,8 @@ async function createJobFromDeployment(
   deployment: Deployment,
   config: DeploymentConfig,
 ) {
-  const octokit = await getOctokit(org.githubInstallationId);
-  const repo = await getRepoById(octokit, config.repositoryId);
-  const cloneURL = await generateCloneURLWithCredentials(
-    octokit,
-    repo.html_url,
-  );
+  const gitProvider = await getGitProvider(org.id);
+  const cloneURL = await gitProvider.generateCloneURL(config.repositoryId);
 
   const label = randomBytes(4).toString("hex");
   const secretName = `anvilops-temp-build-secrets-${app.id}-${deployment.id}`;
@@ -45,7 +37,7 @@ async function createJobFromDeployment(
   const envVars = config.getEnv();
 
   const extraEnv = await generateAutomaticEnvVars(
-    octokit,
+    gitProvider,
     deployment,
     config,
     app,

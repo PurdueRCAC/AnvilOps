@@ -1,11 +1,7 @@
 import { RequestError } from "octokit";
 import { db } from "../db/index.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import {
-  InstallationNotFoundError,
-  OrgNotFoundError,
-  RepositoryNotFoundError,
-} from "./common/errors.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
+import { OrgNotFoundError, RepositoryNotFoundError } from "./common/errors.ts";
 
 export async function listRepoBranches(
   orgId: number,
@@ -20,21 +16,13 @@ export async function listRepoBranches(
     throw new OrgNotFoundError(null);
   }
 
-  if (org.githubInstallationId === null) {
-    throw new InstallationNotFoundError(null);
-  }
-
   try {
-    const octokit = await getOctokit(org.githubInstallationId);
-    const repo = await getRepoById(octokit, repoId);
-    const branches = await octokit.rest.repos.listBranches({
-      owner: repo.owner.login,
-      repo: repo.name,
-    });
+    const gitProvider = await getGitProvider(org.id);
+    const branches = await gitProvider.getBranches(repoId);
 
     return {
-      default: repo.default_branch,
-      branches: branches.data.map((branch) => branch.name),
+      default: branches.defaultBranch,
+      branches: branches.names,
     };
   } catch (e) {
     if (e instanceof RequestError && e.status == 404) {

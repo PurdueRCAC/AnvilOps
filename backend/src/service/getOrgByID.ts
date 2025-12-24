@@ -1,9 +1,12 @@
-import type { Octokit } from "octokit";
 import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import { env } from "../lib/env.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
+import {
+  InstallationNotFoundError,
+  OrgNotFoundError,
+  RepositoryNotFoundError,
+} from "./common/errors.ts";
 
 export async function getOrgByID(orgId: number, userId: number) {
   const org = await db.org.getById(orgId, { requireUser: { id: userId } });
@@ -19,10 +22,13 @@ export async function getOrgByID(orgId: number, userId: number) {
     db.org.listUsers(org.id),
   ]);
 
-  let octokit: Promise<Octokit>;
-
-  if (org.githubInstallationId) {
-    octokit = getOctokit(org.githubInstallationId);
+  let gitProvider: GitProvider;
+  try {
+    gitProvider = await getGitProvider(org.id);
+  } catch (e) {
+    if (!(e instanceof InstallationNotFoundError)) {
+      throw e;
+    }
   }
 
   const hydratedApps = await Promise.all(
@@ -37,12 +43,12 @@ export async function getOrgByID(orgId: number, userId: number) {
       }
 
       let repoURL: string;
-      if (config.source === "GIT" && org.githubInstallationId) {
+      if (config.source === "GIT") {
         try {
-          const repo = await getRepoById(await octokit, config.repositoryId);
-          repoURL = repo.html_url;
-        } catch (error: any) {
-          if (error?.status === 404) {
+          const repo = await gitProvider.getRepoById(config.repositoryId);
+          repoURL = repo.htmlURL;
+        } catch (error) {
+          if (error instanceof RepositoryNotFoundError) {
             // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
             return;
           }
@@ -90,7 +96,6 @@ export async function getOrgByID(orgId: number, userId: number) {
       email: membership.user.email,
       permissionLevel: membership.permissionLevel,
     })),
-    githubInstallationId: org.githubInstallationId,
     appGroups: appGroupRes,
     outgoingInvitations: outgoingInvitations.map((inv) => ({
       id: inv.id,

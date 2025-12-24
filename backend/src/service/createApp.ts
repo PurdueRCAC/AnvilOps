@@ -1,12 +1,15 @@
 import { randomBytes } from "node:crypto";
-import { type Octokit } from "octokit";
 import { ConflictError, db } from "../db/index.ts";
 import type { App, DeploymentConfigCreate } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
 import { namespaceInUse } from "../lib/cluster/kubernetes.ts";
 import { canManageProject, isRancherManaged } from "../lib/cluster/rancher.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import {
+  getGitProvider,
+  type GitProvider,
+  type GitRepository,
+} from "../lib/git/gitProvider.ts";
 import {
   validateAppGroup,
   validateAppName,
@@ -15,7 +18,9 @@ import {
 } from "../lib/validate.ts";
 import {
   DeploymentError,
+  InstallationNotFoundError,
   OrgNotFoundError,
+  RepositoryNotFoundError,
   ValidationError,
 } from "./common/errors.ts";
 import { buildAndDeploy } from "./githubWebhook.ts";
@@ -59,19 +64,17 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
     commitMessage = "Initial deployment";
 
   if (appData.source === "git") {
-    if (!organization.githubInstallationId) {
-      throw new ValidationError(
-        "The AnvilOps GitHub App is not installed in this organization.",
-      );
-    }
-
-    let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
+    let gitProvider: GitProvider, repo: GitRepository;
 
     try {
-      octokit = await getOctokit(organization.githubInstallationId);
-      repo = await getRepoById(octokit, appData.repositoryId);
+      gitProvider = await getGitProvider(organization.id);
+      repo = await gitProvider.getRepoById(appData.repositoryId);
     } catch (err) {
-      if (err.status === 404) {
+      if (err instanceof InstallationNotFoundError) {
+        throw new ValidationError(
+          "This organization is not connected to a Git provider.",
+        );
+      } else if (err instanceof RepositoryNotFoundError) {
         throw new ValidationError("Invalid repository ID");
       }
 
@@ -80,12 +83,7 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
 
     if (appData.event === "workflow_run" && appData.eventId) {
       try {
-        const workflows = await (
-          octokit.request({
-            method: "GET",
-            url: `/repositories/${repo.id}/actions/workflows`,
-          }) as ReturnType<typeof octokit.rest.actions.listRepoWorkflows>
-        ).then((res) => res.data.workflows);
+        const workflows = await gitProvider.getWorkflows(repo.id);
         if (!workflows.some((workflow) => workflow.id === appData.eventId)) {
           throw new ValidationError("Workflow not found");
         }
@@ -94,16 +92,13 @@ export async function validateAppConfig(ownerUserId: number, appData: NewApp) {
       }
     }
 
-    const latestCommit = (
-      await octokit.rest.repos.listCommits({
-        per_page: 1,
-        owner: repo.owner.login,
-        repo: repo.name,
-      })
-    ).data[0];
+    const latestCommit = await gitProvider.getLatestCommit(
+      repo.id,
+      appData.branch,
+    );
 
     commitSha = latestCommit.sha;
-    commitMessage = latestCommit.commit.message;
+    commitMessage = latestCommit.message;
   }
 
   return { clusterUsername, organization, commitSha, commitMessage };

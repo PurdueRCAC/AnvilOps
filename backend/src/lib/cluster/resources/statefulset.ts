@@ -1,9 +1,8 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import crypto from "node:crypto";
-import type { Octokit } from "octokit";
 import type { App, Deployment, DeploymentConfig } from "../../../db/models.ts";
 import { env } from "../../env.ts";
-import { getRepoById } from "../../octokit.ts";
+import type { GitProvider } from "../../git/gitProvider.ts";
 import type { K8sObject } from "../resources.ts";
 import { wrapWithLogExporter } from "./logs.ts";
 
@@ -26,7 +25,7 @@ interface DeploymentParams {
 }
 
 export const generateAutomaticEnvVars = async (
-  octokit: Octokit | null,
+  gitProvider: GitProvider | null,
   deployment: Deployment,
   config: DeploymentConfig,
   app: App,
@@ -68,17 +67,17 @@ export const generateAutomaticEnvVars = async (
     },
   ];
 
-  if (octokit && config.source === "GIT") {
-    const repo = await getRepoById(octokit, config.repositoryId);
+  if (gitProvider && config.source === "GIT") {
+    const repo = await gitProvider.getRepoById(config.repositoryId);
     list.push({
       name: "ANVILOPS_REPOSITORY_ID",
       value: config.repositoryId.toString(),
     });
-    list.push({ name: "ANVILOPS_REPOSITORY_OWNER", value: repo.owner.login });
+    list.push({ name: "ANVILOPS_REPOSITORY_OWNER", value: repo.owner });
     list.push({ name: "ANVILOPS_REPOSITORY_NAME", value: repo.name });
     list.push({
       name: "ANVILOPS_REPOSITORY_SLUG",
-      value: `${repo.owner.login}/${repo.name}`,
+      value: `${repo.owner}/${repo.name}`,
     });
     list.push({
       name: "ANVILOPS_COMMIT_HASH",

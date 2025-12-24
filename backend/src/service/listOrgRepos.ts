@@ -1,9 +1,6 @@
 import { db } from "../db/index.ts";
-import { getOctokit } from "../lib/octokit.ts";
-import {
-  InstallationNotFoundError,
-  OrgNotFoundError,
-} from "./common/errors.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
+import { OrgNotFoundError } from "./common/errors.ts";
 
 export async function listOrgRepos(orgId: number, userId: number) {
   const org = await db.org.getById(orgId, {
@@ -14,16 +11,12 @@ export async function listOrgRepos(orgId: number, userId: number) {
     throw new OrgNotFoundError(null);
   }
 
-  if (org.githubInstallationId === null) {
-    throw new InstallationNotFoundError(null);
-  }
+  const gitProvider = await getGitProvider(org.id);
+  const repos = await gitProvider.getAllRepos();
 
-  const octokit = await getOctokit(org.githubInstallationId);
-  const repos = await octokit.rest.apps.listReposAccessibleToInstallation();
-
-  return repos.data.repositories?.map((repo) => ({
+  return repos.map((repo) => ({
     id: repo.id,
-    owner: repo.owner.login,
+    owner: repo.owner,
     name: repo.name,
   }));
 }

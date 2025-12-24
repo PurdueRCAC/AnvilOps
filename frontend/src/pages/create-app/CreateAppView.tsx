@@ -56,7 +56,9 @@ export default function CreateAppView() {
   const shouldShowDeploy =
     formState.orgId === undefined ||
     formState.source !== "git" ||
-    user?.orgs.some((org) => org.id === formState.orgId && org.githubConnected);
+    user?.orgs.some(
+      (org) => org.id === formState.orgId && org.gitProvider !== null,
+    );
 
   const config = useAppConfig();
 

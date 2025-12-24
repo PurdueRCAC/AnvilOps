@@ -63,7 +63,7 @@ export default function CreateAppGroupView() {
   const shouldShowDeploy = useMemo(() => {
     return (
       orgId === undefined ||
-      user?.orgs.some((org) => org.id === orgId && org.githubConnected)
+      user?.orgs.some((org) => org.id === orgId && org.gitProvider !== null)
     );
   }, [user, orgId]);
 

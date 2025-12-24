@@ -3,6 +3,7 @@ import {
   getProjectsForUser,
   isRancherManaged,
 } from "../lib/cluster/rancher.ts";
+import { getGitProviderType } from "../lib/git/gitProvider.ts";
 
 export async function getUser(userId: number) {
   const [user, orgs, unassignedInstallations, receivedInvitations] =
@@ -22,12 +23,14 @@ export async function getUser(userId: number) {
     id: user.id,
     email: user.email,
     name: user.name,
-    orgs: orgs.map((item) => ({
-      id: item.organization.id,
-      name: item.organization.name,
-      permissionLevel: item.permissionLevel,
-      githubConnected: item.organization.githubInstallationId !== null,
-    })),
+    orgs: await Promise.all(
+      orgs.map(async (item) => ({
+        id: item.organization.id,
+        name: item.organization.name,
+        permissionLevel: item.permissionLevel,
+        gitProvider: await getGitProviderType(item.organization.id),
+      })),
+    ),
     projects,
     unassignedInstallations: unassignedInstallations,
     receivedInvitations: receivedInvitations.map((inv) => ({
