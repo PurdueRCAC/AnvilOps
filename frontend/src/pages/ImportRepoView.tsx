@@ -23,13 +23,6 @@ export const ImportRepoView = () => {
           },
         });
 
-        if (response.url) {
-          // If `url` is specified in the response, then we need to authorize with GitHub.
-          // Redirect there and it'll redirect back to this page (with a `code` and `state`) when done.
-          window.location.href = response.url;
-          return;
-        }
-
         toast.success("Repository imported!");
         navigate(`/create-app?org=${response.orgId}&repo=${response.repoId}`);
       } catch (e) {

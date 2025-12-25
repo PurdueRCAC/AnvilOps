@@ -1,12 +1,12 @@
 import { Octokit } from "octokit";
-import { HelmConfig, WorkloadConfig } from "../db/models.ts";
-import { AppRepo } from "../db/repo/app.ts";
-import { components } from "../generated/openapi.ts";
-import { MAX_SUBDOMAIN_LEN } from "../lib/cluster/resources.ts";
-import { getImageConfig } from "../lib/cluster/resources/logs.ts";
-import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
-import { getRepoById } from "../lib/octokit.ts";
-import { isRFC1123 } from "../lib/validate.ts";
+import { HelmConfig, WorkloadConfig } from "../../db/models.ts";
+import { AppRepo } from "../../db/repo/app.ts";
+import { components } from "../../generated/openapi.ts";
+import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
+import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
+import { generateVolumeName } from "../../lib/cluster/resources/statefulset.ts";
+import { getRepoById } from "../../lib/octokit.ts";
+import { isRFC1123 } from "../../lib/validate.ts";
 import { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
 
 export class DeploymentConfigValidator {

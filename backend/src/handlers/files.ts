@@ -1,13 +1,15 @@
-import type { Response } from "express";
+import type { Response as ExpressResponse } from "express";
 import { Readable } from "node:stream";
-import { db } from "../db/index.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
-import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
-import { forwardRequest } from "../lib/fileBrowser.ts";
+import {
+  AppNotFoundError,
+  IllegalPVCAccessError,
+  ValidationError,
+} from "../service/common/errors.ts";
+import { forwardToFileBrowser } from "../service/files.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const getAppFile: HandlerMap["getAppFile"] = async (
+export const getAppFileHandler: HandlerMap["getAppFile"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -22,7 +24,7 @@ export const getAppFile: HandlerMap["getAppFile"] = async (
   );
 };
 
-export const downloadAppFile: HandlerMap["downloadAppFile"] = async (
+export const downloadAppFileHandler: HandlerMap["downloadAppFile"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -37,7 +39,7 @@ export const downloadAppFile: HandlerMap["downloadAppFile"] = async (
   );
 };
 
-export const writeAppFile: HandlerMap["writeAppFile"] = async (
+export const writeAppFileHandler: HandlerMap["writeAppFile"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -60,7 +62,7 @@ export const writeAppFile: HandlerMap["writeAppFile"] = async (
   );
 };
 
-export const deleteAppFile: HandlerMap["deleteAppFile"] = async (
+export const deleteAppFileHandler: HandlerMap["deleteAppFile"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
@@ -81,38 +83,28 @@ async function forward(
   volumeClaimName: string,
   path: string,
   requestInit: RequestInit,
-  res: Response,
+  res: ExpressResponse,
 ) {
-  const app = await db.app.getById(appId, { requireUser: { id: userId } });
-
-  if (!app) {
-    return json(404, res, {});
+  let response: Response;
+  try {
+    response = await forwardToFileBrowser(
+      userId,
+      appId,
+      volumeClaimName,
+      path,
+      requestInit,
+    );
+  } catch (e) {
+    if (e instanceof AppNotFoundError) {
+      return json(404, res, {});
+    } else if (e instanceof IllegalPVCAccessError) {
+      return json(403, res, {});
+    } else if (e instanceof ValidationError) {
+      return json(400, res, { code: 400, res: e.message });
+    } else {
+      throw e;
+    }
   }
-
-  const config = await db.app.getDeploymentConfig(appId);
-
-  if (config.appType !== "workload") {
-    return json(400, res, {
-      code: 400,
-      message: "File browsing is supported only for Git and image deployments",
-    });
-  }
-
-  if (
-    !config.mounts.some((mount) =>
-      volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
-    )
-  ) {
-    // This persistent volume doesn't belong to the application
-    return json(400, res, {});
-  }
-
-  const response = await forwardRequest(
-    getNamespace(app.namespace),
-    volumeClaimName,
-    path,
-    requestInit,
-  );
 
   if (response.status === 404) {
     return json(404, res, {});

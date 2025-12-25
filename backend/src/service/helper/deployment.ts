@@ -3,9 +3,9 @@ import {
   GitConfigCreate,
   HelmConfigCreate,
   WorkloadConfigCreate,
-} from "../db/models.ts";
-import { components } from "../generated/openapi.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+} from "../../db/models.ts";
+import { components } from "../../generated/openapi.ts";
+import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { type DeploymentConfigValidator } from "./deploymentConfig.ts";
 import { deploymentConfigValidator } from "./index.ts";
 import { GitWorkloadConfig } from "./types.ts";
@@ -99,7 +99,7 @@ export class DeploymentService {
     }
   }
 
-  createCommonWorkloadConfig(
+  private createCommonWorkloadConfig(
     config: components["schemas"]["WorkloadConfigOptions"],
   ) {
     return {
@@ -118,7 +118,7 @@ export class DeploymentService {
     };
   }
 
-  async createGitConfig(
+  private async createGitConfig(
     config: GitWorkloadConfig,
     commitHash: string,
     repositoryId: number,

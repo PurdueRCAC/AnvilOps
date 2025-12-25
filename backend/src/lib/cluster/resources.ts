@@ -5,6 +5,7 @@ import type {
   V1Namespace,
   V1Secret,
 } from "@kubernetes/client-node";
+import { randomBytes } from "node:crypto";
 import type {
   App,
   AppGroup,
@@ -35,6 +36,9 @@ export const MAX_GROUPNAME_LEN = 50;
 // StatefulSet name must pass RFC 1123
 // The names of its pods, which are `{statefulset name}-{pod #}` also must pass RFC 1123
 export const MAX_STS_NAME_LEN = 60;
+
+export const getRandomTag = (): string => randomBytes(4).toString("hex");
+export const RANDOM_TAG_LEN = 8;
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 

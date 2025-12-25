@@ -6,12 +6,15 @@ import {
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import type { App, Deployment, GitConfig, Organization } from "../db/models.ts";
-import { generateCloneURLWithCredentials } from "../handlers/githubWebhook.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
 import { env } from "./env.ts";
-import { getOctokit, getRepoById } from "./octokit.ts";
+import {
+  generateCloneURLWithCredentials,
+  getOctokit,
+  getRepoById,
+} from "./octokit.ts";
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 

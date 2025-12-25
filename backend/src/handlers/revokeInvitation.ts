@@ -1,24 +1,25 @@
-import { db, NotFoundError } from "../db/index.ts";
+import { InvitationNotFoundError } from "../service/common/errors.ts";
+import { revokeInvitation } from "../service/revokeInvitation.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const revokeInvitation: HandlerMap["revokeInvitation"] = async (
+export const revokeInvitationHandler: HandlerMap["revokeInvitation"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
   try {
-    await db.invitation.revoke(
+    await revokeInvitation(
       ctx.request.params.orgId,
-      ctx.request.params.invId,
       req.user.id,
+      ctx.request.params.invId,
     );
+
+    return json(204, res, {});
   } catch (e) {
-    if (e instanceof NotFoundError) {
+    if (e instanceof InvitationNotFoundError) {
       return json(404, res, { code: 404, message: "Invitation not found." });
     }
     throw e;
   }
-
-  return json(204, res, {});
 };

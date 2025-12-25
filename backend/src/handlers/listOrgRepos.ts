@@ -1,33 +1,25 @@
-import { db } from "../db/index.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import {
+  InstallationNotFoundError,
+  OrgNotFoundError,
+} from "../service/common/errors.ts";
+import { listOrgRepos } from "../service/listOrgRepos.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
-export const listOrgRepos: HandlerMap["listOrgRepos"] = async (
+export const listOrgReposHandler: HandlerMap["listOrgRepos"] = async (
   ctx,
   req: AuthenticatedRequest,
   res,
 ) => {
-  const org = await db.org.getById(ctx.request.params.orgId, {
-    requireUser: { id: req.user.id },
-  });
-
-  if (!org) {
-    return json(404, res, { code: 404, message: "Organization not found." });
+  try {
+    const data = await listOrgRepos(ctx.request.params.orgId, req.user.id);
+    return json(200, res, data);
+  } catch (e) {
+    if (e instanceof OrgNotFoundError) {
+      return json(404, res, { code: 404, message: "Organization not found." });
+    } else if (e instanceof InstallationNotFoundError) {
+      return json(403, res, { code: 403, message: "GitHub not connected" });
+    }
+    throw e;
   }
-
-  if (org.githubInstallationId === null) {
-    return json(403, res, { code: 403, message: "GitHub not connected" });
-  }
-
-  const octokit = await getOctokit(org.githubInstallationId);
-  const repos = await octokit.rest.apps.listReposAccessibleToInstallation();
-
-  const data = repos.data.repositories?.map((repo) => ({
-    id: repo.id,
-    owner: repo.owner.login,
-    name: repo.name,
-  }));
-
-  return json(200, res, data);
 };

@@ -89,3 +89,20 @@ export async function getRepoById(octokit: Octokit, repoId: number) {
     ),
   ) as Repo;
 }
+
+export async function generateCloneURLWithCredentials(
+  octokit: Octokit,
+  originalURL: string,
+) {
+  const url = URL.parse(originalURL);
+
+  if (url.host !== URL.parse(env.GITHUB_BASE_URL).host) {
+    // If the target is on a different GitHub instance, don't add credentials!
+    return originalURL;
+  }
+
+  const token = await getInstallationAccessToken(octokit);
+  url.username = "x-access-token";
+  url.password = token;
+  return url.toString();
+}

@@ -1,6 +1,7 @@
 import type {
   DeploymentSource,
   DeploymentStatus,
+  GitHubOAuthAction,
   HelmUrlType,
   ImageBuilder,
   PermissionLevel,
@@ -194,4 +195,12 @@ export interface RepoImportState {
   makePrivate: boolean;
   userId: number;
   orgId: number;
+}
+
+export interface GitHubOAuthState {
+  id: number;
+  random: string;
+  userId: number;
+  orgId: number;
+  action: GitHubOAuthAction;
 }
