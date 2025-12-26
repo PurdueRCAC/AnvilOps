@@ -1,18 +1,169 @@
 import { Octokit } from "octokit";
-import { HelmConfig, WorkloadConfig } from "../../db/models.ts";
+import {
+  App,
+  GitConfigCreate,
+  HelmConfig,
+  HelmConfigCreate,
+  WorkloadConfig,
+  WorkloadConfigCreate,
+} from "../../db/models.ts";
 import { AppRepo } from "../../db/repo/app.ts";
 import { components } from "../../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
 import { generateVolumeName } from "../../lib/cluster/resources/statefulset.ts";
-import { getRepoById } from "../../lib/octokit.ts";
+import { env } from "../../lib/env.ts";
+import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
+import { ValidationError } from "../common/errors.ts";
 import { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
 
-export class DeploymentConfigValidator {
+export class DeploymentConfigService {
   private appRepo: AppRepo;
-  constructor(appRepo: AppRepo) {
+  private getOctokitFn: typeof getOctokit;
+  private getRepoByIdFn: typeof getRepoById;
+  constructor(
+    appRepo: AppRepo,
+    getOctokitFn = getOctokit,
+    getRepoByIdFn = getRepoById,
+  ) {
     this.appRepo = appRepo;
+    this.getOctokitFn = getOctokitFn;
+    this.getRepoByIdFn = getRepoByIdFn;
+  }
+
+  async prepareDeploymentMetadata(
+    config: components["schemas"]["DeploymentConfig"],
+    orgId: number,
+  ): Promise<{
+    config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate;
+    commitMessage: string;
+  }> {
+    let commitHash = "unknown",
+      commitMessage = "Initial deployment";
+
+    switch (config.source) {
+      case "git": {
+        let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
+
+        try {
+          octokit = await this.getOctokitFn(orgId);
+          repo = await this.getRepoByIdFn(octokit, config.repositoryId);
+        } catch (err) {
+          if (err.status === 404) {
+            throw new Error("Invalid repository id");
+          }
+
+          console.error(err);
+          throw new Error("Failed to look up GitHub repository");
+        }
+
+        await this.validateGitConfig(config, octokit, repo);
+
+        if (config.commitHash) {
+          commitHash = config.commitHash;
+          const commit = await octokit.rest.git.getCommit({
+            owner: repo.owner.login,
+            repo: repo.name,
+            commit_sha: commitHash,
+          });
+          commitMessage = commit.data.message;
+        } else {
+          const latestCommit = (
+            await octokit.rest.repos.listCommits({
+              per_page: 1,
+              owner: repo.owner.login,
+              repo: repo.name,
+            })
+          ).data[0];
+
+          commitHash = latestCommit.sha;
+          commitMessage = latestCommit.commit.message;
+        }
+
+        return {
+          config: await this.createGitConfig(config, commitHash, repo.id),
+          commitMessage,
+        };
+      }
+      case "image": {
+        this.validateImageConfig(config);
+        return {
+          config: {
+            ...this.createCommonWorkloadConfig(config),
+            source: "IMAGE",
+            appType: "workload",
+          },
+          commitMessage,
+        };
+      }
+      case "helm": {
+        return {
+          config: { ...config, source: "HELM", appType: "helm" },
+          commitMessage,
+        };
+      }
+    }
+  }
+
+  /**
+   *
+   * @param config
+   * @param app
+   * @returns If source is GIT, a -ConfigCreate object with the image tag where the
+   *  built image will be pushed, the original config otherwise
+   */
+  updateConfigWithApp(
+    config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate,
+    app: App,
+  ) {
+    if (config.source === "GIT") {
+      return {
+        ...config,
+        imageTag: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:${config.commitHash}`,
+      };
+    }
+
+    return config;
+  }
+
+  private createCommonWorkloadConfig(
+    config: components["schemas"]["WorkloadConfigOptions"],
+  ) {
+    return {
+      appType: "workload" as const,
+      collectLogs: config.collectLogs,
+      createIngress: config.createIngress,
+      subdomain: config.subdomain,
+      env: config.env,
+      requests: config.requests,
+      limits: config.limits,
+      replicas: config.replicas,
+      port: config.port,
+      mounts: config.mounts,
+      commitHash: "unknown",
+      imageTag: config.imageTag,
+    };
+  }
+
+  private async createGitConfig(
+    config: GitWorkloadConfig,
+    commitHash: string,
+    repositoryId: number,
+  ): Promise<GitConfigCreate> {
+    return {
+      ...this.createCommonWorkloadConfig(config),
+      source: "GIT",
+      repositoryId,
+      branch: config.branch,
+      event: config.event,
+      eventId: config.eventId,
+      commitHash,
+      builder: config.builder,
+      dockerfilePath: config.dockerfilePath,
+      rootDir: config.rootDir,
+      imageTag: undefined,
+    } satisfies GitConfigCreate;
   }
 
   // Produces a DeploymentConfig object to be returned from the API, as described in the OpenAPI spec.
@@ -74,7 +225,9 @@ export class DeploymentConfigValidator {
     }
 
     if (config.port < 0 || config.port > 65535) {
-      throw new Error("Invalid port number: must be between 0 and 65535");
+      throw new ValidationError(
+        "Invalid port number: must be between 0 and 65535",
+      );
     }
 
     this.validateEnv(config.env);
@@ -89,19 +242,19 @@ export class DeploymentConfigValidator {
   ) {
     const { rootDir, builder, dockerfilePath, event, eventId } = config;
     if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
-      throw new Error("Invalid root directory");
+      throw new ValidationError("Invalid root directory");
     }
     if (builder === "dockerfile") {
       if (!dockerfilePath) {
-        throw new Error("Dockerfile path is required");
+        throw new ValidationError("Dockerfile path is required");
       }
       if (dockerfilePath.startsWith("/") || dockerfilePath.includes(`"`)) {
-        throw new Error("Invalid Dockerfile path");
+        throw new ValidationError("Invalid Dockerfile path");
       }
     }
 
     if (event === "workflow_run" && eventId === undefined) {
-      throw new Error("Workflow ID is required");
+      throw new ValidationError("Workflow ID is required");
     }
 
     if (config.event === "workflow_run" && config.eventId) {
@@ -113,17 +266,17 @@ export class DeploymentConfigValidator {
           }) as ReturnType<typeof octokit.rest.actions.listRepoWorkflows>
         ).then((res) => res.data.workflows);
         if (!workflows.some((workflow) => workflow.id === config.eventId)) {
-          throw new Error("Workflow not found");
+          throw new ValidationError("Workflow not found");
         }
       } catch (err) {
-        throw new Error("Failed to look up GitHub workflow");
+        throw new ValidationError("Failed to look up GitHub workflow");
       }
     }
   }
 
   async validateImageConfig(config: ImageWorkloadConfig) {
     if (!config.imageTag) {
-      throw new Error("Image tag is required");
+      throw new ValidationError("Image tag is required");
     }
 
     await this.validateImageReference(config.imageTag);
@@ -135,13 +288,13 @@ export class DeploymentConfigValidator {
     const pathSet = new Set();
     for (const mount of mounts) {
       if (!mount.path.startsWith("/")) {
-        throw new Error(
+        throw new ValidationError(
           `Invalid mount path ${mount.path}: must start with '/'`,
         );
       }
 
       if (pathSet.has(mount.path)) {
-        throw new Error(`Invalid mounts: paths are not unique`);
+        throw new ValidationError(`Invalid mounts: paths are not unique`);
       }
       pathSet.add(mount.path);
     }
@@ -149,29 +302,23 @@ export class DeploymentConfigValidator {
 
   private validateEnv(env: PrismaJson.EnvVar[]) {
     if (env?.some((it) => !it.name || it.name.length === 0)) {
-      return {
-        valid: false,
-        message: "Some environment variable(s) are empty",
-      };
+      throw new ValidationError("Some environment variable(s) are empty");
     }
 
     if (env?.some((it) => it.name.startsWith("_PRIVATE_ANVILOPS_"))) {
       // Environment variables with this prefix are used in the log shipper - see log-shipper/main.go
-      return {
-        valid: false,
-        message:
-          'Environment variable(s) use reserved prefix "_PRIVATE_ANVILOPS_"',
-      };
+      throw new ValidationError(
+        'Environment variable(s) use reserved prefix "_PRIVATE_ANVILOPS_"',
+      );
     }
 
     const envNames = new Set();
 
     for (let envVar of env) {
       if (envNames.has(envVar.name)) {
-        return {
-          valid: false,
-          message: "Duplicate environment variable " + envVar.name,
-        };
+        throw new ValidationError(
+          "Duplicate environment variable " + envVar.name,
+        );
       }
       envNames.add(envVar.name);
     }
@@ -183,13 +330,13 @@ export class DeploymentConfigValidator {
       await getImageConfig(reference);
     } catch (e) {
       console.error(e);
-      throw new Error("Image could not be found in its registry.");
+      throw new ValidationError("Image could not be found in its registry.");
     }
   }
 
   private async validateSubdomain(subdomain: string) {
     if (subdomain.length > MAX_SUBDOMAIN_LEN || !isRFC1123(subdomain)) {
-      throw new Error(
+      throw new ValidationError(
         "Subdomain must contain only lowercase alphanumeric characters or '-', " +
           "start and end with an alphanumeric character, " +
           `and contain at most ${MAX_SUBDOMAIN_LEN} characters`,
@@ -197,7 +344,7 @@ export class DeploymentConfigValidator {
     }
 
     if (await this.appRepo.isSubdomainInUse(subdomain)) {
-      throw new Error("Subdomain is in use");
+      throw new ValidationError("Subdomain is in use");
     }
   }
 }

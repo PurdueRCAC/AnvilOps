@@ -4,7 +4,7 @@ import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { DeploymentNotFoundError } from "./common/errors.ts";
-import { deploymentConfigValidator } from "./helper/index.ts";
+import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getDeployment(deploymentId: number, userId: number) {
   const deployment = await db.deployment.getById(deploymentId, {
@@ -91,6 +91,6 @@ export async function getDeployment(deploymentId: number, userId: number) {
       total: pods.items.length,
       failed,
     },
-    config: deploymentConfigValidator.formatDeploymentConfig(config),
+    config: deploymentConfigService.formatDeploymentConfig(config),
   };
 }

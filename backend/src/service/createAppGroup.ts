@@ -1,14 +1,13 @@
 import { ConflictError, db } from "../db/index.ts";
 import { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import {
-  DeploymentError,
-  OrgNotFoundError,
-  ValidationError,
-} from "../service/common/errors.ts";
+import { OrgNotFoundError, ValidationError } from "../service/common/errors.ts";
 import { type NewApp } from "../service/createApp.ts";
-import { buildAndDeploy } from "./githubWebhook.ts";
-import { appService } from "./helper/index.ts";
+import {
+  appService,
+  deploymentConfigService,
+  deploymentService,
+} from "./helper/index.ts";
 
 export type NewAppWithoutGroup =
   components["schemas"]["NewAppWithoutGroupInfo"];
@@ -53,7 +52,7 @@ export async function createAppGroup(
   }));
 
   for (const { appData, metadata } of appsWithMetadata) {
-    const { config, commitMessage } = metadata;
+    let { config, commitMessage } = metadata;
     let app: App;
     try {
       app = await db.app.create({
@@ -64,6 +63,7 @@ export async function createAppGroup(
         projectId: appData.projectId,
         namespace: appData.namespace,
       });
+      config = deploymentConfigService.updateConfigWithApp(config, app);
     } catch (err) {
       // In between validation and creating the app, the namespace was taken by another app
       if (err instanceof ConflictError) {
@@ -71,17 +71,11 @@ export async function createAppGroup(
       }
     }
 
-    try {
-      await buildAndDeploy({
-        org: organization,
-        app,
-        imageRepo: app.imageRepo,
-        commitMessage,
-        config,
-        createCheckRun: false,
-      });
-    } catch (err) {
-      throw new DeploymentError(err);
-    }
+    await deploymentService.create({
+      org: organization,
+      app,
+      commitMessage,
+      config,
+    });
   }
 }

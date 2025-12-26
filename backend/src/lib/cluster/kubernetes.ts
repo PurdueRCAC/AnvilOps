@@ -12,10 +12,10 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
+import { db } from "../../db/index.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
-import { db } from "../../db/index.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();

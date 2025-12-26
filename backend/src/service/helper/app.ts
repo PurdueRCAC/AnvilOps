@@ -12,8 +12,7 @@ import {
 } from "../../lib/cluster/resources.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../../service/common/errors.ts";
-import { DeploymentService } from "./deployment.ts";
-import { DeploymentConfigValidator } from "./deploymentConfig.ts";
+import { DeploymentConfigService } from "./deploymentConfig.ts";
 
 export interface App {
   name?: string;
@@ -23,14 +22,9 @@ export interface App {
 }
 
 export class AppService {
-  private configValidator: DeploymentConfigValidator;
-  private deploymentService: DeploymentService;
-  constructor(
-    configValidator: DeploymentConfigValidator,
-    deploymentService: DeploymentService,
-  ) {
-    this.configValidator = configValidator;
-    this.deploymentService = deploymentService;
+  private configService: DeploymentConfigService;
+  constructor(configService: DeploymentConfigService) {
+    this.configService = configService;
   }
 
   /**
@@ -69,14 +63,12 @@ export class AppService {
     }
 
     const metadata: (
-      | Awaited<
-          ReturnType<typeof this.deploymentService.prepareDeploymentMetadata>
-        >
+      | Awaited<ReturnType<typeof this.configService.prepareDeploymentMetadata>>
       | Error
     )[] = await Promise.all(
       apps.map((app) => {
         try {
-          return this.deploymentService.prepareDeploymentMetadata(
+          return this.configService.prepareDeploymentMetadata(
             app.config,
             organization.id,
           );
@@ -92,7 +84,7 @@ export class AppService {
     }
 
     return metadata as Awaited<
-      ReturnType<typeof this.deploymentService.prepareDeploymentMetadata>
+      ReturnType<typeof this.configService.prepareDeploymentMetadata>
     >[];
   }
 
@@ -111,7 +103,7 @@ export class AppService {
     }
 
     if (app.config.appType === "workload") {
-      await this.configValidator.validateCommonWorkloadConfig(app.config);
+      await this.configService.validateCommonWorkloadConfig(app.config);
     }
 
     if (app.namespace) {

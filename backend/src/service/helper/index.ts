@@ -1,14 +1,17 @@
 import { db } from "../../db/index.ts";
+import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { AppService } from "./app.ts";
 import { DeploymentService } from "./deployment.ts";
-import { DeploymentConfigValidator } from "./deploymentConfig.ts";
+import { DeploymentConfigService } from "./deploymentConfig.ts";
 
-export const deploymentConfigValidator = new DeploymentConfigValidator(db.app);
+export const deploymentConfigService = new DeploymentConfigService(db.app);
+
+export const appService = new AppService(deploymentConfigService);
+
 export const deploymentService = new DeploymentService(
-  deploymentConfigValidator,
-);
-
-export const appService = new AppService(
-  deploymentConfigValidator,
-  deploymentService,
+  db.app,
+  db.appGroup,
+  db.deployment,
+  getOctokit,
+  getRepoById,
 );

@@ -6,13 +6,12 @@ import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
 } from "../lib/cluster/resources.ts";
+import { OrgNotFoundError, ValidationError } from "./common/errors.ts";
 import {
-  DeploymentError,
-  OrgNotFoundError,
-  ValidationError,
-} from "./common/errors.ts";
-import { buildAndDeploy } from "./githubWebhook.ts";
-import { appService } from "./helper/index.ts";
+  appService,
+  deploymentConfigService,
+  deploymentService,
+} from "./helper/index.ts";
 
 export type NewApp = components["schemas"]["NewApp"];
 
@@ -58,7 +57,7 @@ export async function createApp(appData: NewApp, userId: number) {
     }
   }
 
-  const { config, commitMessage } = (
+  let { config, commitMessage } = (
     await appService.prepareMetadataForApps(organization, user, appData)
   )[0];
 
@@ -71,6 +70,8 @@ export async function createApp(appData: NewApp, userId: number) {
       projectId: appData.projectId,
       namespace: appData.namespace,
     });
+
+    config = deploymentConfigService.updateConfigWithApp(config, app);
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
     if (err instanceof ConflictError) {
@@ -78,18 +79,11 @@ export async function createApp(appData: NewApp, userId: number) {
     }
   }
 
-  try {
-    await buildAndDeploy({
-      org: organization,
-      app,
-      imageRepo: app.imageRepo,
-      commitMessage,
-      config,
-      createCheckRun: false,
-    });
-  } catch (err) {
-    throw new DeploymentError(err);
-  }
-
+  await deploymentService.create({
+    org: organization,
+    app,
+    commitMessage,
+    config,
+  });
   return app.id;
 }

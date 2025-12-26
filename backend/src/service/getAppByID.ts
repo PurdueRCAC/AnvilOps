@@ -3,7 +3,7 @@ import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { AppNotFoundError } from "./common/errors.ts";
-import { deploymentConfigValidator } from "./helper/index.ts";
+import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getAppByID(appId: number, userId: number) {
   const [app, recentDeployment, deploymentCount] = await Promise.all([
@@ -63,7 +63,7 @@ export async function getAppByID(appId: number, userId: number) {
     repositoryURL: repoURL,
     cdEnabled: app.enableCD,
     namespace: app.namespace,
-    config: deploymentConfigValidator.formatDeploymentConfig(currentConfig),
+    config: deploymentConfigService.formatDeploymentConfig(currentConfig),
     appGroup: {
       standalone: appGroup.isMono,
       name: !appGroup.isMono ? appGroup.name : undefined,
