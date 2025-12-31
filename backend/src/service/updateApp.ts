@@ -1,5 +1,5 @@
 import { db } from "../db/index.ts";
-import {
+import type {
   Deployment,
   HelmConfig,
   HelmConfigCreate,
@@ -39,8 +39,8 @@ export async function updateApp(
   }
 
   const [organization, user] = await Promise.all([
-    this.orgRepo.getById(originalApp.orgId, { requireUser: { id: userId } }),
-    this.userRepo.getById(userId),
+    db.org.getById(originalApp.orgId, { requireUser: { id: userId } }),
+    db.user.getById(userId),
   ]);
 
   // performs validation

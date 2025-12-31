@@ -1,14 +1,15 @@
 import { Octokit } from "octokit";
-import {
+import type {
   App,
   GitConfigCreate,
   HelmConfig,
   HelmConfigCreate,
+  Organization,
   WorkloadConfig,
   WorkloadConfigCreate,
 } from "../../db/models.ts";
 import { AppRepo } from "../../db/repo/app.ts";
-import { components } from "../../generated/openapi.ts";
+import type { components } from "../../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
 import { generateVolumeName } from "../../lib/cluster/resources/statefulset.ts";
@@ -16,7 +17,7 @@ import { env } from "../../lib/env.ts";
 import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../common/errors.ts";
-import { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
+import type { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
 
 export class DeploymentConfigService {
   private appRepo: AppRepo;
@@ -34,7 +35,7 @@ export class DeploymentConfigService {
 
   async prepareDeploymentMetadata(
     config: components["schemas"]["DeploymentConfig"],
-    orgId: number,
+    organization: Pick<Organization, "githubInstallationId">,
   ): Promise<{
     config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate;
     commitMessage: string;
@@ -47,11 +48,11 @@ export class DeploymentConfigService {
         let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
 
         try {
-          octokit = await this.getOctokitFn(orgId);
+          octokit = await this.getOctokitFn(organization.githubInstallationId);
           repo = await this.getRepoByIdFn(octokit, config.repositoryId);
         } catch (err) {
           if (err.status === 404) {
-            throw new Error("Invalid repository id");
+            throw new ValidationError("Invalid repository id");
           }
 
           console.error(err);
@@ -87,7 +88,7 @@ export class DeploymentConfigService {
         };
       }
       case "image": {
-        this.validateImageConfig(config);
+        await this.validateImageConfig(config);
         return {
           config: {
             ...this.createCommonWorkloadConfig(config),
@@ -329,7 +330,6 @@ export class DeploymentConfigService {
       // Look up the image in its registry to make sure it exists
       await getImageConfig(reference);
     } catch (e) {
-      console.error(e);
       throw new ValidationError("Image could not be found in its registry.");
     }
   }

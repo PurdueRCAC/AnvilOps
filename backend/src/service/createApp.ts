@@ -17,8 +17,8 @@ export type NewApp = components["schemas"]["NewApp"];
 
 export async function createApp(appData: NewApp, userId: number) {
   const [organization, user] = await Promise.all([
-    this.orgRepo.getById(appData.orgId, { requireUser: { id: userId } }),
-    this.userRepo.getById(userId),
+    db.org.getById(appData.orgId, { requireUser: { id: userId } }),
+    db.user.getById(userId),
   ]);
 
   if (!organization) {

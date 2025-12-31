@@ -1,5 +1,5 @@
 import { ConflictError, db } from "../db/index.ts";
-import { App } from "../db/models.ts";
+import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
 import { OrgNotFoundError, ValidationError } from "../service/common/errors.ts";
 import { type NewApp } from "../service/createApp.ts";

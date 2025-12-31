@@ -232,18 +232,25 @@ const variables = {
 
 export const env = {} as Record<keyof typeof variables, string>;
 
+const notFound: string[] = [];
 for (const [key, _params] of Object.entries(variables)) {
   const params = _params as EnvVarDefinition;
   const value = process.env[key];
   if (value === undefined) {
     if (params.required === true) {
-      throw new Error("Environment variable " + key + " not found.");
+      notFound.push(key);
     } else if (params.defaultValue !== undefined) {
       env[key] = params.defaultValue;
     }
   } else {
     env[key] = value;
   }
+}
+
+if (notFound.length > 0) {
+  throw new Error(
+    "Environment variable(s) " + notFound.join(", ") + " not found.",
+  );
 }
 
 // Either DATABASE_URL or the separate variables must be specified

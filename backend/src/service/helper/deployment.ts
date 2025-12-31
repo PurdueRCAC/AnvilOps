@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import {
+import type {
   App,
   AppGroup,
   Deployment,
@@ -84,14 +84,18 @@ export class DeploymentService {
     });
     const config = await this.deploymentRepo.getConfig(deployment.id);
 
+    if (!app.configId) {
+      await this.appRepo.setConfig(app.id, deployment.configId);
+    }
+
     switch (config.source) {
       case "HELM": {
-        await this.deployHelm(org, app, deployment, config as HelmConfig);
+        this.deployHelm(org, app, deployment, config as HelmConfig);
         break;
       }
 
       case "GIT": {
-        await this.deployGit({
+        this.deployGit({
           org,
           app,
           deployment,
@@ -103,7 +107,7 @@ export class DeploymentService {
 
       case "IMAGE": {
         const appGroup = await this.appGroupRepo.getById(app.appGroupId);
-        await this.deployWorkloadWithoutBuild({
+        this.deployWorkloadWithoutBuild({
           org,
           app,
           appGroup,
@@ -134,9 +138,9 @@ export class DeploymentService {
     app: App;
     deployment: Deployment;
     config: GitConfig;
-    opts: GitOptions;
+    opts?: GitOptions;
   }) {
-    if (opts.checkRun) {
+    if (opts?.checkRun) {
       // Webhook event deployment
       const { pending, owner, repo } = opts.checkRun;
       if (pending) {
@@ -181,7 +185,7 @@ export class DeploymentService {
           },
         });
       }
-    } else if (opts.skipBuild) {
+    } else if (opts?.skipBuild) {
       // Minor config update
       const appGroup = await this.appGroupRepo.getById(app.appGroupId);
       await this.deployWorkloadWithoutBuild({

@@ -149,8 +149,18 @@ export const deleteNamespace = async (
   api: KubernetesObjectApi,
   name: string,
 ) => {
-  await api.delete({ apiVersion: "v1", kind: "Namespace", metadata: { name } });
-  console.log(`Namespace ${name} deleted`);
+  try {
+    await api.delete({
+      apiVersion: "v1",
+      kind: "Namespace",
+      metadata: { name },
+    });
+  } catch (err) {
+    if (err instanceof ApiException && err.code === 404) {
+      return;
+    }
+    throw err;
+  }
 };
 
 export const createOrUpdateApp = async (

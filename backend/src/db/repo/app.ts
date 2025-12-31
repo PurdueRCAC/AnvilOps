@@ -226,21 +226,27 @@ export class AppRepo {
       include: {
         config: {
           include: {
-            workloadConfig: true,
-            helmConfig: true,
+            workloadConfig: {
+              omit: { id: true },
+            },
+            helmConfig: {
+              omit: { id: true },
+            },
           },
         },
       },
     });
 
-    if (app.config.appType === "workload") {
+    if (app.config?.appType === "workload") {
       return DeploymentRepo.preprocessWorkloadConfig(app.config.workloadConfig);
-    } else {
+    } else if (app.config?.appType === "helm") {
       return {
         ...app.config.helmConfig,
         source: "HELM",
         appType: app.config.appType,
       };
+    } else {
+      return null;
     }
   }
 

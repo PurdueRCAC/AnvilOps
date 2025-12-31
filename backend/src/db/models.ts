@@ -100,7 +100,6 @@ export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
 }
 
 export interface WorkloadConfig {
-  id: number;
   displayEnv: PrismaJson.EnvVar[];
   getEnv(): PrismaJson.EnvVar[];
   appType: "workload";
@@ -156,7 +155,6 @@ export type GitConfigCreate = WorkloadConfigCreate & {
 };
 
 export type HelmConfig = {
-  id: number;
   appType: "helm";
   source: "HELM";
   url: string;

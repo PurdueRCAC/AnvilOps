@@ -1,5 +1,5 @@
-import { Organization, User } from "../../db/models.ts";
-import { components } from "../../generated/openapi.ts";
+import type { Organization, User } from "../../db/models.ts";
+import type { components } from "../../generated/openapi.ts";
 import { namespaceInUse } from "../../lib/cluster/kubernetes.ts";
 import {
   canManageProject,
@@ -48,7 +48,7 @@ export class AppService {
       )
     ).filter(Boolean);
     if (appValidationErrors.length != 0) {
-      throw new ValidationError(JSON.stringify(appValidationErrors));
+      throw new ValidationError(appValidationErrors.join(","));
     }
 
     if (
@@ -66,11 +66,11 @@ export class AppService {
       | Awaited<ReturnType<typeof this.configService.prepareDeploymentMetadata>>
       | Error
     )[] = await Promise.all(
-      apps.map((app) => {
+      apps.map(async (app) => {
         try {
-          return this.configService.prepareDeploymentMetadata(
+          return await this.configService.prepareDeploymentMetadata(
             app.config,
-            organization.id,
+            organization,
           );
         } catch (e) {
           return e;
@@ -78,7 +78,7 @@ export class AppService {
       }),
     );
 
-    const errors = metadata.filter((res) => res instanceof ValidationError);
+    const errors = metadata.filter((res) => res instanceof Error) as Error[];
     if (errors.length > 0) {
       throw new ValidationError(errors.map((err) => err.message).join(","));
     }

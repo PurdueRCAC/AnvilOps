@@ -5,9 +5,9 @@ import type {
   LogType,
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
-import {
+import type {
   WorkloadConfigCreateInput,
-  type WorkloadConfigModel as PrismaWorkloadConfig,
+  WorkloadConfigModel as PrismaWorkloadConfig,
 } from "../../generated/prisma/models.ts";
 import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
@@ -21,6 +21,8 @@ import type {
   WorkloadConfigCreate,
 } from "../models.ts";
 
+type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
+type PrismaHelmConfigCreate = Omit<HelmConfigCreate, "appType" | "source">;
 export class DeploymentRepo {
   private client: PrismaClientType;
   private publish: (topic: string, payload: any) => Promise<void>;
@@ -89,6 +91,13 @@ export class DeploymentRepo {
     workflowRunId?: number;
     status?: DeploymentStatus;
   }): Promise<Deployment> {
+    const configClone = structuredClone(config);
+    if (appType === "workload") {
+      delete configClone.appType;
+    } else if (appType === "helm") {
+      delete configClone.appType;
+      delete configClone.source;
+    }
     return await this.client.deployment.create({
       data: {
         app: { connect: { id: appId } },
@@ -99,13 +108,13 @@ export class DeploymentRepo {
               ? {
                   workloadConfig: {
                     create: DeploymentRepo.encryptEnv(
-                      config as WorkloadConfigCreate,
+                      configClone as PrismaWorkloadConfigCreate,
                     ),
                   },
                 }
               : {
                   helmConfig: {
-                    create: config as HelmConfigCreate,
+                    create: configClone as PrismaHelmConfigCreate,
                   },
                 }),
           },
@@ -175,8 +184,8 @@ export class DeploymentRepo {
       select: {
         config: {
           include: {
-            workloadConfig: true,
-            helmConfig: true,
+            workloadConfig: { omit: { id: true } },
+            helmConfig: { omit: { id: true } },
           },
         },
       },
@@ -196,7 +205,7 @@ export class DeploymentRepo {
   }
 
   private static encryptEnv(
-    config: WorkloadConfigCreate,
+    config: PrismaWorkloadConfigCreate,
   ): WorkloadConfigCreateInput {
     const copy = structuredClone(config) as WorkloadConfigCreateInput;
     copy.envKey = generateKey();
@@ -205,7 +214,7 @@ export class DeploymentRepo {
   }
 
   static preprocessWorkloadConfig(
-    config: PrismaWorkloadConfig,
+    config: Omit<PrismaWorkloadConfig, "id">,
   ): WorkloadConfig {
     if (config === null) {
       return null;
@@ -238,7 +247,6 @@ export class DeploymentRepo {
     const env = config.getEnv();
     delete newConfig.displayEnv;
     delete newConfig.getEnv;
-    delete newConfig.id;
 
     return { ...newConfig, env };
   }

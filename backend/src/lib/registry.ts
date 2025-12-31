@@ -11,7 +11,7 @@ export async function deleteRepo(name: string) {
   }
 
   await fetch(
-    `${env.REGISTRY_API_URL}/projects/${env.HARBOR_PROJECT_NAME}/repositories/${name}`,
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/projects/${env.HARBOR_PROJECT_NAME}/repositories/${name}`,
     {
       method: "DELETE",
       headers,
@@ -35,7 +35,9 @@ type HarborRepository = {
 };
 
 export async function getRepositoriesByProject(projectName: string) {
-  return fetch(`${env.REGISTRY_API_URL}/projects/${projectName}/repositories`)
+  return fetch(
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_API_URL}/projects/${projectName}/repositories`,
+  )
     .then((res) => res.text())
     .then((res) => JSON.parse(res))
     .then((res) => {

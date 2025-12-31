@@ -1,4 +1,4 @@
-import { components } from "../../generated/openapi.ts";
+import type { components } from "../../generated/openapi.ts";
 
 export type GitWorkloadConfig =
   components["schemas"]["WorkloadConfigOptions"] & { source: "git" };

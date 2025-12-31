@@ -1002,7 +1002,9 @@ paths:
                       format: int64
                     name:
                       type: string
-                  required: [id, name]
+                    isMono:
+                      type: boolean
+                  required: [id, name, isMono]
         "400":
           description: Validation failed
           content:
@@ -2195,6 +2197,7 @@ components:
             $ref: "#/components/schemas/Mount"
         subdomain:
           type: string
+          nullable: true
         createIngress:
           type: boolean
         collectLogs:
@@ -2218,6 +2221,7 @@ components:
         - requests
         - collectLogs
         - createIngress
+        - subdomain
     GitDeploymentOptions:
       allOf:
         - type: object
@@ -2280,7 +2284,7 @@ components:
         values:
           type: object
           additionalProperties: true
-      required: [source, url, urlType, version]
+      required: [appType, source, url, urlType, version]
 
     Mount:
       type: object
@@ -2452,31 +2456,25 @@ components:
       required:
         - name
         - orgId
-        - createIngress
         - namespace
         - config
+        - appGroup
     NewAppWithoutGroupInfo:
       type: object
-      allOf:
-        - type: object
-          properties:
-            name:
-              type: string
-            # Source options
-            projectId:
-              type: string
-            namespace:
-              type: string
-            config:
-              $ref: "#/components/schemas/DeploymentConfig"
-          required:
-            - name
-            - projectId
-            - namespace
-            - config
-        - oneOf:
-            - $ref: "#/components/schemas/GitDeploymentOptions"
-            - $ref: "#/components/schemas/ImageDeploymentOptions"
+      properties:
+        name:
+          type: string
+        # Source options
+        projectId:
+          type: string
+        namespace:
+          type: string
+        config:
+          $ref: "#/components/schemas/DeploymentConfig"
+      required:
+        - name
+        - namespace
+        - config
     Envs:
       type: array
       items:

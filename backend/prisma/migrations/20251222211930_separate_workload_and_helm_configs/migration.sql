@@ -24,12 +24,12 @@ CREATE TABLE "DeploymentConfig" (
 
 -- Fill with existing WorkloadConfigs
 INSERT INTO "DeploymentConfig" ("id", "appType", "workloadConfigId")
-SELECT id, 'WORKLOAD', id FROM "WorkloadConfig";
+SELECT id, 'workload', id FROM "WorkloadConfig";
 
 -- Adjust sequence to start at highest existing id value
 SELECT setval(
   '"DeploymentConfig_id_seq"',
-  (SELECT COALESCE(MAX(id), 0) FROM "DeploymentConfig")
+  (SELECT COALESCE(MAX(id), 1) FROM "DeploymentConfig")
 );
 
 -- Rename indexes
@@ -37,7 +37,7 @@ ALTER TABLE "Deployment" DROP CONSTRAINT "Deployment_configId_fkey";
 ALTER TABLE "Deployment" 
   ADD CONSTRAINT "Deployment_configId_fkey"
   FOREIGN KEY ("configId") REFERENCES "DeploymentConfig"(id)
-  ON UPDATE CASCADE ON DELETE SET NULL;
+  ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE "App" DROP CONSTRAINT "App_configId_fkey";
 ALTER TABLE "App"

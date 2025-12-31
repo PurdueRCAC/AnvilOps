@@ -98,7 +98,7 @@ export async function updateDeployment(secret: string, newStatus: string) {
       await Promise.all([
         db.deployment.setStatus(deployment.id, "COMPLETE"),
         // The update was successful. Update App with the reference to the latest successful config.
-        db.app.setConfig(app.id, config.id),
+        db.app.setConfig(app.id, deployment.configId),
       ]);
 
       dequeueBuildJob(); // TODO - error handling for this line
