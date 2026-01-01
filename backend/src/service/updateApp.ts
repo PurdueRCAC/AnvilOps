@@ -45,17 +45,23 @@ export async function updateApp(
 
   // performs validation
   let { config: updatedConfig, commitMessage } = (
-    await appService.prepareMetadataForApps(organization, user, appData)
+    await appService.prepareMetadataForApps(organization, user, {
+      existingAppId: originalApp.id,
+      ...appData,
+    })
   )[0];
 
   // ---------------- App group updates ----------------
   switch (appData.appGroup.type) {
     case "add-to": {
+      if (appData.appGroup.id === originalApp.appGroupId) {
+        break;
+      }
       const group = await db.appGroup.getById(appData.appGroup.id);
       if (!group) {
         throw new ValidationError("Invalid app group");
       }
-      db.app.setGroup(originalApp.id, appData.appGroup.id);
+      await db.app.setGroup(originalApp.id, appData.appGroup.id);
       break;
     }
 
@@ -66,11 +72,14 @@ export async function updateApp(
         appData.appGroup.name,
         false,
       );
-      db.app.setGroup(originalApp.id, appGroupId);
+      await db.app.setGroup(originalApp.id, appGroupId);
       break;
     }
 
     case "standalone": {
+      if (appData.appGroup.type === "standalone") {
+        break;
+      }
       // In this case, group name is constructed from the app name
       // App name was previously validated. If it passed RFC1123, then
       // a substring plus random tag will also pass, so no re-validation
@@ -80,7 +89,7 @@ export async function updateApp(
         groupName,
         true,
       );
-      db.app.setGroup(originalApp.id, appGroupId);
+      await db.app.setGroup(originalApp.id, appGroupId);
       break;
     }
   }
@@ -113,8 +122,19 @@ export async function updateApp(
   // Adds an image tag to Git configs
   updatedConfig = deploymentConfigService.updateConfigWithApp(
     updatedConfig,
-    originalApp,
+    app,
   );
+
+  if (
+    updatedConfig.appType === "workload" &&
+    currentConfig.appType === "workload"
+  ) {
+    updatedConfig.env = withSensitiveEnv(
+      currentConfig.getEnv(),
+      updatedConfig.env,
+    );
+  }
+
   try {
     await deploymentService.create({
       org: organization,
@@ -177,7 +197,7 @@ const shouldBuildOnUpdate = (
 };
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
-export const withSensitiveEnv = (
+const withSensitiveEnv = (
   lastPlaintextEnv: PrismaJson.EnvVar[],
   envVars: {
     name: string;

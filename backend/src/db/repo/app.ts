@@ -76,17 +76,15 @@ export class AppRepo {
     });
   }
 
-  async isSubdomainInUse(subdomain: string): Promise<boolean> {
-    return (
-      (await this.client.app.count({
-        where: {
-          config: {
-            appType: "workload",
-            workloadConfig: { subdomain },
-          },
+  async getAppBySubdomain(subdomain: string): Promise<App | null> {
+    return this.client.app.findFirst({
+      where: {
+        config: {
+          appType: "workload",
+          workloadConfig: { subdomain },
         },
-      })) > 0
-    );
+      },
+    });
   }
 
   async listForOrg(orgId: number): Promise<App[]> {

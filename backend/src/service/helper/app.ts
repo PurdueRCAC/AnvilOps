@@ -14,7 +14,8 @@ import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../../service/common/errors.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
 
-export interface App {
+interface App {
+  existingAppId?: number;
   name?: string;
   projectId?: string;
   namespace?: string;
@@ -39,7 +40,7 @@ export class AppService {
       await Promise.all(
         apps.map(async (app) => {
           try {
-            await this.validateNewApp(app, user);
+            await this.validateApp(app, user);
             return null;
           } catch (e) {
             return e.message;
@@ -91,7 +92,7 @@ export class AppService {
   /**
    * @throws ValidationError
    */
-  private async validateNewApp(app: App, user: { clusterUsername: string }) {
+  private async validateApp(app: App, user: { clusterUsername: string }) {
     if (isRancherManaged()) {
       if (!app.projectId) {
         throw new ValidationError("Project ID is required");
@@ -103,7 +104,10 @@ export class AppService {
     }
 
     if (app.config.appType === "workload") {
-      await this.configService.validateCommonWorkloadConfig(app.config);
+      await this.configService.validateCommonWorkloadConfig(
+        app.config,
+        app.existingAppId,
+      );
     }
 
     if (app.namespace) {

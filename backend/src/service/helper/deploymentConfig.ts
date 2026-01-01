@@ -75,6 +75,7 @@ export class DeploymentConfigService {
               per_page: 1,
               owner: repo.owner.login,
               repo: repo.name,
+              sha: config.branch,
             })
           ).data[0];
 
@@ -220,9 +221,10 @@ export class DeploymentConfigService {
 
   async validateCommonWorkloadConfig(
     config: components["schemas"]["WorkloadConfigOptions"],
+    existingAppId?: number,
   ) {
     if (config.subdomain) {
-      await this.validateSubdomain(config.subdomain);
+      await this.validateSubdomain(config.subdomain, existingAppId);
     }
 
     if (config.port < 0 || config.port > 65535) {
@@ -334,7 +336,7 @@ export class DeploymentConfigService {
     }
   }
 
-  private async validateSubdomain(subdomain: string) {
+  private async validateSubdomain(subdomain: string, existingAppId?: number) {
     if (subdomain.length > MAX_SUBDOMAIN_LEN || !isRFC1123(subdomain)) {
       throw new ValidationError(
         "Subdomain must contain only lowercase alphanumeric characters or '-', " +
@@ -343,7 +345,8 @@ export class DeploymentConfigService {
       );
     }
 
-    if (await this.appRepo.isSubdomainInUse(subdomain)) {
+    const appWithSubdomain = await this.appRepo.getAppBySubdomain(subdomain);
+    if (appWithSubdomain && appWithSubdomain.id !== existingAppId) {
       throw new ValidationError("Subdomain is in use");
     }
   }

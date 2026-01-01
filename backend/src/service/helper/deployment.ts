@@ -373,6 +373,7 @@ export class DeploymentService {
         deployment.id,
         DeploymentStatus.COMPLETE,
       );
+      await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
       await this.deploymentRepo.setStatus(
         deployment.id,
@@ -410,6 +411,11 @@ export class DeploymentService {
         release: app.name,
         values: config.values,
       });
+      await this.deploymentRepo.setStatus(
+        deployment.id,
+        DeploymentStatus.COMPLETE,
+      );
+      await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
       await this.deploymentRepo.setStatus(
         deployment.id,
