@@ -16,10 +16,5 @@ declare global {
     };
 
     type VolumeMount = { path: string; amountInMiB: number };
-
-    type AppFlags = {
-      enableCD: boolean;
-      isPreviewing: boolean;
-    };
   }
 }

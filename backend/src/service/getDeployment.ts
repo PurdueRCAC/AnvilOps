@@ -4,6 +4,7 @@ import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { DeploymentNotFoundError } from "./common/errors.ts";
+import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getDeployment(deploymentId: number, userId: number) {
   const deployment = await db.deployment.getById(deploymentId, {
@@ -77,7 +78,7 @@ export async function getDeployment(deploymentId: number, userId: number) {
 
   return {
     repositoryURL,
-    commitHash: config.commitHash,
+    commitHash: config.source === "GIT" ? config.commitHash : "unknown",
     commitMessage: deployment.commitMessage,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
@@ -90,28 +91,6 @@ export async function getDeployment(deploymentId: number, userId: number) {
       total: pods.items.length,
       failed,
     },
-    config: {
-      branch: config.branch,
-      imageTag: config.imageTag,
-      mounts: config.mounts.map((mount) => ({
-        path: mount.path,
-        amountInMiB: mount.amountInMiB,
-      })),
-      source: config.source === "GIT" ? ("git" as const) : ("image" as const),
-      repositoryId: config.repositoryId,
-      event: config.event,
-      eventId: config.eventId,
-      commitHash: config.commitHash,
-      builder: config.builder,
-      dockerfilePath: config.dockerfilePath,
-      env: config.displayEnv,
-      port: config.port,
-      replicas: config.replicas,
-      rootDir: config.rootDir,
-      collectLogs: config.collectLogs,
-      requests: config.requests,
-      limits: config.limits,
-      createIngress: config.createIngress,
-    },
+    config: deploymentConfigService.formatDeploymentConfig(config),
   };
 }

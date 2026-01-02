@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "spilo.fullname" . }}
+  labels:
+    {{- include "spilo.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "spilo.labels" . | nindent 6 }}
+  replicas: {{ .Values.replicas }}
+  serviceName: {{ include "spilo.fullname" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "spilo.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: operator
+      containers:
+      - name: spilo
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - { containerPort: 8008, protocol: TCP }
+        - { containerPort: 5432, protocol: TCP }
+        volumeMounts:
+        - name: pgdata
+          mountPath: /home/postgres/pgdata
+        env:
+        - name: DCS_ENABLE_KUBERNETES_API
+          value: 'true'
+        - name: KUBERNETES_SCOPE_LABEL
+          value: spilo-cluster
+        - name: KUBERNETES_ROLE_LABEL
+          value: role
+        - name: KUBERNETES_LEADER_LABEL_VALUE
+          value: master
+        - name: KUBERNETES_STANDBY_LEADER_LABEL_VALUE
+          value: master
+        - name: SPILO_CONFIGURATION
+          value: |
+            bootstrap:
+              initdb:
+                - auth-host: md5
+                - auth-local: trust
+        - name: POD_IP
+          valueFrom: { fieldRef: { apiVersion: v1, fieldPath: status.podIP } }
+        - name: POD_NAMESPACE
+          valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.namespace } }
+        - name: PGPASSWORD_SUPERUSER
+          valueFrom: { secretKeyRef: { name: {{ include "spilo.fullname" . }}, key: superuser-password } }
+        - name: PGUSER_ADMIN
+          value: superadmin
+        - name: PGPASSWORD_ADMIN
+          valueFrom: { secretKeyRef: { name: {{ include "spilo.fullname" . }}, key: admin-password } }
+        - name: PGPASSWORD_STANDBY
+          valueFrom: { secretKeyRef: { name: {{ include "spilo.fullname" . }}, key: replication-password } }
+        - name: SCOPE
+          value: {{ include "spilo.fullname" . }}
+        - name: PGROOT
+          value: /home/postgres/pgdata/pgroot
+  volumeClaimTemplates:
+  - metadata:
+      name: pgdata
+      labels:
+        {{- include "spilo.labels" . | nindent 8 }}
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: {{ .Values.storage.className | quote }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.size | quote }}

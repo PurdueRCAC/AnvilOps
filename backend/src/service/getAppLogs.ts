@@ -5,7 +5,7 @@ import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { AppNotFoundError, ValidationError } from "./common/errors.ts";
 
 export async function getAppLogs(
   appId: number,
@@ -32,7 +32,14 @@ export async function getAppLogs(
 
   // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
   const config = await db.app.getDeploymentConfig(app.id);
-  const collectLogs = config?.collectLogs;
+
+  if (config.appType != "workload") {
+    throw new ValidationError(
+      "Log browsing is supported only for Git and image deployments",
+    );
+  }
+
+  const collectLogs = config.collectLogs;
 
   if (collectLogs || type === "BUILD") {
     const fetchNewLogs = async () => {

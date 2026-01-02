@@ -5,12 +5,7 @@ import {
 } from "@kubernetes/client-node";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
-import type {
-  App,
-  Deployment,
-  DeploymentConfig,
-  Organization,
-} from "../db/models.ts";
+import type { App, Deployment, GitConfig, Organization } from "../db/models.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
@@ -29,7 +24,7 @@ async function createJobFromDeployment(
   org: Organization,
   app: App,
   deployment: Deployment,
-  config: DeploymentConfig,
+  config: GitConfig,
 ) {
   const octokit = await getOctokit(org.githubInstallationId);
   const repo = await getRepoById(octokit, config.repositoryId);
@@ -302,7 +297,7 @@ export async function createBuildJob(
   ...params: Parameters<typeof createJobFromDeployment>
 ) {
   const deployment = params[2] satisfies Deployment;
-  const config = params[3] satisfies DeploymentConfig;
+  const config = params[3] satisfies GitConfig;
 
   if (!["dockerfile", "railpack"].includes(config.builder)) {
     throw new Error(
@@ -359,7 +354,7 @@ export async function dequeueBuildJob(): Promise<string> {
 
   const app = await db.app.getById(deployment.appId);
   const org = await db.org.getById(app.orgId);
-  const config = await db.deployment.getConfig(deployment.id);
+  const config = (await db.deployment.getConfig(deployment.id)) as GitConfig;
 
   console.log(
     `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,

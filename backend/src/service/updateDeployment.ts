@@ -24,6 +24,11 @@ export async function updateDeployment(secret: string, newStatus: string) {
     throw new DeploymentNotFoundError();
   }
 
+  const config = await db.deployment.getConfig(deployment.id);
+  if (config.source !== "GIT") {
+    throw new ValidationError("Cannot update deployment");
+  }
+
   await db.deployment.setStatus(
     deployment.id,
     newStatus as "BUILDING" | "DEPLOYING" | "ERROR",
@@ -36,9 +41,8 @@ export async function updateDeployment(secret: string, newStatus: string) {
   );
 
   const app = await db.app.getById(deployment.appId);
-  const [appGroup, config, org] = await Promise.all([
+  const [appGroup, org] = await Promise.all([
     db.appGroup.getById(app.appGroupId),
-    db.deployment.getConfig(deployment.id),
     db.org.getById(app.orgId),
   ]);
 
@@ -94,7 +98,7 @@ export async function updateDeployment(secret: string, newStatus: string) {
       await Promise.all([
         db.deployment.setStatus(deployment.id, "COMPLETE"),
         // The update was successful. Update App with the reference to the latest successful config.
-        db.app.setConfig(app.id, config.id),
+        db.app.setConfig(app.id, deployment.configId),
       ]);
 
       dequeueBuildJob(); // TODO - error handling for this line

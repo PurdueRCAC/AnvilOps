@@ -34,6 +34,7 @@ import {
 import { ingestLogsHandler } from "./ingestLogs.ts";
 import { inviteUserHandler } from "./inviteUser.ts";
 import { isSubdomainAvailableHandler } from "./isSubdomainAvailable.ts";
+import { listChartsHandler } from "./listCharts.ts";
 import { listDeploymentsHandler } from "./listDeployments.ts";
 import { listOrgGroupsHandler } from "./listOrgGroups.ts";
 import { listOrgReposHandler } from "./listOrgRepos.ts";
@@ -84,6 +85,7 @@ export const handlers = {
   ingestLogs: ingestLogsHandler,
   inviteUser: inviteUserHandler,
   isSubdomainAvailable: isSubdomainAvailableHandler,
+  listCharts: listChartsHandler,
   listDeployments: listDeploymentsHandler,
   listOrgGroups: listOrgGroupsHandler,
   listOrgRepos: listOrgReposHandler,

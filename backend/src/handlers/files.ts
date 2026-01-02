@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import {
   AppNotFoundError,
   IllegalPVCAccessError,
+  ValidationError,
 } from "../service/common/errors.ts";
 import { forwardToFileBrowser } from "../service/files.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -98,8 +99,11 @@ async function forward(
       return json(404, res, {});
     } else if (e instanceof IllegalPVCAccessError) {
       return json(403, res, {});
+    } else if (e instanceof ValidationError) {
+      return json(400, res, { code: 400, res: e.message });
+    } else {
+      throw e;
     }
-    throw e;
   }
 
   if (response.status === 404) {
