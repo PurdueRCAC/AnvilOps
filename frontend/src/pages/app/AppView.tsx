@@ -3,7 +3,7 @@ import { DeploymentStatus } from "@/components/DeploymentStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { components, paths } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, isWorkloadConfig } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ConfigTab } from "./ConfigTab";
@@ -95,10 +95,12 @@ export default function AppView() {
           </TabsTrigger>
           {settings.storageEnabled && !!app.activeDeployment && (
             <>
-              <TabsTrigger value="logs">
-                <span>Logs</span>
-              </TabsTrigger>
-              {app.config.mounts.length > 0 && (
+              {isWorkloadConfig(app.config) && (
+                <TabsTrigger value="logs">
+                  <span>Logs</span>
+                </TabsTrigger>
+              )}
+              {isWorkloadConfig(app.config) && app.config.mounts.length > 0 && (
                 <TabsTrigger value="files">
                   <span>Files</span>
                 </TabsTrigger>

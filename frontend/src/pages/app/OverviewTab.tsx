@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, isWorkloadConfig } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
@@ -26,10 +26,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
-
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
   timeStyle: "medium",
@@ -189,29 +187,31 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        {appDomain !== null && app.config.createIngress && (
-          <>
-            <p className="flex items-center gap-2">
-              <Link2 size={16} />
-              Public address
-            </p>
-            <p>
-              <a
-                href={(() => {
-                  const temp = new URL(appDomain);
-                  temp.hostname = app.config.subdomain + "." + temp.hostname;
-                  return temp.toString();
-                })()}
-                className="underline flex gap-1 items-center"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {app.config.subdomain}.{appDomain?.hostname}
-                <ExternalLink size={14} />
-              </a>
-            </p>
-          </>
-        )}
+        {appDomain !== null &&
+          isWorkloadConfig(app.config) &&
+          app.config.createIngress && (
+            <>
+              <p className="flex items-center gap-2">
+                <Link2 size={16} />
+                Public address
+              </p>
+              <p>
+                <a
+                  href={(() => {
+                    const temp = new URL(appDomain);
+                    temp.hostname = app.config.subdomain + "." + temp.hostname;
+                    return temp.toString();
+                  })()}
+                  className="underline flex gap-1 items-center"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {app.config.subdomain}.{appDomain?.hostname}
+                  <ExternalLink size={14} />
+                </a>
+              </p>
+            </>
+          )}
         <p className="flex items-center gap-2">
           <Network size={16} />
           Internal address
@@ -427,7 +427,6 @@ const ToggleCDForm = ({
           body: { enable: !app.cdEnabled },
         });
 
-        toast.success("Updated app successfully.");
         refetchApp();
       }}
     >

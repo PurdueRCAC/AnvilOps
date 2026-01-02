@@ -1,6 +1,6 @@
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, type Dispatch } from "react";
+import { Fragment, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
@@ -14,7 +14,7 @@ export const MountsGrid = ({
 }: {
   readonly?: boolean;
   value: Mounts;
-  setValue: Dispatch<React.SetStateAction<Mounts>>;
+  setValue: (updater: (mounts: Mounts) => Mounts) => void;
 }) => {
   useEffect(() => {
     for (let i in mounts) {
@@ -41,9 +41,13 @@ export const MountsGrid = ({
             className="w-full"
             value={path}
             onChange={(e) => {
-              const newList = structuredClone(mounts);
-              newList[index].path = e.currentTarget.value;
-              setMounts(newList);
+              const value = e.currentTarget.value;
+              setMounts((prev) =>
+                prev.toSpliced(index, 1, {
+                  ...prev[index],
+                  path: value,
+                }),
+              );
             }}
           />
           <span className="text-xl align-middle">:</span>
@@ -56,9 +60,13 @@ export const MountsGrid = ({
             min="1"
             max="10240"
             onChange={(e) => {
-              const newList = structuredClone(mounts);
-              newList[index].amountInMiB = e.currentTarget.valueAsNumber;
-              setMounts(newList);
+              const value = e.currentTarget.valueAsNumber;
+              setMounts((prev) =>
+                prev.toSpliced(index, 1, {
+                  ...prev[index],
+                  amountInMiB: value,
+                }),
+              );
             }}
           />
           <Tooltip>
@@ -72,7 +80,7 @@ export const MountsGrid = ({
             variant="secondary"
             type="button"
             onClick={() => {
-              setMounts(mounts.filter((_, i) => i !== index));
+              setMounts((mounts) => mounts.toSpliced(index, 1));
             }}
           >
             <Trash2 />

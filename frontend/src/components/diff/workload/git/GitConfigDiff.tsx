@@ -1,15 +1,11 @@
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectLabel,
-  SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
-import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -21,40 +17,66 @@ import {
   GitBranch,
   Hammer,
 } from "lucide-react";
-import { useContext } from "react";
-import { type DeploymentConfigFormData } from "@/components/diff/AppConfigDiff";
 import { DiffInput } from "@/components/diff/DiffInput";
+import type { components } from "@/generated/openapi";
+import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
+import { Button } from "@/components/ui/button";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
+import { DiffSelect } from "../../DiffSelect";
 
 export const GitConfigDiff = ({
-  orgId,
+  selectedOrg,
   base,
-  state,
-  setState,
+  gitState,
+  setGitState,
   disabled = false,
 }: {
-  orgId: number;
-  base: DeploymentConfigFormData;
-  state: DeploymentConfigFormData;
-  setState: (
-    callback: (s: DeploymentConfigFormData) => DeploymentConfigFormData,
-  ) => void;
+  selectedOrg?: components["schemas"]["UserOrg"];
+  base: CommonFormFields;
+  gitState: GitFormFields;
+  setGitState: (state: Partial<GitFormFields>) => void;
   disabled?: boolean;
 }) => {
-  const { user } = useContext(UserContext);
+  if (!selectedOrg?.githubConnected) {
+    if (selectedOrg?.permissionLevel === "OWNER") {
+      return (
+        <div>
+          <p className="mt-4">
+            <strong>{selectedOrg?.name}</strong> has not been connected to
+            GitHub.
+          </p>
+          <p className="mb-4">
+            AnvilOps integrates with GitHub to deploy your app as soon as you
+            push to your repository.
+          </p>
+          <a
+            className="flex w-full"
+            href={`/api/org/${selectedOrg?.id}/install-github-app`}
+          >
+            <Button className="w-full" type="button">
+              <GitHubIcon />
+              Install GitHub App
+            </Button>
+          </a>
+        </div>
+      );
+    } else {
+      return (
+        <p className="my-4">
+          <strong>{selectedOrg?.name}</strong> has not been connected to GitHub.
+          Ask the owner of your organization to install the AnvilOps GitHub App.
+        </p>
+      );
+    }
+  }
 
-  const selectedOrg =
-    orgId !== undefined ? user?.orgs?.find((it) => it.id === orgId) : undefined;
+  const baseGitState = base.source === "git" ? base.workload.git : null;
 
+  const orgId = selectedOrg.id;
   const { data: repos, isPending: reposLoading } = api.useQuery(
     "get",
     "/org/{orgId}/repos",
-    { params: { path: { orgId: orgId! } } },
-    {
-      enabled:
-        orgId !== undefined &&
-        state.source === "git" &&
-        selectedOrg?.githubConnected,
-    },
+    { params: { path: { orgId: selectedOrg.id } } },
   );
 
   const { data: branches, isPending: branchesLoading } = api.useQuery(
@@ -64,12 +86,12 @@ export const GitConfigDiff = ({
       params: {
         path: {
           orgId: orgId!,
-          repoId: state.repositoryId!,
+          repoId: gitState.repositoryId!,
         },
       },
     },
     {
-      enabled: !!orgId && !!state.repositoryId && state.source === "git",
+      enabled: gitState.repositoryId !== undefined,
     },
   );
 
@@ -80,18 +102,39 @@ export const GitConfigDiff = ({
       params: {
         path: {
           orgId: orgId!,
-          repoId: state.repositoryId!,
+          repoId: gitState.repositoryId!,
         },
       },
     },
     {
       enabled:
-        orgId !== undefined &&
-        state.repositoryId !== undefined &&
-        state.source === "git" &&
-        state.event === "workflow_run",
+        gitState.repositoryId !== undefined &&
+        gitState.event === "workflow_run",
     },
   );
+
+  const { data: baseWorkflows } = api.useQuery(
+    "get",
+    "/org/{orgId}/repos/{repoId}/workflows",
+    {
+      params: {
+        path: {
+          orgId: orgId!,
+          repoId: baseGitState?.repositoryId!,
+        },
+      },
+    },
+    {
+      enabled:
+        baseGitState?.repositoryId !== undefined &&
+        baseGitState?.event === "workflow_run",
+      refetchInterval: false,
+    },
+  );
+
+  const baseWorkflowName = baseWorkflows?.workflows?.find(
+    (workflow) => workflow.id === baseGitState?.eventId,
+  )?.name;
 
   return (
     <>
@@ -99,10 +142,7 @@ export const GitConfigDiff = ({
         <div className="flex items-baseline gap-2">
           <Label
             htmlFor="selectRepo"
-            className={cn(
-              "pb-1",
-              (orgId === undefined || reposLoading) && "opacity-50",
-            )}
+            className={cn("pb-1", reposLoading && "opacity-50")}
           >
             <BookMarked className="inline" size={16} />
             Repository
@@ -115,51 +155,42 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8">
-          <DiffInput
+          <DiffSelect
             required
+            id="selectRepo"
             name="repo"
-            disabled={disabled || orgId === undefined || reposLoading}
-            left={base.repositoryId?.toString() ?? ""}
-            setRight={(repo) => {
-              setState((prev) => ({
-                ...prev,
+            left={baseGitState?.repositoryId?.toString()}
+            setRight={(repo) =>
+              setGitState({
                 repositoryId: typeof repo === "string" ? parseInt(repo) : repo,
                 repoName: repos?.find((r) => r?.id === parseInt(repo))?.name,
-              }));
-            }}
-            right={state.repositoryId?.toString() ?? ""}
-            select={(props) => (
-              <Select disabled={disabled} {...props}>
-                <SelectTrigger
-                  {...props}
-                  id={props.side === "after" ? "selectRepo" : undefined}
-                >
-                  <SelectValue placeholder={props.placeholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {orgId !== undefined && !!repos
-                      ? Object.entries(
-                          Object.groupBy(repos, (repo) => repo.owner!),
-                        ).map(([owner, repos]) => (
-                          <SelectGroup key={owner}>
-                            <SelectLabel>{owner}</SelectLabel>
-                            {repos?.map((repo) => (
-                              <SelectItem
-                                key={repo.id}
-                                value={repo.id!.toString()}
-                              >
-                                {repo.owner}/{repo.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        ))
-                      : null}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            )}
-          />
+                branch: undefined,
+                eventId: undefined,
+              })
+            }
+            right={gitState.repositoryId?.toString() ?? ""}
+            rightPlaceholder="Select a repository"
+            disabled={disabled || reposLoading}
+          >
+            <SelectContent>
+              <SelectGroup>
+                {repos !== undefined
+                  ? Object.entries(
+                      Object.groupBy(repos, (repo) => repo.owner!),
+                    ).map(([owner, repos]) => (
+                      <SelectGroup key={owner}>
+                        <SelectLabel>{owner}</SelectLabel>
+                        {repos?.map((repo) => (
+                          <SelectItem key={repo.id} value={repo.id!.toString()}>
+                            {repo.owner}/{repo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))
+                  : null}
+              </SelectGroup>
+            </SelectContent>
+          </DiffSelect>
         </div>
       </div>
       <div className="space-y-2">
@@ -168,7 +199,7 @@ export const GitConfigDiff = ({
             htmlFor="selectBranch"
             className={cn(
               "pb-1",
-              (state.repositoryId === undefined || branchesLoading) &&
+              (gitState.repositoryId === undefined || branchesLoading) &&
                 "opacity-50",
             )}
           >
@@ -183,50 +214,44 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8">
-          <DiffInput
+          <DiffSelect
             required
+            id="selectBranch"
             name="branch"
             disabled={
-              disabled || state.repositoryId === undefined || branchesLoading
+              disabled || gitState.repositoryId === undefined || branchesLoading
             }
-            left={base.branch ?? ""}
-            right={state.branch ?? ""}
-            setRight={(branch) => {
-              setState((prev) => ({ ...prev, branch }));
-            }}
-            select={(props) => (
-              <Select disabled={disabled} {...props}>
-                <SelectTrigger
-                  {...props}
-                  id={props.side === "after" ? "selectBranch" : undefined}
-                >
-                  {props.side === "before" ? (
-                    (base.branch ?? "(None)")
-                  ) : (
-                    <SelectValue
-                      placeholder={
-                        branchesLoading && state.repositoryId
-                          ? "Loading..."
-                          : "Select a branch"
-                      }
-                    />
-                  )}
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {state.repositoryId !== undefined &&
-                      branches?.branches?.map((branch) => {
-                        return (
-                          <SelectItem key={branch} value={branch}>
-                            {branch}
-                          </SelectItem>
-                        );
-                      })}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            )}
-          />
+            left={baseGitState?.branch}
+            right={gitState.branch ?? ""}
+            setRight={(branch) => setGitState({ branch })}
+            rightPlaceholder={
+              branchesLoading && gitState.repositoryId
+                ? "Loading..."
+                : "Select a branch"
+            }
+            leftContent={
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={baseGitState?.branch ?? "N/A"}>
+                    {baseGitState?.branch}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            }
+          >
+            <SelectContent>
+              <SelectGroup>
+                {gitState.repositoryId !== undefined &&
+                  branches?.branches?.map((branch) => {
+                    return (
+                      <SelectItem key={branch} value={branch}>
+                        {branch}
+                      </SelectItem>
+                    );
+                  })}
+              </SelectGroup>
+            </SelectContent>
+          </DiffSelect>
         </div>
       </div>
       <div className="space-y-2">
@@ -243,49 +268,34 @@ export const GitConfigDiff = ({
           </span>
         </div>
         <div className="flex items-center gap-8">
-          <DiffInput
+          <DiffSelect
             required
             disabled={disabled}
+            id="deployOnEvent"
             name="deployOnEvent"
-            left={base.event}
-            right={state.event ?? ""}
-            setRight={(event) => {
-              setState((prev) => ({
-                ...prev,
-                event: event as "push" | "workflow_run",
-              }));
-            }}
-            select={(props) => (
-              <Select disabled={disabled} {...props}>
-                <SelectTrigger
-                  {...props}
-                  id={props.side === "after" ? "deployOnEvent" : undefined}
-                >
-                  <SelectValue
-                    placeholder={
-                      props.side === "before" ? "(None)" : "Select an event"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="push">Push</SelectItem>
-                  <SelectItem value="workflow_run">
-                    Successful workflow run
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
+            left={baseGitState?.event}
+            right={gitState.event ?? ""}
+            setRight={(event) =>
+              setGitState({ event: event as "push" | "workflow_run" })
+            }
+          >
+            <SelectContent>
+              <SelectItem value="push">Push</SelectItem>
+              <SelectItem value="workflow_run">
+                Successful workflow run
+              </SelectItem>
+            </SelectContent>
+          </DiffSelect>
         </div>
       </div>
-      {state.event === "workflow_run" && (
+      {gitState.event === "workflow_run" && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label
               htmlFor="selectWorkflow"
               className={cn(
                 "pb-1",
-                (state.repositoryId === undefined || workflowsLoading) &&
+                (gitState.repositoryId === undefined || workflowsLoading) &&
                   "opacity-50",
               )}
             >
@@ -300,55 +310,54 @@ export const GitConfigDiff = ({
             </span>
           </div>
           <div className="flex items-center gap-8">
-            <DiffInput
+            <DiffSelect
               required
+              id="selectWorkflow"
               name="workflow"
               disabled={
                 disabled ||
-                state.repositoryId === undefined ||
+                gitState.repositoryId === undefined ||
                 branchesLoading ||
                 workflows?.workflows?.length === 0
               }
-              left={base.eventId?.toString() ?? ""}
-              right={state.eventId?.toString() ?? ""}
-              setRight={(eventId) => {
-                setState((prev) => ({ ...prev, eventId }));
-              }}
-              select={(props) => (
-                <Select disabled={disabled} {...props}>
-                  <SelectTrigger
-                    {...props}
-                    id={props.side === "after" ? "selectWorkflow" : undefined}
-                  >
-                    <SelectValue
-                      placeholder={
-                        props.side === "before" &&
-                        state.repositoryId !== base.repositoryId
-                          ? "N/A"
-                          : workflowsLoading || workflows!.workflows!.length > 0
-                            ? "Select a workflow"
-                            : "No workflows available"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {state.repositoryId !== undefined &&
-                        workflows?.workflows?.map((workflow) => {
-                          return (
-                            <SelectItem
-                              key={workflow.id}
-                              value={workflow.id.toString()}
-                            >
-                              {workflow.name}
-                            </SelectItem>
-                          );
-                        })}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              )}
-            />
+              left={baseGitState?.eventId?.toString() ?? ""}
+              right={gitState.eventId?.toString() ?? ""}
+              setRight={(eventId) =>
+                setGitState({ eventId: parseInt(eventId) })
+              }
+              rightPlaceholder={
+                workflowsLoading || workflows!.workflows!.length > 0
+                  ? "Select a workflow"
+                  : "No workflows available"
+              }
+              leftContent={
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem
+                      value={baseGitState?.eventId?.toString() ?? "N/A"}
+                    >
+                      {baseWorkflowName}
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              }
+            >
+              <SelectContent>
+                <SelectGroup>
+                  {gitState.repositoryId !== undefined &&
+                    workflows?.workflows?.map((workflow) => {
+                      return (
+                        <SelectItem
+                          key={workflow.id}
+                          value={workflow.id.toString()}
+                        >
+                          {workflow.name}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectGroup>
+              </SelectContent>
+            </DiffSelect>
           </div>
         </div>
       )}
@@ -368,11 +377,9 @@ export const GitConfigDiff = ({
         <div className="flex items-center gap-8 mb-1">
           <DiffInput
             disabled={disabled}
-            left={base.rootDir}
-            right={state.rootDir}
-            setRight={(rootDir) => {
-              setState((state) => ({ ...state, rootDir }));
-            }}
+            left={baseGitState?.rootDir}
+            right={gitState.rootDir}
+            setRight={(rootDir) => setGitState({ rootDir })}
             name="rootDir"
             id="rootDir"
             placeholder="./"
@@ -401,12 +408,9 @@ export const GitConfigDiff = ({
           disabled={disabled}
           name="builder"
           id="builder"
-          value={state.builder}
+          value={gitState.builder}
           onValueChange={(newValue) =>
-            setState((prev) => ({
-              ...prev,
-              builder: newValue as "dockerfile" | "railpack",
-            }))
+            setGitState({ builder: newValue as "dockerfile" | "railpack" })
           }
           required
         >
@@ -414,8 +418,9 @@ export const GitConfigDiff = ({
             htmlFor="builder-dockerfile"
             className={cn(
               "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
-              base.source === "git" && base.builder !== state.builder
-                ? base.builder === "dockerfile"
+              base.source === "git" &&
+                baseGitState?.builder !== gitState.builder
+                ? baseGitState?.builder === "dockerfile"
                   ? "bg-red-100 hover:bg-red-200"
                   : "bg-green-50"
                 : "bg-inherit hover:bg-gray-50 has-checked:bg-gray-50",
@@ -431,8 +436,9 @@ export const GitConfigDiff = ({
             htmlFor="builder-railpack"
             className={cn(
               "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
-              base.source === "git" && base.builder !== state.builder
-                ? base.builder === "railpack"
+              base.source === "git" &&
+                baseGitState?.builder !== gitState.builder
+                ? baseGitState?.builder === "railpack"
                   ? "bg-red-100 hover:bg-red-200"
                   : "bg-green-50"
                 : "bg-inherit hover:bg-gray-50 has-checked:bg-gray-50",
@@ -446,7 +452,7 @@ export const GitConfigDiff = ({
           </Label>
         </RadioGroup>
       </div>
-      {state.builder === "dockerfile" ? (
+      {gitState.builder === "dockerfile" ? (
         <div>
           <Label className="pb-1 mb-2" htmlFor="dockerfilePath">
             <Container className="inline" size={16} /> Dockerfile Path
@@ -463,11 +469,9 @@ export const GitConfigDiff = ({
               name="dockerfilePath"
               id="dockerfilePath"
               placeholder="Dockerfile"
-              left={base.dockerfilePath}
-              right={state.dockerfilePath}
-              setRight={(dockerfilePath) => {
-                setState((state) => ({ ...state, dockerfilePath }));
-              }}
+              left={baseGitState?.dockerfilePath}
+              right={gitState.dockerfilePath}
+              setRight={(dockerfilePath) => setGitState({ dockerfilePath })}
               autoComplete="off"
               required
             />

@@ -1,3 +1,4 @@
+import { UserContext } from "@/components/UserProvider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,37 +14,26 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, isWorkloadConfig } from "@/lib/utils";
 import { Container, GitCommit, Loader, Rocket } from "lucide-react";
 import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
-import { toast } from "sonner";
 import type { App } from "../AppView";
+import { AppConfigDiff } from "../../../components/diff/AppConfigDiff";
+import type { CommonFormFields } from "@/lib/form.types";
 import {
-  AppConfigDiff,
-  type DeploymentConfigFormData,
-} from "@/components/diff/AppConfigDiff";
+  createDefaultCommonFormFields,
+  createDeploymentConfig,
+  getFormStateFromApp,
+} from "@/lib/form";
 
-const defaultRedeployState = {
+const getDefaultRedeployState = () => ({
   radioValue: undefined,
   configOpen: false,
-  configState: {
-    replicas: "",
-    env: [],
-    source: "git" as const,
-    builder: "dockerfile" as const,
-    port: "",
-    cpuCores: "1",
-    memoryInMiB: 1024,
-    createIngress: true,
-    collectLogs: true,
-  } satisfies DeploymentConfigFormData,
+  configState: createDefaultCommonFormFields(),
   enableCD: true,
   idx: 0,
-};
-
-Object.freeze(defaultRedeployState);
+});
 
 export const RedeployModal = ({
   isOpen,
@@ -66,16 +56,16 @@ export const RedeployModal = ({
   const [redeployState, setRedeployState] = useState<{
     radioValue: "useBuild" | "useConfig" | undefined;
     configOpen: boolean;
-    configState: DeploymentConfigFormData;
+    configState: CommonFormFields;
     enableCD: boolean;
     idx: number;
-  }>(defaultRedeployState);
+  }>(getDefaultRedeployState());
 
-  const resourceConfig = {
-    cpu:
-      Math.round(parseFloat(redeployState.configState.cpuCores) * 1000) + "m",
-    memory: redeployState.configState.memoryInMiB + "Mi",
-  };
+  // const resourceConfig = {
+  //   cpu:
+  //     Math.round(parseFloat(redeployState.configState.cpuCores) * 1000) + "m",
+  //   memory: redeployState.configState.memoryInMiB + "Mi",
+  // };
 
   const { data: pastDeployment, isPending: pastDeploymentLoading } =
     api.useQuery(
@@ -87,40 +77,15 @@ export const RedeployModal = ({
 
   const setRadioValue = (value: string) => {
     if (pastDeployment === undefined) return; // Should never happen; sanity check to satisfy type checker
-
     // Populate the new deployment config based on the previous deployment
     setRedeployState((rs) => ({
       ...rs,
       radioValue: value as "useBuild" | "useConfig",
-      configState: {
-        orgId: app.orgId,
-        port: pastDeployment.config.port.toString(),
-        replicas: pastDeployment.config.replicas.toString(),
-        env: pastDeployment.config.env,
-        cpuCores: (
-          parseInt(pastDeployment.config.limits?.cpu ?? "1000m") / 1000
-        ).toString(), // convert millicores ("m") to cores,
-        memoryInMiB: parseInt(pastDeployment.config.limits?.memory ?? "1024Mi"),
-        createIngress: pastDeployment.config.createIngress,
-        collectLogs: pastDeployment.config.collectLogs,
-        ...(pastDeployment.config.source === "git"
-          ? {
-              source: "git",
-              builder: pastDeployment.config.builder,
-              event: pastDeployment.config.event,
-              eventId: pastDeployment.config.eventId?.toString() ?? undefined,
-              commitHash:
-                value === "useBuild" ? pastDeployment.commitHash : undefined,
-              dockerfilePath: pastDeployment.config.dockerfilePath ?? undefined,
-              rootDir: pastDeployment.config.rootDir ?? undefined,
-              repositoryId: pastDeployment.config.repositoryId,
-              branch: pastDeployment.config.branch,
-            }
-          : {
-              source: "image",
-              imageTag: pastDeployment.config.imageTag,
-            }),
-      },
+      configState: getFormStateFromApp({
+        displayName: app.displayName,
+        projectId: app.projectId,
+        config: value === "useConfig" ? pastDeployment.config : app.config,
+      }),
     }));
   };
 
@@ -137,7 +102,7 @@ export const RedeployModal = ({
   useEffect(() => {
     // Clear inputs when closing the dialog
     if (!isOpen) {
-      setRedeployState(defaultRedeployState);
+      setRedeployState(getDefaultRedeployState());
     }
   }, [isOpen]);
 
@@ -179,42 +144,32 @@ export const RedeployModal = ({
             className="space-y-1"
             onSubmit={async (e) => {
               e.preventDefault();
-              const config = redeployState.configState;
-              const res = {
-                replicas: parseInt(config.replicas),
-                port: parseInt(config.port),
-                env: config.env.filter((env) => env.name.length > 0),
-                mounts: app.config.mounts,
-                limits: resourceConfig,
-                requests: resourceConfig,
-                createIngress: config.createIngress === true,
-                collectLogs: config.collectLogs === true,
-                ...(config.source === "git"
-                  ? {
-                      source: "git" as const,
-                      repositoryId: config.repositoryId!,
-                      rootDir: config.rootDir!,
-                      branch: config.branch,
-                      event: config.event!,
-                      eventId: config.eventId ? parseInt(config.eventId) : null,
-                      commitHash: config.commitHash,
-                      builder: config.builder!,
-                      dockerfilePath: config.dockerfilePath! ?? "",
-                    }
-                  : {
-                      source: "image" as const,
-                      imageTag: config.imageTag!,
-                    }),
-              };
+              const finalConfigState =
+                redeployState.configState as Required<CommonFormFields>;
+              const config = createDeploymentConfig(finalConfigState);
+              if (redeployState.radioValue === "useConfig") {
+                await updateApp({
+                  params: { path: { appId: app.id } },
+                  body: {
+                    enableCD: redeployState.enableCD,
+                    config,
+                  },
+                });
+              } else {
+                await updateApp({
+                  params: { path: { appId: app.id } },
+                  body: {
+                    enableCD: redeployState.enableCD,
+                    config: {
+                      ...config,
+                      ...(pastDeployment.config.source === "git" && {
+                        commitHash: pastDeployment.commitHash,
+                      }),
+                    },
+                  },
+                });
+              }
 
-              await updateApp({
-                params: { path: { appId: app.id } },
-                body: {
-                  enableCD: redeployState.enableCD,
-                  config: res,
-                },
-              });
-              toast.success("App updated successfully!");
               onSubmitted();
               setOpen(false);
             }}
@@ -258,7 +213,8 @@ export const RedeployModal = ({
                           </span>
                           {pastDeployment.commitMessage}
                         </a>
-                      ) : (
+                      ) : isWorkloadConfig(pastDeployment.config) &&
+                        pastDeployment.config.source === "image" ? (
                         <Tooltip>
                           <TooltipTrigger>
                             <p className="flex items-center gap-2">
@@ -272,7 +228,7 @@ export const RedeployModal = ({
                             {pastDeployment.config.imageTag}
                           </TooltipContent>
                         </Tooltip>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-black-3 ml-6 text-sm mb-4">
                       AnvilOps will combine this version of your application
@@ -367,43 +323,14 @@ export const RedeployModal = ({
               <>
                 <AppConfigDiff
                   orgId={app.orgId}
-                  base={{
-                    ...app.config,
-                    replicas: app.config.replicas.toString(),
-                    port: app.config.port.toString(),
-                    cpuCores: (
-                      parseInt(app.config.limits?.cpu ?? "1000m") / 1000
-                    ).toString(), // convert millicores ("m") to cores,
-                    memoryInMiB: parseInt(
-                      app.config.limits?.memory ?? "1024Mi",
-                    ),
-                    ...(app.config.source === "git"
-                      ? {
-                          builder: app.config.builder,
-                          eventId: app.config.eventId?.toString() ?? undefined,
-                          dockerfilePath:
-                            app.config.dockerfilePath ?? undefined,
-                          rootDir: app.config.rootDir ?? undefined,
-                        }
-                      : {
-                          builder: "dockerfile",
-                          eventId: undefined,
-                          dockerfilePath: undefined,
-                          rootDir: undefined,
-                        }),
-                  }}
+                  base={app}
                   state={redeployState.configState}
-                  setState={(
-                    updateConfig: (
-                      s: DeploymentConfigFormData,
-                    ) => DeploymentConfigFormData,
-                  ) => {
+                  setState={(updater) =>
                     setRedeployState((rs) => ({
                       ...rs,
-                      configState: updateConfig(rs.configState),
-                    }));
-                  }}
-                  defaults={{ config: pastDeployment?.config }}
+                      configState: updater(rs.configState),
+                    }))
+                  }
                 />
                 {(redeployState.configState.source !== "git" ||
                   selectedOrg?.githubConnected) && (
@@ -411,6 +338,7 @@ export const RedeployModal = ({
                     className="mt-4 float-right"
                     type="button"
                     onClick={() => {
+                      console.log("?");
                       if (form.current!.checkValidity()) {
                         setRedeployState((rs) => ({
                           ...rs,

@@ -1,4 +1,3 @@
-import { useAppConfig } from "@/components/AppConfigProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,79 +11,61 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserContext } from "@/components/UserProvider";
-import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
-import {
-  Fragment,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useContext, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import AppConfigFormFields, {
-  type AppInfoFormData,
-} from "@/components/config/AppConfigFormFields";
-import { FormContext, getCleanedAppName } from "./CreateAppView";
+import { FormContext } from "./CreateAppView";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import {
+  createDefaultCommonFormFields,
+  createNewAppWithoutGroup,
+  getAppName,
+} from "@/lib/form";
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 
+type GroupCreate = { type: "create-new"; name: string };
 export default function CreateAppGroupView() {
   const { user } = useContext(UserContext);
 
   const { mutateAsync: createAppGroup, isPending: createPending } =
     api.useMutation("post", "/app/group");
 
-  const [orgId, setOrgId] = useState<number | undefined>(user?.orgs?.[0]?.id);
+  const [groupState, setGroupState] = useState<GroupFormFields>({
+    orgId: user?.orgs?.[0]?.id,
+    groupOption: { type: "create-new", name: "" },
+  });
 
-  const defaultState = {
-    collectLogs: true,
-    env: [],
-    mounts: [],
-    source: "git" as "git",
-    builder: "railpack" as "railpack",
-    event: "push" as "push",
-    subdomain: "",
-    createIngress: true,
-    rootDir: "./",
-    dockerfilePath: "Dockerfile",
-    cpuCores: 1,
-    memoryInMiB: 1024,
-  } satisfies AppInfoFormData;
+  const {
+    orgId,
+    groupOption: { name: groupName },
+  } = groupState as { orgId?: string; groupOption: GroupCreate };
 
-  const [appStates, setAppStates] = useState<AppInfoFormData[]>([
-    { ...defaultState },
+  const [appStates, setAppStates] = useState<CommonFormFields[]>([
+    createDefaultCommonFormFields(),
   ]);
-
   const [tab, setTab] = useState("0");
 
   const navigate = useNavigate();
   const shouldShowDeploy = useMemo(() => {
     return (
       orgId === undefined ||
-      user?.orgs.some((org) => org.id === orgId && org.githubConnected)
+      user?.orgs.some(
+        (org) => org.id === parseInt(orgId) && org.githubConnected,
+      )
     );
-  }, [user, orgId]);
+  }, [user, groupState.orgId]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setAppStates((appStates) =>
-      appStates.map((state) => ({ ...state, orgId })),
-    );
-  }, [orgId]);
-
-  const [groupName, setGroupName] = useState("");
-  const isGroupNameValid = useMemo(() => {
+  const showGroupNameError = useMemo(() => {
     const MAX_GROUP_LENGTH = 56;
     return (
-      groupName.length <= MAX_GROUP_LENGTH &&
-      groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/)
+      groupName.length > 0 &&
+      (groupName.length > MAX_GROUP_LENGTH ||
+        !groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/))
     );
   }, [groupName]);
-
-  const config = useAppConfig();
 
   return (
     <div className="flex max-w-prose mx-auto">
@@ -92,59 +73,16 @@ export default function CreateAppGroupView() {
         className="flex flex-col gap-6 w-full my-10 spa"
         onSubmit={async (e) => {
           e.preventDefault();
-          const formData = new FormData(e.currentTarget);
+          // const formData = new FormData(e.currentTarget);
+
+          // TODO: client-side validation on every app state
+          const finalAppStates = appStates as Required<CommonFormFields>[];
           try {
-            const apps = appStates.map(
-              (appState): components["schemas"]["NewAppWithoutGroupInfo"] => {
-                const appName = getAppName(appState);
-                let subdomain = appState.subdomain;
-                if (
-                  (!subdomain && !config.appDomain) ||
-                  !appState.createIngress
-                ) {
-                  subdomain =
-                    appName.replaceAll(/[^a-zA-Z0-9-_]/g, "_") +
-                    "-" +
-                    Math.floor(Math.random() * 10_000);
-                }
-
-                return {
-                  orgId: orgId!,
-                  projectId: appState.projectId,
-                  name: appName,
-                  subdomain,
-                  createIngress: appState.createIngress,
-                  port: parseInt(appState.port!),
-                  env: appState.env.filter((ev) => ev.name.length > 0),
-                  mounts: appState.mounts.filter((m) => m.path.length > 0),
-                  cpuCores: appState.cpuCores,
-                  memoryInMiB: appState.memoryInMiB,
-                  ...(appState.source === "git"
-                    ? {
-                        source: "git",
-                        repositoryId: appState.repositoryId!,
-                        branch: appState.branch!,
-                        event: appState.event!,
-                        eventId: appState.eventId
-                          ? parseInt(appState.eventId)
-                          : null,
-                        dockerfilePath: appState.dockerfilePath!,
-                        rootDir: appState.rootDir!,
-                        builder: appState.builder!,
-                      }
-                    : {
-                        source: "image",
-                        imageTag: appState.imageTag!,
-                      }),
-                };
-              },
-            );
-
             await createAppGroup({
               body: {
-                name: formData.get("groupName")!.toString(),
-                orgId: orgId!,
-                apps,
+                name: groupName,
+                orgId: parseInt(orgId!),
+                apps: finalAppStates.map(createNewAppWithoutGroup),
               },
             });
 
@@ -171,7 +109,9 @@ export default function CreateAppGroupView() {
           </div>
           <Select
             required
-            onValueChange={(orgId) => setOrgId(parseInt(orgId!))}
+            onValueChange={(orgId) =>
+              setGroupState((prev) => ({ ...prev, orgId: parseInt(orgId) }))
+            }
             value={orgId?.toString()}
             name="org"
           >
@@ -206,10 +146,16 @@ export default function CreateAppGroupView() {
             placeholder="Group name"
             name="groupName"
             value={groupName}
-            onChange={(e) => setGroupName(e.currentTarget.value)}
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setGroupState((prev) => ({
+                ...prev,
+                groupOption: { type: "create-new", name: value },
+              }));
+            }}
             autoComplete="off"
           />
-          {groupName && !isGroupNameValid && (
+          {showGroupNameError && (
             <div className="text-sm flex gap-5">
               <X className="text-red-500" />
               <ul className="text-black-3 list-disc">
@@ -258,10 +204,9 @@ export default function CreateAppGroupView() {
                   variant="ghost"
                   type="button"
                   onClick={() => {
-                    setAppStates((appStates) => [
-                      ...appStates,
-                      { ...defaultState, orgId },
-                    ]);
+                    setAppStates((appStates) =>
+                      appStates.concat(createDefaultCommonFormFields()),
+                    );
                   }}
                   disabled={orgId === undefined}
                 >
@@ -278,23 +223,15 @@ export default function CreateAppGroupView() {
                 className="space-y-8"
               >
                 <AppConfigFormFields
+                  groupState={groupState}
                   state={app}
-                  setState={(stateAction) => {
-                    if (typeof stateAction === "function") {
-                      setAppStates((appStates) =>
-                        appStates.map((app, i) =>
-                          i === idx ? stateAction(app) : app,
-                        ),
-                      );
-                    } else {
-                      setAppStates((appStates) =>
-                        appStates.map((app, i) =>
-                          i === idx ? stateAction : app,
-                        ),
-                      );
-                    }
+                  setState={(updater) => {
+                    setAppStates((appStates) =>
+                      appStates.map((appState, i) =>
+                        i === idx ? updater(appState) : appState,
+                      ),
+                    );
                   }}
-                  hideGroupSelect
                 />
               </TabsContent>
             ))}
@@ -318,18 +255,3 @@ export default function CreateAppGroupView() {
     </div>
   );
 }
-
-const getAppName = (state: AppInfoFormData) => {
-  let appName = "Untitled";
-  if (state.source === "git") {
-    if (state.repoName) {
-      appName = getCleanedAppName(state.repoName);
-    }
-  } else if (state.source === "image") {
-    if (state.imageTag) {
-      const tag = state.imageTag!.toString().split("/");
-      appName = getCleanedAppName(tag[tag.length - 1].split(":")[0]);
-    }
-  }
-  return appName;
-};

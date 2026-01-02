@@ -1,4 +1,4 @@
-import { useAppConfig } from "@/components/AppConfigProvider";
+import { GroupConfigFields } from "@/components/config/GroupConfigFields";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,14 +10,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserContext } from "@/components/UserProvider";
-import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import {
+  createDefaultCommonFormFields,
+  createNewAppWithoutGroup,
+} from "@/lib/form";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import AppConfigFormFields, {
-  type AppInfoFormData,
-} from "@/components/config/AppConfigFormFields";
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 
 export default function CreateAppView() {
   const { user } = useContext(UserContext);
@@ -29,36 +31,29 @@ export default function CreateAppView() {
 
   const [search] = useSearchParams();
 
-  const [formState, setFormState] = useState<AppInfoFormData>({
-    collectLogs: true,
-    groupOption: "standalone",
-    env: [],
-    mounts: [],
+  const [groupState, setGroupState] = useState<GroupFormFields>({
     orgId: search.has("org")
-      ? parseInt(search.get("org")!.toString())
+      ? parseInt(search.get("org")!)
       : user?.orgs?.[0]?.id,
-    repositoryId: search.has("repo")
-      ? parseInt(search.get("repo")!.toString())
-      : undefined,
-    source: "git",
-    event: "push",
-    builder: "railpack",
-    dockerfilePath: "Dockerfile",
-    rootDir: "./",
-    subdomain: "",
-    createIngress: true,
-    cpuCores: 1,
-    memoryInMiB: 1024,
+    groupOption: { type: "standalone" },
   });
+
+  const [appState, setAppState] = useState<CommonFormFields>(
+    createDefaultCommonFormFields({
+      repositoryId: search.has("repo")
+        ? parseInt(search.get("repo")!.toString())
+        : undefined,
+    }),
+  );
 
   const navigate = useNavigate();
 
   const shouldShowDeploy =
-    formState.orgId === undefined ||
-    formState.source !== "git" ||
-    user?.orgs.some((org) => org.id === formState.orgId && org.githubConnected);
-
-  const config = useAppConfig();
+    groupState.orgId === undefined ||
+    appState.source !== "git" ||
+    user?.orgs.some(
+      (org) => org.id === groupState.orgId && org.githubConnected,
+    );
 
   return (
     <div className="flex max-w-prose mx-auto">
@@ -66,79 +61,17 @@ export default function CreateAppView() {
         className="flex flex-col gap-6 w-full my-10"
         onSubmit={async (e) => {
           e.preventDefault();
-          const formData = new FormData(e.currentTarget);
-          let appName = "untitled";
-          if (formState.source === "git") {
-            // Make RFC1123 compliant
-            appName = getCleanedAppName(formState.repoName!);
-          } else if (formState.source === "image") {
-            const tag = formState.imageTag!.split("/");
-            appName = getCleanedAppName(tag[tag.length - 1].split(":")[0]);
-          }
+          const finalGroupState = groupState as Required<GroupFormFields>;
+          const finalAppState = appState as Required<CommonFormFields>;
+
           try {
-            let appGroup: components["schemas"]["NewApp"]["appGroup"];
-            switch (formState.groupOption) {
-              case "standalone":
-                appGroup = { type: "standalone" };
-                break;
-              case "create-new":
-                appGroup = {
-                  type: "create-new",
-                  name: formData.get("groupName")!.toString(),
-                };
-                break;
-              default:
-                appGroup = { type: "add-to", id: formState.groupId! };
-                break;
-            }
-
-            let subdomain = formState.subdomain;
-
-            if (
-              (!formState.subdomain && config.appDomain === undefined) ||
-              !formState.createIngress
-            ) {
-              // Generate a subdomain value to be used as the namespace name
-              // This should only happen if the APP_DOMAIN environment variable is missing and no publicly-available domain is known to expose users' apps on subdomains. In that case, we hide the subdomain field because it's irrelevant.
-              subdomain =
-                appName.replaceAll(/[^a-zA-Z0-9-_]/g, "_") +
-                "-" +
-                Math.floor(Math.random() * 10_000);
-            }
-
             const result = await createApp({
               body: {
-                orgId: formState.orgId!,
-                projectId: formState.projectId,
-                name: appName,
-                createIngress: formState.createIngress,
-                subdomain,
-                port: parseInt(formState.port!),
-                env: formState.env.filter((ev) => ev.name.length > 0),
-                mounts: formState.mounts.filter((m) => m.path.length > 0),
-                cpuCores: formState.cpuCores,
-                memoryInMiB: formState.memoryInMiB,
-                appGroup,
-                ...(formState.source === "git"
-                  ? {
-                      source: "git",
-                      repositoryId: formState.repositoryId!,
-                      dockerfilePath: formState.dockerfilePath!,
-                      rootDir: formState.rootDir!,
-                      branch: formState.branch!,
-                      builder: formState.builder!,
-                      event: formState.event!,
-                      eventId: formState.eventId
-                        ? parseInt(formState.eventId)
-                        : null,
-                    }
-                  : {
-                      source: "image",
-                      imageTag: formState.imageTag!,
-                    }),
+                orgId: finalGroupState.orgId,
+                appGroup: finalGroupState.groupOption,
+                ...createNewAppWithoutGroup(finalAppState),
               },
             });
-
             navigate(`/app/${result.id}`);
           } catch (err) {}
         }}
@@ -160,9 +93,9 @@ export default function CreateAppView() {
           <Select
             required
             onValueChange={(orgId) =>
-              setFormState((prev) => ({ ...prev, orgId: parseInt(orgId!) }))
+              setGroupState((prev) => ({ ...prev, orgId: parseInt(orgId) }))
             }
-            value={formState.orgId?.toString()}
+            value={groupState.orgId?.toString()}
             name="org"
           >
             <SelectTrigger className="w-full" id="selectOrg">
@@ -179,8 +112,13 @@ export default function CreateAppView() {
             </SelectContent>
           </Select>
         </div>
+        <GroupConfigFields state={groupState} setState={setGroupState} />
         <FormContext value="CreateApp">
-          <AppConfigFormFields state={formState} setState={setFormState} />
+          <AppConfigFormFields
+            groupState={groupState}
+            state={appState}
+            setState={setAppState}
+          />
         </FormContext>
         {shouldShowDeploy ? (
           <Button size="lg" type="submit">
@@ -200,12 +138,6 @@ export default function CreateAppView() {
     </div>
   );
 }
-
-export const getCleanedAppName = (name: string) =>
-  name
-    .toLowerCase()
-    .substring(0, 60)
-    .replace(/[^a-z0-9-]/g, "");
 
 export const GitHubIcon = ({ className }: { className?: string }) => (
   <svg

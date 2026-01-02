@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { isWorkloadConfig } from "@/lib/utils";
 import {
   ArrowUp,
   CloudUpload,
@@ -52,6 +53,14 @@ function dirname(path: string) {
 }
 
 export const FilesTab = ({ app }: { app: App }) => {
+  if (!isWorkloadConfig(app.config)) {
+    return (
+      <div className="text-center py-8">
+        <p>File browser is not available for Helm-based apps.</p>
+      </div>
+    );
+  }
+
   const [replica, setReplica] = useState("0");
   const [volume, setVolume] = useState<string | undefined>(
     app.config.mounts?.[0]?.volumeClaimName,

@@ -1,5 +1,4 @@
 import { api } from "@/lib/api";
-import type { AppInfoFormData } from "@/components/config/AppConfigFormFields";
 import { FormContext } from "@/pages/create-app/CreateAppView";
 import { Info, Library, Loader, X } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
@@ -23,22 +22,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { CommonFormFields } from "@/lib/form.types";
 
 export const ImportRepoDialog = ({
   orgId,
   open,
   setOpen,
   refresh,
-  setRepo,
   setState,
 }: {
   orgId: number;
   open: boolean;
   setOpen: Dispatch<boolean>;
   refresh: () => Promise<void>;
-  setRepo: (id: number, name: string) => void;
-  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
+  setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
 }) => {
+  const setRepo = (id: number, name: string) => {
+    console.log("setRepo", id, name);
+    setState((s) => ({
+      ...s,
+      workload: {
+        ...s.workload,
+        git: {
+          ...s.workload.git,
+          repositoryId: id,
+          repoName: name,
+        },
+      },
+    }));
+  };
+
   const { data: installation } = api.useQuery(
     "get",
     "/org/{orgId}/installation",

@@ -1,19 +1,25 @@
-import HelpTooltip from "@/components/HelpTooltip";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { UserContext } from "@/components/UserProvider";
-import type { components } from "@/generated/openapi";
-import { api } from "@/lib/api";
-import AppConfigFormFields, {
-  type AppInfoFormData,
-} from "@/components/config/AppConfigFormFields";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import { isWorkloadConfig } from "@/lib/utils";
 import type { RefetchOptions } from "@tanstack/react-query";
-import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
-import { toast } from "sonner";
-import { Input } from "../../components/ui/input";
-import { FormContext } from "../create-app/CreateAppView";
 import type { App } from "./AppView";
+import {
+  createDeploymentConfig,
+  getFormStateFromApp,
+  getGroupStateFromApp,
+} from "@/lib/form";
+import { api } from "@/lib/api";
+import { UserContext } from "@/components/UserProvider";
+import { Label } from "@/components/ui/label";
+import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import HelpTooltip from "@/components/HelpTooltip";
+import { FormContext } from "../create-app/CreateAppView";
+import { Button } from "@/components/ui/button";
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
+import { GroupConfigFields } from "@/components/config/GroupConfigFields";
+import { ProjectConfig } from "@/components/config/ProjectConfig";
+import { useAppConfig } from "@/components/AppConfigProvider";
 
 export const ConfigTab = ({
   app,
@@ -26,40 +32,21 @@ export const ConfigTab = ({
   setTab: Dispatch<string>;
   refetch: (options: RefetchOptions | undefined) => Promise<any>;
 }) => {
-  const [formState, setFormState] = useState<AppInfoFormData>({
-    port: app.config.port.toString(),
-    env: app.config.env,
-    mounts: app.config.mounts.map((mount) => ({
-      // (remove volumeClaimName because it's not stored in the app's deployment config)
-      amountInMiB: mount.amountInMiB,
-      path: mount.path,
-    })),
-    collectLogs: app.config.collectLogs,
-    subdomain: app.config.subdomain ?? "",
-    createIngress: app.config.createIngress,
-    orgId: app.orgId,
-    groupOption: app.appGroup.standalone ? "standalone" : "add-to",
-    groupId: app.appGroup.id,
-    projectId: app.projectId,
-    source: app.config.source,
-    cpuCores: parseInt(app.config.limits?.cpu ?? "1000m") / 1000, // parseInt ignores the "m" which means millicore - we need to divide by 1000 to get the number of full cores
-    memoryInMiB: parseInt(app.config.limits?.memory ?? "1024"), // parseInt ignores the "Mi" which means mebibyte
-    ...(app.config.source === "git"
-      ? {
-          repositoryId: app.config.repositoryId,
-          branch: app.config.branch,
-          event: app.config.event,
-          eventId: app.config.eventId?.toString() ?? undefined,
-          rootDir: app.config.rootDir ?? undefined,
-          dockerfilePath: app.config.dockerfilePath ?? undefined,
-          builder: app.config.builder,
-        }
-      : {
-          dockerfilePath: "Dockerfile",
-          builder: "railpack",
-        }),
-    imageTag: app.config.imageTag,
-  });
+  if (!isWorkloadConfig(app.config)) {
+    return (
+      <div className="text-center py-8">
+        <p>Configuration editing is not available for Helm-based apps.</p>
+      </div>
+    );
+  }
+
+  const appConfig = useAppConfig();
+  const [state, setState] = useState<CommonFormFields>(
+    getFormStateFromApp(app),
+  );
+  const [groupState, setGroupState] = useState<GroupFormFields>(
+    getGroupStateFromApp(app),
+  );
 
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
     "put",
@@ -69,90 +56,29 @@ export const ConfigTab = ({
   const { user } = useContext(UserContext);
 
   const enableSaveButton =
-    formState.source !== "git" ||
+    state.source !== "git" ||
     user?.orgs?.find((it) => it.id === app.orgId)?.githubConnected;
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-
-        const formData = new FormData(e.currentTarget);
-        let appGroup: components["schemas"]["AppUpdate"]["appGroup"];
-        switch (formState.groupOption) {
-          case "standalone":
-            appGroup = {
-              type: "standalone",
-            };
-            break;
-          case "create-new":
-            appGroup = {
-              type: "create-new",
-              name: formData.get("groupName")!.toString(),
-            };
-            break;
-          default:
-            appGroup = { type: "add-to", id: formState.groupId! };
-            break;
-        }
-
-        const resources = {
-          cpu: Math.round(formState.cpuCores * 1000) + "m",
-          memory: formState.memoryInMiB + "Mi",
-        };
-
+        const finalAppState = state as Required<CommonFormFields>;
         await updateApp({
           params: { path: { appId: app.id } },
           body: {
-            name: formData.get("name")!.toString(),
-            appGroup,
-            projectId: formState.projectId,
-            config: {
-              port: parseInt(formData.get("portNumber")!.toString()),
-              env: formState.env.filter((it) => it.name.length > 0),
-              mounts: formState.mounts.filter((it) => it.path.length > 0),
-              createIngress: formState.createIngress,
-              subdomain: formState.createIngress
-                ? formState.subdomain
+            name:
+              state.displayName !== app.displayName
+                ? state.displayName
                 : undefined,
-              collectLogs: formState.collectLogs,
-              replicas: parseInt(formData.get("replicas")!.toString()),
-              requests: resources,
-              limits: resources,
-              ...(formState.source === "git"
-                ? {
-                    source: "git",
-                    repositoryId: formState.repositoryId!,
-                    branch: formState.branch!,
-                    rootDir: formState.rootDir!,
-                    ...(formState.builder === "dockerfile"
-                      ? {
-                          builder: formState.builder,
-                          dockerfilePath: formState.dockerfilePath!,
-                        }
-                      : {
-                          builder: formState.builder,
-                          dockerfilePath: null,
-                        }),
-                    ...(formState.event === "push"
-                      ? {
-                          event: "push",
-                          eventId: null,
-                        }
-                      : {
-                          event: formState.event!,
-                          eventId: parseInt(formState.eventId!),
-                        }),
-                  }
-                : {
-                    source: "image",
-                    imageTag: formState.imageTag!,
-                  }),
-            },
+            appGroup: groupState.groupOption,
+            projectId:
+              state.projectId && state.projectId !== app.projectId
+                ? state.projectId
+                : undefined,
+            config: createDeploymentConfig(finalAppState),
           },
         });
-
-        toast.success("App updated successfully!");
         if (tab === "configuration") {
           setTab("overview");
         }
@@ -172,7 +98,14 @@ export const ConfigTab = ({
             *
           </span>
         </div>
-        <Input name="name" required defaultValue={app.displayName} />
+        <Input
+          name="name"
+          required
+          value={state.displayName}
+          onChange={(e) =>
+            setState((s) => ({ ...s, displayName: e.target.value }))
+          }
+        />
       </div>
       <div>
         <div className="flex items-baseline gap-2 mb-2">
@@ -198,15 +131,26 @@ export const ConfigTab = ({
           placeholder="1"
           type="number"
           required
-          defaultValue={app.config.replicas}
+          value={state.workload?.replicas ?? "1"}
+          onChange={(e) => {
+            const value = e.target.value;
+            setState((s) => ({
+              ...s,
+              workload: { ...s.workload, replicas: value },
+            }));
+          }}
         />
       </div>
+      <GroupConfigFields state={groupState} setState={setGroupState} />
+      {appConfig?.isRancherManaged && (
+        <ProjectConfig state={state} setState={setState} />
+      )}
       <FormContext value="UpdateApp">
         <AppConfigFormFields
-          state={formState}
-          setState={setFormState}
-          defaults={{ config: app.config }}
-          isExistingApp
+          groupState={groupState}
+          state={state}
+          setState={setState}
+          originalConfig={app.config}
         />
       </FormContext>
       {enableSaveButton && (
