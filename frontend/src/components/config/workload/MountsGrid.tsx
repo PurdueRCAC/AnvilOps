@@ -1,9 +1,9 @@
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { Trash2 } from "lucide-react";
 import { Fragment, useEffect, type Dispatch } from "react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Tooltip, TooltipContent } from "./ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
 
 export type Mounts = { path: string; amountInMiB: number }[];
 

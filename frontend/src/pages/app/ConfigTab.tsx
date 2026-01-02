@@ -6,7 +6,7 @@ import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import AppConfigFormFields, {
   type AppInfoFormData,
-} from "@/pages/create-app/AppConfigFormFields";
+} from "@/components/config/AppConfigFormFields";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";

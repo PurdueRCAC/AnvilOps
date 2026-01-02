@@ -20,7 +20,10 @@ import { Container, GitCommit, Loader, Rocket } from "lucide-react";
 import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type { App } from "../AppView";
-import { AppConfigDiff, type DeploymentConfigFormData } from "./AppConfigDiff";
+import {
+  AppConfigDiff,
+  type DeploymentConfigFormData,
+} from "@/components/diff/AppConfigDiff";
 
 const defaultRedeployState = {
   radioValue: undefined,

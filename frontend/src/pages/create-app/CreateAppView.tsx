@@ -17,7 +17,7 @@ import { createContext, useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppConfigFormFields, {
   type AppInfoFormData,
-} from "./AppConfigFormFields";
+} from "@/components/config/AppConfigFormFields";
 
 export default function CreateAppView() {
   const { user } = useContext(UserContext);

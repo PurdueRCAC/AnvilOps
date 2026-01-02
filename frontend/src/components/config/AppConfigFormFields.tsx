@@ -1,6 +1,9 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
-import { EnvVarGrid } from "@/components/EnvVarGrid";
-import { MountsGrid, type Mounts } from "@/components/MountsGrid";
+import { EnvVarGrid } from "@/components/config/workload/EnvVarGrid";
+import {
+  MountsGrid,
+  type Mounts,
+} from "@/components/config/workload/MountsGrid";
 import {
   Accordion,
   AccordionContent,
@@ -42,8 +45,8 @@ import {
   X,
 } from "lucide-react";
 import { useContext, useMemo, useState, type Dispatch } from "react";
-import { GitHubIcon, SubdomainStatus } from "./CreateAppView";
-import { GitDeploymentFields } from "./GitDeploymentFields";
+import { GitHubIcon, SubdomainStatus } from "@/pages/create-app/CreateAppView";
+import { GitDeploymentFields } from "@/components/config/workload/git/GitDeploymentFields";
 
 export type AppInfoFormData = {
   name?: string;

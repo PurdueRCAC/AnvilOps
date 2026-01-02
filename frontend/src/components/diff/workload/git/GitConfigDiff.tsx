@@ -22,8 +22,8 @@ import {
   Hammer,
 } from "lucide-react";
 import { useContext } from "react";
-import { type DeploymentConfigFormData } from "./AppConfigDiff";
-import { DiffInput } from "./DiffInput";
+import { type DeploymentConfigFormData } from "@/components/diff/AppConfigDiff";
+import { DiffInput } from "@/components/diff/DiffInput";
 
 export const GitConfigDiff = ({
   orgId,

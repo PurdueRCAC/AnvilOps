@@ -27,7 +27,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import AppConfigFormFields, {
   type AppInfoFormData,
-} from "./AppConfigFormFields";
+} from "@/components/config/AppConfigFormFields";
 import { FormContext, getCleanedAppName } from "./CreateAppView";
 
 export default function CreateAppGroupView() {

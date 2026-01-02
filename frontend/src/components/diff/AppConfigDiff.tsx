@@ -28,10 +28,10 @@ import {
   Terminal,
 } from "lucide-react";
 import { useContext } from "react";
-import { GitHubIcon } from "../../create-app/CreateAppView";
-import { DiffInput } from "./DiffInput";
-import { EnvsWithDiffs } from "./EnvsWithDiffs";
-import { GitConfigDiff } from "./GitConfigDiff";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
+import { DiffInput } from "@/components/diff/DiffInput";
+import { EnvsWithDiffs } from "@/components/diff/workload/EnvsWithDiffs";
+import { GitConfigDiff } from "@/components/diff/workload/git/GitConfigDiff";
 
 export type DeploymentConfigFormData = {
   port: string;

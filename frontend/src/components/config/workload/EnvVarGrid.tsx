@@ -1,9 +1,9 @@
 import { Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState, type Dispatch } from "react";
-import HelpTooltip from "./HelpTooltip";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { Input } from "./ui/input";
+import HelpTooltip from "@/components/HelpTooltip";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 

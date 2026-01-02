@@ -24,7 +24,7 @@ import {
   Hammer,
 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
-import type { AppInfoFormData } from "./AppConfigFormFields";
+import type { AppInfoFormData } from "@/components/config/AppConfigFormFields";
 
 export const GitDeploymentFields = ({
   orgId,

@@ -1,14 +1,19 @@
 import { api } from "@/lib/api";
-import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
+import type { AppInfoFormData } from "@/components/config/AppConfigFormFields";
 import { FormContext } from "@/pages/create-app/CreateAppView";
 import { Info, Library, Loader, X } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
 import { toast } from "sonner";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,7 +22,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "@/components/ui/select";
 
 export const ImportRepoDialog = ({
   orgId,
