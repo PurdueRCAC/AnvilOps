@@ -52,7 +52,7 @@ export async function updateApp(
   )[0];
 
   // ---------------- App group updates ----------------
-  switch (appData.appGroup.type) {
+  switch (appData.appGroup?.type) {
     case "add-to": {
       if (appData.appGroup.id === originalApp.appGroupId) {
         break;

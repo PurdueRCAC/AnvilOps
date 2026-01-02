@@ -5,5 +5,13 @@ export const listChartsHandler: HandlerMap["listCharts"] = async (
   req,
   res,
 ) => {
-  return json(200, res, await listCharts());
+  try {
+    return json(200, res, await listCharts());
+  } catch (e) {
+    console.error(e);
+    return json(500, res, {
+      code: 500,
+      message: "Something went wrong.",
+    });
+  }
 };

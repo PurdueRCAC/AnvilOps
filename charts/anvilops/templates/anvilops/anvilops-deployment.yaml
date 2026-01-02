@@ -221,6 +221,8 @@ spec:
               value: {{ .Values.anvilops.env.appDomain }}
             - name: HARBOR_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborProjectName }}
+            - name: CHART_PROJECT_NAME
+              value: {{ .Values.anvilops.env.harborChartRepoName }}
             - name: BUILDKITD_ADDRESS
               value: {{ .Values.buildkitd.address }}
             - name: FILE_BROWSER_IMAGE

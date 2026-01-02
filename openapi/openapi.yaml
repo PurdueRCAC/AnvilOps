@@ -1682,6 +1682,10 @@ paths:
           description: Unexpected authentication type (expected Basic) or log type (expected build or runtime)
         "500":
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
   /app/{appId}/deployments/{deploymentId}:
     parameters:
@@ -1863,6 +1867,12 @@ paths:
                       type: object
                       additionalProperties: true
                   required: [name, note, url, urlType, version]
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     UserOrg:

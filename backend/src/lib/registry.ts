@@ -38,12 +38,16 @@ export async function getRepositoriesByProject(projectName: string) {
   return fetch(
     `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_API_URL}/projects/${projectName}/repositories`,
   )
+    .then((res) => {
+      if (!res.ok) {
+        console.error(res);
+        throw new Error(res.statusText);
+      }
+      return res;
+    })
     .then((res) => res.text())
     .then((res) => JSON.parse(res))
     .then((res) => {
-      if ("errors" in res) {
-        throw res;
-      }
       return res as HarborRepository[];
     });
 }

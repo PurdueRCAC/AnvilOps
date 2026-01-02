@@ -84,6 +84,7 @@ ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app
+COPY --chown=65532:65532 --from=alpine/helm:3.19.0 /usr/bin/helm /usr/local/bin/helm
 COPY --chown=65532:65532 --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --chown=65532:65532 --from=swagger_build /app/dist ./public/openapi
 COPY --chown=65532:65532 --from=frontend_build /app/dist ./public

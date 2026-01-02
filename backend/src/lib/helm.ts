@@ -38,9 +38,7 @@ const runHelm = (args: string[]) => {
     p.stdout.on("data", (d) => (out += d));
     p.stderr.on("data", (d) => (err += d));
     p.on("close", (code) =>
-      code === 0
-        ? resolve({ out })
-        : reject(new Error(err || `helm exit ${code}`)),
+      code === 0 ? resolve(out) : reject(new Error(err || `helm exit ${code}`)),
     );
   });
 };
@@ -56,6 +54,7 @@ export const getChart = async (
   args.push(url);
 
   const result = (await runHelm(args)) as string;
+  console.log("result", result);
   const chart = (await yamlParse(result)) as Chart;
   return chart;
 };
@@ -72,19 +71,20 @@ export const upgrade = ({
   chartURL: string;
   version: string;
   namespace: string;
-  values: { [key: string]: string };
+  values: Record<string, unknown>;
   release: string;
 }) => {
-  const kvPairs = Object.keys(values).map((key, value) => `${key}=${value}`);
-  let args = [
+  const args = [
     "upgrade",
     "--install",
     "--namespace",
     namespace,
     "--create-namespace",
-    "--set",
-    kvPairs.join(","),
   ];
+
+  for (const [key, value] of Object.entries(values)) {
+    args.push("--set-json", `${key}=${JSON.stringify(value)}`);
+  }
   switch (urlType) {
     // example: helm install mynginx https://example.com/charts/nginx-1.2.3.tgz
     case "absolute": {
