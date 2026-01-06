@@ -56,9 +56,8 @@ export class DeploymentService {
   }
 
   /**
-   *
-   * @throws DeploymentError
    * Creates a Deployment object and triggers the deployment process.
+   * @throws DeploymentError
    */
   async create({
     org,
@@ -116,16 +115,20 @@ export class DeploymentService {
         });
         break;
       }
+
+      default: {
+        config satisfies never; // Make sure switch is exhaustive
+      }
     }
   }
 
   /**
+   * Proceeds with a Git deployment from an existing Deployment and GitConfig.
+   * - If opts.skipBuild is true, immediately deploy the app.
+   * - If opts.checkRun is present, deploy in response to a webhook. When opts.pending is true, create a pending check run and wait for other workflows to complete. When opts.pending is false, start the build.
+   * - Otherwise, build and deploy as if a new app has just been created.
    *
    * @throws DeploymentError
-   * Proceeds with a Git deployment from an existing Deployment and GitConfig.
-   *  If the skipBuild flag is set, immediately deploy the app.
-   *  If the pending flag is set, add a pending check run.
-   *  Otherwise, build and deploy.
    */
   private async deployGit({
     org,
@@ -144,6 +147,8 @@ export class DeploymentService {
       // Webhook event deployment
       const { pending, owner, repo } = opts.checkRun;
       if (pending) {
+        // AnvilOps is waiting for another CI workflow to finish before deploying the app. Create a "Pending" check run for now.
+        // When the other workflow completes, this method will be called again with `pending` set to `false`.
         try {
           const checkRun = await this.handleCheckRun({
             octokit: await this.getOctokitFn(org.githubInstallationId),
@@ -202,9 +207,8 @@ export class DeploymentService {
   }
 
   /**
-   *
-   * @throws DeploymentError
    * Builds and deploys from an existing Deployment and GitConfig.
+   * @throws DeploymentError
    */
   async completeGitDeployment({
     org,
@@ -329,9 +333,8 @@ export class DeploymentService {
   }
 
   /**
-   *
-   * @throws DeploymentError
    * Immediately deploys a workload. The image tag must be set on the config object.
+   * @throws DeploymentError
    */
   private async deployWorkloadWithoutBuild({
     org,
@@ -390,9 +393,8 @@ export class DeploymentService {
   }
 
   /**
-   *
-   * @throws DeploymentError
    * Deploys a helm chart.
+   * @throws DeploymentError
    */
   private async deployHelm(
     org: Organization,

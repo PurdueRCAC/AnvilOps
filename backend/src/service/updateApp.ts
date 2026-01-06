@@ -119,10 +119,7 @@ export async function updateApp(
   ]);
 
   // Adds an image tag to Git configs
-  updatedConfig = deploymentConfigService.updateConfigWithApp(
-    updatedConfig,
-    app,
-  );
+  updatedConfig = deploymentConfigService.populateImageTag(updatedConfig, app);
 
   if (
     updatedConfig.appType === "workload" &&

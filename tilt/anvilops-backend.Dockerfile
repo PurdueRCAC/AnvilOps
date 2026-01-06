@@ -35,7 +35,7 @@ RUN npm run prisma:generate
 
 # Run the backend
 FROM base AS backend_run
-RUN apk add helm=3.19.0-r2
+RUN apk add --no-cache helm=3.19.0-r2
 
 ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
 CMD ["./src/index.ts"]

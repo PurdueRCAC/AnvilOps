@@ -3,7 +3,6 @@ import type {
   App,
   DeploymentConfig,
   GitConfigCreate,
-  HelmConfig,
   HelmConfigCreate,
   Organization,
   WorkloadConfig,
@@ -18,7 +17,14 @@ import { env } from "../../lib/env.ts";
 import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../common/errors.ts";
-import type { GitWorkloadConfig, ImageWorkloadConfig } from "./types.ts";
+
+type GitWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
+  source: "git";
+};
+
+type ImageWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
+  source: "image";
+};
 
 export class DeploymentConfigService {
   private appRepo: AppRepo;
@@ -85,7 +91,7 @@ export class DeploymentConfigService {
         }
 
         return {
-          config: await this.createGitConfig(config, commitHash, repo.id),
+          config: this.createGitConfig(config, commitHash, repo.id),
           commitMessage,
         };
       }
@@ -106,17 +112,18 @@ export class DeploymentConfigService {
           commitMessage,
         };
       }
+      default: {
+        config satisfies never; // Make sure switch is exhaustive
+        throw new ValidationError("Invalid deployment config type");
+      }
     }
   }
 
   /**
-   *
-   * @param config
-   * @param app
-   * @returns If source is GIT, a -ConfigCreate object with the image tag where the
-   *  built image will be pushed, the original config otherwise
+   * @returns If source is GIT, a `ConfigCreate` object with the image tag where
+   *          the built image will be pushed, the original config otherwise
    */
-  updateConfigWithApp(
+  populateImageTag(
     config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate,
     app: App,
   ) {
@@ -124,7 +131,7 @@ export class DeploymentConfigService {
       return {
         ...config,
         imageTag: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:${config.commitHash}`,
-      };
+      } satisfies WorkloadConfigCreate;
     }
 
     return config;
@@ -149,11 +156,11 @@ export class DeploymentConfigService {
     };
   }
 
-  private async createGitConfig(
+  private createGitConfig(
     config: GitWorkloadConfig,
     commitHash: string,
     repositoryId: number,
-  ): Promise<GitConfigCreate> {
+  ): GitConfigCreate {
     return {
       ...this.createCommonWorkloadConfig(config),
       source: "GIT",
@@ -169,7 +176,9 @@ export class DeploymentConfigService {
     } satisfies GitConfigCreate;
   }
 
-  // Produces a DeploymentConfig object to be returned from the API, as described in the OpenAPI spec.
+  /**
+   * Produces a `DeploymentConfig` object to be returned from the API, as described in the OpenAPI spec.
+   */
   formatDeploymentConfig(
     config: DeploymentConfig,
   ): components["schemas"]["DeploymentConfig"] {

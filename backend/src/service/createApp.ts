@@ -55,6 +55,10 @@ export async function createApp(appData: NewApp, userId: number) {
       appGroupId = await db.appGroup.create(appData.orgId, groupName, true);
       break;
     }
+
+    default: {
+      appData.appGroup satisfies never; // Make sure switch is exhaustive
+    }
   }
 
   let { config, commitMessage } = (
@@ -71,7 +75,7 @@ export async function createApp(appData: NewApp, userId: number) {
       namespace: appData.namespace,
     });
 
-    config = deploymentConfigService.updateConfigWithApp(config, app);
+    config = deploymentConfigService.populateImageTag(config, app);
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
     if (err instanceof ConflictError) {

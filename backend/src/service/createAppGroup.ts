@@ -63,7 +63,7 @@ export async function createAppGroup(
         projectId: appData.projectId,
         namespace: appData.namespace,
       });
-      config = deploymentConfigService.updateConfigWithApp(config, app);
+      config = deploymentConfigService.populateImageTag(config, app);
     } catch (err) {
       // In between validation and creating the app, the namespace was taken by another app
       if (err instanceof ConflictError) {

@@ -4,7 +4,8 @@ import {
   QueryClient,
   type DefaultError,
   type Mutation,
-  type Query,
+  type MutationFunctionContext,
+  type QueryOptions,
 } from "@tanstack/react-query";
 import createFetchClient from "openapi-fetch";
 import createClient from "openapi-react-query";
@@ -22,9 +23,16 @@ export const api = createClient(fetchClient);
  */
 const ALLOWED_UNAUTHENTICATED = ["/", "/error"];
 
-const onQueryError = (
+const onError = (
   error: DefaultError,
-  query: Query<unknown, unknown, unknown>,
+  ...args:
+    | [QueryOptions]
+    | [
+        unknown,
+        unknown,
+        Mutation<unknown, unknown, unknown>,
+        MutationFunctionContext,
+      ]
 ) => {
   if (
     ("code" in error && error?.code === 401) ||
@@ -35,7 +43,7 @@ const onQueryError = (
       return;
     }
   }
-  if (query.queryHash === '["get","/user/me",{}]') {
+  if (args.length === 1 && args[0].queryHash === '["get","/user/me",{}]') {
     // Don't show the error toast for the initial /user/me request
     return;
   }
@@ -44,27 +52,7 @@ const onQueryError = (
   );
 };
 
-const onMutationError = (
-  error: DefaultError,
-  _variables: unknown,
-  _context: unknown,
-  _mutation: Mutation<unknown, unknown, unknown>,
-) => {
-  if (
-    ("code" in error && error?.code === 401) ||
-    error?.message === "Unauthorized"
-  ) {
-    if (!ALLOWED_UNAUTHENTICATED.includes(window.location.pathname)) {
-      window.location.href = "/api/login";
-      return;
-    }
-  }
-  toast.error(
-    `Something went wrong: ${error.message ?? JSON.stringify(error)}`,
-  );
-};
-
 export const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: onQueryError }),
-  mutationCache: new MutationCache({ onError: onMutationError }),
+  queryCache: new QueryCache({ onError }),
+  mutationCache: new MutationCache({ onError }),
 });
