@@ -1,13 +1,6 @@
 name: Build and Publish AnvilOps Docker image
 
 on:
-  push:
-    branches: [dev]
-    paths-ignore:
-      - "infra/**"
-      - "charts/**"
-      - "builders/**"
-      - "docs/**" # The docs are hosted on AnvilOps!
   workflow_dispatch:
 
 jobs:
@@ -24,7 +17,7 @@ jobs:
         run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
 
       - name: Build and push AnvilOps Docker image
-        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops-dev/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops-dev/anvilops:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops-dev/anvilops:latest --cache-to=type=inline .
+        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops-staging/anvilops:${{ github.run_number }}-${{ github.sha }}${{ github.event_name == 'push' && ' -t registry.anvil.rcac.purdue.edu/anvilops-staging/anvilops:latest' || '' }} --cache-from=type=registry,ref=registry.anvil.rcac.purdue.edu/anvilops-staging/anvilops:latest --cache-to=type=inline .
 
       - name: Log out of container registry
         if: always()
