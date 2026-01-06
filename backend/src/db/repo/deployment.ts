@@ -6,8 +6,9 @@ import type {
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
 import type {
-  WorkloadConfigCreateInput,
+  HelmConfigModel as PrismaHelmConfig,
   WorkloadConfigModel as PrismaWorkloadConfig,
+  WorkloadConfigCreateInput,
 } from "../../generated/prisma/models.ts";
 import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
@@ -191,17 +192,7 @@ export class DeploymentRepo {
       },
     });
 
-    if (deployment.config.appType === "workload") {
-      return DeploymentRepo.preprocessWorkloadConfig(
-        deployment.config.workloadConfig,
-      );
-    }
-
-    return {
-      ...deployment.config.helmConfig,
-      source: "HELM",
-      appType: deployment.config.appType,
-    };
+    return DeploymentRepo.preprocessConfig(deployment.config);
   }
 
   private static encryptEnv(
@@ -213,7 +204,25 @@ export class DeploymentRepo {
     return copy;
   }
 
-  static preprocessWorkloadConfig(
+  static preprocessConfig(config: {
+    appType: AppType;
+    workloadConfig?: Omit<PrismaWorkloadConfig, "id">;
+    helmConfig?: Omit<PrismaHelmConfig, "id">;
+  }): WorkloadConfig | HelmConfig {
+    if (config.appType === "workload") {
+      return DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
+    } else if (config.appType === "helm") {
+      return {
+        ...config.helmConfig,
+        source: "HELM",
+        appType: "helm",
+      } satisfies HelmConfig;
+    } else {
+      return null;
+    }
+  }
+
+  private static preprocessWorkloadConfig(
     config: Omit<PrismaWorkloadConfig, "id">,
   ): WorkloadConfig {
     if (config === null) {

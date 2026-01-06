@@ -224,28 +224,14 @@ export class AppRepo {
       include: {
         config: {
           include: {
-            workloadConfig: {
-              omit: { id: true },
-            },
-            helmConfig: {
-              omit: { id: true },
-            },
+            workloadConfig: { omit: { id: true } },
+            helmConfig: { omit: { id: true } },
           },
         },
       },
     });
 
-    if (app.config?.appType === "workload") {
-      return DeploymentRepo.preprocessWorkloadConfig(app.config.workloadConfig);
-    } else if (app.config?.appType === "helm") {
-      return {
-        ...app.config.helmConfig,
-        source: "HELM",
-        appType: app.config.appType,
-      };
-    } else {
-      return null;
-    }
+    return DeploymentRepo.preprocessConfig(app.config);
   }
 
   async setConfig(appId: number, configId: number) {
@@ -272,32 +258,17 @@ export class AppRepo {
       include: {
         config: {
           include: {
-            workloadConfig: true,
-            helmConfig: true,
+            workloadConfig: { omit: { id: true } },
+            helmConfig: { omit: { id: true } },
           },
         },
       },
     });
 
-    return deployments.map((deployment) => {
-      if (deployment.config.workloadConfig) {
-        return {
-          ...deployment,
-          config: DeploymentRepo.preprocessWorkloadConfig(
-            deployment.config.workloadConfig,
-          ) satisfies WorkloadConfig,
-        };
-      } else {
-        return {
-          ...deployment,
-          config: {
-            ...deployment.config.helmConfig,
-            source: "HELM",
-            appType: "helm",
-          } satisfies HelmConfig,
-        };
-      }
-    });
+    return deployments.map((deployment) => ({
+      ...deployment,
+      config: DeploymentRepo.preprocessConfig(deployment.config),
+    }));
   }
 
   async setGroup(appId: number, appGroupId: number) {
