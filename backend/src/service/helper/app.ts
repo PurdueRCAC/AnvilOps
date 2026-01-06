@@ -63,30 +63,30 @@ export class AppService {
       );
     }
 
-    const metadata: (
-      | Awaited<ReturnType<typeof this.configService.prepareDeploymentMetadata>>
-      | Error
-    )[] = await Promise.all(
-      apps.map(async (app) => {
-        try {
-          return await this.configService.prepareDeploymentMetadata(
+    const metadata = await Promise.allSettled(
+      apps.map(
+        async (app) =>
+          await this.configService.prepareDeploymentMetadata(
             app.config,
             organization,
-          );
-        } catch (e) {
-          return e;
-        }
-      }),
+          ),
+      ),
     );
 
-    const errors = metadata.filter((res) => res instanceof Error) as Error[];
+    const errors = metadata.filter((res) => res.status === "rejected");
     if (errors.length > 0) {
-      throw new ValidationError(errors.map((err) => err.message).join(","));
+      throw new ValidationError(
+        errors.map((err) => (err.reason as Error)?.message).join(","),
+      );
     }
 
-    return metadata as Awaited<
+    type MetadataReturn = Awaited<
       ReturnType<typeof this.configService.prepareDeploymentMetadata>
-    >[];
+    >;
+
+    return metadata.map(
+      (app) => (app as PromiseFulfilledResult<MetadataReturn>).value,
+    );
   }
 
   /**
