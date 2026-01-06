@@ -77,6 +77,7 @@ export async function createApp(appData: NewApp, userId: number) {
     if (err instanceof ConflictError) {
       throw new ValidationError(err.message + " is unavailable");
     }
+    throw err;
   }
 
   await deploymentService.create({
