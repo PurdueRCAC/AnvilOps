@@ -40,17 +40,6 @@ jobs:
         if: always()
         run: docker logout geddes-registry.anvil.rcac.purdue.edu
 
-      - name: Install yq
-        run: |
-          wget https://github.com/mikefarah/yq/releases/download/v4.47.2/yq_linux_amd64 -O ./yq &&\
-          chmod +x yq
-
-      - name: Update values.yaml files
-        run: |
-          ./yq -i '.anvilops.image = "registry.anvil.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}"' infra/anvil/values.yaml
-          ./yq -i '.anvilops.image = "geddes-registry.rcac.purdue.edu/anvilops/anvilops:${{ github.ref_name }}-${{ github.run_number }}-${{ github.sha }}"' infra/geddes/values.yaml
-          cat infra/anvil/values.yaml
-
       - name: Commit changes
         run: |
           git config --global user.name "github-actions[bot]"
