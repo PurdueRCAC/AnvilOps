@@ -15,8 +15,7 @@ import type {
   App,
   AppCreate,
   Deployment,
-  HelmConfig,
-  WorkloadConfig,
+  DeploymentConfig,
 } from "../models.ts";
 import { DeploymentRepo } from "./deployment.ts";
 
@@ -216,9 +215,7 @@ export class AppRepo {
     return app.config.deployment;
   }
 
-  async getDeploymentConfig(
-    appId: number,
-  ): Promise<WorkloadConfig | HelmConfig> {
+  async getDeploymentConfig(appId: number): Promise<DeploymentConfig> {
     const app = await this.client.app.findUnique({
       where: { id: appId },
       include: {

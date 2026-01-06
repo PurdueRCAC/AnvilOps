@@ -1,6 +1,7 @@
 import { Octokit } from "octokit";
 import type {
   App,
+  DeploymentConfig,
   GitConfigCreate,
   HelmConfig,
   HelmConfigCreate,
@@ -170,7 +171,7 @@ export class DeploymentConfigService {
 
   // Produces a DeploymentConfig object to be returned from the API, as described in the OpenAPI spec.
   formatDeploymentConfig(
-    config: WorkloadConfig | HelmConfig,
+    config: DeploymentConfig,
   ): components["schemas"]["DeploymentConfig"] {
     if (config.appType === "workload") {
       return this.formatWorkloadConfig(config);

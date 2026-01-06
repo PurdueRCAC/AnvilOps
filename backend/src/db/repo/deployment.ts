@@ -14,7 +14,9 @@ import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
 import type {
   Deployment,
+  DeploymentConfig,
   DeploymentWithSourceInfo,
+  GitConfig,
   HelmConfig,
   HelmConfigCreate,
   Log,
@@ -179,7 +181,7 @@ export class DeploymentRepo {
     });
   }
 
-  async getConfig(deploymentId: number): Promise<WorkloadConfig | HelmConfig> {
+  async getConfig(deploymentId: number): Promise<DeploymentConfig> {
     const deployment = await this.client.deployment.findUnique({
       where: { id: deploymentId },
       select: {
@@ -208,11 +210,16 @@ export class DeploymentRepo {
     appType: AppType;
     workloadConfig?: Omit<PrismaWorkloadConfig, "id">;
     helmConfig?: Omit<PrismaHelmConfig, "id">;
-  }): WorkloadConfig | HelmConfig {
+  }): DeploymentConfig {
+    if (config === null) {
+      return null;
+    }
+
+    let obj: WorkloadConfig | HelmConfig;
     if (config.appType === "workload") {
-      return DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
+      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
     } else if (config.appType === "helm") {
-      return {
+      obj = {
         ...config.helmConfig,
         source: "HELM",
         appType: "helm",
@@ -220,6 +227,29 @@ export class DeploymentRepo {
     } else {
       return null;
     }
+
+    const wrapped = {
+      ...obj,
+      asWorkloadConfig() {
+        if (obj.appType === "workload") {
+          return obj as WorkloadConfig;
+        } else {
+          throw new Error("DeploymentConfig is not a WorkloadConfig");
+        }
+      },
+      asHelmConfig() {
+        if (obj.appType === "helm") {
+          return obj as HelmConfig;
+        } else {
+          throw new Error("DeploymentConfig is not a HelmConfig");
+        }
+      },
+      asGitConfig() {
+        return wrapped.asWorkloadConfig().asGitConfig();
+      },
+    } satisfies DeploymentConfig;
+
+    return wrapped;
   }
 
   private static preprocessWorkloadConfig(
@@ -236,7 +266,7 @@ export class DeploymentRepo {
 
     const decrypted = decryptEnv(env, key);
 
-    return {
+    const obj = {
       ...config,
       appType: "workload",
       getEnv() {
@@ -245,7 +275,16 @@ export class DeploymentRepo {
       displayEnv: decrypted.map((envVar) =>
         envVar.isSensitive ? { ...envVar, value: null } : envVar,
       ),
-    };
+      asGitConfig() {
+        if (config.source === "GIT") {
+          return obj as GitConfig;
+        } else {
+          throw new Error("Workload is not deployed from Git");
+        }
+      },
+    } satisfies WorkloadConfig;
+
+    return obj;
   }
 
   static cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {

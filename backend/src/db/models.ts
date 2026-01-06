@@ -121,11 +121,36 @@ export interface WorkloadConfig {
   replicas: number;
   port: number;
   mounts: PrismaJson.VolumeMount[];
+
+  /**
+   * Returns this instance casted to `GitConfig` if `source` == `GIT`.
+   * @throws {Error} if this workload is not deployed from a Git repo
+   */
+  asGitConfig(): GitConfig;
 }
+
+export type DeploymentConfig = (WorkloadConfig | HelmConfig) & {
+  /**
+   * Returns this instance casted to `WorkloadConfig` if `appType` == `workload`.
+   * @throws {Error} if this deployment is not a workload
+   */
+  asWorkloadConfig(): WorkloadConfig;
+
+  /**
+   * Returns this instance casted to `HelmConfig` if `appType` == `helm`.
+   * @throws {Error} if this deployment is not a Helm chart
+   */
+  asHelmConfig(): HelmConfig;
+
+  /**
+   * A shortcut for `asWorkloadConfig().asGitConfig()`
+   */
+  asGitConfig(): GitConfig;
+};
 
 export type WorkloadConfigCreate = Omit<
   WorkloadConfig,
-  "id" | "displayEnv" | "getEnv"
+  "id" | "displayEnv" | "getEnv" | "asGitConfig"
 > & {
   env: PrismaJson.EnvVar[];
 };

@@ -1,9 +1,8 @@
 import { db } from "../db/index.ts";
 import type {
   Deployment,
-  HelmConfig,
+  DeploymentConfig,
   HelmConfigCreate,
-  WorkloadConfig,
   WorkloadConfigCreate,
 } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
@@ -156,7 +155,7 @@ export async function updateApp(
 }
 
 const shouldBuildOnUpdate = (
-  oldConfig: WorkloadConfig | HelmConfig,
+  oldConfig: DeploymentConfig,
   newConfig: WorkloadConfigCreate | HelmConfigCreate,
   currentDeployment: Deployment,
 ) => {

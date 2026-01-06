@@ -145,7 +145,7 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
 
   for (const app of apps) {
     const org = await db.org.getById(app.orgId);
-    const oldConfig = (await db.app.getDeploymentConfig(app.id)) as GitConfig;
+    const oldConfig = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
     await deploymentService.create({
       org,
       app,
@@ -189,7 +189,7 @@ async function handleWorkflowRun(
   if (payload.action === "requested") {
     for (const app of apps) {
       const org = await db.org.getById(app.orgId);
-      const config = (await db.app.getDeploymentConfig(app.id)) as GitConfig;
+      const config = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
       await deploymentService.create({
         org,
         app,

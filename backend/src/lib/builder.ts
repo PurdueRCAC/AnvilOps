@@ -354,7 +354,7 @@ export async function dequeueBuildJob(): Promise<string> {
 
   const app = await db.app.getById(deployment.appId);
   const org = await db.org.getById(app.orgId);
-  const config = (await db.deployment.getConfig(deployment.id)) as GitConfig;
+  const config = (await db.deployment.getConfig(deployment.id)).asGitConfig();
 
   console.log(
     `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,

@@ -90,7 +90,7 @@ export class DeploymentService {
 
     switch (config.source) {
       case "HELM": {
-        this.deployHelm(org, app, deployment, config as HelmConfig);
+        this.deployHelm(org, app, deployment, config.asHelmConfig());
         break;
       }
 
@@ -99,7 +99,7 @@ export class DeploymentService {
           org,
           app,
           deployment,
-          config: config as GitConfig,
+          config: config.asGitConfig(),
           opts: git,
         });
         break;
@@ -500,7 +500,7 @@ export class DeploymentService {
         if (!octokit) {
           octokit = await this.getOctokitFn(org.githubInstallationId);
         }
-        const config = deployment.config as GitConfig;
+        const config = deployment.config.asGitConfig();
 
         const repo = await this.getRepoByIdFn(octokit, config.repositoryId);
         try {
