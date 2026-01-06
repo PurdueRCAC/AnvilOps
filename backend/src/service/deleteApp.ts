@@ -31,17 +31,13 @@ export async function deleteApp(
   const config = await db.deployment.getConfig(lastDeployment.id);
 
   if (!keepNamespace) {
-    try {
-      const { KubernetesObjectApi: api } = await getClientsForRequest(
-        userId,
-        projectId,
-        ["KubernetesObjectApi"],
-      );
-      await deleteNamespace(api, getNamespace(namespace));
-    } catch (err) {
-      console.error("Failed to delete namespace:", err);
-    }
-  } else if (config.collectLogs) {
+    const { KubernetesObjectApi: api } = await getClientsForRequest(
+      userId,
+      projectId,
+      ["KubernetesObjectApi"],
+    );
+    await deleteNamespace(api, getNamespace(namespace));
+  } else if (config.appType === "workload" && config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
     config.collectLogs = false; // <-- Disable log shipping
 

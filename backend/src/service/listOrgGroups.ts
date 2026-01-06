@@ -14,5 +14,6 @@ export async function listOrgGroups(orgId: number, userId: number) {
   return appGroups.map((group) => ({
     id: group.id,
     name: group.name,
+    isMono: group.isMono,
   }));
 }

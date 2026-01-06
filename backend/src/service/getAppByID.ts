@@ -1,9 +1,9 @@
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
-import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { AppNotFoundError } from "./common/errors.ts";
+import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getAppByID(appId: number, userId: number) {
   const [app, recentDeployment, deploymentCount] = await Promise.all([
@@ -63,39 +63,7 @@ export async function getAppByID(appId: number, userId: number) {
     repositoryURL: repoURL,
     cdEnabled: app.enableCD,
     namespace: app.namespace,
-    config: {
-      createIngress: currentConfig.createIngress,
-      subdomain: currentConfig.createIngress
-        ? currentConfig.subdomain
-        : undefined,
-      collectLogs: currentConfig.collectLogs,
-      port: currentConfig.port,
-      env: currentConfig.displayEnv,
-      replicas: currentConfig.replicas,
-      requests: currentConfig.requests,
-      limits: currentConfig.limits,
-      mounts: currentConfig.mounts.map((mount) => ({
-        amountInMiB: mount.amountInMiB,
-        path: mount.path,
-        volumeClaimName: generateVolumeName(mount.path),
-      })),
-      ...(currentConfig.source === "GIT"
-        ? {
-            source: "git" as const,
-            branch: currentConfig.branch,
-            dockerfilePath: currentConfig.dockerfilePath,
-            rootDir: currentConfig.rootDir,
-            builder: currentConfig.builder,
-            repositoryId: currentConfig.repositoryId,
-            event: currentConfig.event,
-            eventId: currentConfig.eventId,
-            commitHash: currentConfig.commitHash,
-          }
-        : {
-            source: "image" as const,
-            imageTag: currentConfig.imageTag,
-          }),
-    },
+    config: deploymentConfigService.formatDeploymentConfig(currentConfig),
     appGroup: {
       standalone: appGroup.isMono,
       name: !appGroup.isMono ? appGroup.name : undefined,

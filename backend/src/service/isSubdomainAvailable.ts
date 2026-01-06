@@ -9,6 +9,6 @@ export async function isSubdomainAvailable(subdomain: string) {
     throw new ValidationError("Invalid subdomain.");
   }
 
-  const subdomainUsedByApp = await db.app.isSubdomainInUse(subdomain);
-  return !subdomainUsedByApp;
+  const subdomainUsedByApp = await db.app.getAppBySubdomain(subdomain);
+  return subdomainUsedByApp === null;
 }

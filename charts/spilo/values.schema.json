@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "required": ["passwords", "storage"],
+  "properties": {
+    "passwords": {
+      "type": "object",
+      "required": ["superuser", "replication", "admin"],
+      "properties": {
+        "superuser": {
+          "type": "string"
+        },
+        "replication": {
+          "type": "string"
+        },
+        "admin": {
+          "type": "string"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "required": ["className", "size"],
+      "properties": {
+        "className": {
+          "type": "string"
+        },
+        "sizeInGi": {
+          "type": "number"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    "replicas": {
+      "type": "number"
+    }
+  }
+}

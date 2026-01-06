@@ -2,6 +2,7 @@ import type {
   DeploymentSource,
   DeploymentStatus,
   GitHubOAuthAction,
+  HelmUrlType,
   ImageBuilder,
   PermissionLevel,
   WebhookEvent,
@@ -98,10 +99,10 @@ export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
   source?: DeploymentSource;
 }
 
-export interface DeploymentConfig {
-  id: number;
+export interface WorkloadConfig {
   displayEnv: PrismaJson.EnvVar[];
   getEnv(): PrismaJson.EnvVar[];
+  appType: "workload";
   source: DeploymentSource;
   repositoryId?: number;
   branch?: string;
@@ -114,7 +115,7 @@ export interface DeploymentConfig {
   imageTag?: string;
   collectLogs: boolean;
   createIngress: boolean;
-  subdomain: string | undefined;
+  subdomain?: string;
   requests: PrismaJson.Resources;
   limits: PrismaJson.Resources;
   replicas: number;
@@ -122,12 +123,47 @@ export interface DeploymentConfig {
   mounts: PrismaJson.VolumeMount[];
 }
 
-export type DeploymentConfigCreate = Omit<
-  DeploymentConfig,
+export type WorkloadConfigCreate = Omit<
+  WorkloadConfig,
   "id" | "displayEnv" | "getEnv"
 > & {
   env: PrismaJson.EnvVar[];
 };
+
+export type GitConfig = WorkloadConfig & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
+};
+
+export type GitConfigCreate = WorkloadConfigCreate & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
+};
+
+export type HelmConfig = {
+  appType: "helm";
+  source: "HELM";
+  url: string;
+  version: string;
+  urlType: HelmUrlType;
+  values?: any;
+};
+
+export type HelmConfigCreate = Omit<HelmConfig, "id">;
 
 export interface Log {
   id: number;

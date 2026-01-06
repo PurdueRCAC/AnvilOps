@@ -1,7 +1,7 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import crypto from "node:crypto";
 import type { Octokit } from "octokit";
-import type { App, Deployment, DeploymentConfig } from "../../../db/models.ts";
+import type { App, Deployment, WorkloadConfig } from "../../../db/models.ts";
 import { env } from "../../env.ts";
 import { getRepoById } from "../../octokit.ts";
 import type { K8sObject } from "../resources.ts";
@@ -28,7 +28,7 @@ interface DeploymentParams {
 export const generateAutomaticEnvVars = async (
   octokit: Octokit | null,
   deployment: Deployment,
-  config: DeploymentConfig,
+  config: WorkloadConfig,
   app: App,
 ): Promise<{ name: string; value: string }[]> => {
   const appDomain = URL.parse(env.APP_DOMAIN);

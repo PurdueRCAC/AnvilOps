@@ -12,6 +12,7 @@ anvilops:
     baseURL: http://anvilops.minikube.local
     appDomain: http://minikube.local
     harborProjectName: anvilops
+    harborChartRepoName: anvilops-chart
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest

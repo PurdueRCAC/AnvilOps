@@ -12,10 +12,10 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
+import { db } from "../../db/index.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
-import { db } from "../../db/index.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -149,8 +149,18 @@ export const deleteNamespace = async (
   api: KubernetesObjectApi,
   name: string,
 ) => {
-  await api.delete({ apiVersion: "v1", kind: "Namespace", metadata: { name } });
-  console.log(`Namespace ${name} deleted`);
+  try {
+    await api.delete({
+      apiVersion: "v1",
+      kind: "Namespace",
+      metadata: { name },
+    });
+  } catch (err) {
+    if (err instanceof ApiException && err.code === 404) {
+      return;
+    }
+    throw err;
+  }
 };
 
 export const createOrUpdateApp = async (
