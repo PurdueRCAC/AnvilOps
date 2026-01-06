@@ -28,7 +28,7 @@ USER 65532
 
 # https://github.com/krallin/tini
 ENV TINI_VERSION=v0.19.0
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${TARGETARCH} /tini
 ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "/app/node_modules/.bin/prisma"]
 

@@ -5,12 +5,6 @@ load('ext://deployment', 'deployment_create')
 load('ext://helm_remote', 'helm_remote')
 dotenv(fn='../backend/.env')
 
-arch = str(local('uname -m')).strip()
-if arch == "arm64" or arch == "aarch64":
-  platform = "arm64"
-else:
-  platform = "amd64"
-
 # Should the frontend and backend be deployed separately?
 # If enabled, changes will apply much faster at the expense of a development environment that looks less like production.
 separate_frontend_and_backend = True
@@ -43,7 +37,7 @@ else:
     "anvilops/anvilops", "../",
     only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
   )
-docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/Dockerfile", only=["package.json", "package-lock.json", "prisma", "prisma.config.ts"], build_args={'TARGETARCH': platform})
+docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/Dockerfile", only=["package.json", "package-lock.json", "prisma", "prisma.config.ts"])
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
