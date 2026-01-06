@@ -77,7 +77,7 @@ export class AppRepo {
   }
 
   async getAppBySubdomain(subdomain: string): Promise<App | null> {
-    return this.client.app.findFirst({
+    return await this.client.app.findFirst({
       where: {
         config: {
           appType: "workload",
