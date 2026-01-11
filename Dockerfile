@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine AS base
+FROM node:24-trixie-slim AS base
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen
@@ -49,6 +49,16 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
+# BACKEND: compile regclient Node-API bindings
+FROM base AS compile_regclient_bindings
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential golang ca-certificates python3
+
+WORKDIR /app
+COPY backend/package*.json .
+COPY backend/regclient-napi ./regclient-napi
+COPY --from=backend_deps /app/node_modules ./node_modules
+RUN npm rebuild --foreground-scripts=true regclient-napi
+
 FROM alpine:3 AS patcher
 ARG GEDDES="false"
 WORKDIR /app
@@ -63,6 +73,7 @@ RUN rm geddes.diff
 FROM backend_codegen AS backend_build
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY --from=patcher /app .
+COPY --from=compile_regclient_bindings /app/regclient-napi ./regclient-napi
 RUN npx tsc --noEmit
 
 # SWAGGER UI: install packages and build
@@ -72,7 +83,7 @@ COPY swagger-ui .
 RUN npm ci && npm run build
 
 # Combine frontend & backend and run the app
-FROM gcr.io/distroless/nodejs24-debian12:nonroot
+FROM gcr.io/distroless/nodejs24-debian13:nonroot
 
 EXPOSE 3000
 
@@ -84,8 +95,8 @@ ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app
-COPY --chown=65532:65532 --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
 COPY --chown=65532:65532 --from=swagger_build /app/dist ./public/openapi
+COPY --chown=65532:65532 --from=compile_regclient_bindings /app/regclient-napi ./regclient-napi
 COPY --chown=65532:65532 --from=frontend_build /app/dist ./public
 COPY --chown=65532:65532 --from=backend_prod_deps /app/node_modules ./node_modules
 COPY --chown=65532:65532 openapi/*.yaml /openapi/
