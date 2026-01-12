@@ -1,6 +1,6 @@
 import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
-import { getChart } from "../lib/helm.ts";
+import { getChartToken, getLatestChart } from "../lib/helm.ts";
 import { getRepositoriesByProject } from "../lib/registry.ts";
 import { ValidationError } from "./common/errors.ts";
 
@@ -16,28 +16,23 @@ export async function listCharts() {
 }
 
 const listChartsFromRegistry = async () => {
-  const repos = await getRepositoriesByProject(env.CHART_PROJECT_NAME);
+  const [repos, token] = await Promise.all([
+    getRepositoriesByProject(env.CHART_PROJECT_NAME),
+    getChartToken(),
+  ]);
+
   const charts = await Promise.all(
     repos.map(async (repo) => {
-      const url = `oci://${env.REGISTRY_HOSTNAME}/${repo.name}`;
-      return await getChart(url);
+      return await getLatestChart(repo.name, token);
     }),
   );
 
-  if (charts.some((chart) => chart === null)) {
-    throw new Error("Failed to get charts");
-  }
-
-  return charts
-    .filter(
-      (chart) => chart?.annotations && "anvilops-values" in chart?.annotations,
-    )
-    .map((chart) => ({
-      name: chart.name,
-      note: chart.annotations["anvilops-note"],
-      url: `oci://${env.REGISTRY_HOSTNAME}/${chart.name}`,
-      urlType: "oci",
-      version: chart.version,
-      valueSpec: JSON.parse(chart.annotations["anvilops-values"] ?? ""),
-    }));
+  return charts.filter(Boolean).map((chart) => ({
+    name: chart.name,
+    note: chart.note,
+    url: `oci://${env.REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
+    urlType: "oci",
+    version: chart.version,
+    valueSpec: chart.values,
+  }));
 };

@@ -1,7 +1,5 @@
 import { V1Pod } from "@kubernetes/client-node";
-import { spawn } from "child_process";
 import { randomBytes } from "node:crypto";
-import { parse as yamlParse } from "yaml";
 import type { App, Deployment, HelmConfig } from "../db/models.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { shouldImpersonate } from "./cluster/rancher.ts";
@@ -9,60 +7,100 @@ import { getNamespace } from "./cluster/resources.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { env } from "./env.ts";
 
-type Dependency = {
-  name: string;
-  version: string;
-  repository?: string;
-  condition?: string;
-  tags?: string[];
-  "import-values"?: string;
-  alias?: string;
-};
-
 type Chart = {
-  apiVersion: string;
   name: string;
   version: string;
-  kubeVersion?: string;
   description?: string;
-  type?: string;
-  keywords?: string[];
-  home?: string;
-  sources?: string[];
-  dependencies?: Dependency[];
-  maintainers?: { name: string; email: string; url: string }[];
-  icon?: string;
-  appVersion?: string;
-  deprecated?: boolean;
-  annotations?: Record<string, string>;
+  note?: string;
+  values: Record<string, any>;
 };
 
-const runHelm = (args: string[]) => {
-  return new Promise((resolve, reject) => {
-    const p = spawn("helm", args, { stdio: ["ignore", "pipe", "pipe"] });
-    let out = "",
-      err = "";
-    p.stdout.on("data", (d) => (out += d));
-    p.stderr.on("data", (d) => (err += d));
-    p.on("close", (code) =>
-      code === 0 ? resolve(out) : reject(new Error(err || `helm exit ${code}`)),
-    );
-  });
+type ChartTagList = {
+  name: string;
+  tags: string[];
 };
 
-export const getChart = async (
-  url: string,
-  version?: string,
+export const getChartToken = async () => {
+  return fetch(
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
+  )
+    .then((res) => {
+      if (!res.ok) {
+        console.error(res);
+        throw new Error(res.statusText);
+      }
+      return res;
+    })
+    .then((res) => res.text())
+    .then((res) => JSON.parse(res))
+    .then((res) => {
+      return res.token;
+    });
+};
+
+const getChart = async (
+  repository: string,
+  version: string,
+  token: string,
 ): Promise<Chart> => {
-  const args = ["show", "chart"];
-  if (version) {
-    args.push("version", version);
-  }
-  args.push(url);
+  return fetch(
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.oci.image.manifest.v1+json",
+      },
+    },
+  )
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error(res.statusText);
+      }
+      return res;
+    })
+    .then((res) => res.text())
+    .then((res) => JSON.parse(res))
+    .then((res) => {
+      const annotations = res.annotations;
+      if ("anvilops-values" in annotations) {
+        return {
+          name: annotations["org.opencontainers.image.title"],
+          version: annotations["org.opencontainers.image.version"],
+          description: annotations["org.opencontainers.image.description"],
+          note: annotations["anvilops-note"],
+          values: JSON.parse(annotations["anvilops-values"]),
+        };
+      } else {
+        return null;
+      }
+    });
+};
 
-  const result = (await runHelm(args)) as string;
-  const chart = (await yamlParse(result)) as Chart;
-  return chart;
+export const getLatestChart = async (
+  repository: string,
+  token: string,
+): Promise<Chart | null> => {
+  const chartTagList = await fetch(
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/tags/list`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error(res.statusText);
+      }
+      return res;
+    })
+    .then((res) => res.json() as Promise<ChartTagList>);
+
+  return await getChart(
+    chartTagList.name,
+    chartTagList.tags[chartTagList.tags.length - 1],
+    token,
+  );
 };
 
 export const upgrade = async (
