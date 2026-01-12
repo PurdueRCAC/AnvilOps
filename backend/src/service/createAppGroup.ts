@@ -19,25 +19,12 @@ export async function createAppGroup(
   appData: NewAppWithoutGroup[],
 ) {
   appService.validateAppGroupName(groupName);
-  const groupId = await db.appGroup.create(orgId, groupName, false);
-  // let groupId: number;
-  // try {
-  //   groupId = await db.appGroup.create(orgId, groupName, false);
-  // } catch (e) {
-  //   if (e instanceof ConflictError) {
-  //     throw new ValidationError(
-  //       "An app group already exists with the same name.",
-  //     );
-  //   }
-  //   throw e;
-  // }
-  const appsWithGroups = appData.map(
+  const apps = appData.map(
     (app) =>
       ({
         ...app,
         orgId: orgId,
-        appGroup: { type: "add-to", id: groupId },
-      }) satisfies NewApp,
+      }) satisfies Omit<NewApp, "appGroup">,
   );
 
   const [organization, user] = await Promise.all([
@@ -59,10 +46,23 @@ export async function createAppGroup(
     })),
   );
 
-  const appsWithMetadata = appsWithGroups.map((app, idx) => ({
+  const appsWithMetadata = apps.map((app, idx) => ({
     appData: app,
     metadata: validationResults[idx],
   }));
+
+  const groupId = await db.appGroup.create(orgId, groupName, false);
+  // let groupId: number;
+  // try {
+  //   groupId = await db.appGroup.create(orgId, groupName, false);
+  // } catch (e) {
+  //   if (e instanceof ConflictError) {
+  //     throw new ValidationError(
+  //       "An app group already exists with the same name.",
+  //     );
+  //   }
+  //   throw e;
+  // }
 
   for (const { appData, metadata } of appsWithMetadata) {
     let { config, commitMessage } = metadata;

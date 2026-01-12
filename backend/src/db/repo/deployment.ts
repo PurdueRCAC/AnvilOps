@@ -184,8 +184,8 @@ export class DeploymentRepo {
       select: {
         config: {
           include: {
-            workloadConfig: { omit: { id: true } },
-            helmConfig: { omit: { id: true } },
+            workloadConfig: { omit: { id: true, deploymentConfigId: true } },
+            helmConfig: { omit: { id: true, deploymentConfigId: true } },
           },
         },
       },
@@ -205,8 +205,8 @@ export class DeploymentRepo {
 
   static preprocessConfig(config: {
     appType: AppType;
-    workloadConfig?: Omit<PrismaWorkloadConfig, "id">;
-    helmConfig?: Omit<PrismaHelmConfig, "id">;
+    workloadConfig?: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">;
+    helmConfig?: Omit<PrismaHelmConfig, "id" | "deploymentConfigId">;
   }): DeploymentConfig {
     if (config === null) {
       return null;
@@ -250,7 +250,7 @@ export class DeploymentRepo {
   }
 
   private static preprocessWorkloadConfig(
-    config: Omit<PrismaWorkloadConfig, "id">,
+    config: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">,
   ): WorkloadConfig {
     if (config === null) {
       return null;
@@ -288,11 +288,9 @@ export class DeploymentRepo {
     if (config === null) {
       return null;
     }
-    const newConfig = structuredClone(config);
+    const { getEnv, displayEnv, asGitConfig, ...clonable } = config;
+    const newConfig = structuredClone(clonable);
     const env = config.getEnv();
-    delete newConfig.displayEnv;
-    delete newConfig.getEnv;
-
     return { ...newConfig, env };
   }
 

@@ -26,6 +26,14 @@ export async function createApp(appData: NewApp, userId: number) {
   }
 
   let app: App;
+
+  let { config, commitMessage } = (
+    await appService.prepareMetadataForApps(organization, user, {
+      type: "create",
+      ...appData,
+    })
+  )[0];
+
   let appGroupId: number;
 
   switch (appData.appGroup.type) {
@@ -58,13 +66,6 @@ export async function createApp(appData: NewApp, userId: number) {
       appData.appGroup satisfies never; // Make sure switch is exhaustive
     }
   }
-
-  let { config, commitMessage } = (
-    await appService.prepareMetadataForApps(organization, user, {
-      type: "create",
-      ...appData,
-    })
-  )[0];
 
   try {
     app = await db.app.create({

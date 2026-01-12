@@ -221,8 +221,8 @@ export class AppRepo {
       include: {
         config: {
           include: {
-            workloadConfig: { omit: { id: true } },
-            helmConfig: { omit: { id: true } },
+            workloadConfig: { omit: { id: true, deploymentConfigId: true } },
+            helmConfig: { omit: { id: true, deploymentConfigId: true } },
           },
         },
       },
