@@ -118,6 +118,7 @@ export const createNewAppWithoutGroup = (
   return {
     name: getAppName(appState),
     namespace: generateNamespace(appState),
+    projectId: appState.projectId ?? undefined,
     config: createDeploymentConfig(appState),
   };
 };

@@ -1,9 +1,7 @@
-import { useAppConfig } from "@/components/AppConfigProvider";
 import HelpTooltip from "@/components/HelpTooltip";
 import { UserContext } from "@/components/UserProvider";
 import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { GroupConfigFields } from "@/components/config/GroupConfigFields";
-import { ProjectConfig } from "@/components/config/ProjectConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +38,6 @@ export const ConfigTab = ({
     );
   }
 
-  const appConfig = useAppConfig();
   const [state, setState] = useState<CommonFormFields>(
     getFormStateFromApp(app),
   );
@@ -69,10 +66,7 @@ export const ConfigTab = ({
           body: {
             displayName: state.displayName,
             appGroup: groupState.groupOption,
-            projectId:
-              state.projectId && state.projectId !== app.projectId
-                ? state.projectId
-                : undefined,
+            projectId: state.projectId ?? undefined,
             config: createDeploymentConfig(finalAppState),
           },
         });
@@ -139,9 +133,6 @@ export const ConfigTab = ({
         />
       </div>
       <GroupConfigFields state={groupState} setState={setGroupState} />
-      {appConfig?.isRancherManaged && (
-        <ProjectConfig state={state} setState={setState} />
-      )}
       <FormContext value="UpdateApp">
         <AppConfigFormFields
           groupState={groupState}

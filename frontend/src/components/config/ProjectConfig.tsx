@@ -1,16 +1,16 @@
-import type { CommonFormFields } from "@/lib/form.types";
+import { UserContext } from "@/components/UserProvider";
+import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import type { CommonFormFields } from "@/lib/form.types";
 import { Fence } from "lucide-react";
 import { useContext } from "react";
-import { UserContext } from "@/components/UserProvider";
 
 export const ProjectConfig = ({
   state,
@@ -58,7 +58,7 @@ export const ProjectConfig = ({
         <SelectContent>
           <SelectGroup>
             {user?.projects?.map((project) => (
-              <SelectItem key={project.id} value={project.id.toString()}>
+              <SelectItem key={project.id} value={project.id}>
                 <p>
                   {project.name}{" "}
                   <span className="text-sm text-black-2">
