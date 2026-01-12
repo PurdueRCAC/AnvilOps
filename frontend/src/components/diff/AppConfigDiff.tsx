@@ -1,10 +1,6 @@
 import { UserContext } from "@/components/UserProvider";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectGroup, SelectItem } from "@/components/ui/select";
-import { Cable } from "lucide-react";
-import { useContext } from "react";
-import { GitConfigDiff } from "./workload/git/GitConfigDiff";
-import type { CommonFormFields } from "@/lib/form.types";
 import {
   getFormStateFromApp,
   makeFunctionalWorkloadSetter,
@@ -12,11 +8,16 @@ import {
   makeHelmSetter,
   makeImageSetter,
 } from "@/lib/form";
+import type { CommonFormFields } from "@/lib/form.types";
+import { Cable } from "lucide-react";
+import { useContext } from "react";
 import type { App } from "../../pages/app/AppView";
+import { useAppConfig } from "../AppConfigProvider";
 import { DiffSelect } from "./DiffSelect";
 import { HelmConfigDiff } from "./helm/HelmConfigDiff";
-import { ImageConfigDiff } from "./workload/image/ImageConfigDiff";
 import { CommonWorkloadConfigDiff } from "./workload/CommonWorkloadConfigDiff";
+import { GitConfigDiff } from "./workload/git/GitConfigDiff";
+import { ImageConfigDiff } from "./workload/image/ImageConfigDiff";
 
 export const AppConfigDiff = ({
   orgId,
@@ -32,7 +33,7 @@ export const AppConfigDiff = ({
   disabled?: boolean;
 }) => {
   const { user } = useContext(UserContext);
-
+  const appConfig = useAppConfig();
   const selectedOrg = orgId
     ? user?.orgs?.find((it) => it.id === orgId)
     : undefined;
@@ -79,6 +80,7 @@ export const AppConfigDiff = ({
               <SelectGroup>
                 <SelectItem value="git">Git Repository</SelectItem>
                 <SelectItem value="image">OCI Image</SelectItem>
+                {/* {appConfig.allowHelmDeployments && <SelectItem value="helm">Helm Chart</SelectItem>} */}
               </SelectGroup>
             </SelectContent>
           </DiffSelect>

@@ -10,6 +10,7 @@ import {
   MAX_NAMESPACE_LEN,
   MAX_STS_NAME_LEN,
 } from "../../lib/cluster/resources.ts";
+import { env } from "../../lib/env.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../../service/common/errors.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
@@ -135,6 +136,10 @@ export class AppService {
         app.config,
         app.type === "update" ? app.existingAppId : undefined,
       );
+    } else if (app.config.appType === "helm") {
+      if (!env.ALLOW_HELM_DEPLOYMENTS) {
+        throw new ValidationError("Helm deployments are disabled");
+      }
     }
   }
 

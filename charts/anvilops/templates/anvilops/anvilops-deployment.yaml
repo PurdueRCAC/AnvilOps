@@ -221,6 +221,8 @@ spec:
               value: {{ .Values.anvilops.env.harborProjectName }}
             - name: CHART_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborChartRepoName }}
+            - name: ALLOW_HELM_DEPLOYMENTS
+              value: "{{ .Values.anvilops.env.allowHelmDeployments }}"
             - name: BUILDKITD_ADDRESS
               value: {{ .Values.buildkitd.address }}
             - name: FILE_BROWSER_IMAGE

@@ -152,7 +152,11 @@ const variables = {
   /**
    * The name of the project in which custom AnvilOps charts are stored.
    */
-  CHART_PROJECT_NAME: { required: false },
+  CHART_PROJECT_NAME: { required: false, defaultValue: "anvilops-chart" },
+  /**
+   * Whether to allow Helm deployments
+   */
+  ALLOW_HELM_DEPLOYMENTS: { required: false },
   /**
    * The hostname for the image registry, e.g. registry.anvil.rcac.purdue.edu
    */

@@ -16,6 +16,7 @@ anvilops:
     railpackBuilderImage: anvilops/railpack-builder
     helmDeployerImage: anvilops/helm-deployer
     logShipperImage: anvilops/log-shipper
+    allowHelmDeployments: true
     registryProtocol: http
   cluster:
     name: "Local"

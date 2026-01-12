@@ -20,6 +20,7 @@ anvilops:
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
     helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest
     logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
+    allowHelmDeployments: false
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []

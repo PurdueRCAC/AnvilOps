@@ -2,8 +2,12 @@ import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
 import { getChart } from "../lib/helm.ts";
 import { getRepositoriesByProject } from "../lib/registry.ts";
+import { ValidationError } from "./common/errors.ts";
 
 export async function listCharts() {
+  if (!env.ALLOW_HELM_DEPLOYMENTS) {
+    throw new ValidationError("Helm deployments are disabled");
+  }
   return JSON.parse(
     await getOrCreate("charts", 60 * 60, async () =>
       JSON.stringify(await listChartsFromRegistry()),

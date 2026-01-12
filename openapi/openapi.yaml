@@ -50,6 +50,8 @@ paths:
                     type: boolean
                   isRancherManaged:
                     type: boolean
+                  allowHelmDeployments:
+                    type: boolean
   /login:
     get:
       tags:
@@ -1867,6 +1869,12 @@ paths:
                       type: object
                       additionalProperties: true
                   required: [name, note, url, urlType, version]
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "500":
           description: Internal server error
           content:

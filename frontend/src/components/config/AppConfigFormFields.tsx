@@ -1,12 +1,5 @@
-import type { components } from "@/generated/openapi";
-import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
-import { Cable } from "lucide-react";
-import { useContext } from "react";
 import { useAppConfig } from "@/components/AppConfigProvider";
 import { UserContext } from "@/components/UserProvider";
-import { GitConfigFields } from "./workload/git/GitConfigFields";
-import { HelmConfigFields } from "./helm/HelmConfigFields";
-import { ImageConfigFields } from "./workload/image/ImageConfigFields";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,13 +9,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProjectConfig } from "./ProjectConfig";
-import { CommonWorkloadConfigFields } from "./workload/CommonWorkloadConfigFields";
+import type { components } from "@/generated/openapi";
 import {
   makeFunctionalWorkloadSetter,
   makeHelmSetter,
   makeImageSetter,
 } from "@/lib/form";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import { Cable } from "lucide-react";
+import { useContext } from "react";
+import { ProjectConfig } from "./ProjectConfig";
+import { HelmConfigFields } from "./helm/HelmConfigFields";
+import { CommonWorkloadConfigFields } from "./workload/CommonWorkloadConfigFields";
+import { GitConfigFields } from "./workload/git/GitConfigFields";
+import { ImageConfigFields } from "./workload/image/ImageConfigFields";
 
 export const AppConfigFormFields = ({
   groupState,
@@ -90,7 +90,7 @@ export const AppConfigFormFields = ({
             <SelectGroup>
               <SelectItem value="git">Git Repository</SelectItem>
               <SelectItem value="image">OCI Image</SelectItem>
-              {/* <SelectItem value="helm">Helm Chart</SelectItem> */}
+              {/* appConfig.allowHelmDeployments && <SelectItem value="helm">Helm Chart</SelectItem> */}
             </SelectGroup>
           </SelectContent>
         </Select>
