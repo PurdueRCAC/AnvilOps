@@ -203,8 +203,6 @@ spec:
               value: {{ .Release.Namespace }}
             - name: REGISTRY_HOSTNAME
               value: {{ .Values.harbor.expose.ingress.hosts.core }}
-            - name: REGISTRY_API_URL
-              value: {{ .Values.harbor.expose.ingress.hosts.core }}/api/v2.0
             - name: CLUSTER_INTERNAL_BASE_URL
               value: "http://{{ include "anvilops.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
             - name: INGRESS_CLASS_NAME
@@ -231,6 +229,8 @@ spec:
               value: {{ .Values.anvilops.env.dockerfileBuilderImage }}
             - name: RAILPACK_BUILDER_IMAGE
               value: {{ .Values.anvilops.env.railpackBuilderImage }}
+            - name: HELM_DEPLOYER_IMAGE
+              value: {{ .Values.anvilops.env.helmDeployerImage }}
             - name: LOG_SHIPPER_IMAGE
               value: {{ .Values.anvilops.env.logShipperImage }}
             {{- with .Values.anvilops.env.registryProtocol }}

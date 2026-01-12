@@ -1,25 +1,25 @@
-import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
-import { isWorkloadConfig } from "@/lib/utils";
-import type { RefetchOptions } from "@tanstack/react-query";
-import { useContext, useState, type Dispatch } from "react";
-import type { App } from "./AppView";
+import { useAppConfig } from "@/components/AppConfigProvider";
+import HelpTooltip from "@/components/HelpTooltip";
+import { UserContext } from "@/components/UserProvider";
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
+import { GroupConfigFields } from "@/components/config/GroupConfigFields";
+import { ProjectConfig } from "@/components/config/ProjectConfig";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
 import {
   createDeploymentConfig,
   getFormStateFromApp,
   getGroupStateFromApp,
 } from "@/lib/form";
-import { api } from "@/lib/api";
-import { UserContext } from "@/components/UserProvider";
-import { Label } from "@/components/ui/label";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import { isWorkloadConfig } from "@/lib/utils";
+import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import HelpTooltip from "@/components/HelpTooltip";
+import { useContext, useState, type Dispatch } from "react";
 import { FormContext } from "../create-app/CreateAppView";
-import { Button } from "@/components/ui/button";
-import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
-import { GroupConfigFields } from "@/components/config/GroupConfigFields";
-import { ProjectConfig } from "@/components/config/ProjectConfig";
-import { useAppConfig } from "@/components/AppConfigProvider";
+import type { App } from "./AppView";
 
 export const ConfigTab = ({
   app,
@@ -67,10 +67,7 @@ export const ConfigTab = ({
         await updateApp({
           params: { path: { appId: app.id } },
           body: {
-            name:
-              state.displayName !== app.displayName
-                ? state.displayName
-                : undefined,
+            displayName: state.displayName,
             appGroup: groupState.groupOption,
             projectId:
               state.projectId && state.projectId !== app.projectId

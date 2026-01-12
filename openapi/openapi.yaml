@@ -2139,7 +2139,7 @@ components:
     AppUpdate:
       type: object
       properties:
-        name:
+        displayName:
           type: string
         appGroup:
           oneOf:
@@ -2367,10 +2367,16 @@ components:
           format: int64
         repositoryURL:
           type: string
+          nullable: true
         commitHash:
           type: string
+          nullable: true
         commitMessage:
           type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -2396,6 +2402,7 @@ components:
       required:
         - id
         - appId
+        - title
         - commitHash
         - commitMessage
         - createdAt

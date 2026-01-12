@@ -338,7 +338,10 @@ async function countActiveBuildJobs() {
   return jobs.items.filter((job) => job.status?.active).length;
 }
 
-/** @returns The UID of the created build job, or null if the queue is full */
+/**
+ * @returns The UID of the created build job, or null if the queue is full
+ * @throws {Error} if the config is not a GitConfig
+ */
 export async function dequeueBuildJob(): Promise<string> {
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
     return null;

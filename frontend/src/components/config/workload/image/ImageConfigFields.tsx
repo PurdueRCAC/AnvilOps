@@ -1,7 +1,7 @@
-import { Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ImageFormFields } from "@/lib/form.types";
+import { Tag } from "lucide-react";
 
 export const ImageConfigFields = ({
   imageState,
@@ -27,6 +27,7 @@ export const ImageConfigFields = ({
         </span>
       </div>
       <Input
+        required
         disabled={disabled}
         value={imageTag ?? ""}
         onChange={(e) => {

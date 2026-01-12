@@ -79,13 +79,15 @@ export default function AppView() {
           </h2>
         )}
       </div>
-      <DeploymentStatus app={app} deployment={currentDeployment} />
+      {app.config.appType === "workload" && (
+        <DeploymentStatus app={app} deployment={currentDeployment} />
+      )}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="my-4">
           <TabsTrigger value="overview">
             <span>Overview</span>
           </TabsTrigger>
-          {!!app.activeDeployment && (
+          {isWorkloadConfig(app.config) && !!app.activeDeployment && (
             <TabsTrigger value="status">
               <span>Status</span>
             </TabsTrigger>

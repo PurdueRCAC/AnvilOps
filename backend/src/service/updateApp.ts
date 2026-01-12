@@ -7,9 +7,9 @@ import type {
 } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
 import {
-  getRandomTag,
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
+  getRandomTag,
 } from "../lib/cluster/resources.ts";
 import {
   AppNotFoundError,
@@ -45,6 +45,7 @@ export async function updateApp(
   // performs validation
   let { config: updatedConfig, commitMessage } = (
     await appService.prepareMetadataForApps(organization, user, {
+      type: "update",
       existingAppId: originalApp.id,
       ...appData,
     })
@@ -79,10 +80,8 @@ export async function updateApp(
       if (appData.appGroup.type === "standalone") {
         break;
       }
-      // In this case, group name is constructed from the app name
-      // App name was previously validated. If it passed RFC1123, then
-      // a substring plus random tag will also pass, so no re-validation
-      let groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      let groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      appService.validateAppGroupName(groupName);
       const appGroupId = await db.appGroup.create(
         originalApp.orgId,
         groupName,
@@ -96,8 +95,8 @@ export async function updateApp(
   // ---------------- App model updates ----------------
 
   const updates = {} as Record<string, any>;
-  if (appData.name !== undefined) {
-    updates.displayName = appData.name;
+  if (appData.displayName !== undefined) {
+    updates.displayName = appData.displayName;
   }
 
   if (appData.projectId !== undefined) {

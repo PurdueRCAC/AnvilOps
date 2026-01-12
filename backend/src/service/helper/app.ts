@@ -13,14 +13,22 @@ import {
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../../service/common/errors.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
-
-interface App {
-  existingAppId?: number;
-  name?: string;
+interface CreateAppInput {
+  type: "create";
+  name: string;
+  namespace: string;
   projectId?: string;
-  namespace?: string;
   config: components["schemas"]["DeploymentConfig"];
 }
+
+interface UpdateAppInput {
+  type: "update";
+  existingAppId: number;
+  projectId?: string;
+  config: components["schemas"]["DeploymentConfig"];
+}
+
+export type AppInput = CreateAppInput | UpdateAppInput;
 
 export class AppService {
   private configService: DeploymentConfigService;
@@ -29,12 +37,13 @@ export class AppService {
   }
 
   /**
+   * Validates and prepares deployment config and commit message for app creation or update.
    * @throws ValidationError, OrgNotFoundError
    */
   async prepareMetadataForApps(
     organization: Organization,
     user: User,
-    ...apps: App[]
+    ...apps: AppInput[]
   ) {
     const appValidationErrors = (
       await Promise.all(
@@ -90,9 +99,27 @@ export class AppService {
   }
 
   /**
+   * Validates an app input for create or update.
    * @throws ValidationError
    */
-  private async validateApp(app: App, user: { clusterUsername: string }) {
+  private async validateApp(app: AppInput, user: { clusterUsername: string }) {
+    // Common validation for both create and update
+    await this.validateCommon(app, user);
+
+    // Type-specific validation
+    if (app.type === "create") {
+      await this.validateCreate(app);
+    }
+  }
+
+  /**
+   * Validation steps common between app creates and updates.
+   * @throws ValidationError
+   */
+  private async validateCommon(
+    app: AppInput,
+    user: { clusterUsername: string },
+  ) {
     if (isRancherManaged()) {
       if (!app.projectId) {
         throw new ValidationError("Project ID is required");
@@ -106,31 +133,33 @@ export class AppService {
     if (app.config.appType === "workload") {
       await this.configService.validateCommonWorkloadConfig(
         app.config,
-        app.existingAppId,
+        app.type === "update" ? app.existingAppId : undefined,
+      );
+    }
+  }
+
+  /**
+   * Validation steps specific to app creation.
+   * @throws ValidationError
+   */
+  private async validateCreate(app: CreateAppInput) {
+    if (
+      app.namespace.length == 0 ||
+      app.namespace.length > MAX_NAMESPACE_LEN ||
+      !isRFC1123(app.namespace)
+    ) {
+      throw new ValidationError(
+        "Namespace must contain only lowercase alphanumeric characters or '-', " +
+          "start with an alphabetic character and end with an alphanumeric character, " +
+          `and contain at most ${MAX_NAMESPACE_LEN} characters`,
       );
     }
 
-    if (app.namespace) {
-      if (
-        !(
-          0 < app.namespace.length && app.namespace.length <= MAX_NAMESPACE_LEN
-        ) ||
-        !isRFC1123(app.namespace)
-      ) {
-        throw new ValidationError(
-          "Namespace must contain only lowercase alphanumeric characters or '-', " +
-            "start with an alphabetic character and end with an alphanumeric character, " +
-            `and contain at most ${MAX_NAMESPACE_LEN} characters`,
-        );
-      }
+    if (await namespaceInUse(app.namespace)) {
+      throw new ValidationError("namespace is unavailable");
+    }
 
-      if (await namespaceInUse(app.namespace)) {
-        throw new ValidationError("namespace is unavailable");
-      }
-    }
-    if (app.name) {
-      this.validateAppName(app.name);
-    }
+    this.validateAppName(app.name);
   }
 
   /**

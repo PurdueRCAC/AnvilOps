@@ -1,8 +1,17 @@
+import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
 import { getChart } from "../lib/helm.ts";
 import { getRepositoriesByProject } from "../lib/registry.ts";
 
 export async function listCharts() {
+  return JSON.parse(
+    await getOrCreate("charts", 60 * 60, async () =>
+      JSON.stringify(await listChartsFromRegistry()),
+    ),
+  );
+}
+
+const listChartsFromRegistry = async () => {
   const repos = await getRepositoriesByProject(env.CHART_PROJECT_NAME);
   const charts = await Promise.all(
     repos.map(async (repo) => {
@@ -27,4 +36,4 @@ export async function listCharts() {
       version: chart.version,
       valueSpec: JSON.parse(chart.annotations["anvilops-values"] ?? ""),
     }));
-}
+};

@@ -1,5 +1,4 @@
 import { db, NotFoundError } from "../db/index.ts";
-import type { GitConfig } from "../db/models.ts";
 import { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
@@ -122,6 +121,11 @@ async function handleInstallationDeleted(
   await db.org.unlinkInstallationFromAllOrgs(payload.installation.id);
 }
 
+/**
+ *
+ * @throws {Error} if the current config of an app is not a GitConfig
+ * @throws {AppNotFoundError} if no apps redeploy on push to this branch
+ */
 async function handlePush(payload: components["schemas"]["webhook-push"]) {
   const repoId = payload.repository?.id;
   if (!repoId) {
@@ -162,6 +166,10 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
   }
 }
 
+/**
+ * @throws {Error} if the current config of an app is not a GitConfig
+ * @throws {AppNotFoundError} if no apps are linked to this branch and workflow
+ */
 async function handleWorkflowRun(
   payload: components["schemas"]["webhook-workflow-run"],
 ) {
@@ -212,9 +220,9 @@ async function handleWorkflowRun(
         app.id,
         payload.workflow_run.id,
       );
-      const config = (await db.deployment.getConfig(
-        deployment.id,
-      )) as GitConfig;
+      const config = (
+        await db.deployment.getConfig(deployment.id)
+      ).asGitConfig();
 
       if (!deployment || deployment.status !== "PENDING") {
         // If the app was deleted, nothing to do

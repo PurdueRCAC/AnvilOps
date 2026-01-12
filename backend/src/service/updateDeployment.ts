@@ -14,10 +14,6 @@ export async function updateDeployment(secret: string, newStatus: string) {
   if (!secret) {
     throw new ValidationError("No deployment secret provided.");
   }
-
-  if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => newStatus === it)) {
-    throw new ValidationError("Invalid status.");
-  }
   const deployment = await db.deployment.getFromSecret(secret);
 
   if (!deployment) {
@@ -25,13 +21,31 @@ export async function updateDeployment(secret: string, newStatus: string) {
   }
 
   const config = await db.deployment.getConfig(deployment.id);
-  if (config.source !== "GIT") {
+  if (config.source === "IMAGE") {
     throw new ValidationError("Cannot update deployment");
+  }
+
+  switch (config.source) {
+    case "GIT": {
+      if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => newStatus === it)) {
+        throw new ValidationError("Invalid status.");
+      }
+      break;
+    }
+    case "HELM": {
+      if (!["DEPLOYING", "COMPLETE", "ERROR"].some((it) => newStatus === it)) {
+        throw new ValidationError("Invalid status.");
+      }
+      break;
+    }
+    default: {
+      throw new ValidationError("Invalid source.");
+    }
   }
 
   await db.deployment.setStatus(
     deployment.id,
-    newStatus as "BUILDING" | "DEPLOYING" | "ERROR",
+    newStatus as "BUILDING" | "DEPLOYING" | "COMPLETE" | "ERROR",
   );
 
   log(
@@ -39,6 +53,10 @@ export async function updateDeployment(secret: string, newStatus: string) {
     "BUILD",
     "Deployment status has been updated to " + newStatus,
   );
+
+  if (config.source != "GIT") {
+    return;
+  }
 
   const app = await db.app.getById(deployment.appId);
   const [appGroup, org] = await Promise.all([
@@ -101,7 +119,7 @@ export async function updateDeployment(secret: string, newStatus: string) {
         db.app.setConfig(app.id, deployment.configId),
       ]);
 
-      dequeueBuildJob(); // TODO - error handling for this line
+      await dequeueBuildJob();
     } catch (err) {
       console.error(err);
       await db.deployment.setStatus(deployment.id, "ERROR");

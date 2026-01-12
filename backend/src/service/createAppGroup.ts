@@ -18,10 +18,19 @@ export async function createAppGroup(
   groupName: string,
   appData: NewAppWithoutGroup[],
 ) {
-  // validate all apps before creating any
   appService.validateAppGroupName(groupName);
   const groupId = await db.appGroup.create(orgId, groupName, false);
-
+  // let groupId: number;
+  // try {
+  //   groupId = await db.appGroup.create(orgId, groupName, false);
+  // } catch (e) {
+  //   if (e instanceof ConflictError) {
+  //     throw new ValidationError(
+  //       "An app group already exists with the same name.",
+  //     );
+  //   }
+  //   throw e;
+  // }
   const appsWithGroups = appData.map(
     (app) =>
       ({
@@ -40,10 +49,14 @@ export async function createAppGroup(
     throw new OrgNotFoundError(null);
   }
 
+  // validate all apps before creating any
   const validationResults = await appService.prepareMetadataForApps(
     organization,
     user,
-    ...appData,
+    ...appData.map((app) => ({
+      type: "create" as const,
+      ...app,
+    })),
   );
 
   const appsWithMetadata = appsWithGroups.map((app, idx) => ({
@@ -66,9 +79,11 @@ export async function createAppGroup(
       config = deploymentConfigService.populateImageTag(config, app);
     } catch (err) {
       // In between validation and creating the app, the namespace was taken by another app
-      if (err instanceof ConflictError) {
-        throw new ValidationError(err.message + " is unavailable");
+      if (err instanceof ConflictError && err.message === "namespace") {
+        throw new ValidationError("Namespace is unavailable");
       }
+
+      throw err;
     }
 
     await deploymentService.create({

@@ -41,6 +41,7 @@ docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
 docker_build("anvilops/dockerfile-builder", "../builders/dockerfile", match_in_env_vars=True)
 docker_build("anvilops/railpack-builder", "../builders/railpack", match_in_env_vars=True)
+docker_build("anvilops/helm-deployer", "../builders/helm", match_in_env_vars=True)
 docker_build("anvilops/log-shipper", "../log-shipper", match_in_env_vars=True)
 
 # Read the current kubeconfig, set the server to kubernetes.default.svc (a hostname accessible from within the cluster), and make it available to AnvilOps via a K8s secret

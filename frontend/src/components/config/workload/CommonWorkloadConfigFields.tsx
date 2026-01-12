@@ -1,6 +1,4 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
-import { EnvVarGrid } from "./EnvVarGrid";
-import { MountsGrid } from "./MountsGrid";
 import {
   Accordion,
   AccordionContent,
@@ -12,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import { MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
 import type { WorkloadFormFields, WorkloadUpdate } from "@/lib/form.types";
 import { useDebouncedValue } from "@/lib/utils";
 import { FormContext, SubdomainStatus } from "@/pages/create-app/CreateAppView";
@@ -28,7 +27,8 @@ import {
   X,
 } from "lucide-react";
 import { useContext } from "react";
-import { MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
+import { EnvVarGrid } from "./EnvVarGrid";
+import { MountsGrid } from "./MountsGrid";
 
 export const CommonWorkloadConfigFields = ({
   state,
@@ -179,17 +179,6 @@ export const CommonWorkloadConfigFields = ({
             ) : (
               <>
                 <SubdomainStatus available={subStatus!.available} />
-                {/* <p className="text-black-3 text-sm flex items-start gap-1">
-                    <Info className="inline" />
-                    <span>
-                        Your application will be reachable at{" "}
-                        <code className="text-xs text-black-4 font-bold whitespace-nowrap">
-                            anvilops-{subdomain}.anvilops-{subdomain}
-                            .svc.cluster.local
-                        </code>{" "}
-                        from within the cluster.
-                    </span>
-                </p> */}
               </>
             ))}
         </div>

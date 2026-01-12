@@ -14,6 +14,7 @@ anvilops:
     fileBrowserImage: anvilops/file-browser
     dockerfileBuilderImage: anvilops/dockerfile-builder
     railpackBuilderImage: anvilops/railpack-builder
+    helmDeployerImage: anvilops/helm-deployer
     logShipperImage: anvilops/log-shipper
     registryProtocol: http
   cluster:

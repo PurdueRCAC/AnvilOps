@@ -16,15 +16,13 @@ RENAME TO "WorkloadConfig_id_seq";
 CREATE TABLE "DeploymentConfig" (
     "id" SERIAL NOT NULL,
     "appType" "AppType" NOT NULL,
-    "helmConfigId" INTEGER,
-    "workloadConfigId" INTEGER,
 
     CONSTRAINT "DeploymentConfig_pkey" PRIMARY KEY ("id")
 );
 
 -- Fill with existing WorkloadConfigs
-INSERT INTO "DeploymentConfig" ("id", "appType", "workloadConfigId")
-SELECT id, 'workload', id FROM "WorkloadConfig";
+INSERT INTO "DeploymentConfig" ("id", "appType")
+SELECT id, 'workload' FROM "WorkloadConfig";
 
 -- Adjust sequence to start at highest existing id value
 SELECT setval(
@@ -32,7 +30,24 @@ SELECT setval(
   (SELECT COALESCE(MAX(id), 1) FROM "DeploymentConfig")
 );
 
--- Rename indexes
+-- Add deploymentConfigId to WorkloadConfig
+ALTER TABLE "WorkloadConfig"
+ADD COLUMN "deploymentConfigId" INTEGER;
+
+UPDATE "WorkloadConfig"
+SET "deploymentConfigId" = id;
+
+ALTER TABLE "WorkloadConfig"
+ALTER COLUMN "deploymentConfigId" SET NOT NULL;
+
+CREATE UNIQUE INDEX "WorkloadConfig_deploymentConfigId_key" ON "WorkloadConfig"("deploymentConfigId");
+
+ALTER TABLE "WorkloadConfig"
+  ADD CONSTRAINT "WorkloadConfig_deploymentConfigId_fkey"
+  FOREIGN KEY ("deploymentConfigId") REFERENCES "DeploymentConfig"(id)
+  ON UPDATE CASCADE ON DELETE CASCADE;
+
+-- Alter foreign key constraints
 ALTER TABLE "Deployment" DROP CONSTRAINT "Deployment_configId_fkey";
 ALTER TABLE "Deployment" 
   ADD CONSTRAINT "Deployment_configId_fkey"
@@ -52,18 +67,9 @@ CREATE TABLE "HelmConfig" (
     "version" TEXT NOT NULL,
     "urlType" "HelmUrlType" NOT NULL,
     "values" JSONB,
-
-    CONSTRAINT "HelmConfig_pkey" PRIMARY KEY ("id")
+    "deploymentConfigId" INTEGER UNIQUE NOT NULL,
+    CONSTRAINT "HelmConfig_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "HelmConfig_deploymentConfigId_fkey"
+    FOREIGN KEY ("deploymentConfigId") REFERENCES "DeploymentConfig"(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "DeploymentConfig_workloadConfigId_key" ON "DeploymentConfig"("workloadConfigId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "DeploymentConfig_helmConfigId_key" ON "DeploymentConfig"("helmConfigId");
-
--- AddForeignKey
-ALTER TABLE "DeploymentConfig" ADD CONSTRAINT "DeploymentConfig_workloadConfigId_fkey" FOREIGN KEY ("workloadConfigId") REFERENCES "WorkloadConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DeploymentConfig" ADD CONSTRAINT "DeploymentConfig_helmConfigId_fkey" FOREIGN KEY ("helmConfigId") REFERENCES "HelmConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;

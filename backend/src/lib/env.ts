@@ -154,10 +154,6 @@ const variables = {
    */
   CHART_PROJECT_NAME: { required: false },
   /**
-   * The base URL of the registry's API, e.g. https://registry.anvil.rcac.purdue.edu/api/v2.0
-   */
-  REGISTRY_API_URL: { required: true },
-  /**
    * The hostname for the image registry, e.g. registry.anvil.rcac.purdue.edu
    */
   REGISTRY_HOSTNAME: { required: true },
@@ -187,6 +183,14 @@ const variables = {
     required: false,
     defaultValue:
       "registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest",
+  },
+  /**
+   * The image for a job that creates or updates a Helm deployment
+   */
+  HELM_DEPLOYER_IMAGE: {
+    required: false,
+    defaultValue:
+      "registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest",
   },
   /**
    * The image that copies the log shipper binary to a destination path, used in an initContainer to start collecting logs from users' apps (see backend/src/lib/cluster/resources/logs.ts for more details)

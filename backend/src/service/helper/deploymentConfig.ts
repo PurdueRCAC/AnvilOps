@@ -45,11 +45,8 @@ export class DeploymentConfigService {
     organization: Pick<Organization, "githubInstallationId">,
   ): Promise<{
     config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate;
-    commitMessage: string;
+    commitMessage: string | null;
   }> {
-    let commitHash = "unknown",
-      commitMessage = "Initial deployment";
-
     switch (config.source) {
       case "git": {
         let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
@@ -68,6 +65,8 @@ export class DeploymentConfigService {
 
         await this.validateGitConfig(config, octokit, repo);
 
+        let commitHash: string;
+        let commitMessage: string;
         if (config.commitHash) {
           commitHash = config.commitHash;
           const commit = await octokit.rest.git.getCommit({
@@ -103,13 +102,13 @@ export class DeploymentConfigService {
             source: "IMAGE",
             appType: "workload",
           },
-          commitMessage,
+          commitMessage: null,
         };
       }
       case "helm": {
         return {
           config: { ...config, source: "HELM", appType: "helm" },
-          commitMessage,
+          commitMessage: null,
         };
       }
       default: {

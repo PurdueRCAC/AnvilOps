@@ -78,7 +78,6 @@ export class DeploymentService {
       appId: app.id,
       commitMessage,
       workflowRunId,
-      appType: configIn.appType,
       config: configIn,
     });
     const config = await this.deploymentRepo.getConfig(deployment.id);
@@ -89,12 +88,12 @@ export class DeploymentService {
 
     switch (config.source) {
       case "HELM": {
-        this.deployHelm(org, app, deployment, config.asHelmConfig());
+        await this.deployHelm(org, app, deployment, config.asHelmConfig());
         break;
       }
 
       case "GIT": {
-        this.deployGit({
+        await this.handleGitDeployment({
           org,
           app,
           deployment,
@@ -106,7 +105,7 @@ export class DeploymentService {
 
       case "IMAGE": {
         const appGroup = await this.appGroupRepo.getById(app.appGroupId);
-        this.deployWorkloadWithoutBuild({
+        await this.deployWorkloadWithoutBuild({
           org,
           app,
           appGroup,
@@ -130,7 +129,7 @@ export class DeploymentService {
    *
    * @throws DeploymentError
    */
-  private async deployGit({
+  private async handleGitDeployment({
     org,
     app,
     deployment,
@@ -149,34 +148,13 @@ export class DeploymentService {
       if (pending) {
         // AnvilOps is waiting for another CI workflow to finish before deploying the app. Create a "Pending" check run for now.
         // When the other workflow completes, this method will be called again with `pending` set to `false`.
-        try {
-          const checkRun = await this.handleCheckRun({
-            octokit: await this.getOctokitFn(org.githubInstallationId),
-            deployment,
-            config,
-            checkRun: {
-              type: "create",
-              opts: {
-                owner: opts.checkRun.owner,
-                repo: opts.checkRun.repo,
-                status: "queued",
-              },
-            },
-          });
-          log(
-            deployment.id,
-            "BUILD",
-            "Created GitHub check run with status Queued at " +
-              checkRun.data.html_url,
-          );
-          await this.deploymentRepo.setCheckRunId(
-            deployment.id,
-            checkRun?.data?.id,
-          );
-          await this.cancelAllOtherDeployments(org, app, deployment.id, false);
-        } catch (e) {
-          console.error("Failed to set check run: ", e);
-        }
+        this.createPendingCheckRun({
+          org,
+          app,
+          deployment,
+          config,
+          checkRunOpts: { owner, repo },
+        });
       } else {
         await this.completeGitDeployment({
           org,
@@ -203,6 +181,56 @@ export class DeploymentService {
     } else {
       // Regular app creation
       await this.completeGitDeployment({ org, app, deployment, config });
+    }
+  }
+
+  /**
+   * Creates a pending check run for a Git deployment,
+   * to be updated when an associated workflow run completes.
+   */
+  private async createPendingCheckRun({
+    org,
+    app,
+    deployment,
+    config,
+    checkRunOpts,
+  }: {
+    org: Organization;
+    app: App;
+    deployment: Deployment;
+    config: GitConfig;
+    checkRunOpts: {
+      owner: string;
+      repo: string;
+    };
+  }) {
+    try {
+      const checkRun = await this.handleCheckRun({
+        octokit: await this.getOctokitFn(org.githubInstallationId),
+        deployment,
+        config,
+        checkRun: {
+          type: "create",
+          opts: {
+            owner: checkRunOpts.owner,
+            repo: checkRunOpts.repo,
+            status: "queued",
+          },
+        },
+      });
+      log(
+        deployment.id,
+        "BUILD",
+        "Created GitHub check run with status Queued at " +
+          checkRun.data.html_url,
+      );
+      await this.deploymentRepo.setCheckRunId(
+        deployment.id,
+        checkRun?.data?.id,
+      );
+      await this.cancelAllOtherDeployments(org, app, deployment.id, false);
+    } catch (e) {
+      console.error("Failed to set check run: ", e);
     }
   }
 
@@ -405,18 +433,7 @@ export class DeploymentService {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
     log(deployment.id, "BUILD", "Deploying directly from Helm chart...");
     try {
-      await upgrade({
-        urlType: config.urlType,
-        chartURL: config.url,
-        version: config.version,
-        namespace: app.namespace,
-        release: app.name,
-        values: config.values,
-      });
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.COMPLETE,
-      );
+      await upgrade(app, deployment, config);
       await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
       await this.deploymentRepo.setStatus(
@@ -426,7 +443,7 @@ export class DeploymentService {
       log(
         deployment.id,
         "BUILD",
-        `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+        `Failed to create Helm deployment job: ${JSON.stringify(e?.body ?? e)}`,
         "stderr",
       );
       throw new DeploymentError(e);
@@ -479,6 +496,9 @@ export class DeploymentService {
     }
   }
 
+  /**
+   * @throws {Error} if a deployment has a checkRunId but its config is not a GitConfig
+   */
   async cancelAllOtherDeployments(
     org: Organization,
     app: App,

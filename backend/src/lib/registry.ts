@@ -36,7 +36,7 @@ type HarborRepository = {
 
 export async function getRepositoriesByProject(projectName: string) {
   return fetch(
-    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_API_URL}/projects/${projectName}/repositories`,
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/api/v2.0/projects/${projectName}/repositories`,
   )
     .then((res) => {
       if (!res.ok) {

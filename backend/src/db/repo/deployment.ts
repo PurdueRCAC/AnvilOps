@@ -81,20 +81,19 @@ export class DeploymentRepo {
 
   async create({
     appId,
-    appType,
     config,
     commitMessage,
     workflowRunId,
     status,
   }: {
     appId: number;
-    appType: AppType;
     config: WorkloadConfigCreate | HelmConfigCreate;
     commitMessage: string | null;
     workflowRunId?: number;
     status?: DeploymentStatus;
   }): Promise<Deployment> {
     const configClone = structuredClone(config);
+    const appType = configClone.appType;
     if (appType === "workload") {
       delete configClone.appType;
     } else if (appType === "helm") {
@@ -110,14 +109,12 @@ export class DeploymentRepo {
             ...(appType === "workload"
               ? {
                   workloadConfig: {
-                    create: DeploymentRepo.encryptEnv(
-                      configClone as PrismaWorkloadConfigCreate,
-                    ),
+                    create: DeploymentRepo.encryptEnv(configClone),
                   },
                 }
               : {
                   helmConfig: {
-                    create: configClone as PrismaHelmConfigCreate,
+                    create: configClone,
                   },
                 }),
           },

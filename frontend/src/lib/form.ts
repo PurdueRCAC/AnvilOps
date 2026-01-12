@@ -1,4 +1,5 @@
 import type { components } from "@/generated/openapi";
+import type { App } from "@/pages/app/AppView";
 import type {
   CommonFormFields,
   GitFormFields,
@@ -8,7 +9,6 @@ import type {
   WorkloadFormFields,
   WorkloadUpdate,
 } from "./form.types";
-import type { App } from "@/pages/app/AppView";
 
 export const MAX_SUBDOMAIN_LENGTH = 54;
 
@@ -55,7 +55,6 @@ export const createDefaultCommonFormFields = (
 export const createDeploymentConfig = (
   formFields: Required<CommonFormFields>,
 ): components["schemas"]["DeploymentConfig"] => {
-  console.log("formFields", formFields);
   if (formFields.appType === "workload") {
     const workloadConfig = formFields.workload as Required<WorkloadFormFields>;
     const cpu = Math.round(parseFloat(workloadConfig.cpuCores) * 1000) + "m";

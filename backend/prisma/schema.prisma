@@ -204,24 +204,23 @@ model Deployment {
 }
 
 model DeploymentConfig {
-  id               Int             @id @default(autoincrement())
-  deployment       Deployment?
-  appType          AppType
-  workloadConfig   WorkloadConfig? @relation(fields: [workloadConfigId], references: [id], onDelete: Cascade)
-  workloadConfigId Int?            @unique
+  id             Int             @id @default(autoincrement())
+  deployment     Deployment?
+  appType        AppType
+  workloadConfig WorkloadConfig?
 
-  helmConfig   HelmConfig? @relation(fields: [helmConfigId], references: [id], onDelete: Cascade)
-  helmConfigId Int?        @unique
-  app          App?
+  helmConfig HelmConfig?
+  app        App?
 }
 
 model WorkloadConfig {
-  id               Int               @id @default(autoincrement())
+  id                 Int              @id @default(autoincrement())
   // Deployment options
   /// [EnvVar[]]
-  env              Json              @default("[]")
-  envKey           String            @default("")
-  deploymentConfig DeploymentConfig?
+  env                Json             @default("[]")
+  envKey             String           @default("")
+  deploymentConfig   DeploymentConfig @relation(fields: [deploymentConfigId], references: [id], onDelete: Cascade)
+  deploymentConfigId Int              @unique
 
   // Build options
   source         DeploymentSource
@@ -260,12 +259,13 @@ enum HelmUrlType {
 }
 
 model HelmConfig {
-  id               Int               @id @default(autoincrement())
-  deploymentConfig DeploymentConfig?
-  url              String
-  version          String
-  urlType          HelmUrlType
-  values           Json?
+  id                 Int              @id @default(autoincrement())
+  deploymentConfig   DeploymentConfig @relation(fields: [deploymentConfigId], references: [id], onDelete: Cascade)
+  deploymentConfigId Int              @unique
+  url                String
+  version            String
+  urlType            HelmUrlType
+  values             Json?
 }
 
 model Log {

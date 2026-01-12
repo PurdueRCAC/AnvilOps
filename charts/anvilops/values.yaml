@@ -18,6 +18,7 @@ anvilops:
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest
     logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/

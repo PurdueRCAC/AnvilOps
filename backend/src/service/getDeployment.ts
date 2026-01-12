@@ -1,4 +1,4 @@
-import type { V1Pod } from "@kubernetes/client-node";
+import type { V1Pod, V1PodList } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
@@ -25,26 +25,22 @@ export async function getDeployment(deploymentId: number, userId: number) {
   const { CoreV1Api: api } = await getClientsForRequest(userId, app.projectId, [
     "CoreV1Api",
   ]);
-  const [repositoryURL, pods] = await Promise.all([
-    (async () => {
-      if (config.source === "GIT") {
-        const octokit = await getOctokit(org.githubInstallationId);
-        const repo = await getRepoById(octokit, config.repositoryId);
-        return repo.html_url;
-      }
-      return undefined;
-    })(),
 
-    api
+  let repositoryURL: string | null = null;
+  let pods: V1PodList | null = null;
+  if (config.source === "GIT") {
+    const octokit = await getOctokit(org.githubInstallationId);
+    const repo = await getRepoById(octokit, config.repositoryId);
+    repositoryURL = repo.html_url;
+  }
+  if (config.appType === "workload") {
+    pods = await api
       .listNamespacedPod({
         namespace: getNamespace(app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
-      .catch(
-        // Namespace may not be ready yet
-        () => ({ apiVersion: "v1", items: [] as V1Pod[] }),
-      ),
-  ]);
+      .catch(() => ({ apiVersion: "v1", items: [] as V1Pod[] }));
+  }
 
   let scheduled = 0,
     ready = 0,
@@ -72,25 +68,49 @@ export async function getDeployment(deploymentId: number, userId: number) {
   }
 
   const status =
-    deployment.status === "COMPLETE" && scheduled + ready + failed === 0
+    deployment.status === "COMPLETE" &&
+    config.appType === "workload" &&
+    scheduled + ready + failed === 0
       ? ("STOPPED" as const)
       : deployment.status;
 
+  let title: string;
+  switch (config.source) {
+    case "GIT":
+      title = deployment.commitMessage;
+      break;
+    case "IMAGE":
+      title = config.imageTag;
+      break;
+    case "HELM":
+      title = config.url;
+      break;
+    default:
+      title = "Unknown";
+      break;
+  }
+
+  const podStatus =
+    config.appType === "workload"
+      ? {
+          scheduled,
+          ready,
+          total: pods.items.length,
+          failed,
+        }
+      : null;
+
   return {
     repositoryURL,
-    commitHash: config.source === "GIT" ? config.commitHash : "unknown",
-    commitMessage: deployment.commitMessage,
+    title,
+    commitHash: config.source === "GIT" ? config.commitHash : null,
+    commitMessage: config.source === "GIT" ? deployment.commitMessage : null,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
     id: deployment.id,
     appId: deployment.appId,
-    status: status,
-    podStatus: {
-      scheduled,
-      ready,
-      total: pods.items.length,
-      failed,
-    },
+    status,
+    podStatus,
     config: deploymentConfigService.formatDeploymentConfig(config),
   };
 }

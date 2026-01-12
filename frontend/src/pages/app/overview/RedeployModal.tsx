@@ -15,17 +15,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import { cn, isWorkloadConfig } from "@/lib/utils";
-import { Container, GitCommit, Loader, Rocket } from "lucide-react";
-import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
-import type { App } from "../AppView";
-import { AppConfigDiff } from "../../../components/diff/AppConfigDiff";
-import type { CommonFormFields } from "@/lib/form.types";
 import {
   createDefaultCommonFormFields,
   createDeploymentConfig,
   getFormStateFromApp,
 } from "@/lib/form";
+import type { CommonFormFields } from "@/lib/form.types";
+import { cn, isWorkloadConfig } from "@/lib/utils";
+import { Container, GitCommit, Loader, Rocket } from "lucide-react";
+import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
+import { AppConfigDiff } from "../../../components/diff/AppConfigDiff";
+import type { App } from "../AppView";
 
 const getDefaultRedeployState = () => ({
   radioValue: undefined,
@@ -163,7 +163,7 @@ export const RedeployModal = ({
                     config: {
                       ...config,
                       ...(pastDeployment.config.source === "git" && {
-                        commitHash: pastDeployment.commitHash,
+                        commitHash: pastDeployment.commitHash ?? undefined,
                       }),
                     },
                   },
@@ -338,7 +338,6 @@ export const RedeployModal = ({
                     className="mt-4 float-right"
                     type="button"
                     onClick={() => {
-                      console.log("?");
                       if (form.current!.checkValidity()) {
                         setRedeployState((rs) => ({
                           ...rs,

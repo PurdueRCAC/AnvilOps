@@ -33,13 +33,7 @@ export async function getAppLogs(
   // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
   const config = await db.app.getDeploymentConfig(app.id);
 
-  if (config.appType != "workload") {
-    throw new ValidationError(
-      "Log browsing is supported only for Git and image deployments",
-    );
-  }
-
-  const collectLogs = config.collectLogs;
+  const collectLogs = config.appType === "workload" && config.collectLogs;
 
   if (collectLogs || type === "BUILD") {
     const fetchNewLogs = async () => {
@@ -75,6 +69,12 @@ export async function getAppLogs(
     // Send all previous logs now
     await fetchNewLogs();
   } else {
+    if (config.appType === "helm") {
+      throw new ValidationError(
+        "Application log browsing is not supported for Helm deployments",
+      );
+    }
+
     const { CoreV1Api: core, Log: log } = await getClientsForRequest(
       userId,
       app.projectId,

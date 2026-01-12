@@ -38,7 +38,6 @@ export const ImportRepoDialog = ({
   setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
 }) => {
   const setRepo = (id: number, name: string) => {
-    console.log("setRepo", id, name);
     setState((s) => ({
       ...s,
       workload: {

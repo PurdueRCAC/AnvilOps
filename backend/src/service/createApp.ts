@@ -2,9 +2,9 @@ import { ConflictError, db } from "../db/index.ts";
 import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
 import {
-  getRandomTag,
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
+  getRandomTag,
 } from "../lib/cluster/resources.ts";
 import { OrgNotFoundError, ValidationError } from "./common/errors.ts";
 import {
@@ -48,10 +48,8 @@ export async function createApp(appData: NewApp, userId: number) {
     }
 
     case "standalone": {
-      // In this case, group name is constructed from the app name
-      // App name was previously validated. If it passed RFC1123, then
-      // a substring plus random tag will also pass, so no re-validation
       let groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      appService.validateAppGroupName(groupName);
       appGroupId = await db.appGroup.create(appData.orgId, groupName, true);
       break;
     }
@@ -62,7 +60,10 @@ export async function createApp(appData: NewApp, userId: number) {
   }
 
   let { config, commitMessage } = (
-    await appService.prepareMetadataForApps(organization, user, appData)
+    await appService.prepareMetadataForApps(organization, user, {
+      type: "create",
+      ...appData,
+    })
   )[0];
 
   try {
@@ -78,8 +79,8 @@ export async function createApp(appData: NewApp, userId: number) {
     config = deploymentConfigService.populateImageTag(config, app);
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
-    if (err instanceof ConflictError) {
-      throw new ValidationError(err.message + " is unavailable");
+    if (err instanceof ConflictError && err.message === "namespace") {
+      throw new ValidationError("Namespace is unavailable");
     }
     throw err;
   }
