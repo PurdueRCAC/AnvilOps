@@ -2,6 +2,7 @@ import { Octokit } from "octokit";
 import type {
   App,
   DeploymentConfig,
+  GitConfig,
   GitConfigCreate,
   HelmConfigCreate,
   Organization,
@@ -9,6 +10,7 @@ import type {
   WorkloadConfigCreate,
 } from "../../db/models.ts";
 import { AppRepo } from "../../db/repo/app.ts";
+import { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { components } from "../../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
@@ -134,6 +136,16 @@ export class DeploymentConfigService {
     }
 
     return config;
+  }
+
+  populateNewCommit(config: GitConfig, app: App, commitHash: string) {
+    return this.populateImageTag(
+      {
+        ...DeploymentRepo.cloneWorkloadConfig(config),
+        commitHash,
+      },
+      app,
+    );
   }
 
   private createCommonWorkloadConfig(

@@ -1,5 +1,4 @@
 import { db, NotFoundError } from "../db/index.ts";
-import { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
@@ -10,7 +9,7 @@ import {
   UserNotFoundError,
   ValidationError,
 } from "./common/errors.ts";
-import { deploymentService } from "./helper/index.ts";
+import { deploymentConfigService, deploymentService } from "./helper/index.ts";
 
 export async function processGitHubWebhookPayload(
   event: string,
@@ -150,11 +149,16 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
   for (const app of apps) {
     const org = await db.org.getById(app.orgId);
     const oldConfig = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
+    const config = deploymentConfigService.populateNewCommit(
+      oldConfig,
+      app,
+      payload.head_commit.id,
+    );
     await deploymentService.create({
       org,
       app,
       commitMessage: payload.head_commit.message,
-      config: DeploymentRepo.cloneWorkloadConfig(oldConfig),
+      config,
       git: {
         checkRun: {
           pending: false,
@@ -197,13 +201,20 @@ async function handleWorkflowRun(
   if (payload.action === "requested") {
     for (const app of apps) {
       const org = await db.org.getById(app.orgId);
-      const config = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
+      const oldConfig = (
+        await db.app.getDeploymentConfig(app.id)
+      ).asGitConfig();
+      const config = deploymentConfigService.populateNewCommit(
+        oldConfig,
+        app,
+        payload.workflow_run.head_commit.id,
+      );
       await deploymentService.create({
         org,
         app,
         commitMessage: payload.workflow_run.head_commit.message,
         workflowRunId: payload.workflow_run.id,
-        config: DeploymentRepo.cloneWorkloadConfig(config),
+        config,
         git: {
           checkRun: {
             pending: true,
