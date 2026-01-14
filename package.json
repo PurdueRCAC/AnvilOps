@@ -6,8 +6,5 @@
   },
   "scripts": {
     "prepare": "husky"
-  },
-  "dependencies": {
-    "@opentelemetry/instrumentation-pino": "^0.55.1"
   }
 }
