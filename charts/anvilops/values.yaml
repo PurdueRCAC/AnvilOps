@@ -30,9 +30,13 @@ anvilops:
   fullnameOverride: ""
 
   securityContext:
-    runAsUser: 1001
-    runAsGroup: 1001
+    capabilities:
+      drop: [ALL]
     runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
 
   # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
   serviceAccount:
@@ -69,7 +73,7 @@ anvilops:
 
   resources:
     requests:
-      cpu: 500m
+      cpu: 512m
       memory: 512Mi
     limits:
       cpu: 1000m

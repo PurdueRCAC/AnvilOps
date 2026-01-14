@@ -41,7 +41,6 @@ spec:
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
-          args: ["./src/index.ts"]
           ports:
             - name: http
               containerPort: 3000
@@ -239,21 +238,6 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
-          securityContext:
-            capabilities:
-              drop: [ALL]
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-          resources:
-            requests:
-              cpu: 512m
-              memory: 512Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
       volumes:
         - name: cluster-config
           configMap:
