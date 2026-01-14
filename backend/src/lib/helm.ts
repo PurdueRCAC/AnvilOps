@@ -1,9 +1,14 @@
 import { V1Pod } from "@kubernetes/client-node";
 import { randomBytes } from "node:crypto";
 import type { App, Deployment, HelmConfig } from "../db/models.ts";
-import { svcK8s } from "./cluster/kubernetes.ts";
+import {
+  ensureNamespace,
+  getClientForClusterUsername,
+  resourceExists,
+  svcK8s,
+} from "./cluster/kubernetes.ts";
 import { shouldImpersonate } from "./cluster/rancher.ts";
-import { getNamespace } from "./cluster/resources.ts";
+import { createNamespaceConfig, getNamespace } from "./cluster/resources.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { env } from "./env.ts";
 
@@ -108,13 +113,26 @@ export const upgrade = async (
   deployment: Deployment,
   config: HelmConfig,
 ) => {
-  const args = [
-    "upgrade",
-    "--install",
-    "--namespace",
-    getNamespace(app.namespace),
-    "--create-namespace",
-  ];
+  const namespaceName = getNamespace(app.namespace);
+
+  // Create namespace through Kubernetes API to ensure required Rancher annotations
+  const api = getClientForClusterUsername(
+    app.clusterUsername,
+    "KubernetesObjectApi",
+    shouldImpersonate(app.projectId),
+  );
+  const namespace = createNamespaceConfig(namespaceName, app.projectId);
+  if (!(await resourceExists(api, namespace))) {
+    try {
+      await ensureNamespace(api, namespace);
+    } catch (err) {
+      throw new Error(
+        `Failed to create namespace ${namespaceName}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  const args = ["upgrade", "--install", "--namespace", namespaceName];
 
   const { urlType, url, version, values } = config;
   const release = app.name;

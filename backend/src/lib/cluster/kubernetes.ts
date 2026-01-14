@@ -103,7 +103,10 @@ export const namespaceInUse = async (namespace: string) => {
   });
 };
 
-const resourceExists = async (api: KubernetesObjectApi, data: K8sObject) => {
+export const resourceExists = async (
+  api: KubernetesObjectApi,
+  data: K8sObject,
+) => {
   try {
     await api.read(data);
     return true;
@@ -121,7 +124,7 @@ const resourceExists = async (api: KubernetesObjectApi, data: K8sObject) => {
 const REQUIRED_LABELS = env["RANCHER_API_BASE"]
   ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
   : [];
-const ensureNamespace = async (
+export const ensureNamespace = async (
   api: KubernetesObjectApi,
   namespace: V1Namespace & K8sObject,
 ) => {
