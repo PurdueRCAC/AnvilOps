@@ -231,9 +231,6 @@ async function handleWorkflowRun(
         app.id,
         payload.workflow_run.id,
       );
-      const config = (
-        await db.deployment.getConfig(deployment.id)
-      ).asGitConfig();
 
       if (!deployment || deployment.status !== "PENDING") {
         // If the app was deleted, nothing to do
@@ -268,6 +265,10 @@ async function handleWorkflowRun(
         } catch (e) {}
         continue;
       }
+
+      const config = (
+        await db.deployment.getConfig(deployment.id)
+      ).asGitConfig();
 
       await deploymentService.completeGitDeployment({
         org,
