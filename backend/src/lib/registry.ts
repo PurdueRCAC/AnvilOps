@@ -11,7 +11,7 @@ export async function deleteRepo(name: string) {
   }
 
   await fetch(
-    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/projects/${env.HARBOR_PROJECT_NAME}/repositories/${name}`,
+    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/api/v2.0/projects/${env.HARBOR_PROJECT_NAME}/repositories/${name}`,
     {
       method: "DELETE",
       headers,

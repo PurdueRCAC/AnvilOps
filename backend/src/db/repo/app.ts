@@ -124,10 +124,10 @@ export class AppRepo {
           err.code === "P2002"
         ) {
           // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
-          throw new ConflictError(
-            err.meta?.target as string /* column name */,
-            err,
-          );
+          const target = Array.isArray(err.meta?.target)
+            ? err.meta.target.join(", ")
+            : (err.meta?.target as string);
+          throw new ConflictError(target);
         }
       }
 

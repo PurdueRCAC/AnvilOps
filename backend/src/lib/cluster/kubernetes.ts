@@ -159,7 +159,7 @@ export const deleteNamespace = async (
       metadata: { name },
     });
   } catch (err) {
-    if (err instanceof ApiException && err.code === 404) {
+    if (err instanceof ApiException && (err.code === 404 || err.code === 403)) {
       return;
     }
     throw err;
