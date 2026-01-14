@@ -9,6 +9,9 @@ dotenv(fn='../backend/.env')
 # If enabled, changes will apply much faster at the expense of a development environment that looks less like production.
 separate_frontend_and_backend = True
 
+# Deploy a minimal instance of the Grafana LGTM + Alloy stack to collect logs, metrics, and traces from AnvilOps
+enable_monitoring = True
+
 if separate_frontend_and_backend:
   docker_build(
     "anvilops-frontend", "../",
@@ -21,7 +24,7 @@ if separate_frontend_and_backend:
   docker_build_with_restart(
     "anvilops/anvilops", "../",
     dockerfile="./anvilops-backend.Dockerfile",
-    entrypoint=["/usr/local/bin/node", "--experimental-strip-types"],
+    entrypoint=["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"],
     live_update=[
       sync("../backend/src", "/app/src")
     ],
@@ -104,6 +107,9 @@ for i, object in enumerate(parsed):
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsNonRoot"] = False
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsUser"] = 0
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsGroup"] = 0
+    if enable_monitoring:
+      object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "http://lgtm:4317" })
+      object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "OTEL_SERVICE_NAME", "value": "anvilops" })
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
@@ -131,3 +137,19 @@ k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
 # Install the Nginx ingress controller and forward localhost:3000 to it
 helm_remote('ingress-nginx', namespace='ingress-nginx', repo_url='https://kubernetes.github.io/ingress-nginx', create_namespace=True)
 k8s_resource('ingress-nginx-controller', port_forwards='3000:80')
+
+if enable_monitoring:
+  deployment_create(
+    name = "lgtm",
+    image = "grafana/otel-lgtm:latest",
+    ports = [
+      "3000", # Grafana (dashboards)
+      "4040", # Pyroscope (profiling)
+      "4317", # OpenTelemetry (gRPC)
+      "4318", # OpenTelemetry (HTTP)
+      "9090"  # Prometheus (timeseries metrics)
+    ],
+    #env = [{"name": "ENABLE_LOGS_ALL", "value": "true"}]
+  )
+
+  k8s_resource("lgtm", port_forwards=["3001:3000"])

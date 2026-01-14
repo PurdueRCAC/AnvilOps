@@ -3,9 +3,11 @@ import {
   setHeaderOptions,
   type V1Pod,
 } from "@kubernetes/client-node";
+import { metrics, ValueType } from "@opentelemetry/api";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import type { App, Deployment, GitConfig, Organization } from "../db/models.ts";
+import { logger } from "../index.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";
@@ -15,6 +17,17 @@ import {
   getOctokit,
   getRepoById,
 } from "./octokit.ts";
+
+const meter = metrics.getMeter("builds");
+const buildCounter = meter.createObservableGauge("active_builds", {
+  valueType: ValueType.INT,
+  description: "The number of builds currently running in the cluster",
+});
+
+buildCounter.addCallback(async (observable) => {
+  const count = await countActiveBuildJobs();
+  observable.observe(count);
+});
 
 export type ImageTag = `${string}/${string}/${string}:${string}`;
 
@@ -309,12 +322,17 @@ export async function createBuildJob(
 
   // Mark this deployment as "queued" - we'll run it when another job finishes.
   if ((await countActiveBuildJobs()) >= MAX_JOBS) {
+    logger.info(
+      { deploymentId: deployment.id, appId: deployment.appId },
+      "Adding build job to queue",
+    );
     await db.deployment.setStatus(deployment.id, "QUEUED");
     return null;
   }
 
-  console.log(
-    `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
+  logger.info(
+    { deploymentId: deployment.id, appId: deployment.appId },
+    "Starting build job",
   );
   const job = await createJobFromDeployment(...params);
 
@@ -359,8 +377,9 @@ export async function dequeueBuildJob(): Promise<string> {
   const org = await db.org.getById(app.orgId);
   const config = (await db.deployment.getConfig(deployment.id)).asGitConfig();
 
-  console.log(
-    `Starting build job for deployment ${deployment.id} of app ${deployment.appId}`,
+  logger.info(
+    { deploymentId: deployment.id, appId: deployment.appId },
+    "Starting build job from queue",
   );
   const job = await createJobFromDeployment(org, app, deployment, config);
   return job.metadata.uid;

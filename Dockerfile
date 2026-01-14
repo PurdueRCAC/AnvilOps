@@ -80,7 +80,7 @@ EXPOSE 3000
 ENV TINI_VERSION=v0.19.0
 ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 
-ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
+ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app

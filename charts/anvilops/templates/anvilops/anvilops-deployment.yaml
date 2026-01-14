@@ -238,6 +238,8 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
+            - name: NODE_ENV
+              value: production
       volumes:
         - name: cluster-config
           configMap:

@@ -37,7 +37,7 @@ RUN npm run prisma:generate
 FROM base AS backend_run
 RUN apk add --no-cache helm=3.19.0-r2
 
-ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
+ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"]
 CMD ["./src/index.ts"]
 
 EXPOSE 3000
