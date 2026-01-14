@@ -1,4 +1,5 @@
 import { db, NotFoundError } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { OrgNotFoundError, UserNotFoundError } from "./common/errors.ts";
 
 export async function removeUserFromOrg(
@@ -16,6 +17,10 @@ export async function removeUserFromOrg(
 
   try {
     await db.org.removeMember(orgId, userId);
+    logger.info(
+      { orgId, userId: actorId, removedUserId: userId },
+      "User removed from organization",
+    );
   } catch (e) {
     if (e instanceof NotFoundError) {
       throw new UserNotFoundError();

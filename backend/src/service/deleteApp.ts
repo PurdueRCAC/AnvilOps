@@ -1,4 +1,6 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import {
   createOrUpdateApp,
   deleteNamespace,
@@ -69,8 +71,18 @@ export async function deleteApp(
   try {
     if (imageRepo) await deleteRepo(imageRepo);
   } catch (err) {
-    console.error("Couldn't delete image repository:", err);
+    logger.warn({ imageRepo }, "Failed to delete image repository");
+    const span = trace.getActiveSpan();
+    span?.recordException(err);
+    span?.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: "Failed to delete image repository",
+    });
   }
 
   await db.app.delete(appId);
+  logger.info(
+    { appId, userId, imageRepo, namespace, keepNamespace },
+    "App deleted",
+  );
 }
