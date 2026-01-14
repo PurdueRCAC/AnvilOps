@@ -18,6 +18,8 @@ anvilops:
     logShipperImage: anvilops/log-shipper
     allowHelmDeployments: true
     registryProtocol: http
+    otelEndpoint: "" # the Tiltfile overrides this if monitoring is enabled
+    otelServiceName: anvilops
   cluster:
     name: "Local"
     faq:

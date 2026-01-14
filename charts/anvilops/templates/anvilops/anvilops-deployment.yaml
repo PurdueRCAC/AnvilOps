@@ -240,6 +240,10 @@ spec:
             {{- end }}
             - name: NODE_ENV
               value: production
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.anvilops.otelEndpoint }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.anvilops.otelServiceName }}
       volumes:
         - name: cluster-config
           configMap:

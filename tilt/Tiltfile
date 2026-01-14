@@ -89,7 +89,9 @@ yaml = helm(
   # The namespace to install in, equivalent to helm --namespace
   namespace='default',
   # The values file to substitute into the chart.
-  values=['./local-values.yaml']
+  values=['./local-values.yaml'],
+  # Values to override from the command-line
+  set=['anvilops.env.otelEndpoint=http://lgtm:4317'] if enable_monitoring else []
 )
 
 parsed = decode_yaml_stream(yaml)
@@ -107,9 +109,6 @@ for i, object in enumerate(parsed):
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsNonRoot"] = False
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsUser"] = 0
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["runAsGroup"] = 0
-    if enable_monitoring:
-      object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "http://lgtm:4317" })
-      object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "OTEL_SERVICE_NAME", "value": "anvilops" })
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})

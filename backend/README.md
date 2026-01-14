@@ -164,3 +164,9 @@ In production, apply the changes like this:
 ```sh
 npx prisma migrate deploy
 ```
+
+## OpenTelemetry
+
+AnvilOps can push logs, traces, and metrics to an OpenTelemetry collector. Set the `OTEL_EXPORTER_OTLP_ENDPOINT` field to a gRPC OTLP endpoint and make sure the app is being started with `--require backend/src/instrumentation.ts` (that path is `/app/src/instrumentation.ts` in Docker).
+
+You can modify the service name with the `OTEL_SERVICE_NAME` environment variable. By default, it's "anvilops".
