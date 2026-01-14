@@ -20,14 +20,17 @@ const port = process.env.PORT ?? 3000;
 export const logger = pino();
 
 app.use((req, res, next) => {
-  res.setHeader("x-trace-id", trace.getActiveSpan().spanContext().traceId);
+  const traceId = trace.getActiveSpan()?.spanContext()?.traceId;
+  if (traceId) {
+    res.setHeader("x-trace-id", traceId);
+  }
   next();
 });
 
 app.use(
   pinoHttp({
     logger,
-    autoLogging: { ignore: (req) => req.path === "/liveness" },
+    autoLogging: { ignore: (req) => req.path === "/api/liveness" },
   }),
 );
 
@@ -171,7 +174,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
       <h1>Internal Server Error</h1>
       <p>
         There was a problem processing your request.
-        If the issue persists, please contact us with the following trace ID: <code>${span.spanContext().traceId}</code>.
+        ${span ? `If the issue persists, please contact us with the following trace ID: <code>${span.spanContext().traceId}</code>.` : ""}
       </p>
       <a href="/">
         <button>Return to AnvilOps Home</button>

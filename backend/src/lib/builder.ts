@@ -19,7 +19,7 @@ import {
 } from "./octokit.ts";
 
 const meter = metrics.getMeter("builds");
-const buildCounter = meter.createObservableGauge("active_builds", {
+const buildCounter = meter.createObservableGauge("anvilops_active_builds", {
   valueType: ValueType.INT,
   description: "The number of builds currently running in the cluster",
 });

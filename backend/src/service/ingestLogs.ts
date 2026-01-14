@@ -11,7 +11,7 @@ type LogLineInput = {
 };
 
 const meter = metrics.getMeter("log_ingest");
-const counter = meter.createCounter("log_lines_ingested", {
+const counter = meter.createCounter("anvilops_log_lines_ingested", {
   description: "The number of log lines processed by /api/logs/ingest",
   valueType: ValueType.INT,
 });

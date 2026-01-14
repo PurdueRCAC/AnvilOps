@@ -10,7 +10,7 @@ import { AppNotFoundError, ValidationError } from "./common/errors.ts";
 
 const meter = metrics.getMeter("log_viewer");
 const dbConcurrentViewers = meter.createUpDownCounter(
-  "concurrent_db_log_viewers",
+  "anvilops_concurrent_db_log_viewers",
   {
     description:
       "The total number of open connections which are actively viewing a log stream from the database",
@@ -18,7 +18,7 @@ const dbConcurrentViewers = meter.createUpDownCounter(
   },
 );
 const k8sConcurrentViewers = meter.createUpDownCounter(
-  "concurrent_k8s_log_viewers",
+  "anvilops_concurrent_k8s_log_viewers",
   {
     description:
       "The total number of open connections which are actively viewing a log stream directly from Kubernetes pods",

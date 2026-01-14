@@ -50,4 +50,6 @@ if (endpoint) {
   process.on("SIGTERM", () => {
     sdk.shutdown();
   });
+} else {
+  console.log("Running without instrumentation");
 }

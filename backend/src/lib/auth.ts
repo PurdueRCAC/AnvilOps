@@ -150,7 +150,7 @@ router.use((req, res, next) => {
   }
   (req as AuthenticatedRequest).user = req.session["user"];
 
-  trace.getActiveSpan().setAttribute("user.id", req.session["user"].id);
+  trace.getActiveSpan()?.setAttribute("user.id", req.session["user"].id);
 
   next();
 });
