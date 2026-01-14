@@ -79,6 +79,7 @@ export class DeploymentService {
       commitMessage,
       workflowRunId,
       config: configIn,
+      ...(git?.checkRun?.pending && { status: "PENDING" }),
     });
     const config = await this.deploymentRepo.getConfig(deployment.id);
 
@@ -517,7 +518,10 @@ export class DeploymentService {
 
     let octokit: Octokit;
     for (const deployment of deployments) {
-      if (deployment.id !== deploymentId && !!deployment.checkRunId) {
+      if (deployment.id === deploymentId) {
+        continue;
+      }
+      if (!!deployment.checkRunId) {
         // Should have a check run that is either queued or in_progress
         if (!octokit) {
           octokit = await this.getOctokitFn(org.githubInstallationId);
@@ -547,6 +551,9 @@ export class DeploymentService {
             "Updated GitHub check run to Completed with conclusion Cancelled",
           );
         } catch (e) {}
+      }
+      if (deployment.status != "COMPLETE") {
+        await this.deploymentRepo.setStatus(deployment.id, "CANCELLED");
       }
     }
   }

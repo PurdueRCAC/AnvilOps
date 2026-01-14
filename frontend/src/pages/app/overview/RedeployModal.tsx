@@ -152,6 +152,7 @@ export const RedeployModal = ({
                   params: { path: { appId: app.id } },
                   body: {
                     enableCD: redeployState.enableCD,
+                    projectId: app.projectId,
                     config,
                   },
                 });
