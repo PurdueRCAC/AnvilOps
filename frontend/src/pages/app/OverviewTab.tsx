@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, isWorkloadConfig } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   CheckCheck,
@@ -26,10 +26,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { Status, type App, type DeploymentStatus } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
-
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
   timeStyle: "medium",
@@ -189,46 +187,52 @@ export const OverviewTab = ({
             <p>{app.config.imageTag}</p>
           </>
         ) : null}
-        {appDomain !== null && app.config.createIngress && (
+        {appDomain !== null &&
+          isWorkloadConfig(app.config) &&
+          app.config.createIngress && (
+            <>
+              <p className="flex items-center gap-2">
+                <Link2 size={16} />
+                Public address
+              </p>
+              <p>
+                <a
+                  href={(() => {
+                    const temp = new URL(appDomain);
+                    temp.hostname = app.config.subdomain + "." + temp.hostname;
+                    return temp.toString();
+                  })()}
+                  className="underline flex gap-1 items-center"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {app.config.subdomain}.{appDomain?.hostname}
+                  <ExternalLink size={14} />
+                </a>
+              </p>
+            </>
+          )}
+        {isWorkloadConfig(app.config) && (
           <>
             <p className="flex items-center gap-2">
-              <Link2 size={16} />
-              Public address
+              <Network size={16} />
+              Internal address
+              <HelpTooltip size={16}>
+                Other workloads within the cluster can communicate with your
+                application using this address. <br />
+                Use this address when possible for improved speed and
+                compatibility with non-HTTP protocols.
+                <br />
+                End users cannot use this address, as it's only valid within the
+                cluster.
+              </HelpTooltip>
             </p>
             <p>
-              <a
-                href={(() => {
-                  const temp = new URL(appDomain);
-                  temp.hostname = app.config.subdomain + "." + temp.hostname;
-                  return temp.toString();
-                })()}
-                className="underline flex gap-1 items-center"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {app.config.subdomain}.{appDomain?.hostname}
-                <ExternalLink size={14} />
-              </a>
+              anvilops-{app.namespace}.anvilops-{app.namespace}
+              .svc.cluster.local
             </p>
           </>
         )}
-        <p className="flex items-center gap-2">
-          <Network size={16} />
-          Internal address
-          <HelpTooltip size={16}>
-            Other workloads within the cluster can communicate with your
-            application using this address. <br />
-            Use this address when possible for improved speed and compatibility
-            with non-HTTP protocols.
-            <br />
-            End users cannot use this address, as it's only valid within the
-            cluster.
-          </HelpTooltip>
-        </p>
-        <p>
-          anvilops-{app.namespace}.anvilops-{app.namespace}
-          .svc.cluster.local
-        </p>
       </div>
       <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
@@ -427,7 +431,6 @@ const ToggleCDForm = ({
           body: { enable: !app.cdEnabled },
         });
 
-        toast.success("Updated app successfully.");
         refetchApp();
       }}
     >

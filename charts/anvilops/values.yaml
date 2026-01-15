@@ -12,12 +12,15 @@ anvilops:
     baseURL: http://anvilops.minikube.local
     appDomain: http://minikube.local
     harborProjectName: anvilops
+    harborChartRepoName: anvilops-chart
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
     fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
     dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
     railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
+    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest
     logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
+    allowHelmDeployments: false
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
@@ -27,9 +30,13 @@ anvilops:
   fullnameOverride: ""
 
   securityContext:
-    runAsUser: 1001
-    runAsGroup: 1001
+    capabilities:
+      drop: [ALL]
     runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
 
   # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
   serviceAccount:
@@ -66,7 +73,7 @@ anvilops:
 
   resources:
     requests:
-      cpu: 500m
+      cpu: 512m
       memory: 512Mi
     limits:
       cpu: 1000m

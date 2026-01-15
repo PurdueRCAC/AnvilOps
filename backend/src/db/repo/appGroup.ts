@@ -30,6 +30,15 @@ export class AppGroupRepo {
     }
   }
 
+  async delete(appGroupId: number) {
+    if (
+      (await this.client.app.count({ where: { appGroupId: appGroupId } })) > 0
+    ) {
+      throw new Error("App group is not empty");
+    }
+    await this.client.appGroup.delete({ where: { id: appGroupId } });
+  }
+
   async getById(appGroupId: number): Promise<AppGroup> {
     return await this.client.appGroup.findUnique({
       where: { id: appGroupId },

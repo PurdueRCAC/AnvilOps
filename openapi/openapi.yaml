@@ -50,6 +50,8 @@ paths:
                     type: boolean
                   isRancherManaged:
                     type: boolean
+                  allowHelmDeployments:
+                    type: boolean
   /login:
     get:
       tags:
@@ -1002,7 +1004,9 @@ paths:
                       format: int64
                     name:
                       type: string
-                  required: [id, name]
+                    isMono:
+                      type: boolean
+                  required: [id, name, isMono]
         "400":
           description: Validation failed
           content:
@@ -1680,6 +1684,10 @@ paths:
           description: Unexpected authentication type (expected Basic) or log type (expected build or runtime)
         "500":
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
   /app/{appId}/deployments/{deploymentId}:
     parameters:
@@ -1832,6 +1840,47 @@ paths:
                     - subdomain
                     - env
                     - mounts
+
+  /templates/charts:
+    description: List custom AnvilOps helm charts.
+    get:
+      operationId: listCharts
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    note:
+                      type: string
+                    url:
+                      type: string
+                    urlType:
+                      type: string
+                    version:
+                      type: string
+                    valueSpec:
+                      type: object
+                      additionalProperties: true
+                  required: [name, note, url, urlType, version]
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     UserOrg:
@@ -2006,7 +2055,7 @@ components:
             - CANCELLED
         source:
           type: string
-          enum: [GIT, IMAGE]
+          enum: [GIT, IMAGE, HELM]
         imageTag:
           type: string
           nullable: true
@@ -2098,7 +2147,7 @@ components:
     AppUpdate:
       type: object
       properties:
-        name:
+        displayName:
           type: string
         appGroup:
           oneOf:
@@ -2135,6 +2184,11 @@ components:
         - config
     DeploymentConfig:
       type: object
+      oneOf:
+        - $ref: "#/components/schemas/WorkloadConfigOptions"
+        - $ref: "#/components/schemas/HelmConfigOptions"
+    WorkloadConfigOptions:
+      type: object
       allOf:
         - oneOf:
             - $ref: "#/components/schemas/GitDeploymentOptions"
@@ -2144,6 +2198,9 @@ components:
       type: object
       properties:
         # Deployment options
+        appType:
+          type: string
+          enum: [workload]
         port:
           type: integer
           format: int64
@@ -2158,6 +2215,7 @@ components:
             $ref: "#/components/schemas/Mount"
         subdomain:
           type: string
+          nullable: true
         createIngress:
           type: boolean
         collectLogs:
@@ -2172,6 +2230,7 @@ components:
           additionalProperties:
             type: string
       required:
+        - appType
         - port
         - replicas
         - env
@@ -2180,6 +2239,7 @@ components:
         - requests
         - collectLogs
         - createIngress
+        - subdomain
     GitDeploymentOptions:
       allOf:
         - type: object
@@ -2213,16 +2273,7 @@ components:
               enum: [dockerfile, railpack]
             imageTag:
               type: string
-          required:
-            [
-              source,
-              dockerfilePath,
-              rootDir,
-              repositoryId,
-              event,
-              eventId,
-              builder,
-            ]
+          required: [source, rootDir, repositoryId, event, eventId, builder]
     ImageDeploymentOptions:
       properties:
         source:
@@ -2233,6 +2284,26 @@ components:
           type: string
         # Deployment options
       required: [source, imageTag]
+    HelmConfigOptions:
+      properties:
+        appType:
+          type: string
+          enum: [helm]
+        source:
+          type: string
+          enum: [helm]
+        url:
+          type: string
+        urlType:
+          type: string
+          enum: [absolute, oci]
+        version:
+          type: string
+        values:
+          type: object
+          additionalProperties: true
+      required: [appType, source, url, urlType, version]
+
     Mount:
       type: object
       properties:
@@ -2304,10 +2375,16 @@ components:
           format: int64
         repositoryURL:
           type: string
+          nullable: true
         commitHash:
           type: string
+          nullable: true
         commitMessage:
           type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -2333,6 +2410,7 @@ components:
       required:
         - id
         - appId
+        - title
         - commitHash
         - commitMessage
         - createdAt
@@ -2363,117 +2441,65 @@ components:
       enum: [BUILD, RUNTIME]
     NewApp:
       type: object
-      allOf:
-        - type: object
-          properties:
-            name:
-              type: string
-            # Source options
-            orgId:
-              type: integer
-              format: int64
-            projectId:
-              type: string
-            subdomain:
-              type: string
-              format: hostname
-            port:
-              type: integer
-              format: int64
-            env:
-              $ref: "#/components/schemas/Envs"
-            mounts:
-              type: array
-              items:
-                $ref: "#/components/schemas/Mount"
-            cpuCores:
-              type: number
-            memoryInMiB:
-              type: integer
-            appGroup:
-              oneOf:
-                - type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [standalone]
-                  required: [type]
-                - type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [create-new]
-                    name:
-                      type: string
-                  required: [type, name]
-                - type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [add-to]
-                    id:
-                      type: integer
-                      format: int64
-                  required: [type, id]
-            createIngress:
-              type: boolean
-          required:
-            - name
-            - orgId
-            - port
-            - env
-            - mounts
-            - appGroup
-            - cpuCores
-            - memoryInMiB
-            - createIngress
-        - oneOf:
-            - $ref: "#/components/schemas/GitDeploymentOptions"
-            - $ref: "#/components/schemas/ImageDeploymentOptions"
+      properties:
+        name:
+          type: string
+        orgId:
+          type: integer
+          format: int64
+        projectId:
+          type: string
+        appGroup:
+          oneOf:
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [standalone]
+              required: [type]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [create-new]
+                name:
+                  type: string
+              required: [type, name]
+            - type: object
+              properties:
+                type:
+                  type: string
+                  enum: [add-to]
+                id:
+                  type: integer
+                  format: int64
+              required: [type, id]
+        namespace:
+          type: string
+        config:
+          $ref: "#/components/schemas/DeploymentConfig"
+      required:
+        - name
+        - orgId
+        - namespace
+        - config
+        - appGroup
     NewAppWithoutGroupInfo:
       type: object
-      allOf:
-        - type: object
-          properties:
-            name:
-              type: string
-            # Source options
-            orgId:
-              type: integer
-              format: int64
-            projectId:
-              type: string
-            subdomain:
-              type: string
-              format: hostname
-            port:
-              type: integer
-              format: int64
-            env:
-              $ref: "#/components/schemas/Envs"
-            mounts:
-              type: array
-              items:
-                $ref: "#/components/schemas/Mount"
-            cpuCores:
-              type: number
-            memoryInMiB:
-              type: integer
-            createIngress:
-              type: boolean
-          required:
-            - name
-            - orgId
-            - subdomain
-            - port
-            - env
-            - mounts
-            - cpuCores
-            - memoryInMiB
-            - createIngress
-        - oneOf:
-            - $ref: "#/components/schemas/GitDeploymentOptions"
-            - $ref: "#/components/schemas/ImageDeploymentOptions"
+      properties:
+        name:
+          type: string
+        # Source options
+        projectId:
+          type: string
+        namespace:
+          type: string
+        config:
+          $ref: "#/components/schemas/DeploymentConfig"
+      required:
+        - name
+        - namespace
+        - config
     Envs:
       type: array
       items:

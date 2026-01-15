@@ -1,12 +1,13 @@
 import { ConflictError, db } from "../db/index.ts";
+import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import { validateAppGroup } from "../lib/validate.ts";
-import { AppCreateError, ValidationError } from "../service/common/errors.ts";
+import { OrgNotFoundError, ValidationError } from "../service/common/errors.ts";
+import { type NewApp } from "../service/createApp.ts";
 import {
-  createApp,
-  validateAppConfig,
-  type NewApp,
-} from "../service/createApp.ts";
+  appService,
+  deploymentConfigService,
+  deploymentService,
+} from "./helper/index.ts";
 
 export type NewAppWithoutGroup =
   components["schemas"]["NewAppWithoutGroupInfo"];
@@ -17,49 +18,79 @@ export async function createAppGroup(
   groupName: string,
   appData: NewAppWithoutGroup[],
 ) {
-  const validationResult = validateAppGroup({
-    type: "create-new",
-    name: groupName,
-  });
-  if (!validationResult.valid) {
-    throw new ValidationError(validationResult.message);
-  }
-
-  let groupId: number;
-  try {
-    groupId = await db.appGroup.create(orgId, groupName, false);
-  } catch (e) {
-    if (e instanceof ConflictError) {
-      throw new ValidationError(
-        "An app group already exists with the same name.",
-      );
-    }
-    throw e;
-  }
-
-  const appsWithGroups = appData.map(
+  appService.validateAppGroupName(groupName);
+  const apps = appData.map(
     (app) =>
       ({
         ...app,
-        appGroup: { type: "add-to", id: groupId },
-      }) satisfies NewApp,
+        orgId: orgId,
+      }) satisfies Omit<NewApp, "appGroup">,
   );
 
-  const validationResults = await Promise.all(
-    appsWithGroups.map(async (app) => {
-      try {
-        return await validateAppConfig(userId, app);
-      } catch (e) {
-        throw new AppCreateError(app.name, e);
-      }
-    }),
+  const [organization, user] = await Promise.all([
+    db.org.getById(orgId, { requireUser: { id: userId } }),
+    db.user.getById(userId),
+  ]);
+
+  if (!organization) {
+    throw new OrgNotFoundError(null);
+  }
+
+  // validate all apps before creating any
+  const validationResults = await appService.prepareMetadataForApps(
+    organization,
+    user,
+    ...appData.map((app) => ({
+      type: "create" as const,
+      ...app,
+    })),
   );
 
-  for (let i = 0; i < appsWithGroups.length; i++) {
+  const appsWithMetadata = apps.map((app, idx) => ({
+    appData: app,
+    metadata: validationResults[idx],
+  }));
+
+  const groupId = await db.appGroup.create(orgId, groupName, false);
+  // let groupId: number;
+  // try {
+  //   groupId = await db.appGroup.create(orgId, groupName, false);
+  // } catch (e) {
+  //   if (e instanceof ConflictError) {
+  //     throw new ValidationError(
+  //       "An app group already exists with the same name.",
+  //     );
+  //   }
+  //   throw e;
+  // }
+
+  for (const { appData, metadata } of appsWithMetadata) {
+    let { config, commitMessage } = metadata;
+    let app: App;
     try {
-      await createApp(appsWithGroups[i], validationResults[i]);
-    } catch (e) {
-      throw new AppCreateError(appsWithGroups[i].name, e);
+      app = await db.app.create({
+        orgId: appData.orgId,
+        appGroupId: groupId,
+        name: appData.name,
+        clusterUsername: user.clusterUsername,
+        projectId: appData.projectId,
+        namespace: appData.namespace,
+      });
+      config = deploymentConfigService.populateImageTag(config, app);
+    } catch (err) {
+      // In between validation and creating the app, the namespace was taken by another app
+      if (err instanceof ConflictError && err.message === "namespace") {
+        throw new ValidationError("Namespace is unavailable");
+      }
+
+      throw err;
     }
+
+    await deploymentService.create({
+      org: organization,
+      app,
+      commitMessage,
+      config,
+    });
   }
 }

@@ -1,4 +1,6 @@
 # Ignore artifacts:
 charts/**/*.yaml
 !charts/**/values.yaml
+templates/extensions/**/*.yaml
+!templates/extensions/**/values.yaml
 # ^ Prettier doesn't know how to interpret Go templates so it thinks we're writing invalid YAML

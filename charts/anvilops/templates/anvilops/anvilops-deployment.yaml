@@ -41,7 +41,6 @@ spec:
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
-          args: ["./src/index.ts"]
           ports:
             - name: http
               containerPort: 3000
@@ -219,6 +218,10 @@ spec:
               value: {{ .Values.anvilops.env.appDomain }}
             - name: HARBOR_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborProjectName }}
+            - name: CHART_PROJECT_NAME
+              value: {{ .Values.anvilops.env.harborChartRepoName }}
+            - name: ALLOW_HELM_DEPLOYMENTS
+              value: "{{ .Values.anvilops.env.allowHelmDeployments }}"
             - name: BUILDKITD_ADDRESS
               value: {{ .Values.buildkitd.address }}
             - name: FILE_BROWSER_IMAGE
@@ -227,27 +230,14 @@ spec:
               value: {{ .Values.anvilops.env.dockerfileBuilderImage }}
             - name: RAILPACK_BUILDER_IMAGE
               value: {{ .Values.anvilops.env.railpackBuilderImage }}
+            - name: HELM_DEPLOYER_IMAGE
+              value: {{ .Values.anvilops.env.helmDeployerImage }}
             - name: LOG_SHIPPER_IMAGE
               value: {{ .Values.anvilops.env.logShipperImage }}
             {{- with .Values.anvilops.env.registryProtocol }}
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
-          securityContext:
-            capabilities:
-              drop: [ALL]
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-          resources:
-            requests:
-              cpu: 512m
-              memory: 512Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
       volumes:
         - name: cluster-config
           configMap:

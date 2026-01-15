@@ -60,11 +60,14 @@ export class AppRepo {
     return await this.client.app.findMany({
       where: {
         config: {
-          source: DeploymentSource.GIT,
-          repositoryId: repoId,
-          event,
-          eventId,
-          branch,
+          appType: "workload",
+          workloadConfig: {
+            source: DeploymentSource.GIT,
+            repositoryId: repoId,
+            event,
+            eventId,
+            branch,
+          },
         },
         org: { githubInstallationId: { not: null } },
         enableCD: true,
@@ -72,12 +75,15 @@ export class AppRepo {
     });
   }
 
-  async isSubdomainInUse(subdomain: string): Promise<boolean> {
-    return (
-      (await this.client.app.count({
-        where: { config: { subdomain: subdomain } },
-      })) > 0
-    );
+  async getAppBySubdomain(subdomain: string): Promise<App | null> {
+    return await this.client.app.findFirst({
+      where: {
+        config: {
+          appType: "workload",
+          workloadConfig: { subdomain },
+        },
+      },
+    });
   }
 
   async listForOrg(orgId: number): Promise<App[]> {
@@ -118,10 +124,10 @@ export class AppRepo {
           err.code === "P2002"
         ) {
           // P2002 is "Unique Constraint Failed" - https://www.prisma.io/docs/orm/reference/error-reference#p2002
-          throw new ConflictError(
-            err.meta?.target as string /* column name */,
-            err,
-          );
+          const target = Array.isArray(err.meta?.target)
+            ? err.meta.target.join(", ")
+            : (err.meta?.target as string);
+          throw new ConflictError(target);
         }
       }
 
@@ -212,10 +218,17 @@ export class AppRepo {
   async getDeploymentConfig(appId: number): Promise<DeploymentConfig> {
     const app = await this.client.app.findUnique({
       where: { id: appId },
-      include: { config: true },
+      include: {
+        config: {
+          include: {
+            workloadConfig: { omit: { id: true, deploymentConfigId: true } },
+            helmConfig: { omit: { id: true, deploymentConfigId: true } },
+          },
+        },
+      },
     });
 
-    return DeploymentRepo.preprocessDeploymentConfig(app.config);
+    return DeploymentRepo.preprocessConfig(app.config);
   }
 
   async setConfig(appId: number, configId: number) {
@@ -232,7 +245,7 @@ export class AppRepo {
   }
 
   async getDeploymentsWithStatus(appId: number, statuses: DeploymentStatus[]) {
-    return await this.client.deployment.findMany({
+    const deployments = await this.client.deployment.findMany({
       where: {
         appId: appId,
         status: {
@@ -240,9 +253,19 @@ export class AppRepo {
         },
       },
       include: {
-        config: true,
+        config: {
+          include: {
+            workloadConfig: { omit: { id: true } },
+            helmConfig: { omit: { id: true } },
+          },
+        },
       },
     });
+
+    return deployments.map((deployment) => ({
+      ...deployment,
+      config: DeploymentRepo.preprocessConfig(deployment.config),
+    }));
   }
 
   async setGroup(appId: number, appGroupId: number) {
