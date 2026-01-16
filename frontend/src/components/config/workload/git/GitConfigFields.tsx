@@ -15,7 +15,7 @@ export const GitConfigFields = ({
   setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
   disabled?: boolean;
 }) => {
-  if (selectedOrg?.gitProvider !== null) {
+  if (!selectedOrg?.gitProvider) {
     if (selectedOrg?.permissionLevel === "OWNER") {
       return (
         <div>
