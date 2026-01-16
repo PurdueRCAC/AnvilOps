@@ -48,7 +48,14 @@ if (endpoint) {
   sdk.start();
 
   process.on("SIGTERM", () => {
-    sdk.shutdown();
+    console.log("Shutting down");
+    sdk
+      .shutdown()
+      .then(() => console.log("Instrumentation shut down"))
+      .catch((err) =>
+        console.error("Instrumentation failed to shut down:", err),
+      )
+      .finally(() => process.exit(0));
   });
 } else {
   console.log("Running without instrumentation");

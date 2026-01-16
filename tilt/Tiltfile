@@ -21,12 +21,19 @@ if separate_frontend_and_backend:
     ],
     only=["frontend", "openapi"]
   )
-  docker_build_with_restart(
+  docker_build(
     "anvilops/anvilops", "../",
     dockerfile="./anvilops-backend.Dockerfile",
-    entrypoint=["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts", "/app/src/index.ts"],
+    entrypoint=[
+      "/usr/local/bin/node",
+      "--experimental-strip-types",
+      "--require", "/app/src/instrumentation.ts",
+      "--watch", "/app/src/index.ts"
+    ],
     live_update=[
-      sync("../backend/src", "/app/src")
+      fall_back_on("../backend/src/instrumentation.ts"),
+      sync("../backend/src", "/app/src"),
+      run("touch /app/src/index.ts") # In some cases, Node doesn't detect file changes (i.e. the --watch flag doesn't work). This command seems to improve reliability of automatic restarts.
     ],
     only=["backend", "templates", "openapi"]
   )
