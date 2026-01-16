@@ -31,6 +31,10 @@ app.use(
   pinoHttp({
     logger,
     autoLogging: { ignore: (req) => req.path === "/api/liveness" },
+    redact: {
+      paths: ["req.headers.cookie"],
+      remove: true,
+    },
   }),
 );
 
