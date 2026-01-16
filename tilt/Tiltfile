@@ -24,7 +24,7 @@ if separate_frontend_and_backend:
   docker_build_with_restart(
     "anvilops/anvilops", "../",
     dockerfile="./anvilops-backend.Dockerfile",
-    entrypoint=["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"],
+    entrypoint=["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts", "/app/src/index.ts"],
     live_update=[
       sync("../backend/src", "/app/src")
     ],
