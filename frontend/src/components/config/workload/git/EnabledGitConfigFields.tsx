@@ -1,4 +1,4 @@
-import { ImportRepoDialog } from "@/components/ImportRepoDialog";
+import { ImportRepoDialog } from "./ImportRepoDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import clsx from "clsx";
 import {
@@ -23,37 +22,42 @@ import {
   GitBranch,
   Hammer,
 } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
-import type { AppInfoFormData } from "./AppConfigFormFields";
+import { useEffect, useState } from "react";
+import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
 
-export const GitDeploymentFields = ({
+export const EnabledGitConfigFields = ({
   orgId,
-  state,
+  gitState,
   setState,
-  disabled = false,
+  disabled,
 }: {
   orgId?: number;
-  state: Pick<
-    AppInfoFormData,
-    | "builder"
-    | "repositoryId"
-    | "event"
-    | "eventId"
-    | "source"
-    | "branch"
-    | "rootDir"
-    | "dockerfilePath"
-  >;
-  setState: React.Dispatch<React.SetStateAction<AppInfoFormData>>;
-  disabled: boolean;
+  gitState: GitFormFields;
+  setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
+  disabled?: boolean;
 }) => {
-  const { builder, repositoryId, event, eventId, source } = state;
+  const setGitState = (update: Partial<GitFormFields>) => {
+    setState((s) => ({
+      ...s,
+      workload: {
+        ...s.workload,
+        git: {
+          ...s.workload.git,
+          ...update,
+        },
+      },
+    }));
+  };
 
-  const { user } = useContext(UserContext);
-
-  const selectedOrg =
-    orgId !== undefined ? user?.orgs?.find((it) => it.id === orgId) : undefined;
-
+  const {
+    builder,
+    repositoryId,
+    event,
+    eventId,
+    rootDir,
+    dockerfilePath,
+    branch,
+  } = gitState;
   const {
     data: repos,
     isPending: reposLoading,
@@ -63,8 +67,7 @@ export const GitDeploymentFields = ({
     "/org/{orgId}/repos",
     { params: { path: { orgId: orgId! } } },
     {
-      enabled:
-        orgId !== undefined && source === "git" && selectedOrg?.githubConnected,
+      enabled: orgId !== undefined,
     },
   );
 
@@ -80,8 +83,7 @@ export const GitDeploymentFields = ({
       },
     },
     {
-      enabled:
-        orgId !== undefined && repositoryId !== undefined && source === "git",
+      enabled: orgId !== undefined && repositoryId !== undefined,
     },
   );
 
@@ -100,36 +102,27 @@ export const GitDeploymentFields = ({
       enabled:
         orgId !== undefined &&
         repositoryId !== undefined &&
-        source === "git" &&
         event === "workflow_run",
     },
   );
 
   useEffect(() => {
-    setState((prev) => ({
-      ...prev,
-      branch: branches?.default ?? branches?.branches?.[0],
-    }));
+    if (!branch) {
+      setGitState({ branch: branches?.default ?? branches?.branches?.[0] });
+    }
   }, [branches]);
 
   const [importDialogShown, setImportDialogShown] = useState(false);
   return (
     <>
-      {selectedOrg?.id && (
+      {orgId !== undefined && (
         <ImportRepoDialog
-          orgId={selectedOrg?.id}
+          orgId={orgId}
           open={importDialogShown}
           setOpen={setImportDialogShown}
           refresh={async () => {
             await refreshRepos();
           }}
-          setRepo={(repositoryId, repoName) =>
-            setState((prev) => ({
-              ...prev,
-              repositoryId,
-              repoName,
-            }))
-          }
           setState={setState}
         />
       )}
@@ -161,11 +154,10 @@ export const GitDeploymentFields = ({
             if (repo === "$import-repo") {
               setImportDialogShown(true);
             } else if (repo) {
-              setState((prev) => ({
-                ...prev,
+              setGitState({
                 repositoryId: typeof repo === "string" ? parseInt(repo) : repo,
                 repoName: repos?.find((r) => r?.id === parseInt(repo))?.name,
-              }));
+              });
             }
           }}
           value={repositoryId?.toString() ?? ""}
@@ -228,9 +220,9 @@ export const GitDeploymentFields = ({
           required
           name="branch"
           disabled={disabled || repositoryId === undefined || branchesLoading}
-          value={state.branch ?? ""}
+          value={branch ?? ""}
           onValueChange={(branch) => {
-            setState((prev) => ({ ...prev, branch }));
+            setGitState({ branch });
           }}
         >
           <SelectTrigger className="w-full" id="selectBranch">
@@ -273,12 +265,9 @@ export const GitDeploymentFields = ({
           required
           disabled={disabled}
           name="branch"
-          value={state.event ?? ""}
+          value={event ?? ""}
           onValueChange={(event) => {
-            setState((prev) => ({
-              ...prev,
-              event: event as "push" | "workflow_run",
-            }));
+            setGitState({ event: event as "push" | "workflow_run" });
           }}
         >
           <SelectTrigger className="w-full" id="selectEvent">
@@ -324,9 +313,9 @@ export const GitDeploymentFields = ({
               branchesLoading ||
               workflows?.workflows?.length === 0
             }
-            value={eventId ?? ""}
+            value={eventId?.toString() ?? ""}
             onValueChange={(eventId) => {
-              setState((prev) => ({ ...prev, eventId }));
+              setGitState({ eventId: parseInt(eventId) });
             }}
           >
             <SelectTrigger className="w-full" id="selectWorkflow">
@@ -371,10 +360,10 @@ export const GitDeploymentFields = ({
         </div>
         <Input
           disabled={disabled}
-          value={state.rootDir}
+          value={rootDir}
           onChange={(e) => {
             const rootDir = e.currentTarget.value;
-            setState((state) => ({ ...state, rootDir }));
+            setGitState({ rootDir });
           }}
           name="rootDir"
           id="rootDir"
@@ -406,10 +395,7 @@ export const GitDeploymentFields = ({
           id="builder"
           value={builder}
           onValueChange={(newValue) =>
-            setState((prev) => ({
-              ...prev,
-              builder: newValue as "dockerfile" | "railpack",
-            }))
+            setGitState({ builder: newValue as "dockerfile" | "railpack" })
           }
           required
         >
@@ -451,10 +437,10 @@ export const GitDeploymentFields = ({
             name="dockerfilePath"
             id="dockerfilePath"
             placeholder="Dockerfile"
-            value={state.dockerfilePath}
+            value={dockerfilePath ?? ""}
             onChange={(e) => {
               const dockerfilePath = e.currentTarget.value;
-              setState((state) => ({ ...state, dockerfilePath }));
+              setGitState({ dockerfilePath });
             }}
             className="w-full"
             autoComplete="off"

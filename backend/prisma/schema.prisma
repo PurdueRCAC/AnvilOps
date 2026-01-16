@@ -138,6 +138,11 @@ enum ImageBuilder {
   railpack
 }
 
+enum AppType {
+  workload
+  helm
+}
+
 enum DeploymentSource {
   GIT
   IMAGE
@@ -199,12 +204,24 @@ model Deployment {
 }
 
 model DeploymentConfig {
-  id             Int              @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
+  deployment     Deployment?
+  appType        AppType
+  workloadConfig WorkloadConfig?
+
+  helmConfig HelmConfig?
+  app        App?
+}
+
+model WorkloadConfig {
+  id                 Int              @id @default(autoincrement())
   // Deployment options
   /// [EnvVar[]]
-  env            Json             @default("[]")
-  envKey         String           @default("")
-  deployment     Deployment?
+  env                Json             @default("[]")
+  envKey             String           @default("")
+  deploymentConfig   DeploymentConfig @relation(fields: [deploymentConfigId], references: [id], onDelete: Cascade)
+  deploymentConfigId Int              @unique
+
   // Build options
   source         DeploymentSource
   // > Git deployment source
@@ -234,9 +251,21 @@ model DeploymentConfig {
   limits   Json
   ///[Resources]
   requests Json
+}
 
-  // Reverse relation field for when this DeploymentConfig is an App's template config
-  app App?
+enum HelmUrlType {
+  oci
+  absolute
+}
+
+model HelmConfig {
+  id                 Int              @id @default(autoincrement())
+  deploymentConfig   DeploymentConfig @relation(fields: [deploymentConfigId], references: [id], onDelete: Cascade)
+  deploymentConfigId Int              @unique
+  url                String
+  version            String
+  urlType            HelmUrlType
+  values             Json?
 }
 
 model Log {

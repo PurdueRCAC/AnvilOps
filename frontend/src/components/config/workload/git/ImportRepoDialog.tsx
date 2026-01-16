@@ -1,14 +1,13 @@
-import { api } from "@/lib/api";
-import type { AppInfoFormData } from "@/pages/create-app/AppConfigFormFields";
-import { FormContext } from "@/pages/create-app/CreateAppView";
-import { Info, Library, Loader, X } from "lucide-react";
-import { useContext, useState, type Dispatch } from "react";
-import { toast } from "sonner";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,23 +16,41 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "@/components/ui/select";
+import { api } from "@/lib/api";
+import type { CommonFormFields } from "@/lib/form.types";
+import { FormContext } from "@/pages/create-app/CreateAppView";
+import { Info, Library, Loader, X } from "lucide-react";
+import { useContext, useState, type Dispatch } from "react";
+import { toast } from "sonner";
 
 export const ImportRepoDialog = ({
   orgId,
   open,
   setOpen,
   refresh,
-  setRepo,
   setState,
 }: {
   orgId: number;
   open: boolean;
   setOpen: Dispatch<boolean>;
   refresh: () => Promise<void>;
-  setRepo: (id: number, name: string) => void;
-  setState: Dispatch<React.SetStateAction<AppInfoFormData>>;
+  setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
 }) => {
+  const setRepo = (id: number, name: string) => {
+    setState((s) => ({
+      ...s,
+      workload: {
+        ...s.workload,
+        git: {
+          ...s.workload.git,
+          repositoryId: id,
+          repoName: name,
+        },
+      },
+    }));
+  };
+
   const { data: installation } = api.useQuery(
     "get",
     "/org/{orgId}/installation",

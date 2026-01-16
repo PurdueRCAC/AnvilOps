@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState, type Dispatch } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
-// TODO: show error message on duplicate env names
 export const EnvsWithDiffs = ({
   base,
   value: envVars,
@@ -17,7 +16,7 @@ export const EnvsWithDiffs = ({
 }: {
   base: EnvVars;
   value: EnvVars;
-  setValue: Dispatch<React.SetStateAction<EnvVars>>;
+  setValue: (updater: (envVars: EnvVars) => EnvVars) => void;
   fixedSensitiveNames: Set<string>;
   disabled?: boolean;
 }) => {
@@ -94,17 +93,22 @@ export const EnvsWithDiffs = ({
               }
               value={name}
               onChange={(e) => {
-                const newList = structuredClone(envVars);
-                newList[index].name = e.currentTarget.value;
-                const duplicates = getDuplicates(newList);
-                if (duplicates.length != 0) {
-                  setError(
-                    `Duplicate environment variable(s): ${duplicates.join(", ")}`,
-                  );
-                } else {
-                  setError("");
-                }
-                setEnvironmentVariables(newList);
+                const value = e.currentTarget.value;
+                setEnvironmentVariables((prev) => {
+                  const newList = prev.toSpliced(index, 1, {
+                    ...prev[index],
+                    name: value,
+                  });
+                  const duplicates = getDuplicates(newList);
+                  if (duplicates.length != 0) {
+                    setError(
+                      `Duplicate environment variable(s): ${duplicates.join(", ")}`,
+                    );
+                  } else {
+                    setError("");
+                  }
+                  return newList;
+                });
               }}
             />
             <span className="text-xl align-middle w-fit">=</span>
@@ -115,9 +119,14 @@ export const EnvsWithDiffs = ({
                 className="w-full"
                 value={value ?? ""}
                 onChange={(e) => {
-                  const newList = structuredClone(envVars);
-                  newList[index].value = e.currentTarget.value;
-                  setEnvironmentVariables(newList);
+                  const value = e.currentTarget.value;
+                  setEnvironmentVariables((prev) => {
+                    const newList = prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      value: value,
+                    });
+                    return newList;
+                  });
                 }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -130,10 +139,14 @@ export const EnvsWithDiffs = ({
                 disabled={disabled || isFixedSensitive}
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
-                  const newList = structuredClone(envVars);
-                  newList[index].isSensitive =
-                    checked === "indeterminate" ? false : checked;
-                  setEnvironmentVariables(newList);
+                  setEnvironmentVariables((prev) => {
+                    const newList = prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      isSensitive:
+                        checked === "indeterminate" ? false : checked,
+                    });
+                    return newList;
+                  });
                 }}
               />
             </div>
@@ -142,7 +155,9 @@ export const EnvsWithDiffs = ({
               variant="secondary"
               type="button"
               onClick={() => {
-                setEnvironmentVariables(envVars.filter((_, i) => i !== index));
+                setEnvironmentVariables((prev) =>
+                  prev.filter((_, i) => i !== index),
+                );
               }}
             >
               <Trash2 />

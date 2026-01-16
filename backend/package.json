@@ -30,7 +30,8 @@
     "openid-client": "^6.8.1",
     "patch-package": "^8.0.1",
     "pg": "^8.16.3",
-    "regclient-napi": "file:./regclient-napi"
+    "regclient-napi": "file:./regclient-napi",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/connect-pg-simple": "^7.0.3",

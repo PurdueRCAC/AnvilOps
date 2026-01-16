@@ -150,6 +150,14 @@ const variables = {
    */
   CURRENT_NAMESPACE: { required: true },
   /**
+   * The name of the project in which custom AnvilOps charts are stored.
+   */
+  CHART_PROJECT_NAME: { required: false, defaultValue: "anvilops-chart" },
+  /**
+   * Whether to allow Helm deployments
+   */
+  ALLOW_HELM_DEPLOYMENTS: { required: false },
+  /**
    * The hostname for the image registry, e.g. registry.anvil.rcac.purdue.edu
    */
   REGISTRY_HOSTNAME: { required: true },
@@ -179,6 +187,14 @@ const variables = {
     required: false,
     defaultValue:
       "registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest",
+  },
+  /**
+   * The image for a job that creates or updates a Helm deployment
+   */
+  HELM_DEPLOYER_IMAGE: {
+    required: false,
+    defaultValue:
+      "registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest",
   },
   /**
    * The image that copies the log shipper binary to a destination path, used in an initContainer to start collecting logs from users' apps (see backend/src/lib/cluster/resources/logs.ts for more details)
@@ -224,18 +240,25 @@ const variables = {
 
 export const env = {} as Record<keyof typeof variables, string>;
 
+const notFound: string[] = [];
 for (const [key, _params] of Object.entries(variables)) {
   const params = _params as EnvVarDefinition;
   const value = process.env[key];
   if (value === undefined) {
     if (params.required === true) {
-      throw new Error("Environment variable " + key + " not found.");
+      notFound.push(key);
     } else if (params.defaultValue !== undefined) {
       env[key] = params.defaultValue;
     }
   } else {
     env[key] = value;
   }
+}
+
+if (notFound.length > 0) {
+  throw new Error(
+    "Environment variable(s) " + notFound.join(", ") + " not found.",
+  );
 }
 
 // Either DATABASE_URL or the separate variables must be specified

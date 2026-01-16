@@ -1,0 +1,9 @@
+passwords: {}
+
+storage: {}
+
+image:
+  repository: registry.opensource.zalan.do/acid/spilo-11
+  tag: "1.5-p5"
+
+replicas: 3

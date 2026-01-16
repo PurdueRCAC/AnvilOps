@@ -3,7 +3,7 @@ import {
   OrgNotFoundError,
   ValidationError,
 } from "../service/common/errors.ts";
-import { createApp, validateAppConfig } from "../service/createApp.ts";
+import { createApp } from "../service/createApp.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
@@ -13,10 +13,7 @@ export const createAppHandler: HandlerMap["createApp"] = async (
   res,
 ) => {
   try {
-    const appId = await createApp(
-      ctx.request.requestBody,
-      await validateAppConfig(req.user.id, ctx.request.requestBody),
-    );
+    const appId = await createApp(ctx.request.requestBody, req.user.id);
     return json(200, res, { id: appId });
   } catch (e) {
     if (e instanceof OrgNotFoundError) {

@@ -1,9 +1,9 @@
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState, type Dispatch } from "react";
-import HelpTooltip from "./HelpTooltip";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
-import { Input } from "./ui/input";
+import { Fragment, useEffect, useState } from "react";
+import HelpTooltip from "@/components/HelpTooltip";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -15,7 +15,7 @@ export const EnvVarGrid = ({
   disabled = false,
 }: {
   value: EnvVars;
-  setValue: Dispatch<React.SetStateAction<EnvVars>>;
+  setValue: (updater: (envVars: EnvVars) => EnvVars) => void;
   fixedSensitiveNames: Set<string>;
   disabled: boolean;
 }) => {
@@ -75,17 +75,22 @@ export const EnvVarGrid = ({
               }
               value={name}
               onChange={(e) => {
-                const newList = structuredClone(envVars);
-                newList[index].name = e.currentTarget.value;
-                const duplicates = getDuplicates(newList);
-                if (duplicates.length != 0) {
-                  setError(
-                    `Duplicate environment variable(s): ${duplicates.join(", ")}`,
-                  );
-                } else {
-                  setError("");
-                }
-                setEnvironmentVariables(newList);
+                const value = e.currentTarget.value;
+                setEnvironmentVariables((prev) => {
+                  const newList = prev.toSpliced(index, 1, {
+                    ...prev[index],
+                    name: value,
+                  });
+                  const duplicates = getDuplicates(newList);
+                  if (duplicates.length != 0) {
+                    setError(
+                      `Duplicate environment variable(s): ${duplicates.join(", ")}`,
+                    );
+                  } else {
+                    setError("");
+                  }
+                  return newList;
+                });
               }}
             />
             <span className="text-xl align-middle w-fit">=</span>
@@ -96,9 +101,14 @@ export const EnvVarGrid = ({
                 className="w-full"
                 value={value ?? ""}
                 onChange={(e) => {
-                  const newList = structuredClone(envVars);
-                  newList[index].value = e.currentTarget.value;
-                  setEnvironmentVariables(newList);
+                  const value = e.currentTarget.value;
+                  setEnvironmentVariables((prev) => {
+                    const newList = prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      value: value,
+                    });
+                    return newList;
+                  });
                 }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -111,10 +121,12 @@ export const EnvVarGrid = ({
                 disabled={disabled || isFixedSensitive}
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
-                  const newList = structuredClone(envVars);
-                  newList[index].isSensitive =
-                    checked === "indeterminate" ? false : checked;
-                  setEnvironmentVariables(newList);
+                  setEnvironmentVariables((prev) =>
+                    prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      isSensitive: checked === true,
+                    }),
+                  );
                 }}
               />
             </div>
@@ -122,9 +134,9 @@ export const EnvVarGrid = ({
               disabled={disabled}
               variant="secondary"
               type="button"
-              onClick={() => {
-                setEnvironmentVariables(envVars.filter((_, i) => i !== index));
-              }}
+              onClick={() =>
+                setEnvironmentVariables((prev) => prev.toSpliced(index, 1))
+              }
             >
               <Trash2 />
             </Button>

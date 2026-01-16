@@ -15,6 +15,7 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
     await updateDeployment(secret, status);
     return json(200, res, undefined);
   } catch (e) {
+    console.error(e);
     if (e instanceof ValidationError) {
       return json(404, res, { code: 400, message: e.message });
     } else if (e instanceof DeploymentNotFoundError) {

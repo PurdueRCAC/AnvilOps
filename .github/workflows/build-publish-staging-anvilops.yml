@@ -1,0 +1,24 @@
+name: Build and Publish Staging Docker image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push_to_registry:
+    name: Push AnvilOps Docker image to Harbor (Staging)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+
+      - name: Log in to container registry
+        run: docker login -u '${{ secrets.DOCKER_USERNAME_STAGING }}' -p '${{ secrets.DOCKER_PASSWORD_STAGING }}' registry.anvil.rcac.purdue.edu
+
+      - name: Build and push AnvilOps Docker image
+        run: docker build --push -t registry.anvil.rcac.purdue.edu/anvilops-staging/anvilops:${{ github.run_number }}-${{ github.sha }} .
+
+      - name: Log out of container registry
+        if: always()
+        run: docker logout registry.anvil.rcac.purdue.edu
