@@ -34,7 +34,7 @@ if (endpoint) {
     traceExporter: new OTLPTraceExporter(),
     metricReader: new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter(),
-      exportIntervalMillis: process.env.IN_TILT ? 10_000 : 5 * 60_000,
+      exportIntervalMillis: process.env.IN_TILT ? 10_000 : 60_000,
     }),
     logRecordProcessors: [new BatchLogRecordProcessor(new OTLPLogExporter())],
     instrumentations: [
