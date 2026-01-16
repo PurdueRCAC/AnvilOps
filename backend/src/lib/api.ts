@@ -1,4 +1,4 @@
-import { trace } from "@opentelemetry/api";
+import { trace, type Span } from "@opentelemetry/api";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -40,7 +40,22 @@ const api = new OpenAPIBackend({
       const span = trace.getActiveSpan();
       if (span) {
         span.setAttribute("http.operation.id", ctx?.operation?.operationId);
-        span.setAttribute("http.operation.path", ctx?.operation?.path);
+        span.setAttribute("http.route", ctx?.operation?.path);
+      }
+      const rootSpan = req["_otel_root_span"] as Span; // This property is set in src/instrumentation.ts when a request is received
+      if (rootSpan) {
+        const spanEnd = rootSpan.end.bind(rootSpan);
+        rootSpan.end = (input) => {
+          // We need to override the span's `end` function because, if we didn't, the auto-instrumentation would update the name right before the span is closed.
+
+          // Update the span's http.route and name to use the URL patterns that openapi-backend parsed from the request.
+          // Without this, the span title would just be `/api` instead of the actual path.
+          rootSpan.setAttribute("http.route", "/api" + ctx?.operation?.path);
+          rootSpan.updateName(
+            `${req.method?.toUpperCase()} /api${ctx?.operation?.path}`,
+          );
+          spanEnd(input);
+        };
       }
     },
   },
@@ -65,7 +80,10 @@ const api = new OpenAPIBackend({
 
 api.init();
 
-const handler = async (req: ExpressRequest, res: ExpressResponse) => {
+export default async function handler(
+  req: ExpressRequest,
+  res: ExpressResponse,
+) {
   try {
     await api.handleRequest(req as Request, req, res);
   } catch (err) {
@@ -74,6 +92,4 @@ const handler = async (req: ExpressRequest, res: ExpressResponse) => {
     }
     throw err;
   }
-};
-
-export default handler;
+}

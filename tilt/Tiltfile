@@ -31,7 +31,6 @@ if separate_frontend_and_backend:
       "--watch", "/app/src/index.ts"
     ],
     live_update=[
-      fall_back_on("../backend/src/instrumentation.ts"),
       sync("../backend/src", "/app/src"),
       run("touch /app/src/index.ts") # In some cases, Node doesn't detect file changes (i.e. the --watch flag doesn't work). This command seems to improve reliability of automatic restarts.
     ],

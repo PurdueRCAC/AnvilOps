@@ -39,7 +39,14 @@ if (endpoint) {
     logRecordProcessors: [new BatchLogRecordProcessor(new OTLPLogExporter())],
     instrumentations: [
       new PrismaInstrumentation(),
-      getNodeAutoInstrumentations(),
+      getNodeAutoInstrumentations({
+        "@opentelemetry/instrumentation-http": {
+          requestHook: (span, request) => {
+            // Used in src/lib/api.ts to override spans' names when openapi-backend handles routing for a request
+            request["_otel_root_span"] = span;
+          },
+        },
+      }),
     ],
   });
 
