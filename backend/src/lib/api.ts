@@ -1,3 +1,4 @@
+import { trace } from "@opentelemetry/api";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -33,6 +34,14 @@ const api = new OpenAPIBackend({
         message: "Request validation failed",
         errors: ctx.validation.errors,
       });
+    },
+
+    preOperationHandler: (ctx, req, res) => {
+      const span = trace.getActiveSpan();
+      if (span) {
+        span.setAttribute("http.operation.id", ctx?.operation?.operationId);
+        span.setAttribute("http.operation.path", ctx?.operation?.path);
+      }
     },
   },
   ajvOpts: { coerceTypes: "array" },

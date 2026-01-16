@@ -137,7 +137,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
       message: "Internal server error",
     });
   } else {
-    res.status(500).send(`
+    res.send(`
 <!DOCTYPE html>
 <html>
   <head>
