@@ -1,37 +1,15 @@
 import { db, NotFoundError } from "../db/index.ts";
-import type {
-  App,
-  Deployment,
-  DeploymentConfig,
-  DeploymentConfigCreate,
-  Organization,
-} from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import {
-  DeploymentSource,
-  DeploymentStatus,
-  type LogStream,
-  type LogType,
-} from "../generated/prisma/enums.ts";
-import {
-  cancelBuildJobsForApp,
-  createBuildJob,
-  type ImageTag,
-} from "../lib/builder.ts";
-import {
-  createOrUpdateApp,
-  getClientForClusterUsername,
-} from "../lib/cluster/kubernetes.ts";
-import { shouldImpersonate } from "../lib/cluster/rancher.ts";
-import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
+import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
-import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
 import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
   UserNotFoundError,
   ValidationError,
 } from "./common/errors.ts";
+import { deploymentConfigService, deploymentService } from "./helper/index.ts";
 
 export async function processGitHubWebhookPayload(
   event: string,
@@ -142,6 +120,11 @@ async function handleInstallationDeleted(
   await db.org.unlinkInstallationFromAllOrgs(payload.installation.id);
 }
 
+/**
+ *
+ * @throws {Error} if the current config of an app is not a GitConfig
+ * @throws {AppNotFoundError} if no apps redeploy on push to this branch
+ */
 async function handlePush(payload: components["schemas"]["webhook-push"]) {
   const repoId = payload.repository?.id;
   if (!repoId) {
@@ -165,42 +148,32 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
 
   for (const app of apps) {
     const org = await db.org.getById(app.orgId);
-    const config = await db.app.getDeploymentConfig(app.id);
-    const gitProvider = await getGitProvider(org.id);
-
-    await buildAndDeploy({
-      org: org,
-      app: app,
-      imageRepo: app.imageRepo,
+    const oldConfig = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
+    const config = deploymentConfigService.populateNewCommit(
+      oldConfig,
+      app,
+      payload.head_commit.id,
+    );
+    await deploymentService.create({
+      org,
+      app,
       commitMessage: payload.head_commit.message,
-      config: {
-        // Reuse the config from the previous deployment
-        port: config.port,
-        replicas: config.replicas,
-        requests: config.requests,
-        limits: config.limits,
-        mounts: config.mounts,
-        createIngress: config.createIngress,
-        subdomain: config.subdomain,
-        collectLogs: config.collectLogs,
-        source: "GIT",
-        event: config.event,
-        env: config.getEnv(),
-        repositoryId: config.repositoryId,
-        branch: config.branch,
-        commitHash: payload.head_commit.id,
-        builder: config.builder,
-        rootDir: config.rootDir,
-        dockerfilePath: config.dockerfilePath,
-        imageTag: config.imageTag,
+      config,
+      git: {
+        checkRun: {
+          pending: false,
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+        },
       },
-      createCheckRun: true,
-      gitProvider: gitProvider,
-      repoId: payload.repository.id,
     });
   }
 }
 
+/**
+ * @throws {Error} if the current config of an app is not a GitConfig
+ * @throws {AppNotFoundError} if no apps are linked to this branch and workflow
+ */
 async function handleWorkflowRun(
   payload: components["schemas"]["webhook-workflow-run"],
 ) {
@@ -228,44 +201,28 @@ async function handleWorkflowRun(
   if (payload.action === "requested") {
     for (const app of apps) {
       const org = await db.org.getById(app.orgId);
-      const config = await db.app.getDeploymentConfig(app.id);
-      const gitProvider = await getGitProvider(org.id);
-      try {
-        await createPendingWorkflowDeployment({
-          org: org,
-          app: app,
-          imageRepo: app.imageRepo,
-          commitMessage: payload.workflow_run.head_commit.message,
-          config: {
-            // Reuse the config from the previous deployment
-            port: config.port,
-            replicas: config.replicas,
-            requests: config.requests,
-            limits: config.limits,
-            mounts: config.mounts,
-            createIngress: config.createIngress,
-            subdomain: config.subdomain,
-            collectLogs: config.collectLogs,
-            source: "GIT",
-            env: config.getEnv(),
-            repositoryId: config.repositoryId,
-            branch: config.branch,
-            commitHash: payload.workflow_run.head_commit.id,
-            builder: config.builder,
-            rootDir: config.rootDir,
-            dockerfilePath: config.dockerfilePath,
-            imageTag: config.imageTag,
-            event: config.event,
-            eventId: config.eventId,
+      const oldConfig = (
+        await db.app.getDeploymentConfig(app.id)
+      ).asGitConfig();
+      const config = deploymentConfigService.populateNewCommit(
+        oldConfig,
+        app,
+        payload.workflow_run.head_commit.id,
+      );
+      await deploymentService.create({
+        org,
+        app,
+        commitMessage: payload.workflow_run.head_commit.message,
+        workflowRunId: payload.workflow_run.id,
+        config,
+        git: {
+          checkRun: {
+            pending: true,
+            owner: payload.repository.owner.login,
+            repo: payload.repository.name,
           },
-          workflowRunId: payload.workflow_run.id,
-          createCheckRun: true,
-          gitProvider: gitProvider,
-          repoId: payload.repository.id,
-        });
-      } catch (e) {
-        console.error(e);
-      }
+        },
+      });
     }
   } else if (payload.action === "completed") {
     for (const app of apps) {
@@ -274,7 +231,6 @@ async function handleWorkflowRun(
         app.id,
         payload.workflow_run.id,
       );
-      const config = await db.deployment.getConfig(deployment.id);
 
       if (!deployment || deployment.status !== "PENDING") {
         // If the app was deleted, nothing to do
@@ -308,253 +264,17 @@ async function handleWorkflowRun(
         continue;
       }
 
-      const gitProvider = await getGitProvider(org.id);
-      await buildAndDeployFromRepo(org, app, deployment, config, {
-        createCheckRun: true,
-        gitProvider,
-        repoId: payload.repository.id,
+      const config = (
+        await db.deployment.getConfig(deployment.id)
+      ).asGitConfig();
+
+      await deploymentService.completeGitDeployment({
+        org,
+        app,
+        deployment,
+        config,
+        createOrUpdateCheckRun: true,
       });
-    }
-  }
-}
-
-type BuildAndDeployOptions = {
-  org: Organization;
-  app: App;
-  imageRepo: string;
-  commitMessage: string;
-  config: DeploymentConfigCreate;
-} & (
-  | {
-      createCheckRun: true;
-      gitProvider: GitProvider;
-      repoId: number;
-    }
-  | { createCheckRun: false }
-);
-
-export async function buildAndDeploy({
-  org,
-  app,
-  imageRepo,
-  commitMessage,
-  config: configIn,
-  ...opts
-}: BuildAndDeployOptions) {
-  const imageTag =
-    configIn.source === DeploymentSource.IMAGE
-      ? (configIn.imageTag as ImageTag)
-      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${configIn.commitHash}` as const);
-
-  const [deployment, appGroup] = await Promise.all([
-    db.deployment.create({
-      appId: app.id,
-      commitMessage,
-      config: { ...configIn, imageTag },
-    }),
-    db.appGroup.getById(app.appGroupId),
-  ]);
-
-  const config = await db.deployment.getConfig(deployment.id);
-
-  if (!app.configId) {
-    // Only set the app's config reference if we are creating the app.
-    // If updating, first wait for the build to complete successfully
-    // and set this in updateDeployment.
-    await db.app.setConfig(app.id, deployment.configId);
-  }
-
-  await cancelAllOtherDeployments(org, app, deployment.id, true);
-
-  if (config.source === "GIT") {
-    buildAndDeployFromRepo(org, app, deployment, config, opts);
-  } else if (config.source === "IMAGE") {
-    log(deployment.id, "BUILD", "Deploying directly from OCI image...");
-    // If we're creating a deployment directly from an existing image tag, just deploy it now
-    try {
-      const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment(
-          org,
-          app,
-          appGroup,
-          deployment,
-          config,
-        );
-      const api = getClientForClusterUsername(
-        app.clusterUsername,
-        "KubernetesObjectApi",
-        shouldImpersonate(app.projectId),
-      );
-      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
-      log(deployment.id, "BUILD", "Deployment succeeded");
-      await db.deployment.setStatus(deployment.id, DeploymentStatus.COMPLETE);
-    } catch (e) {
-      console.error(
-        `Failed to create Kubernetes resources for deployment ${deployment.id}`,
-        e,
-      );
-      await db.deployment.setStatus(deployment.id, DeploymentStatus.ERROR);
-      log(
-        deployment.id,
-        "BUILD",
-        `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
-        "stderr",
-      );
-    }
-  }
-}
-
-export async function buildAndDeployFromRepo(
-  org: Organization,
-  app: App,
-  deployment: Deployment,
-  config: DeploymentConfig,
-  opts:
-    | { createCheckRun: true; gitProvider: GitProvider; repoId: number }
-    | { createCheckRun: false },
-) {
-  let checkRunId: number = deployment.checkRunId;
-
-  if (opts.createCheckRun) {
-    try {
-      if (deployment.checkRunId) {
-        // We are finishing a deployment that was pending earlier
-        await opts.gitProvider.updateCheckStatus(
-          opts.repoId,
-          deployment.checkRunId,
-          "in_progress",
-        );
-        log(deployment.id, "BUILD", "Updated GitHub check run to In Progress");
-      } else {
-        // Create a check on their commit that says the build is "in progress"
-        checkRunId = await opts.gitProvider.createCheckStatus(
-          config.repositoryId,
-          config.commitHash,
-          "in_progress",
-          `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
-        );
-        await db.deployment.setCheckRunId(deployment.id, checkRunId);
-        log(
-          deployment.id,
-          "BUILD",
-          "Created GitHub check run with status In Progress",
-        );
-      }
-    } catch (e) {
-      console.error("Failed to modify check run: ", e);
-    }
-  }
-
-  let jobId: string | undefined;
-  try {
-    jobId = await createBuildJob(org, app, deployment, config);
-    log(deployment.id, "BUILD", "Created build job with ID " + jobId);
-  } catch (e) {
-    log(
-      deployment.id,
-      "BUILD",
-      "Error creating build job: " + JSON.stringify(e),
-      "stderr",
-    );
-    await db.deployment.setStatus(deployment.id, "ERROR");
-    if (opts.createCheckRun && checkRunId) {
-      // If a check run was created, make sure it's marked as failed
-      try {
-        await opts.gitProvider.updateCheckStatus(
-          opts.repoId,
-          checkRunId,
-          "failure",
-        );
-        log(
-          deployment.id,
-          "BUILD",
-          "Updated GitHub check run to Completed with conclusion Failure",
-        );
-      } catch {}
-    }
-    throw new Error("Failed to create build job", { cause: e });
-  }
-}
-
-export async function createPendingWorkflowDeployment({
-  org,
-  app,
-  imageRepo,
-  commitMessage,
-  config,
-  workflowRunId,
-  ...opts
-}: BuildAndDeployOptions & { workflowRunId: number }) {
-  const imageTag =
-    config.source === DeploymentSource.IMAGE
-      ? (config.imageTag as ImageTag)
-      : (`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${imageRepo}:${config.commitHash}` as const);
-
-  const deployment = await db.deployment.create({
-    appId: app.id,
-    commitMessage,
-    workflowRunId,
-    config: {
-      ...config,
-      imageTag,
-    },
-  });
-
-  await cancelAllOtherDeployments(org, app, deployment.id, false);
-
-  if (opts.createCheckRun) {
-    try {
-      const checkRunId = await opts.gitProvider.createCheckStatus(
-        opts.repoId,
-        config.commitHash,
-        "queued",
-        `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
-      );
-      await db.deployment.setCheckRunId(deployment.id, checkRunId);
-      log(
-        deployment.id,
-        "BUILD",
-        "Created GitHub check run with status Queued",
-      );
-    } catch (e) {
-      console.error("Failed to modify check run: ", e);
-    }
-  }
-}
-
-export async function cancelAllOtherDeployments(
-  org: Organization,
-  app: App,
-  deploymentId: number,
-  cancelComplete = false,
-) {
-  await cancelBuildJobsForApp(app.id);
-
-  const statuses = Object.keys(DeploymentStatus) as DeploymentStatus[];
-  const deployments = await db.app.getDeploymentsWithStatus(
-    app.id,
-    cancelComplete
-      ? statuses.filter((it) => it != "ERROR")
-      : statuses.filter((it) => it != "ERROR" && it != "COMPLETE"),
-  );
-
-  let gitProvider: GitProvider;
-  for (const deployment of deployments) {
-    if (deployment.id !== deploymentId && !!deployment.checkRunId) {
-      // Should have a check run that is either queued or in_progress
-      if (!gitProvider) {
-        gitProvider = await getGitProvider(org.id);
-      }
-      await gitProvider.updateCheckStatus(
-        deployment.config.repositoryId,
-        deployment.checkRunId,
-        "cancelled",
-      );
-      log(
-        deployment.id,
-        "BUILD",
-        "Updated GitHub check run to Completed with conclusion Cancelled",
-      );
     }
   }
 }

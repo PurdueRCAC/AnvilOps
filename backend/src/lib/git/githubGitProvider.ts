@@ -265,6 +265,16 @@ export class GitHubGitProvider implements GitProvider {
     });
   }
 
+  async getCommitMessage(repoId: number, sha: string): Promise<string> {
+    const repo = await this.getRepoById(repoId);
+    const response = await this.octokit.rest.repos.getCommit({
+      owner: repo.owner,
+      repo: repo.name,
+      ref: sha,
+    });
+    return response.data.commit.message;
+  }
+
   async getLatestCommit(
     repoId: number,
     branch: string,

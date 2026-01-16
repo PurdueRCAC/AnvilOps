@@ -20,12 +20,16 @@ const fetchRancherResource = async (endpoint: string) => {
   return fetch(`${API_BASE_URL}/${endpoint}`, { headers })
     .then((res) => res.text())
     .then((res) => JSON.parse(res))
-    .then((res) => (res.type === "error" ? new Error(res.message) : res));
+    .then((res) => {
+      if (res.type === "error") {
+        throw res;
+      }
+      return res;
+    });
 };
 
 const getProjectById = async (id: string) => {
   const project = await fetchRancherResource(`projects/${id}`);
-
   return {
     id: project.id,
     name: project.name,
@@ -37,7 +41,9 @@ const fetchUserProjects = async (rancherId: string) => {
   const bindings = await fetchRancherResource(
     `projectRoleTemplateBindings?userId=${rancherId}`,
   ).then((res) => res.data);
-  const projectIds = bindings.map((binding: any) => binding.projectId);
+  const projectIds = bindings
+    ? bindings.map((binding: any) => binding.projectId)
+    : [];
   projectIds.push(SANDBOX_ID);
   const uniqueProjectIds = [...new Set(projectIds)] as string[];
 

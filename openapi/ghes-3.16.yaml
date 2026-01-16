@@ -2894,6 +2894,7 @@ components:
               nullable: true
               type: string
               enum:
+                - null
                 - action_required
                 - cancelled
                 - failure

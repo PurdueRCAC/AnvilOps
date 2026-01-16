@@ -29,20 +29,14 @@ export const DeploymentView = () => {
       },
     },
   );
+  console.log(deployment);
 
   const format = new Intl.DateTimeFormat(undefined, {
     dateStyle: "short",
     timeStyle: "short",
   });
 
-  let commitMessage = deployment.commitMessage.split("\n");
-  if (deployment.commitMessage.trim().length === 0) {
-    commitMessage = ["Untitled deployment"];
-  }
-  const [title, description] = [
-    commitMessage.shift(),
-    commitMessage.join("\n").trim(),
-  ];
+  const title = deployment?.title?.trim() ?? "Untitled deployment";
 
   return (
     <main className="px-8 py-10">
@@ -56,11 +50,6 @@ export const DeploymentView = () => {
       <h1 className="text-3xl font-bold line-clamp-1" title={title}>
         {title}
       </h1>
-      {description.trim().length > 0 && (
-        <p className="whitespace-pre-line text-sm opacity-50 mb-4">
-          {description}
-        </p>
-      )}
       <div className="flex gap-4 z-30 py-2">
         <Status status={deployment.status} />
         {deployment.config.source === "git" && deployment.commitHash ? (

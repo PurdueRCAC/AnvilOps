@@ -2,7 +2,11 @@ import { db } from "../db/index.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
-import { AppNotFoundError, IllegalPVCAccessError } from "./common/errors.ts";
+import {
+  AppNotFoundError,
+  IllegalPVCAccessError,
+  ValidationError,
+} from "./common/errors.ts";
 
 export async function forwardToFileBrowser(
   userId: number,
@@ -18,6 +22,12 @@ export async function forwardToFileBrowser(
   }
 
   const config = await db.app.getDeploymentConfig(appId);
+
+  if (config.appType !== "workload") {
+    throw new ValidationError(
+      "File browsing is supported only for Git and image deployments",
+    );
+  }
 
   if (
     !config.mounts.some((mount) =>

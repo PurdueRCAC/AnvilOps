@@ -14,19 +14,38 @@ export async function updateDeployment(secret: string, newStatus: string) {
   if (!secret) {
     throw new ValidationError("No deployment secret provided.");
   }
-
-  if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => newStatus === it)) {
-    throw new ValidationError("Invalid status.");
-  }
   const deployment = await db.deployment.getFromSecret(secret);
 
   if (!deployment) {
     throw new DeploymentNotFoundError();
   }
 
+  const config = await db.deployment.getConfig(deployment.id);
+  if (config.source === "IMAGE") {
+    throw new ValidationError("Cannot update deployment");
+  }
+
+  switch (config.source) {
+    case "GIT": {
+      if (!["BUILDING", "DEPLOYING", "ERROR"].some((it) => newStatus === it)) {
+        throw new ValidationError("Invalid status.");
+      }
+      break;
+    }
+    case "HELM": {
+      if (!["DEPLOYING", "COMPLETE", "ERROR"].some((it) => newStatus === it)) {
+        throw new ValidationError("Invalid status.");
+      }
+      break;
+    }
+    default: {
+      throw new ValidationError("Invalid source.");
+    }
+  }
+
   await db.deployment.setStatus(
     deployment.id,
-    newStatus as "BUILDING" | "DEPLOYING" | "ERROR",
+    newStatus as "BUILDING" | "DEPLOYING" | "COMPLETE" | "ERROR",
   );
 
   log(
@@ -35,10 +54,13 @@ export async function updateDeployment(secret: string, newStatus: string) {
     "Deployment status has been updated to " + newStatus,
   );
 
+  if (config.source != "GIT") {
+    return;
+  }
+
   const app = await db.app.getById(deployment.appId);
-  const [appGroup, config, org] = await Promise.all([
+  const [appGroup, org] = await Promise.all([
     db.appGroup.getById(app.appGroupId),
-    db.deployment.getConfig(deployment.id),
     db.org.getById(app.orgId),
   ]);
 
@@ -90,10 +112,10 @@ export async function updateDeployment(secret: string, newStatus: string) {
       await Promise.all([
         db.deployment.setStatus(deployment.id, "COMPLETE"),
         // The update was successful. Update App with the reference to the latest successful config.
-        db.app.setConfig(app.id, config.id),
+        db.app.setConfig(app.id, deployment.configId),
       ]);
 
-      dequeueBuildJob(); // TODO - error handling for this line
+      await dequeueBuildJob();
     } catch (err) {
       console.error(err);
       await db.deployment.setStatus(deployment.id, "ERROR");

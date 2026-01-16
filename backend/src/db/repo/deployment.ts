@@ -1,23 +1,31 @@
 import { randomBytes } from "node:crypto";
 import type {
+  AppType,
   DeploymentStatus,
   LogType,
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
-import {
-  type DeploymentConfigCreateInput,
-  type DeploymentConfigModel as PrismaDeploymentConfig,
-} from "../../generated/prisma/models/DeploymentConfig.ts";
+import type {
+  HelmConfigModel as PrismaHelmConfig,
+  WorkloadConfigModel as PrismaWorkloadConfig,
+  WorkloadConfigCreateInput,
+} from "../../generated/prisma/models.ts";
 import { decryptEnv, encryptEnv, generateKey } from "../crypto.ts";
 import type { PrismaClientType } from "../index.ts";
 import type {
   Deployment,
   DeploymentConfig,
-  DeploymentConfigCreate,
   DeploymentWithSourceInfo,
+  GitConfig,
+  HelmConfig,
+  HelmConfigCreate,
   Log,
+  WorkloadConfig,
+  WorkloadConfigCreate,
 } from "../models.ts";
 
+type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
+type PrismaHelmConfigCreate = Omit<HelmConfigCreate, "appType" | "source">;
 export class DeploymentRepo {
   private client: PrismaClientType;
   private publish: (topic: string, payload: any) => Promise<void>;
@@ -79,15 +87,38 @@ export class DeploymentRepo {
     status,
   }: {
     appId: number;
-    config: DeploymentConfigCreate;
+    config: WorkloadConfigCreate | HelmConfigCreate;
     commitMessage: string | null;
     workflowRunId?: number;
     status?: DeploymentStatus;
   }): Promise<Deployment> {
+    const configClone = structuredClone(config);
+    const appType = configClone.appType;
+    if (appType === "workload") {
+      delete configClone.appType;
+    } else if (appType === "helm") {
+      delete configClone.appType;
+      delete configClone.source;
+    }
     return await this.client.deployment.create({
       data: {
         app: { connect: { id: appId } },
-        config: { create: DeploymentRepo.encryptEnv(config) },
+        config: {
+          create: {
+            appType: appType,
+            ...(appType === "workload"
+              ? {
+                  workloadConfig: {
+                    create: DeploymentRepo.encryptEnv(configClone),
+                  },
+                }
+              : {
+                  helmConfig: {
+                    create: configClone,
+                  },
+                }),
+          },
+        },
         commitMessage,
         workflowRunId,
         secret: randomBytes(32).toString("hex"),
@@ -150,24 +181,77 @@ export class DeploymentRepo {
   async getConfig(deploymentId: number): Promise<DeploymentConfig> {
     const deployment = await this.client.deployment.findUnique({
       where: { id: deploymentId },
-      select: { config: true },
+      select: {
+        config: {
+          include: {
+            workloadConfig: { omit: { id: true, deploymentConfigId: true } },
+            helmConfig: { omit: { id: true, deploymentConfigId: true } },
+          },
+        },
+      },
     });
 
-    return DeploymentRepo.preprocessDeploymentConfig(deployment.config);
+    return DeploymentRepo.preprocessConfig(deployment.config);
   }
 
   private static encryptEnv(
-    config: DeploymentConfigCreate,
-  ): DeploymentConfigCreateInput {
-    const copy = structuredClone(config) as DeploymentConfigCreateInput;
+    config: PrismaWorkloadConfigCreate,
+  ): WorkloadConfigCreateInput {
+    const copy = structuredClone(config) as WorkloadConfigCreateInput;
     copy.envKey = generateKey();
     copy.env = encryptEnv(copy.env, copy.envKey);
     return copy;
   }
 
-  static preprocessDeploymentConfig(
-    config: PrismaDeploymentConfig,
-  ): DeploymentConfig {
+  static preprocessConfig(config: {
+    appType: AppType;
+    workloadConfig?: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">;
+    helmConfig?: Omit<PrismaHelmConfig, "id" | "deploymentConfigId">;
+  }): DeploymentConfig {
+    if (config === null) {
+      return null;
+    }
+
+    let obj: WorkloadConfig | HelmConfig;
+    if (config.appType === "workload") {
+      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
+    } else if (config.appType === "helm") {
+      obj = {
+        ...config.helmConfig,
+        source: "HELM",
+        appType: "helm",
+      } satisfies HelmConfig;
+    } else {
+      return null;
+    }
+
+    const wrapped = {
+      ...obj,
+      asWorkloadConfig() {
+        if (obj.appType === "workload") {
+          return obj as WorkloadConfig;
+        } else {
+          throw new Error("DeploymentConfig is not a WorkloadConfig");
+        }
+      },
+      asHelmConfig() {
+        if (obj.appType === "helm") {
+          return obj as HelmConfig;
+        } else {
+          throw new Error("DeploymentConfig is not a HelmConfig");
+        }
+      },
+      asGitConfig() {
+        return wrapped.asWorkloadConfig().asGitConfig();
+      },
+    } satisfies DeploymentConfig;
+
+    return wrapped;
+  }
+
+  private static preprocessWorkloadConfig(
+    config: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">,
+  ): WorkloadConfig {
     if (config === null) {
       return null;
     }
@@ -179,15 +263,35 @@ export class DeploymentRepo {
 
     const decrypted = decryptEnv(env, key);
 
-    return {
+    const obj = {
       ...config,
+      appType: "workload",
       getEnv() {
         return decrypted;
       },
       displayEnv: decrypted.map((envVar) =>
         envVar.isSensitive ? { ...envVar, value: null } : envVar,
       ),
-    };
+      asGitConfig() {
+        if (config.source === "GIT") {
+          return obj as GitConfig;
+        } else {
+          throw new Error("Workload is not deployed from Git");
+        }
+      },
+    } satisfies WorkloadConfig;
+
+    return obj;
+  }
+
+  static cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {
+    if (config === null) {
+      return null;
+    }
+    const { getEnv, displayEnv, asGitConfig, ...clonable } = config;
+    const newConfig = structuredClone(clonable);
+    const env = config.getEnv();
+    return { ...newConfig, env };
   }
 
   async checkLogIngestSecret(deploymentId: number, logIngestSecret: string) {
@@ -242,7 +346,7 @@ export class DeploymentRepo {
   }
 
   async unlinkRepositoryFromAllDeployments(repoId: number) {
-    await this.client.deploymentConfig.updateMany({
+    await this.client.workloadConfig.updateMany({
       where: { repositoryId: repoId },
       data: { repositoryId: null, branch: null, source: "IMAGE" },
     });
@@ -298,10 +402,9 @@ export class DeploymentRepo {
       include: {
         config: {
           select: {
-            source: true,
-            commitHash: true,
-            imageTag: true,
-            repositoryId: true,
+            appType: true,
+            workloadConfig: true,
+            helmConfig: true,
           },
         },
       },
@@ -313,10 +416,11 @@ export class DeploymentRepo {
     return deployments.map((deployment) => ({
       ...deployment,
       config: undefined,
-      source: deployment.config.source,
-      commitHash: deployment.config.commitHash,
-      imageTag: deployment.config.imageTag,
-      repositoryId: deployment.config.repositoryId,
+      appType: deployment.config.appType,
+      source: deployment.config.workloadConfig?.source,
+      commitHash: deployment.config.workloadConfig?.commitHash,
+      imageTag: deployment.config.workloadConfig?.imageTag,
+      repositoryId: deployment.config.workloadConfig?.repositoryId,
     }));
   }
 }

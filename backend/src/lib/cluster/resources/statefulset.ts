@@ -1,6 +1,6 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import crypto from "node:crypto";
-import type { App, Deployment, DeploymentConfig } from "../../../db/models.ts";
+import type { App, Deployment, WorkloadConfig } from "../../../db/models.ts";
 import { env } from "../../env.ts";
 import type { GitProvider } from "../../git/gitProvider.ts";
 import type { K8sObject } from "../resources.ts";
@@ -27,7 +27,7 @@ interface DeploymentParams {
 export const generateAutomaticEnvVars = async (
   gitProvider: GitProvider | null,
   deployment: Deployment,
-  config: DeploymentConfig,
+  config: WorkloadConfig,
   app: App,
 ): Promise<{ name: string; value: string }[]> => {
   const appDomain = URL.parse(env.APP_DOMAIN);

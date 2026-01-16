@@ -2,6 +2,7 @@ import type {
   DeploymentSource,
   DeploymentStatus,
   GitHubOAuthAction,
+  HelmUrlType,
   ImageBuilder,
   PermissionLevel,
   WebhookEvent,
@@ -98,10 +99,10 @@ export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
   source?: DeploymentSource;
 }
 
-export interface DeploymentConfig {
-  id: number;
+export interface WorkloadConfig {
   displayEnv: PrismaJson.EnvVar[];
   getEnv(): PrismaJson.EnvVar[];
+  appType: "workload";
   source: DeploymentSource;
   repositoryId?: number;
   branch?: string;
@@ -114,20 +115,80 @@ export interface DeploymentConfig {
   imageTag?: string;
   collectLogs: boolean;
   createIngress: boolean;
-  subdomain: string | undefined;
+  subdomain?: string;
   requests: PrismaJson.Resources;
   limits: PrismaJson.Resources;
   replicas: number;
   port: number;
   mounts: PrismaJson.VolumeMount[];
+
+  /**
+   * Returns this instance casted to `GitConfig` if `source` == `GIT`.
+   * @throws {Error} if this workload is not deployed from a Git repo
+   */
+  asGitConfig(): GitConfig;
 }
 
-export type DeploymentConfigCreate = Omit<
-  DeploymentConfig,
-  "id" | "displayEnv" | "getEnv"
+export type DeploymentConfig = (WorkloadConfig | HelmConfig) & {
+  /**
+   * Returns this instance casted to `WorkloadConfig` if `appType` == `workload`.
+   * @throws {Error} if this deployment is not a workload
+   */
+  asWorkloadConfig(): WorkloadConfig;
+
+  /**
+   * Returns this instance casted to `HelmConfig` if `appType` == `helm`.
+   * @throws {Error} if this deployment is not a Helm chart
+   */
+  asHelmConfig(): HelmConfig;
+
+  /**
+   * A shortcut for `asWorkloadConfig().asGitConfig()`
+   */
+  asGitConfig(): GitConfig;
+};
+
+export type WorkloadConfigCreate = Omit<
+  WorkloadConfig,
+  "id" | "displayEnv" | "getEnv" | "asGitConfig"
 > & {
   env: PrismaJson.EnvVar[];
 };
+
+export type GitConfig = WorkloadConfig & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
+};
+
+export type GitConfigCreate = WorkloadConfigCreate & {
+  source: "GIT";
+  repositoryId: number;
+  branch: string;
+  event: WebhookEvent;
+  eventId?: number;
+  commitHash: string;
+  builder: ImageBuilder;
+  rootDir?: string;
+  dockerfilePath?: string;
+};
+
+export type HelmConfig = {
+  appType: "helm";
+  source: "HELM";
+  url: string;
+  version: string;
+  urlType: HelmUrlType;
+  values?: any;
+};
+
+export type HelmConfigCreate = Omit<HelmConfig, "id">;
 
 export interface Log {
   id: number;

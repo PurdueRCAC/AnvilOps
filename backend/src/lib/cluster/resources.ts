@@ -5,12 +5,13 @@ import type {
   V1Namespace,
   V1Secret,
 } from "@kubernetes/client-node";
+import { randomBytes } from "node:crypto";
 import type {
   App,
   AppGroup,
   Deployment,
-  DeploymentConfig,
   Organization,
+  WorkloadConfig,
 } from "../../db/models.ts";
 import { getGitProvider } from "../git/gitProvider.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
@@ -22,8 +23,11 @@ import {
 
 const NAMESPACE_PREFIX = "anvilops-";
 
+// Subdomain must pass RFC 1123
+export const MAX_SUBDOMAIN_LEN = 63;
+
 // Namespace must pass RFC 1123 (and service must pass RFC 1035)
-export const MAX_SUBDOMAIN_LEN = 63 - NAMESPACE_PREFIX.length;
+export const MAX_NAMESPACE_LEN = 63 - NAMESPACE_PREFIX.length;
 
 // app.kubernetes.io/part-of label must pass RFC 1123
 // `-{groupId}-{organizationId}` is appended to group name to create the label value
@@ -32,6 +36,9 @@ export const MAX_GROUPNAME_LEN = 50;
 // StatefulSet name must pass RFC 1123
 // The names of its pods, which are `{statefulset name}-{pod #}` also must pass RFC 1123
 export const MAX_STS_NAME_LEN = 60;
+
+export const getRandomTag = (): string => randomBytes(4).toString("hex");
+export const RANDOM_TAG_LEN = 8;
 
 export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 
@@ -144,7 +151,7 @@ export const createAppConfigsFromDeployment = async (
   app: App,
   appGroup: AppGroup,
   deployment: Deployment,
-  conf: DeploymentConfig,
+  conf: WorkloadConfig,
 ) => {
   const namespaceName = getNamespace(app.namespace);
 

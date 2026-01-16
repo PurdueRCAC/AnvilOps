@@ -12,10 +12,10 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
+import { db } from "../../db/index.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
-import { db } from "../../db/index.ts";
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -103,7 +103,10 @@ export const namespaceInUse = async (namespace: string) => {
   });
 };
 
-const resourceExists = async (api: KubernetesObjectApi, data: K8sObject) => {
+export const resourceExists = async (
+  api: KubernetesObjectApi,
+  data: K8sObject,
+) => {
   try {
     await api.read(data);
     return true;
@@ -121,7 +124,7 @@ const resourceExists = async (api: KubernetesObjectApi, data: K8sObject) => {
 const REQUIRED_LABELS = env["RANCHER_API_BASE"]
   ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
   : [];
-const ensureNamespace = async (
+export const ensureNamespace = async (
   api: KubernetesObjectApi,
   namespace: V1Namespace & K8sObject,
 ) => {
@@ -149,8 +152,18 @@ export const deleteNamespace = async (
   api: KubernetesObjectApi,
   name: string,
 ) => {
-  await api.delete({ apiVersion: "v1", kind: "Namespace", metadata: { name } });
-  console.log(`Namespace ${name} deleted`);
+  try {
+    await api.delete({
+      apiVersion: "v1",
+      kind: "Namespace",
+      metadata: { name },
+    });
+  } catch (err) {
+    if (err instanceof ApiException && (err.code === 404 || err.code === 403)) {
+      return;
+    }
+    throw err;
+  }
 };
 
 export const createOrUpdateApp = async (

@@ -1,3 +1,4 @@
+import type { components } from "@/generated/openapi";
 import { clsx, type ClassValue } from "clsx";
 import React from "react";
 import { twMerge } from "tailwind-merge";
@@ -18,4 +19,14 @@ export function useDebouncedValue<T>(value: T, delay = 300) {
     };
   }, [value, delay]);
   return debounceValue;
+}
+
+/**
+ * Type guard to check if a DeploymentConfig is a WorkloadConfigOptions
+ * (i.e., not a HelmConfigOptions)
+ */
+export function isWorkloadConfig(
+  config: components["schemas"]["DeploymentConfig"],
+): config is components["schemas"]["WorkloadConfigOptions"] {
+  return config.source !== "helm";
 }

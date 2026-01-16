@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import {
   ArrowUp,
@@ -33,7 +34,7 @@ import {
   Trash,
   UploadCloud,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { App } from "./AppView";
 
@@ -52,9 +53,11 @@ function dirname(path: string) {
 }
 
 export const FilesTab = ({ app }: { app: App }) => {
+  const config = app.config as components["schemas"]["WorkloadConfigOptions"];
+
   const [replica, setReplica] = useState("0");
   const [volume, setVolume] = useState<string | undefined>(
-    app.config.mounts?.[0]?.volumeClaimName,
+    config.mounts?.[0]?.volumeClaimName,
   );
 
   const [pathInput, setPathInput] = useState("/");
@@ -146,7 +149,7 @@ export const FilesTab = ({ app }: { app: App }) => {
             <SelectValue placeholder="Select Replica..." />
           </SelectTrigger>
           <SelectContent>
-            {Array({ length: app.config.replicas }).map((_, index) => (
+            {Array({ length: config.replicas }).map((_, index) => (
               <SelectItem key={index} value={index.toString()}>
                 {app.name + "-" + index.toString()}
               </SelectItem>
@@ -159,7 +162,7 @@ export const FilesTab = ({ app }: { app: App }) => {
             <SelectValue placeholder="Select Volume..." />
           </SelectTrigger>
           <SelectContent>
-            {app.config.mounts.map((mount) => (
+            {config.mounts.map((mount) => (
               <SelectItem key={mount.path} value={mount.volumeClaimName!}>
                 {mount.path}
               </SelectItem>

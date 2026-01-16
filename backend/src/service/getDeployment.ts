@@ -1,9 +1,10 @@
-import type { V1Pod } from "@kubernetes/client-node";
+import type { V1Pod, V1PodList } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { DeploymentNotFoundError } from "./common/errors.ts";
+import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getDeployment(deploymentId: number, userId: number) {
   const deployment = await db.deployment.getById(deploymentId, {
@@ -24,26 +25,22 @@ export async function getDeployment(deploymentId: number, userId: number) {
   const { CoreV1Api: api } = await getClientsForRequest(userId, app.projectId, [
     "CoreV1Api",
   ]);
-  const [repositoryURL, pods] = await Promise.all([
-    (async () => {
-      if (config.source === "GIT") {
-        const gitProvider = await getGitProvider(org.id);
-        const repo = await gitProvider.getRepoById(config.repositoryId);
-        return repo.htmlURL;
-      }
-      return undefined;
-    })(),
 
-    api
+  let repositoryURL: string | null = null;
+  let pods: V1PodList | null = null;
+  if (config.source === "GIT") {
+    const gitProvider = await getGitProvider(org.id);
+    const repo = await gitProvider.getRepoById(config.repositoryId);
+    repositoryURL = repo.htmlURL;
+  }
+  if (config.appType === "workload") {
+    pods = await api
       .listNamespacedPod({
         namespace: getNamespace(app.namespace),
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
-      .catch(
-        // Namespace may not be ready yet
-        () => ({ apiVersion: "v1", items: [] as V1Pod[] }),
-      ),
-  ]);
+      .catch(() => ({ apiVersion: "v1", items: [] as V1Pod[] }));
+  }
 
   let scheduled = 0,
     ready = 0,
@@ -71,47 +68,49 @@ export async function getDeployment(deploymentId: number, userId: number) {
   }
 
   const status =
-    deployment.status === "COMPLETE" && scheduled + ready + failed === 0
+    deployment.status === "COMPLETE" &&
+    config.appType === "workload" &&
+    scheduled + ready + failed === 0
       ? ("STOPPED" as const)
       : deployment.status;
 
+  let title: string;
+  switch (config.source) {
+    case "GIT":
+      title = deployment.commitMessage;
+      break;
+    case "IMAGE":
+      title = config.imageTag;
+      break;
+    case "HELM":
+      title = config.url;
+      break;
+    default:
+      title = "Unknown";
+      break;
+  }
+
+  const podStatus =
+    config.appType === "workload"
+      ? {
+          scheduled,
+          ready,
+          total: pods.items.length,
+          failed,
+        }
+      : null;
+
   return {
     repositoryURL,
-    commitHash: config.commitHash,
-    commitMessage: deployment.commitMessage,
+    title,
+    commitHash: config.source === "GIT" ? config.commitHash : null,
+    commitMessage: config.source === "GIT" ? deployment.commitMessage : null,
     createdAt: deployment.createdAt.toISOString(),
     updatedAt: deployment.updatedAt.toISOString(),
     id: deployment.id,
     appId: deployment.appId,
-    status: status,
-    podStatus: {
-      scheduled,
-      ready,
-      total: pods.items.length,
-      failed,
-    },
-    config: {
-      branch: config.branch,
-      imageTag: config.imageTag,
-      mounts: config.mounts.map((mount) => ({
-        path: mount.path,
-        amountInMiB: mount.amountInMiB,
-      })),
-      source: config.source === "GIT" ? ("git" as const) : ("image" as const),
-      repositoryId: config.repositoryId,
-      event: config.event,
-      eventId: config.eventId,
-      commitHash: config.commitHash,
-      builder: config.builder,
-      dockerfilePath: config.dockerfilePath,
-      env: config.displayEnv,
-      port: config.port,
-      replicas: config.replicas,
-      rootDir: config.rootDir,
-      collectLogs: config.collectLogs,
-      requests: config.requests,
-      limits: config.limits,
-      createIngress: config.createIngress,
-    },
+    status,
+    podStatus,
+    config: deploymentConfigService.formatDeploymentConfig(config),
   };
 }

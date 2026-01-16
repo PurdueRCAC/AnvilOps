@@ -1,4 +1,4 @@
-ARG RAILPACK_VERSION=0.15.3
+ARG RAILPACK_VERSION=0.15.4
 
 FROM ubuntu:24.04
 
@@ -8,7 +8,7 @@ RUN apt-get update && \
     add-apt-repository ppa:git-core/ppa && \
     apt-get update && \
     # ^ Get the latest version of Git from their PPA (we need 2.49.0 or later because we use the `git clone --revision` flag)
-    apt-get install -y --no-install-recommends git=1:2.52.0-0ppa1~ubuntu24.04.1 && \
+    apt-get install -y --no-install-recommends git=1:2.52.0-0ppa1~ubuntu24.04.3 && \
     apt-get remove -y software-properties-common && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*

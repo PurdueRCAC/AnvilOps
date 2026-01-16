@@ -33,5 +33,6 @@ export async function getSettings() {
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
     isRancherManaged: isRancherManaged(),
+    allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
   };
 }

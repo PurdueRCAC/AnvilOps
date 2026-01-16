@@ -1,11 +1,15 @@
 import { db } from "../../db/index.ts";
-import { type InstallationNotFoundError } from "../../service/common/errors.ts";
+import {
+  type InstallationNotFoundError,
+  type RepositoryNotFoundError,
+} from "../../service/common/errors.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";
 
 /**
  * Contains all the methods needed to interact with a Git provider like GitHub or GitLab.
  */
 export interface GitProvider {
+  /** @throws {RepositoryNotFoundError} */
   getRepoById(repoId: number): Promise<GitRepository>;
 
   getRepoByName(owner: string, name: string): Promise<GitRepository>;
@@ -28,6 +32,8 @@ export interface GitProvider {
     checkId: number,
     status: CommitStatus,
   ): Promise<void>;
+
+  getCommitMessage(repoId: number, sha: string): Promise<string>;
 
   getLatestCommit(
     repoId: number,
