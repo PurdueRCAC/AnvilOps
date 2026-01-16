@@ -40,9 +40,9 @@
     "openid-client": "^6.8.1",
     "patch-package": "^8.0.1",
     "pg": "^8.16.3",
-    "yaml": "^2.8.2",
     "pino": "^10.1.1",
-    "pino-http": "^11.0.0"
+    "pino-http": "^11.0.0",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/connect-pg-simple": "^7.0.3",
