@@ -1,0 +1,26 @@
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: "Version number (production only)"
+        required: false
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.environment }}
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Release
+        run: ./.github/workflows/scripts/deploy-${{ inputs.environment }}.sh "${{ inputs.version }}"
