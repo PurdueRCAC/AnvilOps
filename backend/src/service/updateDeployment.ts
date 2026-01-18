@@ -95,13 +95,13 @@ export async function updateDeployment(secret: string, newStatus: string) {
 
   if (newStatus === "DEPLOYING") {
     const { namespace, configs, postCreate } =
-      await createAppConfigsFromDeployment(
+      await createAppConfigsFromDeployment({
         org,
         app,
         appGroup,
         deployment,
         config,
-      );
+      });
 
     try {
       const api = getClientForClusterUsername(

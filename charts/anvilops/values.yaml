@@ -91,6 +91,11 @@ anvilops:
       annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
+    netpol:
+      createIngressNetworkPolicy: false
+      # allowedIngressMatchLabels:
+      #  - kubernetes.io/metadata.name: kube-system
+      #  - kubernetes.io/metadata.name: ingress-nginx
 
 postgres:
   generateCredentials: true

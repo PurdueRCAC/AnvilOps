@@ -45,6 +45,12 @@ anvilops:
     ingress:
       className: nginx
       annotations:
+    netpol:
+      createIngressNetworkPolicy: true
+      allowedIngressMatchLabels:
+        - kubernetes.io/metadata.name: kube-system
+        - kubernetes.io/metadata.name: ingress-nginx
+
 postgres:
   generateCredentials: false
   image: postgres:17

@@ -212,6 +212,14 @@ const variables = {
    */
   INGRESS_ANNOTATIONS: { required: false },
   /**
+   * Whether to create network policies in tenant namespaces to restrict ingress. Ingress will be restricted to namespaces with allowed labels and apps in the same group.
+   */
+  CREATE_INGRESS_NETPOL: { required: false },
+  /**
+   * Labels identifying namespaces to allow ingress to tenant pods. AnvilOps will not create network policies unless CREATE_INGRESS_NETPOL is true and ALLOW_INGRESS_FROM is set.
+   */
+  ALLOW_INGRESS_FROM: { required: false },
+  /**
    * The storageClassName to use when provisioning tenant apps. If you omit this value, storage-related options will be hidden.
    */
   STORAGE_CLASS_NAME: { required: false },

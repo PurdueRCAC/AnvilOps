@@ -48,13 +48,13 @@ export async function deleteApp(
     ]);
 
     const { namespace, configs, postCreate } =
-      await createAppConfigsFromDeployment(
+      await createAppConfigsFromDeployment({
         org,
         app,
         appGroup,
-        lastDeployment,
+        deployment: lastDeployment,
         config,
-      );
+      });
 
     const { KubernetesObjectApi: api } = await getClientsForRequest(
       userId,

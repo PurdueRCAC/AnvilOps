@@ -210,6 +210,14 @@ spec:
             - name: INGRESS_ANNOTATIONS
               value: {{ . | toJson | quote }}
             {{- end }}
+            {{- if .Values.anvilops.apps.netpol.createIngressNetworkPolicy }}
+            - name: CREATE_INGRESS_NETPOL
+              value: "true"
+            {{- with .Values.anvilops.apps.netpol.allowedIngressMatchLabels }}
+            - name: ALLOW_INGRESS_FROM
+              value: {{ toJson . | quote }}
+            {{- end }}
+            {{- end }}
             - name: STORAGE_CLASS_NAME
               value: {{ .Values.tenants.storageClassName }}
             - name: STORAGE_ACCESS_MODES
