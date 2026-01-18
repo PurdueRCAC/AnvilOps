@@ -51,13 +51,21 @@ RUN npm run prisma:generate
 
 # BACKEND: compile regclient Node-API bindings
 FROM base AS compile_regclient_bindings
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential golang ca-certificates python3
+
+# https://docs.docker.com/reference/dockerfile/#example-cache-apt-packages
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends build-essential golang ca-certificates python3
 
 WORKDIR /app
 COPY backend/package*.json .
 COPY backend/regclient-napi ./regclient-napi
 COPY --from=backend_deps /app/node_modules ./node_modules
-RUN npm rebuild --foreground-scripts=true regclient-napi
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    npm rebuild --foreground-scripts=true regclient-napi
 
 # BACKEND: run type checker
 FROM backend_codegen AS backend_build
