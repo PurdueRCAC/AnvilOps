@@ -244,6 +244,9 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
+            {{- with .Values.anvilops.env.extra -}}
+            {{ toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: cluster-config
           configMap:

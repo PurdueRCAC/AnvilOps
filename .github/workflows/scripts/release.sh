@@ -79,6 +79,10 @@ copy_image() {
     # regctl allows us to copy the image much faster and avoid downloading duplicate blobs that don't need to be uploaded to the destination registry
     regctl image copy "$SOURCE" "$DEST"
     IMAGE_ID=$(regctl image digest "$DEST")
+  else if [ -x "$(command -v skopeo)" ]; then
+    # Skopeo can do the same thing, and it's preinstalled on GitHub Actions runner images
+    regctl copy "docker://$SOURCE" "docker://$DEST"
+    IMAGE_ID=$(skopeo inspect --format "{{ .Digest }}" "docker://$DEST")
   else
     echo "Warning: regctl is not installed. regctl makes Railpack image transfers much faster when images have not changed since the last run. Using standard \`docker pull\` + \`docker push\` instead."
     TAG=$(docker pull -q "$SOURCE")
