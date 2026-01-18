@@ -204,6 +204,27 @@ const variables = {
     defaultValue: "registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest",
   },
   /**
+   * The image that Railpack provides to BuildKit as a custom frontend. The version of this image should match the version of Railpack used in the Railpack builder image.
+   */
+  RAILPACK_INTERNAL_FRONTEND_IMAGE: {
+    required: false,
+    defaultValue: "ghcr.io/railwayapp/railpack-frontend:latest",
+  },
+  /**
+   * The image that Railpack uses to execute build-time commands (used in the install and build stages but not the final runtime stage).
+   */
+  RAILPACK_INTERNAL_BUILDER_IMAGE: {
+    required: false,
+    defaultValue: "ghcr.io/railwayapp/railpack-builder:latest",
+  },
+  /**
+   * The image that Railpack uses as a base image for user builds.
+   */
+  RAILPACK_INTERNAL_RUNTIME_IMAGE: {
+    required: false,
+    defaultValue: "ghcr.io/railwayapp/railpack-runtime:latest",
+  },
+  /**
    * The ingressClassName to use when provisioning tenant apps. If you omit this value, subdomain-related options will be hidden.
    */
   INGRESS_CLASS_NAME: { required: false },

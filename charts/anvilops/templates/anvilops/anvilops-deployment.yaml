@@ -234,6 +234,12 @@ spec:
               value: {{ .Values.anvilops.env.helmDeployerImage }}
             - name: LOG_SHIPPER_IMAGE
               value: {{ .Values.anvilops.env.logShipperImage }}
+            - name: RAILPACK_INTERNAL_FRONTEND_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalFrontendImage }}
+            - name: RAILPACK_INTERNAL_BUILDER_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalBuilderImage }}
+            - name: RAILPACK_INTERNAL_RUNTIME_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalRuntimeImage }}
             {{- with .Values.anvilops.env.registryProtocol }}
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
@@ -244,6 +250,9 @@ spec:
               value: {{ .Values.anvilops.env.otelEndpoint | quote }}
             - name: OTEL_SERVICE_NAME
               value: {{ .Values.anvilops.env.otelServiceName | quote }}
+            {{- with .Values.anvilops.env.extra -}}
+            {{ toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: cluster-config
           configMap:

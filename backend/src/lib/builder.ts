@@ -151,6 +151,18 @@ async function createJobFromDeployment(
                       )
                       .join(" "),
                   },
+                  {
+                    name: "RAILPACK_INTERNAL_FRONTEND_IMAGE",
+                    value: env.RAILPACK_INTERNAL_FRONTEND_IMAGE,
+                  },
+                  {
+                    name: "RAILPACK_INTERNAL_BUILDER_IMAGE",
+                    value: env.RAILPACK_INTERNAL_BUILDER_IMAGE,
+                  },
+                  {
+                    name: "RAILPACK_INTERNAL_RUNTIME_IMAGE",
+                    value: env.RAILPACK_INTERNAL_RUNTIME_IMAGE,
+                  },
                 ]
               : []),
             // Dockerfile builder only

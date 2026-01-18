@@ -23,6 +23,13 @@ const scope = "openid email profile org.cilogon.userinfo";
 const allowedIdps = parseCsv(env.ALLOWED_IDPS);
 
 const getIdentity = (claims: client.IDToken) => {
+  if (process.env._PURDUE_GEDDES) {
+    // On Purdue's Geddes cluster, Rancher is not configured to use a claim available from CILogon as a principalId.
+    // Rather, it uses the Purdue-specific UID:
+    const email = claims.email as string;
+    return email.replace("@purdue.edu", "");
+  }
+
   return claims[env.LOGIN_CLAIM] as string;
 };
 

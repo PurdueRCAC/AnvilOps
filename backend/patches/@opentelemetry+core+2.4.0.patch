@@ -1,5 +1,5 @@
 diff --git a/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts b/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
-index f1c8268..a2d327f 100644
+index 594416c..9252afd 100644
 --- a/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
 +++ b/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
 @@ -1,3 +1,4 @@
