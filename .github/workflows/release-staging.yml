@@ -22,5 +22,17 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v6
 
+      - name: Log in to image registry (Production)
+        if: ${{ inputs.environment == 'production' }}
+        run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
+
+      - name: Log in to image registry (Staging)
+        if: ${{ inputs.environment == 'staging' }}
+        run: docker login -u '${{ secrets.DOCKER_USERNAME_STAGING }}' -p '${{ secrets.DOCKER_PASSWORD_STAGING }}' registry.anvil.rcac.purdue.edu
+
       - name: Release
-        run: ./.github/workflows/scripts/deploy-${{ inputs.environment }}.sh "${{ inputs.version }}"
+        run: ./.github/workflows/scripts/release-${{ inputs.environment }}.sh "${{ inputs.version }}"
+
+      - name: Log out of container registry
+        if: always()
+        run: docker logout registry.anvil.rcac.purdue.edu
