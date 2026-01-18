@@ -1,33 +1,7 @@
 import type { V1PodTemplateSpec } from "@kubernetes/client-node";
-import { spawn } from "node:child_process";
+import type { ImageConfig } from "regclient-napi";
+import * as regclient from "regclient-napi";
 import { env } from "../../env.ts";
-
-type ImageConfig = {
-  architecture: string;
-  config: {
-    /**
-     * @example {"80/tcp":{}}
-     */
-    ExposedPorts: Record<string, {}>;
-    Env: Array<string>;
-    Entrypoint: Array<string>;
-    Cmd: Array<string>;
-    Labels: Record<string, string>;
-    StopSignal: string;
-  };
-  created: string;
-  history: Array<{
-    created: string;
-    created_by: string;
-    comment: string;
-    empty_layer?: boolean;
-  }>;
-  os: string;
-  rootfs: {
-    type: string;
-    diff_ids: Array<string>;
-  };
-};
 
 export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
   logType: "build" | "runtime",
@@ -144,31 +118,9 @@ export async function getImageConfig(reference: string): Promise<ImageConfig> {
     );
   }
 
-  const child = spawn(
-    "regctl",
-    [
-      "image",
-      "inspect",
-      `--host=reg=${env.REGISTRY_HOSTNAME},tls=${env.REGISTRY_PROTOCOL !== "http" ? "enabled" : "disabled"}`,
-      reference,
-    ],
-    {
-      timeout: 10_000 /* 10 seconds */,
-    },
+  return await regclient.getImageConfig(
+    reference,
+    env.REGISTRY_HOSTNAME,
+    env.REGISTRY_PROTOCOL !== "http" ? "enabled" : "disabled",
   );
-
-  let output = "";
-  child.stdout.on("data", (chunk) => (output += chunk.toString()));
-  child.stderr.on("data", (chunk) => console.error(chunk.toString()));
-
-  return await new Promise((resolve, reject) => {
-    child.on("error", (error) => reject(error));
-    child.on("close", () => {
-      try {
-        resolve(JSON.parse(output) as ImageConfig);
-      } catch (e) {
-        reject(e);
-      }
-    });
-  });
 }
