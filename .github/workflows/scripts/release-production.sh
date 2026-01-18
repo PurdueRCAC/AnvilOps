@@ -28,7 +28,7 @@ if [ "$BRANCH" != "main" ]; then
 fi
 
 export REGISTRY_BASE="registry.anvil.rcac.purdue.edu/anvilops"
-export HELM_ARTIFACT_TAG="oci://registry.anvil.rcac.purdue.edu/anvilops-chart"
+export HELM_ARTIFACT_TAG="oci://registry.anvil.rcac.purdue.edu/anvilops/chart"
 export GENERATE_GITHUB_RELEASE="1"
 
 CURRENT_DIR=$(dirname "$0")
