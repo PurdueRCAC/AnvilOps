@@ -16,6 +16,9 @@ anvilops:
     railpackBuilderImage: anvilops/railpack-builder
     helmDeployerImage: anvilops/helm-deployer
     logShipperImage: anvilops/log-shipper
+    railpackInternalFrontendImage: ghcr.io/railwayapp/railpack-frontend:latest
+    railpackInternalBuilderImage: ghcr.io/railwayapp/railpack-builder:latest
+    railpackInternalRuntimeImage: ghcr.io/railwayapp/railpack-runtime:latest
     allowHelmDeployments: true
     registryProtocol: http
   cluster:

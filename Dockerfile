@@ -49,27 +49,18 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
-FROM alpine:3 AS patcher
-ARG GEDDES="false"
-WORKDIR /app
-
-COPY backend .
-RUN if [ "$GEDDES" = "true" ]; then \
-  apk add --no-cache patch && patch -p2 < geddes.diff; \
-  fi
-RUN rm geddes.diff
-
 # BACKEND: run type checker
 FROM backend_codegen AS backend_build
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
-COPY --from=patcher /app .
+COPY backend .
 RUN npx tsc --noEmit
 
 # SWAGGER UI: install packages and build
 FROM base AS swagger_build
 WORKDIR /app
 COPY swagger-ui .
-RUN npm ci && npm run build
+RUN --mount=type=cache,target=/root/.npm npm ci
+RUN npm run build
 
 # Combine frontend & backend and run the app
 FROM gcr.io/distroless/nodejs24-debian12:nonroot
