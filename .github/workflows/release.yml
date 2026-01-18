@@ -32,6 +32,12 @@ jobs:
         if: ${{ inputs.environment == 'staging' }}
         run: docker login -u '${{ secrets.DOCKER_USERNAME_STAGING }}' -p '${{ secrets.DOCKER_PASSWORD_STAGING }}' registry.anvil.rcac.purdue.edu
 
+      - name: Set up Git (Production)
+        if: ${{ inputs.environment == 'production' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
         # This step is necessary because our script uses the destination OCI registry as a layer cache, which isn't supported by Docker out of the box.
         # See https://docs.docker.com/build/cache/backends/registry/ and https://docs.docker.com/build/builders/drivers/ for more info.
       - name: Set up buildx builder
