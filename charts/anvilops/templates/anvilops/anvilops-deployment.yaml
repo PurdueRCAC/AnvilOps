@@ -234,6 +234,12 @@ spec:
               value: {{ .Values.anvilops.env.helmDeployerImage }}
             - name: LOG_SHIPPER_IMAGE
               value: {{ .Values.anvilops.env.logShipperImage }}
+            - name: RAILPACK_INTERNAL_FRONTEND_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalFrontendImage }}
+            - name: RAILPACK_INTERNAL_BUILDER_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalBuilderImage }}
+            - name: RAILPACK_INTERNAL_RUNTIME_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalRuntimeImage }}
             {{- with .Values.anvilops.env.registryProtocol }}
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
