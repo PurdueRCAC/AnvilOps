@@ -1,7 +1,6 @@
 import type {
   KubernetesObjectApi,
   V1EnvVar,
-  V1Ingress,
   V1Namespace,
   V1NetworkPolicy,
   V1NetworkPolicyPeer,
@@ -218,14 +217,14 @@ export const createAppConfigsFromDeployment = async ({
   appGroup,
   deployment,
   config,
-  withLabels = true,
+  migrating = false,
 }: {
   org: Organization;
   app: App;
   appGroup: AppGroup;
   deployment: Deployment;
   config: WorkloadConfig;
-  withLabels?: boolean;
+  migrating?: boolean;
 }) => {
   const namespaceName = getNamespace(app.namespace);
 
@@ -284,13 +283,30 @@ export const createAppConfigsFromDeployment = async ({
     configs.push(ingress);
   }
 
-  if (withLabels) {
-    const appGroupLabel = `${appGroup.name.replaceAll(" ", "_")}-${appGroup.id}-${org.id}`;
-    const groupLabels = {
-      "anvilops.rcac.purdue.edu/app-group-id": appGroup.id.toString(),
-      "app.kubernetes.io/part-of": appGroupLabel,
-    };
+  const appGroupLabel = `${appGroup.name.replaceAll(" ", "_")}-${appGroup.id}-${org.id}`;
+  const groupLabels = {
+    "anvilops.rcac.purdue.edu/app-group-id": appGroup.id.toString(),
+    "app.kubernetes.io/part-of": appGroupLabel,
+  };
+  const labels = {
+    ...groupLabels,
+    "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
+    "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
+    "app.kubernetes.io/name": app.name,
+    "app.kubernetes.io/managed-by": "anvilops",
+  };
 
+  if (migrating) {
+    // When migrating off AnvilOps, remove the labels by setting their values to null
+    const deletedLabels = Object.keys(labels).reduce(
+      (deleted, key) => ({ ...deleted, [key]: null }),
+      {},
+    );
+    applyLabels(namespace, deletedLabels);
+    for (let config of configs) {
+      applyLabels(config, deletedLabels);
+    }
+  } else {
     const netpol = createIngressNetPol({
       name: params.name,
       namespace: params.namespace,
@@ -301,14 +317,6 @@ export const createAppConfigsFromDeployment = async ({
       configs.push(netpol);
     }
 
-    const labels = {
-      ...groupLabels,
-      "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
-      "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
-      "app.kubernetes.io/name": app.name,
-      "app.kubernetes.io/managed-by": "anvilops",
-    };
-
     applyLabels(namespace, labels);
     for (let config of configs) {
       applyLabels(config, labels);
@@ -317,32 +325,72 @@ export const createAppConfigsFromDeployment = async ({
 
   const postCreate = async (api: KubernetesObjectApi) => {
     // Clean up secrets and ingresses from previous deployments of the app
-    const secrets = (await api
-      .list("v1", "Secret", namespaceName)
-      .then((data) => data.items)
-      .then((data) =>
-        data.map((d) => ({ ...d, apiVersion: "v1", kind: "Secret" })),
-      )) as (V1Secret & K8sObject)[];
-    const ingresses = (await api
-      .list("networking.k8s.io/v1", "Ingress", namespaceName)
-      .then((data) => data.items)
-      .then((data) =>
-        data.map((d) => ({
-          ...d,
+    const outdatedResources = [];
+
+    if (migrating) {
+      if (env.CREATE_INGRESS_NETPOL) {
+        // When migrating, AnvilOps-specific labels are removed, so grouping network policies will not work.
+        // Delete all network policies that are managed by AnvilOps.
+        const netpols = await api
+          .list("networking.k8s.io/v1", "NetworkPolicy", namespaceName)
+          .then((data) =>
+            data.items.map((item) => ({
+              ...item,
+              apiVersion: "networking.k8s.io/v1",
+              kind: "NetworkPolicy",
+            })),
+          );
+
+        outdatedResources.push(
+          ...netpols.filter(
+            (netpol) =>
+              netpol.metadata.labels?.["app.kubernetes.io/managed-by"] ===
+              "anvilops",
+          ),
+        );
+      }
+    } else {
+      const resourceTypes = [
+        {
+          apiVersion: "v1",
+          kind: "Secret",
+        },
+        {
           apiVersion: "networking.k8s.io/v1",
           kind: "Ingress",
-        })),
-      )) as (V1Ingress & K8sObject)[];
+        },
+      ];
+
+      const resourceLists = await Promise.all(
+        resourceTypes.map((type) =>
+          api.list(type.apiVersion, type.kind, namespaceName).then((data) =>
+            data.items.map((item) => ({
+              ...item,
+              apiVersion: type.apiVersion,
+              kind: type.kind,
+            })),
+          ),
+        ),
+      );
+
+      outdatedResources.concat(
+        resourceLists
+          .flat()
+          .filter(
+            (resource) =>
+              parseInt(
+                resource.metadata.labels?.[
+                  "anvilops.rcac.purdue.edu/deployment-id"
+                ],
+              ) !== deployment.id,
+          ),
+      );
+    }
 
     await Promise.all(
-      [...secrets, ...ingresses]
-        .filter(
-          (secret) =>
-            parseInt(
-              secret.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
-            ) !== deployment.id,
-        )
-        .map((secret) => api.delete(secret).catch((err) => console.error(err))),
+      outdatedResources.map((resource) =>
+        api.delete(resource).catch((err) => console.error(err)),
+      ),
     );
   };
   return { namespace, configs, postCreate };

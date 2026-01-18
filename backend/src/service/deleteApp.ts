@@ -37,7 +37,7 @@ export async function deleteApp(
       ["KubernetesObjectApi"],
     );
     await deleteNamespace(api, getNamespace(namespace));
-  } else if (config.appType === "workload" && config.collectLogs) {
+  } else if (config.appType === "workload") {
     // If the log shipper was enabled, redeploy without it
     config.collectLogs = false; // <-- Disable log shipping
 
@@ -54,6 +54,7 @@ export async function deleteApp(
         appGroup,
         deployment: lastDeployment,
         config,
+        migrating: true, // Deploy without any anvilops-related labels
       });
 
     const { KubernetesObjectApi: api } = await getClientsForRequest(
