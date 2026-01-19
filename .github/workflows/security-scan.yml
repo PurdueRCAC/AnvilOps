@@ -14,7 +14,9 @@ jobs:
         with:
           version: 2026.1.4
           install: true
-          install_args: "trivy"
+          mise_toml: |
+            [tools]
+            trivy = "0.68.2"
 
       - name: Run Trivy
         run: trivy repository --exit-code 1 .

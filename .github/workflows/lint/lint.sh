@@ -47,7 +47,13 @@ golangci-lint run ./...
 
 check_error
 
-# golangci-lint: Go files
+# ESLint: TypeScript files
+cd $PROJECT_ROOT/openapi
+npm run generate
+
+cd $PROJECT_ROOT/backend
+npx prisma generate
+
 printf "\n======================================\nRunning eslint (frontend)\n======================================\n"
 cd $PROJECT_ROOT/frontend
 npm run lint

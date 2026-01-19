@@ -32,7 +32,10 @@ jobs:
         with:
           version: 2026.1.4
           install: true
-          install_args: "shellcheck hadolint golangci-lint"
+          mise_toml: |
+            [tools]
+            hadolint = "2.14.0"
+            golangci-lint = "2.8.0"
 
       - name: Lint
         run: ./.github/workflows/lint/lint.sh
