@@ -521,7 +521,7 @@ export class DeploymentService {
       if (deployment.id === deploymentId) {
         continue;
       }
-      if (!!deployment.checkRunId) {
+      if (deployment.checkRunId) {
         // Should have a check run that is either queued or in_progress
         if (!octokit) {
           octokit = await this.getOctokitFn(org.githubInstallationId);

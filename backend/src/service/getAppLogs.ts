@@ -51,7 +51,7 @@ export async function getAppLogs(
           id: log.id,
           type: log.type,
           stream: log.stream,
-          log: log.content as string,
+          log: log.content,
           pod: log.podName,
           time: log.timestamp.toISOString(),
         });

@@ -32,7 +32,7 @@ export const ConfigTab = ({
 }) => {
   if (!isWorkloadConfig(app.config)) {
     return (
-      <div className="text-center py-8">
+      <div className="py-8 text-center">
         <p>Configuration editing is not available for Helm-based apps.</p>
       </div>
     );
@@ -78,12 +78,12 @@ export const ConfigTab = ({
       className="flex flex-col gap-8"
     >
       <div>
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="mb-2 flex items-baseline gap-2">
           <Label className="pb-1">
             <TextCursorInput className="inline" size={16} /> App Name
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -99,7 +99,7 @@ export const ConfigTab = ({
         />
       </div>
       <div>
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="mb-2 flex items-baseline gap-2">
           <Label className="pb-1">
             <Scale3D className="inline" size={16} /> Replicas
           </Label>
@@ -111,7 +111,7 @@ export const ConfigTab = ({
             </p>
           </HelpTooltip>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *

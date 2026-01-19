@@ -85,7 +85,7 @@ export const GitConfigDiff = ({
     {
       params: {
         path: {
-          orgId: orgId!,
+          orgId: orgId,
           repoId: gitState.repositoryId!,
         },
       },
@@ -101,7 +101,7 @@ export const GitConfigDiff = ({
     {
       params: {
         path: {
-          orgId: orgId!,
+          orgId: orgId,
           repoId: gitState.repositoryId!,
         },
       },
@@ -119,7 +119,7 @@ export const GitConfigDiff = ({
     {
       params: {
         path: {
-          orgId: orgId!,
+          orgId: orgId,
           repoId: baseGitState?.repositoryId!,
         },
       },
@@ -148,7 +148,7 @@ export const GitConfigDiff = ({
             Repository
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -207,7 +207,7 @@ export const GitConfigDiff = ({
             Branch
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -261,7 +261,7 @@ export const GitConfigDiff = ({
             Event
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -303,7 +303,7 @@ export const GitConfigDiff = ({
               Workflow
             </Label>
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -361,20 +361,20 @@ export const GitConfigDiff = ({
           </div>
         </div>
       )}
-      <h3 className="mt-4 font-bold pb-1 border-b">Build Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Build Options</h3>
       <div>
         <div className="flex items-baseline gap-2">
-          <Label htmlFor="rootDir" className="pb-1 mb-2">
+          <Label htmlFor="rootDir" className="mb-2 pb-1">
             <FolderRoot className="inline" size={16} /> Root directory
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
           </span>
         </div>
-        <div className="flex items-center gap-8 mb-1">
+        <div className="mb-1 flex items-center gap-8">
           <DiffInput
             disabled={disabled}
             left={baseGitState?.rootDir}
@@ -388,7 +388,7 @@ export const GitConfigDiff = ({
             required
           />
         </div>
-        <p className="opacity-50 text-xs">
+        <p className="text-xs opacity-50">
           Root directory must start with <code>./</code>
         </p>
       </div>
@@ -398,7 +398,7 @@ export const GitConfigDiff = ({
             <Hammer className="inline" size={16} /> Builder
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -417,36 +417,36 @@ export const GitConfigDiff = ({
           <Label
             htmlFor="builder-dockerfile"
             className={cn(
-              "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
+              `border-input focus-within:border-ring focus-within:ring-ring/50 flex items-center gap-2 rounded-lg border p-4 transition-colors outline-none focus-within:ring-[3px]`,
               base.source === "git" &&
                 baseGitState?.builder !== gitState.builder
                 ? baseGitState?.builder === "dockerfile"
-                  ? "bg-red-100 hover:bg-red-200"
+                  ? `bg-red-100 hover:bg-red-200`
                   : "bg-green-50"
-                : "bg-inherit hover:bg-gray-50 has-checked:bg-gray-50",
+                : `bg-inherit hover:bg-gray-50 has-checked:bg-gray-50`,
             )}
           >
             <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
             Dockerfile
-            <p className="opacity-50 font-normal">
+            <p className="font-normal opacity-50">
               Builds your app using your Dockerfile.
             </p>
           </Label>
           <Label
             htmlFor="builder-railpack"
             className={cn(
-              "flex items-center gap-2 border border-input rounded-lg p-4 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors",
+              `border-input focus-within:border-ring focus-within:ring-ring/50 flex items-center gap-2 rounded-lg border p-4 transition-colors outline-none focus-within:ring-[3px]`,
               base.source === "git" &&
                 baseGitState?.builder !== gitState.builder
                 ? baseGitState?.builder === "railpack"
-                  ? "bg-red-100 hover:bg-red-200"
+                  ? `bg-red-100 hover:bg-red-200`
                   : "bg-green-50"
-                : "bg-inherit hover:bg-gray-50 has-checked:bg-gray-50",
+                : `bg-inherit hover:bg-gray-50 has-checked:bg-gray-50`,
             )}
           >
             <RadioGroupItem value="railpack" id="builder-railpack" />
             Railpack
-            <p className="opacity-50 font-normal">
+            <p className="font-normal opacity-50">
               Detects your project structure and builds your app automatically.
             </p>
           </Label>
@@ -454,10 +454,10 @@ export const GitConfigDiff = ({
       </div>
       {gitState.builder === "dockerfile" ? (
         <div>
-          <Label className="pb-1 mb-2" htmlFor="dockerfilePath">
+          <Label className="mb-2 pb-1" htmlFor="dockerfilePath">
             <Container className="inline" size={16} /> Dockerfile Path
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -476,7 +476,7 @@ export const GitConfigDiff = ({
               required
             />
           </div>
-          <p className="opacity-50 text-xs mb-2 mt-1">
+          <p className="mt-1 mb-2 text-xs opacity-50">
             Relative to the root directory.
           </p>
         </div>

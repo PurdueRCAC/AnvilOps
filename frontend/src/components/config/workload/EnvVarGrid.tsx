@@ -21,7 +21,7 @@ export const EnvVarGrid = ({
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
-    for (let i in envVars) {
+    for (const i in envVars) {
       if (
         envVars[i].name === "" &&
         envVars[i].value === "" &&
@@ -46,9 +46,9 @@ export const EnvVarGrid = ({
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content_min-content] items-center gap-2">
-      <span className="text-sm col-span-2">Name</span>
-      <span className="text-sm col-span-1">Value</span>
-      <span className="text-sm col-span-1 flex items-center justify-start gap-1">
+      <span className="col-span-2 text-sm">Name</span>
+      <span className="col-span-1 text-sm">Value</span>
+      <span className="col-span-1 flex items-center justify-start gap-1 text-sm">
         Sensitive
         <HelpTooltip size={15}>
           <p>The values of sensitive environment variables cannot be viewed</p>
@@ -93,7 +93,7 @@ export const EnvVarGrid = ({
                 });
               }}
             />
-            <span className="text-xl align-middle w-fit">=</span>
+            <span className="w-fit align-middle text-xl">=</span>
             <label>
               <Input
                 disabled={disabled}
@@ -143,7 +143,7 @@ export const EnvVarGrid = ({
           </Fragment>
         );
       })}
-      <p className="text-sm text-red-500 col-span-4">{error}</p>
+      <p className="col-span-4 text-sm text-red-500">{error}</p>
     </div>
   );
 };
@@ -151,7 +151,7 @@ export const EnvVarGrid = ({
 const getDuplicates = (values: EnvVars): string[] => {
   const names = new Set();
   const result = [];
-  for (let env of values) {
+  for (const env of values) {
     if (env.name === "") {
       continue;
     }

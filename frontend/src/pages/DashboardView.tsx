@@ -11,20 +11,20 @@ export default function DashboardView() {
   const { user } = useContext(UserContext);
 
   return (
-    <main className="py-10 px-8">
+    <main className="px-8 py-10">
       <div className="flex items-start">
-        <h2 className="font-bold text-3xl mb-4 w-48 h-14 inline-block">
+        <h2 className="mb-4 inline-block h-14 w-48 text-3xl font-bold">
           Your Apps
         </h2>
-        <div className="w-fit h-14 flex space-x-2">
+        <div className="flex h-14 w-fit space-x-2">
           <Link to="/create-group">
-            <Button className="w-fit h-10 flex items-center hover:bg-black hover:text-gold-1 shadow-black-3 hover:shadow-sm">
+            <Button className="shadow-black-3 hover:text-gold-1 flex h-10 w-fit items-center hover:bg-black hover:shadow-sm">
               <p className="text-base">Create an App Group</p>
               <Plus className="size-5" strokeWidth="1" />
             </Button>
           </Link>
           <Link to="/create-app">
-            <Button className="w-fit h-10 flex items-center hover:bg-black hover:text-gold-1 shadow-black-3 hover:shadow-sm">
+            <Button className="shadow-black-3 hover:text-gold-1 flex h-10 w-fit items-center hover:bg-black hover:shadow-sm">
               <p className="text-base">Create an App</p>
               <Plus className="size-5" strokeWidth="1" />
             </Button>
@@ -66,7 +66,7 @@ const OrgApps = ({ orgId, name }: { orgId: number; name: string }) => {
           monoGroups?.some((it) => it.apps.length > 0) && (
             <h3 className="my-4">Ungrouped</h3>
           )}
-        <section className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <section className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {monoGroups?.map((group) => (
             <Fragment key={group.id}>
               {group.apps.map((app) => (
@@ -80,12 +80,12 @@ const OrgApps = ({ orgId, name }: { orgId: number; name: string }) => {
 
   return (
     <div>
-      <h3 className="text-xl font-medium mb-4 border-b-gold border-b-2">
+      <h3 className="border-b-gold mb-4 border-b-2 text-xl font-medium">
         {name}
       </h3>
       {isPending ? (
-        <p className="text-lg flex items-center space-x-1">
-          <Loader className="animate-spin inline" />
+        <p className="flex items-center space-x-1 text-lg">
+          <Loader className="inline animate-spin" />
           <span>Loading apps...</span>
         </p>
       ) : (
@@ -101,11 +101,11 @@ const AppGroup = ({ appGroup }: { appGroup: AppGroupType }) => {
   return (
     <section className="mb-8">
       {!appGroup.isMono && (
-        <div className="mb-2 text-lg flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-2 text-lg">
           <h3>{appGroup.name}</h3>
         </div>
       )}
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {appGroup.apps.map((app) => (
           <AppCard app={app} key={app.id} />
         ))}
@@ -117,12 +117,10 @@ const AppGroup = ({ appGroup }: { appGroup: AppGroupType }) => {
 const AppCard = ({ app }: { app: components["schemas"]["AppSummary"] }) => {
   return (
     <div
-      className={
-        "flex flex-col justify-between border border-input rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors p-4 w-full h-32 relative"
-      }
+      className={`border-input relative flex h-32 w-full flex-col justify-between rounded-lg border bg-gray-50 p-4 transition-colors hover:bg-gray-100`}
     >
       <div>
-        <p className="text-xl font-medium mb-1">
+        <p className="mb-1 text-xl font-medium">
           <Link to={`/app/${app.id}`}>
             {app.displayName}
             {/* Make this link's tap target take up the entire card */}
@@ -130,29 +128,34 @@ const AppCard = ({ app }: { app: components["schemas"]["AppSummary"] }) => {
           </Link>
         </p>
         {app.source === "GIT" ? (
-          <p className="text-sm text-black-4 z-10">
+          <p className="text-black-4 z-10 text-sm">
             Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
-            <a href={`${app.repositoryURL}/tree/${app.branch}`} target="_blank">
+            <a
+              href={`${app.repositoryURL}/tree/${app.branch}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               <GitBranch className="inline" size={16} />{" "}
               <code>{app.branch}</code>
             </a>
           </p>
         ) : app.source === "IMAGE" ? (
-          <p className="text-sm text-black-4 overflow-ellipsis overflow-hidden whitespace-nowrap">
+          <p className="text-black-4 truncate text-sm text-ellipsis">
             <Container className="inline" size={16} /> {app.imageTag}
           </p>
         ) : null}
       </div>
-      <div className="flex justify-between items-center">
-        <Status status={app.status} className="text-base text-black-4" />
+      <div className="flex items-center justify-between">
+        <Status status={app.status} className="text-black-4 text-base" />
         {app.link ? (
           <a
             href={app.link}
             target="_blank"
-            className="text-base text-black-4 space-x-1 hover:underline z-10"
+            className="text-black-4 z-10 space-x-1 text-base hover:underline"
+            rel="noreferrer"
           >
             <span>View Deployment</span>
-            <ExternalLink className="size-4 inline" />
+            <ExternalLink className="inline size-4" />
           </a>
         ) : null}
       </div>

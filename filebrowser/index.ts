@@ -137,7 +137,7 @@ async function handle(
         const [fields, files] = await formidable({
           allowEmptyFiles: true,
           minFileSize: 0,
-          uploadDir: join(rootDir, join("/", search.get("path")!.toString())),
+          uploadDir: join(rootDir, join("/", search.get("path").toString())),
           filename: (name, ext, part, form) => {
             return join("/", part.originalFilename);
           },
@@ -147,7 +147,7 @@ async function handle(
         }
         const parentDir = join(
           rootDir,
-          join("/", search.get("path")!.toString()),
+          join("/", search.get("path").toString()),
         );
         const isDirectory = fields["type"]?.toString() === "directory";
 
@@ -161,7 +161,7 @@ async function handle(
         res.write(JSON.stringify({ success: true }));
         res.end();
       } else if (req.method === "DELETE") {
-        const file = join(rootDir, join("/", search.get("path")!.toString()));
+        const file = join(rootDir, join("/", search.get("path").toString()));
         const info = await stat(file);
 
         if (info.isDirectory()) {

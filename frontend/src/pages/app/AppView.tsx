@@ -31,7 +31,7 @@ export default function AppView() {
     "/app/{appId}/deployments/{deploymentId}",
     {
       params: {
-        path: { appId: app.id, deploymentId: app.activeDeployment! },
+        path: { appId: app.id, deploymentId: app.activeDeployment },
       },
     },
     {
@@ -68,13 +68,13 @@ export default function AppView() {
   const settings = useAppConfig();
 
   return (
-    <main className="px-8 py-10 max-w-6xl mx-auto">
+    <main className="mx-auto max-w-6xl px-8 py-10">
       <div className="mb-2 space-x-3">
-        <h1 className="text-3xl font-bold inline align-middle">
+        <h1 className="inline align-middle text-3xl font-bold">
           {app.displayName}
         </h1>
         {!app.appGroup.standalone && (
-          <h2 className="text-xl text-black-3 inline align-middle">
+          <h2 className="text-black-3 inline align-middle text-xl">
             {app.appGroup.name}
           </h2>
         )}

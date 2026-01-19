@@ -68,9 +68,9 @@ export default function CreateAppGroupView() {
   }, [groupName]);
 
   return (
-    <div className="flex max-w-prose mx-auto">
+    <div className="mx-auto flex max-w-prose">
       <form
-        className="flex flex-col gap-6 w-full my-10 spa"
+        className="spa my-10 flex w-full flex-col gap-6"
         onSubmit={async (e) => {
           e.preventDefault();
           // const formData = new FormData(e.currentTarget);
@@ -93,7 +93,7 @@ export default function CreateAppGroupView() {
           }
         }}
       >
-        <h2 className="font-bold text-3xl mb-4">Create a Group</h2>
+        <h2 className="mb-4 text-3xl font-bold">Create a Group</h2>
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label htmlFor="selectOrg" className="pb-1">
@@ -101,7 +101,7 @@ export default function CreateAppGroupView() {
               Organization
             </Label>
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -135,7 +135,7 @@ export default function CreateAppGroupView() {
               Group Name
             </Label>
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -156,7 +156,7 @@ export default function CreateAppGroupView() {
             autoComplete="off"
           />
           {showGroupNameError && (
-            <div className="text-sm flex gap-5">
+            <div className="flex gap-5 text-sm">
               <X className="text-red-500" />
               <ul className="text-black-3 list-disc">
                 <li>A group name must have 56 or fewer characters.</li>
@@ -170,7 +170,7 @@ export default function CreateAppGroupView() {
           )}
         </div>
         <Tabs value={tab} onValueChange={setTab}>
-          <div className="my-4 relative">
+          <div className="relative my-4">
             <div ref={scrollRef} className="overflow-x-auto overflow-y-clip">
               <TabsList className="w-fit">
                 {appStates.map((_, idx) => (
@@ -183,7 +183,7 @@ export default function CreateAppGroupView() {
                     </TabsTrigger>
                     <button type="button" key={`close-${idx}`}>
                       <X
-                        className="size-3 stroke-3 inline"
+                        className="inline size-3 stroke-3"
                         onClick={() => {
                           if (appStates.length > 1) {
                             setAppStates((appStates) =>

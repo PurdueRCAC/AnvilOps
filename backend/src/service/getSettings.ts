@@ -28,7 +28,7 @@ export async function getSettings() {
   const clusterConfig = await clusterConfigPromise;
 
   return {
-    appDomain: !!env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
+    appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,

@@ -80,7 +80,7 @@ export async function updateApp(
       if (appData.appGroup.type === "standalone") {
         break;
       }
-      let groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      const groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
       appService.validateAppGroupName(groupName);
       const appGroupId = await db.appGroup.create(
         originalApp.orgId,

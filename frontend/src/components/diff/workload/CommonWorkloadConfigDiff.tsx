@@ -48,7 +48,7 @@ export const CommonWorkloadConfigDiff = ({
 
   return (
     <>
-      <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
       {appConfig.appDomain && (
         <SubdomainDiff
           base={base}
@@ -63,7 +63,7 @@ export const CommonWorkloadConfigDiff = ({
             <Server className="inline" size={16} /> Port Number
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -88,12 +88,12 @@ export const CommonWorkloadConfigDiff = ({
         </div>
       </div>
       <div className="space-y-2">
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="mb-2 flex items-baseline gap-2">
           <Label className="pb-1" htmlFor="replicas">
             <Scale3D className="inline" size={16} /> Replicas
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -120,7 +120,7 @@ export const CommonWorkloadConfigDiff = ({
             <Cpu className="inline" size={16} /> CPU Cores
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -149,7 +149,7 @@ export const CommonWorkloadConfigDiff = ({
             <MemoryStick className="inline" size={16} /> Memory (MiB)
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -205,7 +205,7 @@ export const CommonWorkloadConfigDiff = ({
                 <Label className="pb-1" htmlFor="collectLogs">
                   <Terminal className="inline" size={16} /> Keep Historical Logs
                 </Label>
-                <p className="text-sm text-black-2">
+                <p className="text-black-2 text-sm">
                   When this setting is disabled, you will only be able to view
                   logs from the most recent, alive pod from your app's most
                   recent deployment.

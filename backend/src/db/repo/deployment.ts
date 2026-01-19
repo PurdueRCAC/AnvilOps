@@ -214,7 +214,7 @@ export class DeploymentRepo {
 
     let obj: WorkloadConfig | HelmConfig;
     if (config.appType === "workload") {
-      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
+      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig);
     } else if (config.appType === "helm") {
       obj = {
         ...config.helmConfig,
@@ -229,14 +229,14 @@ export class DeploymentRepo {
       ...obj,
       asWorkloadConfig() {
         if (obj.appType === "workload") {
-          return obj as WorkloadConfig;
+          return obj;
         } else {
           throw new Error("DeploymentConfig is not a WorkloadConfig");
         }
       },
       asHelmConfig() {
         if (obj.appType === "helm") {
-          return obj as HelmConfig;
+          return obj;
         } else {
           throw new Error("DeploymentConfig is not a HelmConfig");
         }

@@ -32,13 +32,13 @@ export const ProjectConfig = ({
             Project
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
           </span>
         </div>
-        <p className="text-sm text-black-3">
+        <p className="text-black-3 text-sm">
           In clusters managed by Rancher, resources are organized into projects
           for administration.
         </p>
@@ -61,7 +61,7 @@ export const ProjectConfig = ({
               <SelectItem key={project.id} value={project.id}>
                 <p>
                   {project.name}{" "}
-                  <span className="text-sm text-black-2">
+                  <span className="text-black-2 text-sm">
                     {project.description}
                   </span>
                 </p>

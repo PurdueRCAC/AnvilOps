@@ -31,7 +31,7 @@ import NotFoundView from "./pages/NotFoundView";
 import OrgView from "./pages/OrgView";
 
 const SuspenseFallback = (
-  <div className="w-full h-full min-h-[calc(100vh-4rem)] flex items-center justify-center">
+  <div className="flex size-full min-h-[calc(100vh-4rem)] items-center justify-center">
     <Loader className="animate-spin" size="2.5rem" />
   </div>
 );
@@ -42,10 +42,10 @@ function App() {
       fallbackRender={(props) => (
         <>
           <Navbar />
-          <main className="flex flex-col items-center justify-center min-h-[80vh]">
-            <h1 className="font-bold text-4xl mb-2">Something went wrong.</h1>
+          <main className="flex min-h-[80vh] flex-col items-center justify-center">
+            <h1 className="mb-2 text-4xl font-bold">Something went wrong.</h1>
             <p className="mb-8">There was a problem displaying this page.</p>
-            <pre className="whitespace-pre-line max-w-lg text-sm bg-gray-100 rounded-md border-input border p-2 mb-4 max-h-40 overflow-y-auto">
+            <pre className="border-input mb-4 max-h-40 max-w-lg overflow-y-auto rounded-md border bg-gray-100 p-2 text-sm whitespace-pre-line">
               <code>
                 Additional information:{" "}
                 {props?.error?.message?.toString() ??
@@ -171,7 +171,7 @@ function UnclaimedInstallations() {
     <>
       {installations.map((inst) => (
         <div
-          className="bg-green-500/20 border-green-900 border-2 rounded-md p-4 m-8"
+          className="m-8 rounded-md border-2 border-green-900 bg-green-500/20 p-4"
           key={inst.id}
         >
           <h2 className="text-lg font-bold">Installation Approved</h2>
@@ -180,7 +180,7 @@ function UnclaimedInstallations() {
             the process, choose an AnvilOps organization to link it to.
           </p>
           <form
-            className="flex gap-2 items-center mt-2"
+            className="mt-2 flex items-center gap-2"
             onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);

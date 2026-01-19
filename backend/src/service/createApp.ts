@@ -56,7 +56,7 @@ export async function createApp(appData: NewApp, userId: number) {
     }
 
     case "standalone": {
-      let groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      const groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
       appService.validateAppGroupName(groupName);
       appGroupId = await db.appGroup.create(appData.orgId, groupName, true);
       break;

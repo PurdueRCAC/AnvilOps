@@ -87,7 +87,7 @@ const getEnvVars = async (
   ...autoEnvParams: Parameters<typeof generateAutomaticEnvVars>
 ): Promise<V1EnvVar[]> => {
   const envVars = [];
-  for (let envVar of env) {
+  for (const envVar of env) {
     envVars.push({
       name: envVar.name,
       valueFrom: {
@@ -220,7 +220,7 @@ export const createAppConfigsFromDeployment = async (
     "app.kubernetes.io/managed-by": "anvilops",
   };
   applyLabels(namespace, labels);
-  for (let config of configs) {
+  for (const config of configs) {
     applyLabels(config, labels);
   }
   const postCreate = async (api: KubernetesObjectApi) => {

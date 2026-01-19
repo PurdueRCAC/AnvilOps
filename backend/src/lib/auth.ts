@@ -89,7 +89,7 @@ router.get("/oauth_callback", async (req, res) => {
       if (isRancherManaged()) {
         const identity = getIdentity(claims);
         try {
-          clusterUsername = await getRancherUserID(identity as string);
+          clusterUsername = await getRancherUserID(identity);
           if (!clusterUsername) {
             throw new Error();
           }

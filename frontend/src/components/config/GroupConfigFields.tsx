@@ -48,7 +48,7 @@ export const GroupConfigFields = ({
 
   return (
     <>
-      <h3 className="mt-4 font-bold pb-1 border-b">Grouping Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Grouping Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
           <Label htmlFor="selectGroup" className="pb-1">
@@ -56,13 +56,13 @@ export const GroupConfigFields = ({
             Group
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
           </span>
         </div>
-        <p className="text-sm text-black-2">
+        <p className="text-black-2 text-sm">
           Applications can be created as standalone apps, or as part of a group
           of related microservices.
         </p>
@@ -121,7 +121,7 @@ export const GroupConfigFields = ({
                 Group Name
               </Label>
               <span
-                className="text-red-500 cursor-default"
+                className="cursor-default text-red-500"
                 title="This field is required."
               >
                 *
@@ -142,7 +142,7 @@ export const GroupConfigFields = ({
               autoComplete="off"
             />
             {groupName && shouldDisplayGroupNameError && (
-              <div className="text-sm flex gap-5">
+              <div className="flex gap-5 text-sm">
                 <X className="text-red-500" />
                 <ul className="text-black-3 list-disc">
                   <li>A group name must have 56 or fewer characters.</li>

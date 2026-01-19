@@ -29,7 +29,7 @@ export const DiffSelect = ({
 }) => {
   const isDifferent = (!!left || !!right) && (left ?? "") !== (right ?? "");
   return (
-    <div className="grid grid-cols-[1fr_4rem_1fr] w-full gap-4 items-center justify-items-center *:w-full">
+    <div className="grid w-full grid-cols-[1fr_4rem_1fr] place-items-center gap-4 *:w-full">
       <Select value={left} disabled>
         <SelectTrigger className={isDifferent ? `bg-red-50` : ""}>
           <SelectValue placeholder={leftPlaceholder} />

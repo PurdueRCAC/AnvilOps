@@ -28,6 +28,8 @@ export default defineConfig({
   rules: {
     "no-warning-comments": "warn",
     "default-case": "warn",
+    "better-tailwindcss/enforce-consistent-line-wrapping": "off",
+    "better-tailwindcss/enforce-consistent-class-order": "off",
   },
   extends: [
     js.configs.recommended,

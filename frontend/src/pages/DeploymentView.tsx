@@ -47,10 +47,10 @@ export const DeploymentView = () => {
         <ArrowLeft size={16} />
         {app.displayName}
       </Link>
-      <h1 className="text-3xl font-bold line-clamp-1" title={title}>
+      <h1 className="line-clamp-1 text-3xl font-bold" title={title}>
         {title}
       </h1>
-      <div className="flex gap-4 z-30 py-2">
+      <div className="z-30 flex gap-4 py-2">
         <Status status={deployment.status} />
         {deployment.config.source === "git" && deployment.commitHash ? (
           <a

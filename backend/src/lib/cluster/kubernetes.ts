@@ -42,7 +42,7 @@ const baseKc = new KubeConfig();
 baseKc.loadFromDefault();
 
 export const svcK8s = {} as APIClientTypes;
-for (let apiClassName in APIClientFactory) {
+for (const apiClassName in APIClientFactory) {
   svcK8s[apiClassName] = APIClientFactory[apiClassName](baseKc);
 }
 Object.freeze(svcK8s);
@@ -56,7 +56,7 @@ export function getClientForClusterUsername<T extends APIClassName>(
     throw new Error("Invalid API class " + apiClassName);
   }
   if (!shouldImpersonate || !clusterUsername) {
-    return svcK8s[apiClassName] as APIClientTypes[T];
+    return svcK8s[apiClassName];
   } else {
     const kc = new KubeConfig();
     kc.loadFromOptions({
@@ -179,7 +179,7 @@ export const createOrUpdateApp = async (
     await ensureNamespace(api, namespace);
   }
 
-  for (let config of configs) {
+  for (const config of configs) {
     if (await resourceExists(api, config)) {
       await api.patch(
         config,

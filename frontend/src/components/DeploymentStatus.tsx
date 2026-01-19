@@ -26,7 +26,7 @@ export const DeploymentStatus = ({
 }) => {
   if (app?.activeDeployment === undefined) {
     return (
-      <p className="opacity-50 flex items-center gap-2">
+      <p className="flex items-center gap-2 opacity-50">
         <CircleDashed /> Waiting to deploy...
       </p>
     );
@@ -35,7 +35,7 @@ export const DeploymentStatus = ({
   if (deployment === undefined) {
     // We know the active deployment but it hasn't loaded yet
     return (
-      <p className="opacity-50 flex items-center gap-2">
+      <p className="flex items-center gap-2 opacity-50">
         <Loader className="animate-spin" /> Loading...
       </p>
     );
@@ -45,7 +45,7 @@ export const DeploymentStatus = ({
     return (
       <Tooltip>
         <TooltipTrigger>
-          <p className="text-blue-500 flex items-center gap-2">
+          <p className="flex items-center gap-2 text-blue-500">
             <CloudLightning />
             No pods
           </p>
@@ -63,7 +63,7 @@ export const DeploymentStatus = ({
     return (
       <Tooltip>
         <TooltipTrigger>
-          <p className="text-red-500 flex items-center gap-2">
+          <p className="flex items-center gap-2 text-red-500">
             <CloudLightning />
             {deployment.podStatus?.failed} Failed
           </p>
@@ -85,7 +85,7 @@ export const DeploymentStatus = ({
     return (
       <Tooltip>
         <TooltipTrigger>
-          <p className="text-yellow-600 flex items-center gap-2">
+          <p className="flex items-center gap-2 text-yellow-600">
             <CloudCog />
             {pending} Pending
           </p>
@@ -106,7 +106,7 @@ export const DeploymentStatus = ({
     return (
       <Tooltip>
         <TooltipTrigger>
-          <p className="text-amber-600 flex items-center gap-2">
+          <p className="flex items-center gap-2 text-amber-600">
             <CloudUpload />
             {scheduled} Scheduled
           </p>
@@ -122,7 +122,7 @@ export const DeploymentStatus = ({
   return (
     <Tooltip>
       <TooltipTrigger>
-        <p className="text-green-500 flex items-center gap-2">
+        <p className="flex items-center gap-2 text-green-500">
           <CloudCheck />
           {deployment.podStatus?.ready} Ready
         </p>

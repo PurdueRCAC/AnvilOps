@@ -118,7 +118,7 @@ export const ImportRepoDialog = ({
             const result = await importRepo({
               body: {
                 destIsOrg: installation.targetType === "Organization",
-                destOwner: installation.targetName!,
+                destOwner: installation.targetName,
                 destRepo: formData.get("destRepoName")!.toString(),
                 makePrivate: !!formData.get("makePrivate"),
                 sourceURL: formData.get("srcRepoURL")!.toString(),
@@ -203,7 +203,7 @@ export const ImportRepoDialog = ({
               </SelectContent>
             </Select>
             {templateSelect && templateSelect !== "$new-repo" && (
-              <div className="m-1 text-black-3 text-sm">
+              <div className="text-black-3 m-1 text-sm">
                 <p className="flex items-center gap-1">
                   <Library className="inline" size={16} />
                   {templates?.[templateSelect].description}
@@ -216,6 +216,7 @@ export const ImportRepoDialog = ({
                     className="underline"
                     target="_blank"
                     href={templates?.[templateSelect].url}
+                    rel="noreferrer"
                   >
                     main page.
                   </a>
@@ -252,7 +253,7 @@ export const ImportRepoDialog = ({
                   disabled
                   required
                 />
-                <span className="opacity-50 text-xl">/</span>
+                <span className="text-xl opacity-50">/</span>
                 <Input
                   id="destRepoName"
                   name="destRepoName"
@@ -264,7 +265,7 @@ export const ImportRepoDialog = ({
                   required
                 />
                 {repoAlreadyExists ? (
-                  <span className="flex items-center text-red-500 font-medium col-span-full my-2 gap-1">
+                  <span className="col-span-full my-2 flex items-center gap-1 font-medium text-red-500">
                     <X />A repository already exists with that name.
                   </span>
                 ) : null}

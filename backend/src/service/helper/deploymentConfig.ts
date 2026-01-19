@@ -338,7 +338,7 @@ export class DeploymentConfigService {
 
     const envNames = new Set();
 
-    for (let envVar of env) {
+    for (const envVar of env) {
       if (envNames.has(envVar.name)) {
         throw new ValidationError(
           "Duplicate environment variable " + envVar.name,

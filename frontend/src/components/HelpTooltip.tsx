@@ -16,7 +16,7 @@ export default function HelpTooltip({
       <TooltipTrigger asChild>
         <HelpCircle
           tabIndex={0}
-          className={cn("inline text-black-4 cursor-help", className)}
+          className={cn("text-black-4 inline cursor-help", className)}
           size={size}
         />
       </TooltipTrigger>

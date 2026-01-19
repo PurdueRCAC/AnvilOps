@@ -72,7 +72,7 @@ export const StatusTab = ({
 
   return (
     <>
-      <h2 className="text-xl font-medium mb-2">
+      <h2 className="mb-2 text-xl font-medium">
         Pods{" "}
         {statefulSet && (
           <span className="opacity-50">
@@ -82,19 +82,19 @@ export const StatusTab = ({
         )}
       </h2>
       {connecting ? (
-        <p className="flex items-center gap-2 text-sm mb-4">
+        <p className="mb-4 flex items-center gap-2 text-sm">
           <Loader className="animate-spin" /> Connecting...
         </p>
       ) : !connected ? (
-        <p className="text-amber-600 flex items-center gap-2 text-sm mb-4">
+        <p className="mb-4 flex items-center gap-2 text-sm text-amber-600">
           <AlertTriangle /> Disconnected. Status changes will not appear until
           the connection is re-established.
         </p>
       ) : (
-        <p className="text-blue-500 flex items-center gap-2 text-sm mb-4">
-          <span className="relative block w-4 h-5">
-            <span className="absolute block top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="absolute block top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
+        <p className="mb-4 flex items-center gap-2 text-sm text-blue-500">
+          <span className="relative block h-5 w-4">
+            <span className="absolute top-1/2 left-1/2 block size-2 -translate-1/2 animate-pulse rounded-full bg-blue-500" />
+            <span className="absolute top-1/2 left-1/2 block size-2 -translate-1/2 animate-ping rounded-full bg-blue-500" />
           </span>
           Updating in realtime
         </p>
@@ -106,8 +106,8 @@ export const StatusTab = ({
         shut down.
       </p>
       {updating && (
-        <div className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
-          <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+        <div className="my-4 rounded-md border border-blue-50 bg-blue-100 p-4">
+          <h3 className="mb-2 flex items-center gap-2 text-lg font-bold">
             <Loader className="animate-spin" /> Update In Progress (
             {statefulSet?.updatedReplicas
               ? statefulSet.replicas! - statefulSet.updatedReplicas
@@ -119,11 +119,11 @@ export const StatusTab = ({
       )}
       {events?.map((event) => <EventInfo event={event} />)}
       {connecting ? null : !pods || pods.length === 0 ? (
-        <div className="bg-gray-50 rounded-md p-4 my-4">
+        <div className="my-4 rounded-md bg-gray-50 p-4">
           <p className="flex items-center gap-2">
             <Container /> No Pods Found
           </p>
-          <p className="opacity-50 ml-8">
+          <p className="ml-8 opacity-50">
             Pods will be created automatically when you deploy your app. Try
             pushing to your Git repo or updating your settings in the
             Configuration tab.
@@ -198,11 +198,11 @@ type Event = NonNullable<components["schemas"]["AppStatus"]["events"]>[0];
 
 const EventInfo = ({ event }: { event: Event }) => {
   return (
-    <p className="bg-orange-100 rounded-md p-4 border border-orange-50 my-4">
-      <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+    <p className="my-4 rounded-md border border-orange-50 bg-orange-100 p-4">
+      <h3 className="mb-2 flex items-center gap-2 text-lg font-bold">
         <Flag /> Warning
       </h3>
-      <p className="opacity-50 text-sm">
+      <p className="text-sm opacity-50">
         Occurred {event.count} times since{" "}
         {format.format(new Date(event.firstTimestamp!))}, most recently at{" "}
         {format.format(new Date(event.lastTimestamp!))}.
@@ -216,16 +216,16 @@ type Pod = NonNullable<components["schemas"]["AppStatus"]["pods"]>[0];
 
 const PodInfo = ({ pod, children }: { pod: Pod; children?: ReactNode }) => {
   return (
-    <div className="my-4 border-input rounded-md p-4 border">
+    <div className="border-input my-4 rounded-md border p-4">
       <div className="flex justify-between">
         <div>
           <h3 className="text-xl font-medium">{pod.name}</h3>
-          <p className="text-sm opacity-50 mb-2">
+          <p className="mb-2 text-sm opacity-50">
             Created at {pod.createdAt && format.format(new Date(pod.createdAt))}
           </p>
           <PodStatusText pod={pod} />
         </div>
-        <div className="grid grid-cols-[max-content_1fr] gap-2 opacity-50 text-sm items-center h-max">
+        <div className="grid h-max grid-cols-[max-content_1fr] items-center gap-2 text-sm opacity-50">
           {pod.node && (
             <>
               <Cloud /> {pod.node}
@@ -253,7 +253,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
       case "CrashLoopBackOff":
         return (
           <>
-            <p className="text-red-500 flex items-center gap-2 mb-2">
+            <p className="mb-2 flex items-center gap-2 text-red-500">
               <CircleX /> Error
             </p>
             <p>
@@ -275,7 +275,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
       case "ImagePullBackOff":
         return (
           <>
-            <p className="text-red-500 flex items-center gap-2 mb-2">
+            <p className="mb-2 flex items-center gap-2 text-red-500">
               <CircleX /> Error
             </p>
             <p>
@@ -287,7 +287,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
       case "InvalidImageName":
         return (
           <>
-            <p className="text-red-500 flex items-center gap-2 mb-2">
+            <p className="mb-2 flex items-center gap-2 text-red-500">
               <CircleX /> Error
             </p>
             <p>Invalid image name. Make sure it is spelled correctly.</p>
@@ -296,7 +296,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
       case "CreateContainerConfigError":
         return (
           <>
-            <p className="text-red-500 flex items-center gap-2 mb-2">
+            <p className="mb-2 flex items-center gap-2 text-red-500">
               <CircleX /> Error
             </p>
             <p>
@@ -307,18 +307,18 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
         );
       case "ContainerCreating":
         return (
-          <p className="text-blue-500 flex items-center gap-2 mb-2">
+          <p className="mb-2 flex items-center gap-2 text-blue-500">
             <Hammer /> Container Creating
           </p>
         );
       default:
         return (
           <>
-            <p className="text-amber-600 flex items-center gap-2 mb-2">
+            <p className="mb-2 flex items-center gap-2 text-amber-600">
               <CircleX /> Waiting to start
             </p>
             <p>Additional information:</p>
-            <ul className="list-disc ml-4">
+            <ul className="ml-4 list-disc">
               <li>
                 Reason:{" "}
                 {waiting.reason ? <code>{waiting.reason}</code> : <i>None</i>}
@@ -337,7 +337,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
     if (terminated.reason === "Success" || terminated.exitCode === 0) {
       return (
         <>
-          <p className="text-blue-500 flex items-center gap-2 mb-2">
+          <p className="mb-2 flex items-center gap-2 text-blue-500">
             <Info /> Terminated
           </p>
           <p>This container has stopped gracefully. It will be removed soon.</p>
@@ -346,7 +346,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
     } else {
       return (
         <>
-          <p className="text-red-500 flex items-center gap-2 mb-2">
+          <p className="mb-2 flex items-center gap-2 text-red-500">
             <CircleX /> Error
           </p>
           <p>This container has crashed. It will be restarted soon.</p>
@@ -357,7 +357,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
 
   if (running) {
     return (
-      <p className="text-green-500 flex items-center gap-2">
+      <p className="flex items-center gap-2 text-green-500">
         <Check /> Ready
       </p>
     );
@@ -365,14 +365,14 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
 
   if (pod.podScheduled) {
     return (
-      <p className="text-amber-600 flex items-center gap-2">
+      <p className="flex items-center gap-2 text-amber-600">
         <Clock /> Scheduled
       </p>
     );
   }
 
   return (
-    <p className="text-orange-500 flex items-center gap-2">
+    <p className="flex items-center gap-2 text-orange-500">
       <Hourglass />
       Pending
     </p>

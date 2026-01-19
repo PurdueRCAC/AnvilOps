@@ -98,7 +98,7 @@ export const FilesTab = ({ app }: { app: App }) => {
         volumeClaimName={params.params.query.volumeClaimName}
         refresh={refreshFiles}
       >
-        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+        <div className="flex w-full cursor-pointer items-center gap-2 p-2 hover:bg-gray-100">
           <Button>
             <UploadCloud /> Upload Files...
           </Button>
@@ -111,7 +111,7 @@ export const FilesTab = ({ app }: { app: App }) => {
         volumeClaimName={params.params.query.volumeClaimName}
         onComplete={refreshFiles}
       >
-        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+        <div className="flex w-full cursor-pointer items-center gap-2 p-2 hover:bg-gray-100">
           <Button>
             <FilePlus /> Create New File...
           </Button>
@@ -124,7 +124,7 @@ export const FilesTab = ({ app }: { app: App }) => {
         volumeClaimName={params.params.query.volumeClaimName}
         onComplete={refreshFiles}
       >
-        <div className="w-full flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer">
+        <div className="flex w-full cursor-pointer items-center gap-2 p-2 hover:bg-gray-100">
           <Button>
             <FolderPlus /> Create New Folder...
           </Button>
@@ -136,7 +136,7 @@ export const FilesTab = ({ app }: { app: App }) => {
   return (
     <>
       <h2 className="text-xl font-medium">Browse Files</h2>
-      <p className="mb-6 opacity-50 text-sm">
+      <p className="mb-6 text-sm opacity-50">
         Select a replica and volume to browse.
       </p>
       <div className="grid grid-cols-[max-content_max-content_1fr] gap-4">
@@ -193,13 +193,13 @@ export const FilesTab = ({ app }: { app: App }) => {
       {filesLoading ? (
         <>
           {volume !== undefined && (
-            <div className="flex items-center justify-center min-h-96">
+            <div className="flex min-h-96 items-center justify-center">
               <Loader className="animate-spin" />
             </div>
           )}
         </>
       ) : files?.type === "file" ? (
-        <div className="flex flex-col items-center justify-center mt-4">
+        <div className="mt-4 flex flex-col items-center justify-center">
           <FilePreview
             key={files.modifiedAt} // Refetch the file if it's modified
             file={files}
@@ -211,7 +211,7 @@ export const FilesTab = ({ app }: { app: App }) => {
           />
         </div>
       ) : files?.type === "directory" ? (
-        <div className="flex flex-col gap-1 mt-4">
+        <div className="mt-4 flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xl">{path}</p>
@@ -238,9 +238,9 @@ export const FilesTab = ({ app }: { app: App }) => {
           <hr className="mt-2 mb-4" />
           {(files?.files?.length ?? 0) === 0 ? (
             <>
-              <div className="p-8 my-4 rounded-xl bg-gray-100 flex flex-col items-center gap-2">
+              <div className="my-4 flex flex-col items-center gap-2 rounded-xl bg-gray-100 p-8">
                 <Folder size={48} />
-                <h3 className="text-xl mt-4">No files found</h3>
+                <h3 className="mt-4 text-xl">No files found</h3>
                 <div className="flex gap-2">
                   <Button onClick={goUp} variant="outline">
                     Go back
@@ -252,7 +252,7 @@ export const FilesTab = ({ app }: { app: App }) => {
             files?.files?.map((file) => (
               <div
                 key={path + file.name}
-                className="flex gap-2 items-center hover:bg-gray-100 p-2 cursor-pointer"
+                className="flex cursor-pointer items-center gap-2 p-2 hover:bg-gray-100"
                 onClick={() => {
                   setPath(
                     path.endsWith("/")
@@ -328,7 +328,7 @@ const FilePreview = ({
 
   const Header = ({ children }: { children?: ReactNode }) => (
     <>
-      <div className="flex items-center justify-between w-full">
+      <div className="flex w-full items-center justify-between">
         <div>
           <p className="text-xl">{file.name}</p>
           <p className="opacity-50">
@@ -368,7 +368,7 @@ const FilePreview = ({
         <File size={48} />
         <p className="mt-2 text-xl">{file.name}</p>
         <p className="mt-1 opacity-50">{file.fileType}</p>
-        <div className="bg-gray-100 mt-8 rounded-xl p-4 flex items-center justify-between gap-6">
+        <div className="mt-8 flex items-center justify-between gap-6 rounded-xl bg-gray-100 p-4">
           <p>This file is too large to be previewed.</p>
           <a href={downloadURL}>
             <Button>Download</Button>
@@ -483,11 +483,11 @@ const FilePreview = ({
   return (
     <>
       <Header />
-      <div className="flex flex-col items-center justify-center mt-24">
+      <div className="mt-24 flex flex-col items-center justify-center">
         <File size={48} />
         <p className="mt-2 text-xl">{file.name}</p>
         <p className="mt-1 opacity-50">{file.fileType}</p>
-        <div className="bg-gray-100 mt-8 rounded-xl p-4">
+        <div className="mt-8 rounded-xl bg-gray-100 p-4">
           <p>We can't preview this file type.</p>
           <Button
             variant="outline"
@@ -554,7 +554,7 @@ const DeleteFile = ({
             }
           }}
         >
-          <div className="flex justify-end mt-4">
+          <div className="mt-4 flex justify-end">
             <Button type="submit" disabled={isPending}>
               <Trash /> Delete Forever
             </Button>
@@ -640,7 +640,7 @@ const CreateFile = ({
             value={name}
             onChange={(e) => setName(e.currentTarget.value)}
           />
-          <div className="flex justify-end mt-4">
+          <div className="mt-4 flex justify-end">
             <Button type="submit" disabled={isPending}>
               <Plus /> Create
             </Button>
@@ -701,7 +701,7 @@ const FileUpload = ({
           <input type="hidden" name="type" value="file" />
           <input type="hidden" name="basePath" value={parentDir} />
           <Input type="file" name="files" multiple />
-          <div className="flex justify-end mt-4">
+          <div className="mt-4 flex justify-end">
             <Button type="submit">
               <CloudUpload /> Upload
             </Button>

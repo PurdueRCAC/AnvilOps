@@ -17,7 +17,7 @@ export const MountsGrid = ({
   setValue: (updater: (mounts: Mounts) => Mounts) => void;
 }) => {
   useEffect(() => {
-    for (let i in mounts) {
+    for (const i in mounts) {
       if (mounts[i].path === "" && +i < mounts.length - 1) {
         setMounts((prev) => prev.toSpliced(+i, 1));
         return;
@@ -30,8 +30,8 @@ export const MountsGrid = ({
 
   return (
     <div className="grid grid-cols-[3fr_min-content_1fr_min-content_min-content] items-center gap-2">
-      <span className="text-sm col-span-2">Path</span>
-      <span className="text-sm col-span-3">Amount</span>
+      <span className="col-span-2 text-sm">Path</span>
+      <span className="col-span-3 text-sm">Amount</span>
       {mounts.map(({ path, amountInMiB }, index) => (
         <Fragment key={index}>
           <Input
@@ -50,7 +50,7 @@ export const MountsGrid = ({
               );
             }}
           />
-          <span className="text-xl align-middle">:</span>
+          <span className="align-middle text-xl">:</span>
           <Input
             disabled={readonly}
             placeholder="production"
@@ -71,7 +71,7 @@ export const MountsGrid = ({
           />
           <Tooltip>
             <TooltipTrigger>
-              <span className="align-middle mx-2">MiB</span>
+              <span className="mx-2 align-middle">MiB</span>
             </TooltipTrigger>
             <TooltipContent>Mebibytes; 1 MiB = 1,048,576 bytes</TooltipContent>
           </Tooltip>
