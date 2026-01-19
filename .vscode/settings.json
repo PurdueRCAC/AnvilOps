@@ -4,6 +4,7 @@
   "editor.tabSize": 2,
   // Automatically sort imports when saving a file
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
+    "source.organizeImports": "explicit",
+    "source.fixAll.eslint": "explicit"
   }
 }

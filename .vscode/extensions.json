@@ -5,6 +5,7 @@
     "github.vscode-github-actions",
     "unifiedjs.vscode-mdx",
     "Prisma.prisma",
-    "redhat.vscode-yaml"
+    "redhat.vscode-yaml",
+    "dbaeumer.vscode-eslint"
   ]
 }

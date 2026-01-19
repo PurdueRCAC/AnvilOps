@@ -1,0 +1,38 @@
+on:
+  push:
+  pull_request:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/package.json
+            backend/package.json
+            filebrowser/package.json
+
+      - name: Install NPM packages
+        run: |
+          cd frontend
+          npm ci
+          cd ../backend
+          npm ci
+          cd ../filebrowser
+          npm ci
+
+      - name: Install Tools
+        uses: jdx/mise-action@v3
+        with:
+          version: 2026.1.4
+          install: true
+          install_args: "shellcheck hadolint golangci-lint"
+
+      - name: Lint
+        run: ./.github/workflows/lint/lint.sh

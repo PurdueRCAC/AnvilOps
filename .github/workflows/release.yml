@@ -46,7 +46,7 @@ jobs:
           docker buildx inspect --bootstrap
 
       - name: Release
-        run: ./.github/workflows/scripts/release-${{ inputs.environment }}.sh "${{ inputs.version }}"
+        run: ./.github/workflows/release/release-${{ inputs.environment }}.sh "${{ inputs.version }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

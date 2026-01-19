@@ -7,6 +7,7 @@
     "start": "node --env-file=.env --experimental-strip-types src/index.ts",
     "prisma:generate": "prisma generate",
     "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
+    "lint": "eslint .",
     "postinstall": "patch-package"
   },
   "author": "",
@@ -34,13 +35,16 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
     "@types/morgan": "^1.9.10",
+    "eslint": "^9.39.2",
     "prisma": "^7.1.0",
     "prisma-json-types-generator": "^4.0.0-beta.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.0"
   }
 }

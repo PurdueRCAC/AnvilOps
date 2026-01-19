@@ -1,0 +1,20 @@
+on:
+  push:
+  pull_request:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Install Tools
+        uses: jdx/mise-action@v3
+        with:
+          version: 2026.1.4
+          install: true
+          install_args: "trivy"
+
+      - name: Run Trivy
+        run: trivy repository --exit-code 1 .
