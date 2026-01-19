@@ -45,7 +45,7 @@ jobs:
             sed -i "s/RAILPACK_VERSION=$CURRENT_VERSION/RAILPACK_VERSION=$LATEST_VERSION/" "$DOCKERFILE"
 
             # (the `sed` step is to escape @ characters so that they don't ping anyone)
-            RELEASE_NOTES=$(gh release view "$LATEST_TAG" --repo railwayapp/railpack --json body --jq '.body' | sed 's/@/\\@/g')
+            RELEASE_NOTES=$(gh release view "$LATEST_TAG" --repo railwayapp/railpack --json body --jq '.body' | sed 's/@/\`@\`/g')
 
             # Export variables for the next step
             echo "updated=true" >> $GITHUB_OUTPUT
@@ -66,7 +66,7 @@ jobs:
           commit-message: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           title: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           body: |
-            Update Railpack to version ${{ steps.version_check.outputs.new_version }}.
+            Update Railpack to version ${{ steps.version_check.outputs.new_version }}. _This pull request was automatically created by `.github/workflows/update-railpack.yml`._
 
             ---
 
