@@ -1,0 +1,129 @@
+import {
+  AppsV1Api,
+  CoreV1Api,
+  KubeConfig,
+  PatchStrategy,
+  setHeaderOptions,
+} from "@kubernetes/client-node";
+import { exit } from "node:process";
+
+const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
+const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
+
+if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
+  console.log("RANCHER_API_BASE or RANCHER_TOKEN not set, skipping rotation");
+  exit(0);
+}
+
+const KUBECONFIG_SECRET_NAME = process.env.KUBECONFIG_SECRET_NAME;
+const KUBECONFIG_PATH = process.env.KUBECONFIG;
+const CURRENT_NAMESPACE = process.env.CURRENT_NAMESPACE;
+const USE_CLUSTER_NAME = process.env.CLUSTER_NAME;
+const CLUSTER_ID = process.env.CLUSTER_ID;
+
+const kc = new KubeConfig();
+kc.loadFromDefault();
+
+const api = kc.makeApiClient(CoreV1Api);
+
+const rancherTokenReq = await fetch(`${RANCHER_API_BASE}/tokens`, {
+  method: "POST",
+  headers: {
+    Authorization: `Basic ${RANCHER_TOKEN}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    type: "token",
+    ttl: 2592000000, // 30 days
+  }),
+});
+
+if (!rancherTokenReq.ok) {
+  throw new Error(
+    "Failed to generate rancher token: " + rancherTokenReq.statusText,
+  );
+}
+
+const tokenRes = await rancherTokenReq.json();
+const token = Buffer.from(tokenRes["token"], "utf-8").toString("base64");
+
+await api.patchNamespacedSecret(
+  {
+    name: "rancher-config",
+    namespace: CURRENT_NAMESPACE,
+    body: {
+      data: {
+        "api-token": Buffer.from(token, "utf-8").toString("base64"),
+      },
+    },
+  },
+  setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+);
+
+console.log("Rancher token patched successfully");
+
+if (KUBECONFIG_PATH) {
+  const kcReq = await fetch(
+    `${RANCHER_API_BASE}/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${RANCHER_TOKEN}`,
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!kcReq.ok) {
+    throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
+  }
+
+  const kubeConfigRes = await kcReq.json();
+  let kubeConfig = kubeConfigRes["config"];
+
+  if (USE_CLUSTER_NAME) {
+    const body = JSON.parse(kubeConfig);
+    body["current-context"] = USE_CLUSTER_NAME;
+    kubeConfig = JSON.stringify(body);
+  }
+
+  await api.patchNamespacedSecret(
+    {
+      name: KUBECONFIG_SECRET_NAME,
+      namespace: process.env.CURRENT_NAMESPACE,
+      body: {
+        data: {
+          kubeconfig: Buffer.from(kubeConfig, "utf-8").toString("base64"),
+        },
+      },
+    },
+    setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+  );
+
+  console.log("Kubeconfig patched successfully");
+}
+
+const app = kc.makeApiClient(AppsV1Api);
+
+// Restart the deployment
+await app.patchNamespacedDeployment(
+  {
+    name: "anvilops",
+    namespace: CURRENT_NAMESPACE,
+    body: {
+      spec: {
+        template: {
+          metadata: {
+            annotations: {
+              "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
+            },
+          },
+        },
+      },
+    },
+  },
+  setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+);
+
+console.log("Deployment restarted");

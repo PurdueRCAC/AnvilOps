@@ -41,6 +41,7 @@ spec:
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
+          args: ["./src/index.ts"]
           ports:
             - name: http
               containerPort: 3000
@@ -197,6 +198,11 @@ spec:
             {{- with .Values.anvilops.serviceAccount.secretName }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
+            - name: CLUSTER_ID # used for rotating the kubeconfig
+              valueFrom:
+                secretKeyRef:
+                  name: kube-auth
+                  key: cluster-id
             {{- end }}
             - name: CURRENT_NAMESPACE
               value: {{ .Release.Namespace }}
