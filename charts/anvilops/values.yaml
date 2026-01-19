@@ -85,6 +85,9 @@ anvilops:
       annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
+rancher:
+  enabled: false
+  apiBase: ""
 postgres:
   generateCredentials: true
   image: postgres:17

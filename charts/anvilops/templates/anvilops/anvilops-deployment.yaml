@@ -157,24 +157,23 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
+            {{- if .Values.rancher.enabled }}
+            {{- with .Values.rancher.apiBase }}
             - name: RANCHER_API_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: rancher-config
-                  key: api-base
-                  optional: true
+              value: {{ . }}
+            {{- end }}
             - name: RANCHER_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: rancher-config
                   key: api-token
-                  optional: true
             - name: SANDBOX_ID
               valueFrom:
                 secretKeyRef:
                   name: rancher-config
                   key: sandbox-id
                   optional: true
+            {{- end }}
             - name: FIELD_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
