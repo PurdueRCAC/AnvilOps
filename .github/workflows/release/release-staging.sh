@@ -10,4 +10,4 @@ export HELM_ARTIFACT_TAG="oci://registry.anvil.rcac.purdue.edu/anvilops-staging/
 VERSION="0.0.0-staging.$(date +%s)-$(git rev-parse HEAD)"
 
 CURRENT_DIR=$(dirname "$0")
-$CURRENT_DIR/release.sh "$VERSION"
+"$CURRENT_DIR"/release.sh "$VERSION"

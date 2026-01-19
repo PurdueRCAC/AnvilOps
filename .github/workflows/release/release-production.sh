@@ -12,7 +12,7 @@ if [ -z "$1" ]; then
 fi
 
 if [ ! -v CI ]; then
-  read -p "Script isn't being called from CI; are you sure you want to create a new GitHub release and push to the production registry namespace? (y/n): " response
+  read -pr "Script isn't being called from CI; are you sure you want to create a new GitHub release and push to the production registry namespace? (y/n): " response
 
   if [ "$response" != "y" ]; then
     exit 0
@@ -20,7 +20,7 @@ if [ ! -v CI ]; then
 fi
 
 if [ "$BRANCH" != "main" ]; then
-  read -p "Current branch isn't main; are you sure you want to create a new GitHub release and push to the production registry namespace? (y/n): " response
+  read -pr "Current branch isn't main; are you sure you want to create a new GitHub release and push to the production registry namespace? (y/n): " response
 
   if [ "$response" != "y" ]; then
     exit 0
@@ -32,4 +32,4 @@ export HELM_ARTIFACT_TAG="oci://registry.anvil.rcac.purdue.edu/anvilops/chart"
 export GENERATE_GITHUB_RELEASE="1"
 
 CURRENT_DIR=$(dirname "$0")
-$CURRENT_DIR/release.sh "$1"
+"$CURRENT_DIR"/release.sh "$1"
