@@ -116,13 +116,18 @@ Set the environment variable `LOGIN_TYPE` to the name of the login method that A
 
 ### Kubernetes API
 
-A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`.
+
+In production, create a secret `kube-auth` and set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+
+On Rancher-managed clusters, AnvilOps can automatically refresh the kubeconfig file. In `kube-auth`, set the key `cluster-id` to the cluster ID associated with the kubeconfig. When viewing a cluster in Rancher, the URL will look something like `https://<RANCHER_SERVER>/dashboard/c/<cluster id>/explorer`.
 
 ---
 
 **Note for Rancher-managed clusters**
 
 If your cluster uses a Rancher version < v2.10, the kubeconfig file must be configured to use an [Authorized Cluster Endpoint](https://ranchermanager.docs.rancher.com/reference-guides/rancher-manager-architecture/communicating-with-downstream-user-clusters#4-authorized-cluster-endpoint). This is to avoid a [bug](https://github.com/rancher/rancher/issues/41988) related to user impersonation. See the documentation for your Rancher version on configuring an Authorized Cluster Endpoint and using its context in your kubeconfig.
+In order to correctly refresh the kubeconfig, set the key `use-cluster-name` in the secret `kube-auth` to the name of the endpoint.
 
 ---
 
