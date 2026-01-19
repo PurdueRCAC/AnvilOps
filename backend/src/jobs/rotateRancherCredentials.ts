@@ -1,5 +1,4 @@
 import {
-  AppsV1Api,
   CoreV1Api,
   KubeConfig,
   PatchStrategy,
@@ -13,7 +12,7 @@ const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
 
 if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
   console.log("RANCHER_API_BASE or RANCHER_TOKEN not set, skipping rotation");
-  exit(0);
+  exit(1);
 }
 
 const KUBECONFIG_SECRET_NAME = process.env.KUBECONFIG_SECRET_NAME;
@@ -104,27 +103,3 @@ if (KUBECONFIG_PATH) {
 
   console.log("Kubeconfig patched successfully");
 }
-
-const app = kc.makeApiClient(AppsV1Api);
-
-// Restart the deployment
-await app.patchNamespacedDeployment(
-  {
-    name: "anvilops",
-    namespace: CURRENT_NAMESPACE,
-    body: {
-      spec: {
-        template: {
-          metadata: {
-            annotations: {
-              "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
-            },
-          },
-        },
-      },
-    },
-  },
-  setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
-);
-
-console.log("Deployment restarted");

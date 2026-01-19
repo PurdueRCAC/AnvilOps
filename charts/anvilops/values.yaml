@@ -88,6 +88,8 @@ anvilops:
 rancher:
   enabled: false
   apiBase: ""
+  refreshTokens: true
+  refreshSchedule: "0 0 25 * *"
 postgres:
   generateCredentials: true
   image: postgres:17
