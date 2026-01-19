@@ -49,10 +49,11 @@ check_error
 
 # ESLint: TypeScript files
 cd $PROJECT_ROOT/openapi
+npm ci
 npm run generate
 
 cd $PROJECT_ROOT/backend
-npx prisma generate
+DATABASE_URL=placeholder npx prisma generate
 
 printf "\n======================================\nRunning eslint (frontend)\n======================================\n"
 cd $PROJECT_ROOT/frontend
