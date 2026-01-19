@@ -1,0 +1,78 @@
+name: Update Railpack Binary
+
+on:
+  schedule:
+    # Runs every 3 days at 19:30 UTC
+    - cron: "30 19 */3 * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      # Rerun the workflow when the Railpack Dockerfile changes so that it can close the PR if Railpack is updated manually
+      - builders/railpack/Dockerfile
+
+jobs:
+  check-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Check and Update Version
+        id: version_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DOCKERFILE="builders/railpack/Dockerfile"
+
+          # Get current version from Dockerfile
+          CURRENT_VERSION=$(grep "RAILPACK_VERSION=" "$DOCKERFILE" | cut -d= -f 2)
+          echo "Current version: $CURRENT_VERSION"
+
+          # Get the latest version from the Railpack repo
+          LATEST_TAG=$(gh release view --repo railwayapp/railpack --json tagName --jq '.tagName')
+          LATEST_VERSION="${LATEST_TAG#v}" # Strip the "v" prefix from the tag
+          echo "Latest version available: $LATEST_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "Update found! Updating $DOCKERFILE..."
+            # Replace the version in the Dockerfile
+            sed -i "s/RAILPACK_VERSION=$CURRENT_VERSION/RAILPACK_VERSION=$LATEST_VERSION/" "$DOCKERFILE"
+
+            # (the `sed` step is to escape @ characters so that they don't ping anyone)
+            RELEASE_NOTES=$(gh release view "$LATEST_TAG" --repo railwayapp/railpack --json body --jq '.body' | sed 's/@/\\@/g')
+
+            # Export variables for the next step
+            echo "updated=true" >> $GITHUB_OUTPUT
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "notes<<EOF" >> $GITHUB_OUTPUT
+            echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "Railpack is up to date."
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.version_check.outputs.updated == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
+          title: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
+          body: |
+            Update Railpack to version ${{ steps.version_check.outputs.new_version }}.
+
+            ---
+
+            ## Release Notes
+
+            ${{ steps.version_check.outputs.notes }}
+          branch: automation/update-railpack
+          delete-branch: true # Delete the branch if there are no changes
+          labels: dependencies
