@@ -36,12 +36,13 @@ RUN npm run prisma:generate
 # BACKEND: compile regclient Node-API bindings
 FROM base AS compile_regclient_bindings
 
+ARG TARGET_ARCH
 # https://docs.docker.com/reference/dockerfile/#example-cache-apt-packages
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends build-essential golang ca-certificates python3
+    apt-get install -y --no-install-recommends build-essential=12.12 golang=2:1.24~2 ca-certificates=20250419 python3=3.13.5-1
 
 WORKDIR /app
 COPY backend/package*.json .
@@ -59,7 +60,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloa
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates
+    apt-get install -y --no-install-recommends ca-certificates=20250419
 
 ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
 CMD ["./src/index.ts"]
