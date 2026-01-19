@@ -5,15 +5,9 @@ on:
     # Runs every day at 19:30 UTC
     - cron: "30 19 * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      # Rerun the workflow when the Railpack Dockerfile changes so that it can close the PR if Railpack is updated manually
-      - builders/railpack/Dockerfile
 
 jobs:
   check-version:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,7 +39,7 @@ jobs:
             sed -i "s/RAILPACK_VERSION=$CURRENT_VERSION/RAILPACK_VERSION=$LATEST_VERSION/" "$DOCKERFILE"
 
             # (the `sed` step is to escape @ characters so that they don't ping anyone)
-            RELEASE_NOTES=$(gh release view "$LATEST_TAG" --repo railwayapp/railpack --json body --jq '.body' | sed 's/@/\\@/g')
+            RELEASE_NOTES=$(gh release view "$LATEST_TAG" --repo railwayapp/railpack --json body --jq '.body' | sed 's/@/\`@\`/g')
 
             # Export variables for the next step
             echo "updated=true" >> $GITHUB_OUTPUT
@@ -66,7 +60,7 @@ jobs:
           commit-message: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           title: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           body: |
-            Update Railpack to version ${{ steps.version_check.outputs.new_version }}.
+            Update Railpack to version ${{ steps.version_check.outputs.new_version }}. _This pull request was automatically created by `.github/workflows/update-railpack.yml`._
 
             ---
 
