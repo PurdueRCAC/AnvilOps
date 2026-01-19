@@ -95,14 +95,6 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
   }, {}) as Pick<APIClientTypes, Names[number]>;
 }
 
-export const namespaceInUse = async (namespace: string) => {
-  return resourceExists(svcK8s["KubernetesObjectApi"], {
-    apiVersion: "v1",
-    kind: "Namespace",
-    metadata: { name: namespace },
-  });
-};
-
 export const resourceExists = async (
   api: KubernetesObjectApi,
   data: K8sObject,

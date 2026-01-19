@@ -10,7 +10,6 @@ import {
 } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
 export type StatusUpdate = {};
@@ -77,7 +76,7 @@ export async function getAppStatus(
     await callback(newStatus);
   };
 
-  const ns = getNamespace(app.namespace);
+  const ns = app.namespace;
 
   const close = (err: any) => {
     if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {

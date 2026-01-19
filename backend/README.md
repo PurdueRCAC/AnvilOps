@@ -116,7 +116,9 @@ Set the environment variable `LOGIN_TYPE` to the name of the login method that A
 
 ### Kubernetes API
 
-A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to the location where the file is mounted within the pod. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+
+Ensure that the user associated with the kubeconfig has permission to read namespaces globally.
 
 ---
 

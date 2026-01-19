@@ -4,10 +4,7 @@ import {
   deleteNamespace,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
-import {
-  createAppConfigsFromDeployment,
-  getNamespace,
-} from "../lib/cluster/resources.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
@@ -36,7 +33,7 @@ export async function deleteApp(
       projectId,
       ["KubernetesObjectApi"],
     );
-    await deleteNamespace(api, getNamespace(namespace));
+    await deleteNamespace(api, namespace);
   } else if (config.appType === "workload" && config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
     config.collectLogs = false; // <-- Disable log shipping

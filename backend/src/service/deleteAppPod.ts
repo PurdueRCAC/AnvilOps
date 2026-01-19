@@ -1,6 +1,5 @@
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
 export async function deleteAppPod(
@@ -20,7 +19,7 @@ export async function deleteAppPod(
   ]);
 
   await api.deleteNamespacedPod({
-    namespace: getNamespace(app.namespace),
+    namespace: app.namespace,
     name: podName,
   });
 }

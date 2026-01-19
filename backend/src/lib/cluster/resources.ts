@@ -39,9 +39,6 @@ export const MAX_STS_NAME_LEN = 60;
 
 export const getRandomTag = (): string => randomBytes(4).toString("hex");
 export const RANDOM_TAG_LEN = 8;
-
-export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
-
 export interface K8sObject {
   apiVersion: string;
   kind: string;
@@ -153,9 +150,7 @@ export const createAppConfigsFromDeployment = async (
   deployment: Deployment,
   conf: WorkloadConfig,
 ) => {
-  const namespaceName = getNamespace(app.namespace);
-
-  const namespace = createNamespaceConfig(namespaceName, app.projectId);
+  const namespace = createNamespaceConfig(app.namespace, app.projectId);
   const configs: K8sObject[] = [];
 
   const octokit =
@@ -175,7 +170,7 @@ export const createAppConfigsFromDeployment = async (
     const secretConfig = createSecretConfig(
       secretData,
       secretName,
-      namespaceName,
+      app.namespace,
     );
 
     // Secrets should be created first
@@ -186,8 +181,8 @@ export const createAppConfigsFromDeployment = async (
     deploymentId: deployment.id,
     collectLogs: conf.collectLogs,
     name: app.name,
-    namespace: namespaceName,
-    serviceName: namespaceName,
+    namespace: app.namespace,
+    serviceName: app.namespace,
     image: conf.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
@@ -226,13 +221,13 @@ export const createAppConfigsFromDeployment = async (
   const postCreate = async (api: KubernetesObjectApi) => {
     // Clean up secrets and ingresses from previous deployments of the app
     const secrets = (await api
-      .list("v1", "Secret", namespaceName)
+      .list("v1", "Secret", app.namespace)
       .then((data) => data.items)
       .then((data) =>
         data.map((d) => ({ ...d, apiVersion: "v1", kind: "Secret" })),
       )) as (V1Secret & K8sObject)[];
     const ingresses = (await api
-      .list("networking.k8s.io/v1", "Ingress", namespaceName)
+      .list("networking.k8s.io/v1", "Ingress", app.namespace)
       .then((data) => data.items)
       .then((data) =>
         data.map((d) => ({
