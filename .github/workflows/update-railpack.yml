@@ -26,7 +26,7 @@ jobs:
       - name: Check and Update Version
         id: version_check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.UPDATE_RAILPACK_GITHUB_TOKEN }}
         run: |
           DOCKERFILE="builders/railpack/Dockerfile"
 
@@ -62,7 +62,7 @@ jobs:
         if: steps.version_check.outputs.updated == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.UPDATE_RAILPACK_GITHUB_TOKEN }}
           commit-message: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           title: "Update Railpack to ${{ steps.version_check.outputs.new_version }}"
           body: |
