@@ -2,8 +2,8 @@ name: Update Railpack Binary
 
 on:
   schedule:
-    # Runs every 3 days at 19:30 UTC
-    - cron: "30 19 */3 * *"
+    # Runs every day at 19:30 UTC
+    - cron: "30 19 * * *"
   workflow_dispatch:
   push:
     branches: [main]
