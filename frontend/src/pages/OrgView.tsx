@@ -17,7 +17,7 @@ import { Check, Loader, Send, X } from "lucide-react";
 import { Suspense, useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Status, type DeploymentStatus } from "./app/AppView";
+import { Status } from "./app/AppView";
 
 export default function OrgView() {
   const { user, refetch } = useContext(UserContext);
