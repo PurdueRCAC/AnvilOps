@@ -18,7 +18,7 @@ if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
 const KUBECONFIG_SECRET_NAME = process.env.KUBECONFIG_SECRET_NAME;
 const KUBECONFIG_PATH = process.env.KUBECONFIG;
 const CURRENT_NAMESPACE = process.env.CURRENT_NAMESPACE;
-const USE_CLUSTER_NAME = process.env.CLUSTER_NAME;
+const USE_CLUSTER_NAME = process.env.USE_CLUSTER_NAME;
 const CLUSTER_ID = process.env.CLUSTER_ID;
 
 const kc = new KubeConfig();
