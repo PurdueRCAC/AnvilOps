@@ -47,7 +47,8 @@ func GetImageInfo(refIn *C.char, tlsOverrideHostnameIn *C.char, tlsOverrideState
 func getImageInfo(refInput string, tlsOverrideHostname string, tlsOverrideState string) (*blob.BOCIConfig, error) {
 	// https://github.com/regclient/regclient/blob/b59559fa7f07b20fc367f158468632f26e17b3fc/cmd/regctl/image.go#L1617
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 
 	hosts := []config.Host{}
 
@@ -76,9 +77,13 @@ func getImageInfo(refInput string, tlsOverrideHostname string, tlsOverrideState 
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close(ctx, r)
 
 	manifest, err := client.ImageConfig(ctx, r)
+	if err != nil {
+		return manifest, err
+	}
+
+	err = client.Close(ctx, r)
 
 	return manifest, err
 }

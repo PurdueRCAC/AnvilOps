@@ -77,7 +77,7 @@ func main() {
 		if err != nil {
 			errorLogger.Panicf("Error setting up stdout redirection: %s\n", err.Error())
 		}
-		defer stdout.Close()
+		defer func() { _ = stdout.Close() }()
 		go readStream("stdout", stdout)
 	}
 
@@ -87,7 +87,7 @@ func main() {
 		if err != nil {
 			errorLogger.Panicf("Error setting up stderr redirection: %s\n", err.Error())
 		}
-		defer stderr.Close()
+		defer func() { _ = stderr.Close() }()
 		go readStream("stderr", stderr)
 	}
 
@@ -283,7 +283,7 @@ func send(lines []LogLine, env *EnvVars) {
 		}
 	} else if res.StatusCode != 200 {
 		body, err := io.ReadAll(res.Body)
-		res.Body.Close()
+		_ = res.Body.Close()
 
 		if err != nil {
 			errorLogger.Printf("Error uploading logs: %v (error reading response body)\n", res.StatusCode)
@@ -303,7 +303,7 @@ func send(lines []LogLine, env *EnvVars) {
 			}
 		}
 	} else {
-		res.Body.Close()
+		_ = res.Body.Close()
 	}
 }
 
