@@ -6,6 +6,7 @@ import {
   setHeaderOptions,
 } from "@kubernetes/client-node";
 import { exit } from "node:process";
+import * as yaml from "yaml";
 
 const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
 const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
@@ -83,9 +84,9 @@ if (KUBECONFIG_PATH) {
   let kubeConfig = kubeConfigRes["config"];
 
   if (USE_CLUSTER_NAME) {
-    const body = JSON.parse(kubeConfig);
+    const body = yaml.parse(kubeConfig);
     body["current-context"] = USE_CLUSTER_NAME;
-    kubeConfig = JSON.stringify(body);
+    kubeConfig = yaml.stringify(body);
   }
 
   await api.patchNamespacedSecret(
