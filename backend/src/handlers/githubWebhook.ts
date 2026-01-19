@@ -28,7 +28,10 @@ export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
   }
 
   const requestType = ctx.request.headers["x-github-event"];
-  const action = ctx.request.requestBody["action"];
+  const action =
+    "action" in ctx.request.requestBody
+      ? ctx.request.requestBody["action"]
+      : null;
 
   try {
     await processGitHubWebhookPayload(requestType, action, JSON.parse(data));

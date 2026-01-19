@@ -14,7 +14,7 @@ export const acceptInvitationHandler: HandlerMap["acceptInvitation"] = async (
       ctx.request.params.orgId,
       req.user.id,
     );
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof InvitationNotFoundError) {
       return json(404, res, { code: 404, message: "Invitation not found." });
     }

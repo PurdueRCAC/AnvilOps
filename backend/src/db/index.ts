@@ -3,7 +3,7 @@ import type { DefaultArgs } from "@prisma/client/runtime/client";
 import connectPgSimple from "connect-pg-simple";
 import session from "express-session";
 import { Pool, type Notification } from "pg";
-import "../../prisma/types.ts";
+import "../../prisma/types.js";
 import { PrismaClient } from "../generated/prisma/client.ts";
 import { env } from "../lib/env.ts";
 import { AppRepo } from "./repo/app.ts";
@@ -60,7 +60,10 @@ export class Database {
 
   cache = new CacheRepo(this.client);
 
-  deployment = new DeploymentRepo(this.client, this.publish.bind(this));
+  deployment = new DeploymentRepo(
+    this.client,
+    this.publish.bind(this) as typeof this.publish,
+  );
 
   invitation = new InvitationRepo(this.client);
 

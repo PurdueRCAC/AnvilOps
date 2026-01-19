@@ -15,7 +15,7 @@ export const getAppFileHandler: HandlerMap["getAppFile"] = async (
   res,
 ) => {
   return await forward(
-    req.user.id,
+    req,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
     `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
@@ -30,7 +30,7 @@ export const downloadAppFileHandler: HandlerMap["downloadAppFile"] = async (
   res,
 ) => {
   return await forward(
-    req.user.id,
+    req,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
     `/file/download?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
@@ -45,7 +45,7 @@ export const writeAppFileHandler: HandlerMap["writeAppFile"] = async (
   res,
 ) => {
   return await forward(
-    req.user.id,
+    req,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
     `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
@@ -68,7 +68,7 @@ export const deleteAppFileHandler: HandlerMap["deleteAppFile"] = async (
   res,
 ) => {
   return await forward(
-    req.user.id,
+    req,
     ctx.request.params.appId,
     ctx.request.query.volumeClaimName,
     `/file?${new URLSearchParams(req.query as Record<string, string>).toString()}`,
@@ -78,17 +78,24 @@ export const deleteAppFileHandler: HandlerMap["deleteAppFile"] = async (
 };
 
 async function forward(
-  userId: number,
+  req: AuthenticatedRequest,
   appId: number,
   volumeClaimName: string,
   path: string,
   requestInit: RequestInit,
   res: ExpressResponse,
 ) {
+  const abortController = new AbortController();
+
+  abortController.signal.addEventListener("abort", () => res.end());
+  req.on("close", () => abortController.abort());
+
+  requestInit.signal = abortController.signal;
+
   let response: Response;
   try {
     response = await forwardToFileBrowser(
-      userId,
+      req.user.id,
       appId,
       volumeClaimName,
       path,
@@ -112,11 +119,8 @@ async function forward(
     throw new Error("Failed reading file contents: " + (await response.text()));
   }
 
-  const reader = response.body.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      res.end();
+  for await (const chunk of response.body) {
+    if (abortController.signal.aborted) {
       break;
     }
     if (!res.headersSent) {
@@ -132,6 +136,6 @@ async function forward(
       }
       res.writeHead(200, headers);
     }
-    res.write(value);
+    res.write(chunk);
   }
 }

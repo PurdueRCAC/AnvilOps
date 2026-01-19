@@ -40,7 +40,7 @@ export class InvitationRepo {
           },
         });
       });
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
         // https://www.prisma.io/docs/orm/reference/error-reference#p2025
         throw new NotFoundError("invitation", e);
@@ -87,7 +87,7 @@ export class InvitationRepo {
           },
         },
       });
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
         // https://www.prisma.io/docs/orm/reference/error-reference#p2025
         // "An operation failed because it depends on one or more records that were required but not found."
@@ -121,7 +121,7 @@ export class InvitationRepo {
           ],
         },
       });
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof PrismaClientKnownRequestError && e.code === "P2025") {
         throw new NotFoundError("invitation");
       }

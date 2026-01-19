@@ -26,7 +26,7 @@ type ChartTagList = {
 };
 
 export const getChartToken = async () => {
-  return fetch(
+  return await fetch(
     `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
   )
     .then((res) => {
@@ -37,7 +37,11 @@ export const getChartToken = async () => {
       return res;
     })
     .then((res) => res.text())
-    .then((res) => JSON.parse(res))
+    .then(
+      (res) =>
+        // https://distribution.github.io/distribution/spec/auth/jwt/#getting-a-bearer-token
+        JSON.parse(res) as { token: string },
+    )
     .then((res) => {
       return res.token;
     });

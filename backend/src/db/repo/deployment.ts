@@ -25,14 +25,14 @@ import type {
 } from "../models.ts";
 
 type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
-type PrismaHelmConfigCreate = Omit<HelmConfigCreate, "appType" | "source">;
+
 export class DeploymentRepo {
   private client: PrismaClientType;
-  private publish: (topic: string, payload: any) => Promise<void>;
+  private publish: (topic: string, payload: unknown) => Promise<void>;
 
   constructor(
     client: PrismaClientType,
-    publish: (topic: string, payload: any) => Promise<void>,
+    publish: (topic: string, payload: unknown) => Promise<void>,
   ) {
     this.client = client;
     this.publish = publish;
@@ -140,7 +140,7 @@ export class DeploymentRepo {
   }
 
   async getFromSecret(secret: string): Promise<Deployment | null> {
-    return this.client.deployment.findUnique({
+    return await this.client.deployment.findUnique({
       where: { secret: secret },
       select: {
         id: true,
@@ -161,7 +161,7 @@ export class DeploymentRepo {
     appId: number,
     workflowRunId: number,
   ): Promise<Deployment | null> {
-    return this.client.deployment.findUnique({
+    return await this.client.deployment.findUnique({
       where: { appId, workflowRunId },
       select: {
         id: true,
@@ -244,7 +244,7 @@ export class DeploymentRepo {
       asGitConfig() {
         return wrapped.asWorkloadConfig().asGitConfig();
       },
-    } satisfies DeploymentConfig;
+    } satisfies DeploymentConfig as DeploymentConfig;
 
     return wrapped;
   }
@@ -279,7 +279,7 @@ export class DeploymentRepo {
           throw new Error("Workload is not deployed from Git");
         }
       },
-    } satisfies WorkloadConfig;
+    } satisfies WorkloadConfig as WorkloadConfig;
 
     return obj;
   }
@@ -337,12 +337,14 @@ export class DeploymentRepo {
       deploymentIds.add(log.deploymentId);
     }
 
-    for (const deploymentId of deploymentIds) {
-      if (typeof deploymentId !== "number") {
-        continue;
-      }
-      await this.publish(`deployment_${deploymentId}_logs`, "");
-    }
+    await Promise.all(
+      [...deploymentIds].map((deploymentId) => {
+        if (typeof deploymentId !== "number") {
+          return Promise.resolve();
+        }
+        return this.publish(`deployment_${deploymentId}_logs`, "");
+      }),
+    );
   }
 
   async unlinkRepositoryFromAllDeployments(repoId: number) {

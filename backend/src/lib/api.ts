@@ -19,15 +19,15 @@ const api = new OpenAPIBackend({
   handlers: {
     ...handlers,
 
-    methodNotAllowed: (ctxt, req, res) => {
+    methodNotAllowed: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(405).json({ code: 405, message: "Method not allowed" });
     },
 
-    notFound: (ctxt, req, res) => {
+    notFound: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(404).json({ code: 404, message: "No such method" });
     },
 
-    validationFail: (ctx, req, res) => {
+    validationFail: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(400).json({
         code: 400,
         message: "Request validation failed",
@@ -54,7 +54,7 @@ const api = new OpenAPIBackend({
   },
 });
 
-api.init();
+await api.init();
 
 const handler = async (req: ExpressRequest, res: ExpressResponse) => {
   try {
