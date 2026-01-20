@@ -38,7 +38,20 @@ export async function deleteApp(
       projectId,
       ["KubernetesObjectApi"],
     );
-    await deleteNamespace(api, getNamespace(namespace));
+    try {
+      await deleteNamespace(api, getNamespace(namespace));
+    } catch (err) {
+      logger.warn(
+        { namespace: getNamespace(namespace) },
+        "Failed to delete namespace",
+      );
+      const span = trace.getActiveSpan();
+      span?.recordException(err);
+      span?.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: "Failed to delete namespace",
+      });
+    }
   } else if (config.appType === "workload" && config.collectLogs) {
     // If the log shipper was enabled, redeploy without it
     config.collectLogs = false; // <-- Disable log shipping
