@@ -8,10 +8,21 @@ import {
   type V1StatefulSet,
   type Watch,
 } from "@kubernetes/client-node";
+import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError } from "./common/errors.ts";
+
+const meter = metrics.getMeter("app_status_viewer");
+const concurrentViewers = meter.createUpDownCounter(
+  "anvilops_concurrent_status_viewers",
+  {
+    description:
+      "The total number of open connections which are actively watching an app's status",
+    valueType: ValueType.INT,
+  },
+);
 
 export type StatusUpdate = {};
 
@@ -85,6 +96,11 @@ export async function getAppStatus(
     }
     abortController.abort();
   };
+
+  concurrentViewers.add(1);
+  abortController.signal.addEventListener("abort", () =>
+    concurrentViewers.add(-1),
+  );
 
   try {
     const {

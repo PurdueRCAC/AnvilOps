@@ -1,7 +1,12 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ConflictError, db } from "../db/index.ts";
 import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import { OrgNotFoundError, ValidationError } from "../service/common/errors.ts";
+import {
+  AppCreateError,
+  OrgNotFoundError,
+  ValidationError,
+} from "../service/common/errors.ts";
 import { type NewApp } from "../service/createApp.ts";
 import {
   appService,
@@ -86,11 +91,22 @@ export async function createAppGroup(
       throw err;
     }
 
-    await deploymentService.create({
-      org: organization,
-      app,
-      commitMessage,
-      config,
-    });
+    try {
+      await deploymentService.create({
+        org: organization,
+        app,
+        commitMessage,
+        config,
+      });
+    } catch (err) {
+      const span = trace.getActiveSpan();
+      span?.recordException(err);
+      span?.setStatus({
+        code: SpanStatusCode.ERROR,
+        message:
+          "Failed to create app's initial deployment while creating app group",
+      });
+      throw new AppCreateError(appData.name, err);
+    }
   }
 }
