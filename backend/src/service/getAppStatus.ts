@@ -11,7 +11,6 @@ import {
 import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
 const meter = metrics.getMeter("app_status_viewer");
@@ -88,7 +87,7 @@ export async function getAppStatus(
     await callback(newStatus);
   };
 
-  const ns = getNamespace(app.namespace);
+  const ns = app.namespace;
 
   const close = (err: any) => {
     if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {

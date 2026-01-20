@@ -30,6 +30,7 @@ export type WorkloadFormFields = {
   collectLogs: boolean;
   cpuCores: string;
   memoryInMiB: string;
+  namespace?: string;
 
   git: GitFormFields;
   image: ImageFormFields;

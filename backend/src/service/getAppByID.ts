@@ -1,6 +1,5 @@
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 import { deploymentConfigService } from "./helper/index.ts";
@@ -25,7 +24,7 @@ export async function getAppByID(appId: number, userId: number) {
         ["AppsV1Api"],
       );
       return await api.readNamespacedStatefulSet({
-        namespace: getNamespace(app.namespace),
+        namespace: app.namespace,
         name: app.name,
       });
     } catch {}
