@@ -1,4 +1,5 @@
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError } from "./common/errors.ts";
@@ -23,4 +24,8 @@ export async function deleteAppPod(
     namespace: getNamespace(app.namespace),
     name: podName,
   });
+  logger.info(
+    { podName, namespace: app.namespace, appId, userId },
+    "App pod deleted",
+  );
 }

@@ -1,4 +1,5 @@
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import {
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
@@ -53,6 +54,11 @@ export async function createGitHubAuthorizationState(
 
   // Save the installation ID temporarily
   await db.org.setTemporaryInstallationId(orgId, stateUserId, installationId);
+
+  logger.info(
+    { userId, orgId, installationId },
+    "GitHub installation ID received (2/3)",
+  );
 
   // Generate a new `state`
   const newState = await createState(

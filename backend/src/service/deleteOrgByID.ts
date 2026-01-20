@@ -1,4 +1,5 @@
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { OrgNotFoundError } from "./common/errors.ts";
 import { deleteApp } from "./deleteApp.ts";
 
@@ -18,4 +19,5 @@ export async function deleteOrgByID(orgId: number, userId: number) {
   );
 
   await db.org.delete(orgId);
+  logger.info({ orgId, userId }, "Organization deleted");
 }
