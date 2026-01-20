@@ -21,6 +21,8 @@ anvilops:
     railpackInternalRuntimeImage: ghcr.io/railwayapp/railpack-runtime:latest
     allowHelmDeployments: true
     registryProtocol: http
+    otelEndpoint: "" # the Tiltfile overrides this if monitoring is enabled
+    otelServiceName: anvilops
   cluster:
     name: "Local"
     faq:

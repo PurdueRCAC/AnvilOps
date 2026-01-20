@@ -1,10 +1,29 @@
 import type { V1PodList } from "@kubernetes/client-node";
+import { metrics, ValueType } from "@opentelemetry/api";
 import stream from "node:stream";
 import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { AppNotFoundError, ValidationError } from "./common/errors.ts";
+
+const meter = metrics.getMeter("log_viewer");
+const dbConcurrentViewers = meter.createUpDownCounter(
+  "anvilops_concurrent_db_log_viewers",
+  {
+    description:
+      "The total number of open connections which are actively viewing a log stream from the database",
+    valueType: ValueType.INT,
+  },
+);
+const k8sConcurrentViewers = meter.createUpDownCounter(
+  "anvilops_concurrent_k8s_log_viewers",
+  {
+    description:
+      "The total number of open connections which are actively viewing a log stream directly from Kubernetes pods",
+    valueType: ValueType.INT,
+  },
+);
 
 export async function getAppLogs(
   appId: number,
@@ -62,8 +81,12 @@ export async function getAppLogs(
       `deployment_${deploymentId}_logs`,
       fetchNewLogs,
     );
+    dbConcurrentViewers.add(1);
 
-    abortController.signal.addEventListener("abort", unsubscribe);
+    abortController.signal.addEventListener("abort", () => {
+      dbConcurrentViewers.add(-1);
+      unsubscribe();
+    });
 
     // Send all previous logs now
     await fetchNewLogs();
@@ -101,9 +124,11 @@ export async function getAppLogs(
         logStream,
         { follow: true, tailLines: 500, timestamps: true },
       );
-      abortController.signal.addEventListener("abort", () =>
-        logAbortController.abort(),
-      );
+      k8sConcurrentViewers.add(1);
+      abortController.signal.addEventListener("abort", () => {
+        logAbortController.abort();
+        k8sConcurrentViewers.add(-1);
+      });
       let i = 0;
       let current = "";
       logStream.on("data", async (chunk: Buffer) => {

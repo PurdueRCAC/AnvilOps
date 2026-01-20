@@ -1,6 +1,8 @@
+import { logger } from "../index.ts";
 import { env } from "./env.ts";
 
 export async function deleteRepo(name: string) {
+  logger.info({ name }, "Deleting image repository");
   const headers = {
     authorization: `Basic ${Buffer.from(env.DELETE_REPO_USERNAME + ":" + env.DELETE_REPO_PASSWORD).toString("base64")}`,
   };
