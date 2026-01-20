@@ -22,10 +22,8 @@ if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
   exit(1);
 }
 
-if (!KUBECONFIG_SECRET_NAME || !CLUSTER_ID || !CURRENT_NAMESPACE) {
-  console.log(
-    "KUBECONFIG_SECRET_NAME, CLUSTER_ID, or CURRENT_NAMESPACE not set, cannot get kubeconfig",
-  );
+if (!CLUSTER_ID) {
+  console.log("CLUSTER_ID not set, cannot get kubeconfig");
   exit(1);
 }
 
