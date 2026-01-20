@@ -1,9 +1,0 @@
-diff --git a/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts b/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
-index 594416c..9252afd 100644
---- a/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
-+++ b/node_modules/@opentelemetry/core/build/src/platform/node/index.d.ts
-@@ -1,3 +1,4 @@
-+import type { Performance } from "node:perf_hooks"; // AnvilOps patch: fix TypeScript error
- export { getStringFromEnv, getBooleanFromEnv, getNumberFromEnv, getStringListFromEnv, } from './environment';
- export { _globalThis } from '../../common/globalThis';
- export { SDK_INFO } from './sdk-info';
