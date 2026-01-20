@@ -17,6 +17,7 @@ import { getOctokit } from "../octokit.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
+  createDeploymentConfig,
   createStatefulSetConfig,
   generateAutomaticEnvVars,
 } from "./resources/statefulset.ts";
@@ -202,9 +203,13 @@ export const createAppConfigsFromDeployment = async (
 
   const svc = createServiceConfig(params);
   const ingress = createIngressConfig(params);
-  const statefulSet = await createStatefulSetConfig(params);
 
-  configs.push(statefulSet, svc);
+  const deploymentSpec =
+    params.mounts.length === 0
+      ? await createDeploymentConfig(params)
+      : await createStatefulSetConfig(params);
+
+  configs.push(deploymentSpec, svc);
   if (ingress !== null) {
     // ^ Can be null if APP_DOMAIN is not set, meaning no Ingress should be created for the app
     configs.push(ingress);

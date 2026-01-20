@@ -1,4 +1,8 @@
-import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
+import type {
+  V1Deployment,
+  V1EnvVar,
+  V1StatefulSet,
+} from "@kubernetes/client-node";
 import crypto from "node:crypto";
 import type { Octokit } from "octokit";
 import type { App, Deployment, WorkloadConfig } from "../../../db/models.ts";
@@ -184,6 +188,70 @@ export const createStatefulSetConfig = async (
       },
     },
   };
+  if (params.collectLogs) {
+    base.spec.template = await wrapWithLogExporter(
+      "runtime",
+      params.logIngestSecret,
+      params.deploymentId,
+      base.spec.template,
+    );
+  }
+
+  return base;
+};
+
+export const createDeploymentConfig = async (
+  params: DeploymentParams,
+): Promise<V1Deployment & K8sObject> => {
+  const base = {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
+    metadata: {
+      name: params.name,
+      namespace: params.namespace,
+    },
+    spec: {
+      selector: {
+        matchLabels: {
+          app: params.name,
+        },
+      },
+      template: {
+        metadata: {
+          labels: {
+            app: params.name,
+          },
+        },
+        spec: {
+          automountServiceAccountToken: false,
+          // Set to an empty array (instead of undefined) so that disabling collectLogs in an existing app
+          // removes the initContainer
+          initContainers: [],
+          volumes: [], // same as above
+          containers: [
+            {
+              name: params.name,
+              image: params.image,
+              imagePullPolicy: "Always",
+              ports: [
+                {
+                  containerPort: params.port,
+                  protocol: "TCP",
+                },
+              ],
+              resources: {
+                requests: params.requests,
+                limits: params.limits,
+              },
+              env: params.env,
+              lifecycle: {},
+            },
+          ],
+        },
+      },
+    },
+  };
+
   if (params.collectLogs) {
     base.spec.template = await wrapWithLogExporter(
       "runtime",
