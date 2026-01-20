@@ -1,8 +1,10 @@
 import {
+  AppsV1Api,
   CoreV1Api,
   KubeConfig,
   PatchStrategy,
   setHeaderOptions,
+  type V1Deployment,
 } from "@kubernetes/client-node";
 import { exit } from "node:process";
 import * as yaml from "yaml";
@@ -102,3 +104,73 @@ if (KUBECONFIG_SECRET_NAME) {
 
   console.log("Kubeconfig patched successfully");
 }
+
+const app = kc.makeApiClient(AppsV1Api);
+const isDeploymentReady = async (deployment: V1Deployment) => {
+  const deploy = await app.readNamespacedDeployment({
+    name: deployment.metadata?.name,
+    namespace: CURRENT_NAMESPACE,
+  });
+  return deploy.status?.readyReplicas === deploy.status?.replicas;
+};
+
+// Restart the deployment
+const deployment = await app.patchNamespacedDeployment(
+  {
+    name: "anvilops",
+    namespace: CURRENT_NAMESPACE,
+    body: {
+      spec: {
+        template: {
+          metadata: {
+            annotations: {
+              "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
+            },
+          },
+        },
+      },
+    },
+  },
+  setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+);
+console.log("Deployment restarted");
+
+let ready = false;
+const maxDelay = 5000;
+const maxRetries = 8;
+for (let i = 0; i < maxRetries; i++) {
+  if (await isDeploymentReady(deployment)) {
+    ready = true;
+    break;
+  }
+  const delay = Math.min(500 * Math.pow(2, i), maxDelay);
+  await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+if (!ready) {
+  throw new Error("Timed out waiting for deployment to restart");
+}
+
+// Delete the previous Kubeconfig
+const oldKubeconfigName = kc.getCurrentUser().token.split(":")[0];
+await fetch(`${RANCHER_API_BASE}/tokens/${oldKubeconfigName}`, {
+  method: "DELETE",
+  headers: {
+    Authorization: `Basic ${token}`,
+    Accept: "application/json",
+  },
+});
+console.log("Deleted previous Kubeconfig");
+
+// Delete the previous Rancher token
+const rancherTokenName = Buffer.from(RANCHER_TOKEN, "base64")
+  .toString("utf-8")
+  .split(":")[0];
+await fetch(`${RANCHER_API_BASE}/tokens/${rancherTokenName}`, {
+  method: "DELETE",
+  headers: {
+    Authorization: `Basic ${token}`,
+    Accept: "application/json",
+  },
+});
+console.log("Deleted previous Rancher token");

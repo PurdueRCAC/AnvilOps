@@ -41,7 +41,7 @@ const kcReq = await fetch(
 );
 
 if (!kcReq.ok) {
-  throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
+  throw new Error("Failed to get kubeconfig: " + kcReq.statusText);
 }
 
 const kubeConfigRes = await kcReq.json();
