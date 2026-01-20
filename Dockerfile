@@ -104,3 +104,6 @@ COPY --chown=65532:65532 --from=backend_build --exclude=**/node_modules/** /app 
 
 USER 65532
 # ^ This user already exists in the distroless base image
+
+ARG BUILD_DATE=
+ENV BUILD_DATE=$BUILD_DATE

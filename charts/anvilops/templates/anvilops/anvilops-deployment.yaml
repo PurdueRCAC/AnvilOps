@@ -74,6 +74,8 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
+            - name: ANVILOPS_VERSION
+              value: {{ .Chart.Version }}
             - name: CLUSTER_CONFIG_PATH
               value: /opt/config/cluster.json
             - name: POSTGRES_USER
