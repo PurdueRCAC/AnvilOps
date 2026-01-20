@@ -120,7 +120,7 @@ A kubeconfig file is needed to manage resources through the Kubernetes API. Spec
 
 In production, create a secret `kube-auth` and set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
 
-On Rancher-managed clusters, AnvilOps can automatically refresh the kubeconfig file. In `kube-auth`, set the key `cluster-id` to the cluster ID associated with the kubeconfig. When viewing a cluster in Rancher, the URL will look something like `https://<RANCHER_SERVER>/dashboard/c/<cluster id>/explorer`.
+On Rancher-managed clusters, AnvilOps can automatically refresh the kubeconfig file. `kubeconfig` can be omitted from the secret, because AnvilOps will automatically fetch a kubeconfig during installation. In `kube-auth`, set the key `cluster-id` to the cluster ID associated with the kubeconfig. When viewing a cluster in Rancher, the URL will look something like `https://<RANCHER_SERVER>/dashboard/c/<cluster id>/explorer`.
 
 ---
 

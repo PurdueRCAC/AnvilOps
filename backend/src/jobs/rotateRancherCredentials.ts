@@ -11,6 +11,7 @@ import * as yaml from "yaml";
 
 const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
 const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
+const RANCHER_SECRET_NAME = process.env.RANCHER_SECRET_NAME;
 
 if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
   console.log("RANCHER_API_BASE or RANCHER_TOKEN not set, skipping rotation");
@@ -51,7 +52,7 @@ const token = Buffer.from(tokenRes["token"], "utf-8").toString("base64");
 
 await api.patchNamespacedSecret(
   {
-    name: "rancher-config",
+    name: RANCHER_SECRET_NAME,
     namespace: CURRENT_NAMESPACE,
     body: {
       data: {
@@ -65,44 +66,48 @@ await api.patchNamespacedSecret(
 console.log("Rancher token patched successfully");
 
 if (KUBECONFIG_SECRET_NAME) {
-  const kcReq = await fetch(
-    `${RANCHER_API_BASE}/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${RANCHER_TOKEN}`,
-        Accept: "application/json",
-      },
-    },
-  );
-
-  if (!kcReq.ok) {
-    throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
-  }
-
-  const kubeConfigRes = await kcReq.json();
-  let kubeConfig = kubeConfigRes["config"];
-
-  if (USE_CLUSTER_NAME) {
-    const body = yaml.parse(kubeConfig);
-    body["current-context"] = USE_CLUSTER_NAME;
-    kubeConfig = yaml.stringify(body);
-  }
-
-  await api.patchNamespacedSecret(
-    {
-      name: KUBECONFIG_SECRET_NAME,
-      namespace: process.env.CURRENT_NAMESPACE,
-      body: {
-        data: {
-          kubeconfig: Buffer.from(kubeConfig, "utf-8").toString("base64"),
+  if (!CLUSTER_ID) {
+    console.log("CLUSTER_ID not set, skipping kubeconfig rotation");
+  } else {
+    const kcReq = await fetch(
+      `${RANCHER_API_BASE}/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${RANCHER_TOKEN}`,
+          Accept: "application/json",
         },
       },
-    },
-    setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
-  );
+    );
 
-  console.log("Kubeconfig patched successfully");
+    if (!kcReq.ok) {
+      throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
+    }
+
+    const kubeConfigRes = await kcReq.json();
+    let kubeConfig = kubeConfigRes["config"];
+
+    if (USE_CLUSTER_NAME) {
+      const body = yaml.parse(kubeConfig);
+      body["current-context"] = USE_CLUSTER_NAME;
+      kubeConfig = yaml.stringify(body);
+    }
+
+    await api.patchNamespacedSecret(
+      {
+        name: KUBECONFIG_SECRET_NAME,
+        namespace: process.env.CURRENT_NAMESPACE,
+        body: {
+          data: {
+            kubeconfig: Buffer.from(kubeConfig, "utf-8").toString("base64"),
+          },
+        },
+      },
+      setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
+    );
+
+    console.log("Kubeconfig patched successfully");
+  }
 }
 
 const app = kc.makeApiClient(AppsV1Api);
@@ -111,7 +116,7 @@ const isDeploymentReady = async (deployment: V1Deployment) => {
     name: deployment.metadata?.name,
     namespace: CURRENT_NAMESPACE,
   });
-  return deploy.status?.readyReplicas === deploy.status?.replicas;
+  return deploy.status?.updatedReplicas === deploy.status?.replicas;
 };
 
 // Restart the deployment
@@ -152,15 +157,17 @@ if (!ready) {
 }
 
 // Delete the previous Kubeconfig
-const oldKubeconfigName = kc.getCurrentUser().token.split(":")[0];
-await fetch(`${RANCHER_API_BASE}/tokens/${oldKubeconfigName}`, {
-  method: "DELETE",
-  headers: {
-    Authorization: `Basic ${token}`,
-    Accept: "application/json",
-  },
-});
-console.log("Deleted previous Kubeconfig");
+if (KUBECONFIG_SECRET_NAME && CLUSTER_ID) {
+  const oldKubeconfigName = kc.getCurrentUser().token.split(":")[0];
+  await fetch(`${RANCHER_API_BASE}/tokens/${oldKubeconfigName}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Basic ${token}`,
+      Accept: "application/json",
+    },
+  });
+  console.log("Deleted previous Kubeconfig");
+}
 
 // Delete the previous Rancher token
 const rancherTokenName = Buffer.from(RANCHER_TOKEN, "base64")

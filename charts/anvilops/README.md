@@ -32,7 +32,7 @@ If an option has a ⭐ beside it, you will likely have to change it to fit your 
 | ⭐  | `anvilops.serviceAccount.create`                                                                       | Set to `true` to create a ServiceAccount for AnvilOps.                                                                                                                                                                                                                 | true                                                                                            |
 |     | `anvilops.serviceAccount.annotations`                                                                  | Add annotations to the automatically-created ServiceAccount.                                                                                                                                                                                                           |                                                                                                 |
 | ⭐  | `anvilops.serviceAccount.name`                                                                         | If `create` is `false`, this field specifies the name of the ServiceAccount to use. If `create` is `true`, this field specifies the name of the ServiceAccount to generate.                                                                                            | ""                                                                                              |
-| ⭐  | `anvilops.serviceAccount.secretName`                                                                   | If present, specified the name of a Secret that contains a key called "kubeconfig" with the full contents of a kube config file. This option allows you to run AnvilOps with a user account instead of a ServiceAccount.                                               | ""                                                                                              |
+| ⭐  | `anvilops.serviceAccount.useKubeconfig`                                                                | This option allows you to run AnvilOps with a user account instead of a ServiceAccount. The `kube-auth` secret is required when this is set.                                                                                                                           | false                                                                                           |
 |     | `anvilops.service.type`                                                                                | The type of service that AnvilOps runs in the cluster.                                                                                                                                                                                                                 | ClusterIP                                                                                       |
 |     | `anvilops.service.port`                                                                                | The port that AnvilOps will be accessible at within the cluster through its service.                                                                                                                                                                                   | 80                                                                                              |
 | ⭐  | `anvilops.ingress.enabled`                                                                             | Enable Ingress for the AnvilOps dashboard                                                                                                                                                                                                                              | true                                                                                            |
@@ -238,13 +238,29 @@ Follow the instructions in the Rancher section of the [backend setup guide](/bac
 - `rancher-token`: Non-scoped, Base64-encoded service user token for calling the Rancher v3 API.
 - `sandbox_id`(optional): The ID of the sandbox project, something like `c-xxxxx:p-xxxxx`.
 
+### `kube-auth`
+
+#### What is this?
+
+This secret is only required if `anvilops.serviceAccount.useKubeconfig` is set. This secret is used to store and rotate the kubeconfig file which will authenticate AnvilOps to the cluster.
+
+#### How to obtain
+
+Follow the instructions in the Kubernetes section of the [backend setup guide](/backend/README.md#kubernetes-api).
+
+#### Keys
+
+- `kubeconfig`: A Kubeconfig file. Optional if `.rancher.enabled` is true.
+- `cluster-id`: The cluster id. Should be set if `.rancher.enabled` is true so that the kubeconfig can be refreshed.
+- `use-cluster-name`: An authorized cluster endpoint to set in new kubeconfigs. Optional.
+
 ## `postgres-credentials`
 
 AnvilOps uses the values in this secret to protect the database, which contains app configurations.
 
 #### How to obtain
 
-Follow the instructions in the Rancher section of the [backend setup guide](/backend/README.md#postgres).
+Follow the instructions in the Postgres section of the [backend setup guide](/backend/README.md#postgres).
 
 #### Keys
 

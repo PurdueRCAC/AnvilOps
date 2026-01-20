@@ -61,7 +61,7 @@ spec:
               mountPath: /etc/ssl/certs/anvilops-tls.crt
               subPath: anvilops-tls.crt
               readOnly: true
-            {{- with .Values.anvilops.serviceAccount.secretName }}
+            {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
             - name: kube-auth
               mountPath: /opt/creds
               readOnly: true
@@ -194,7 +194,7 @@ spec:
                 secretKeyRef:
                   name: image-delete-secret
                   key: password
-            {{- with .Values.anvilops.serviceAccount.secretName }}
+            {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
             - name: CLUSTER_ID # used for rotating the kubeconfig
@@ -202,6 +202,7 @@ spec:
                 secretKeyRef:
                   name: kube-auth
                   key: cluster-id
+                  optional: true
             {{- end }}
             - name: CURRENT_NAMESPACE
               value: {{ .Release.Namespace }}
@@ -269,10 +270,10 @@ spec:
             items:
               - key: tls.crt
                 path: anvilops-tls.crt
-      {{- with .Values.anvilops.serviceAccount.secretName }}
+      {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
         - name: kube-auth
           secret:
-            secretName: {{ . }}
+            secretName: kube-auth
             optional: false
             items:
               - key: kubeconfig
