@@ -19,6 +19,7 @@ import {
   Cog,
   Cpu,
   Database,
+  FolderLock,
   Link,
   Loader,
   Logs,
@@ -404,7 +405,7 @@ export const CommonWorkloadConfigFields = ({
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <Label className="pb-1" htmlFor="portNumber">
-                    <Server className="inline" size={16} /> Namespace
+                    <FolderLock className="inline" size={16} /> Namespace
                   </Label>
                   <span
                     className="text-red-500 cursor-default"
@@ -435,11 +436,11 @@ export const CommonWorkloadConfigFields = ({
                         characters.
                       </li>
                       <li>
-                        A subdomain must only contain lowercase alphanumeric
+                        A namespace must only contain lowercase alphanumeric
                         characters or dashes(-).
                       </li>
                       <li>
-                        A subdomain must start and end with an alphanumeric
+                        A namespace must start and end with an alphanumeric
                         character.
                       </li>
                     </ul>
