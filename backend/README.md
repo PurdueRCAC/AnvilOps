@@ -122,6 +122,8 @@ In production, create a secret `kube-auth` and set the key `kubeconfig` in the s
 
 On Rancher-managed clusters, AnvilOps can automatically refresh the kubeconfig file. `kubeconfig` can be omitted from the secret, because AnvilOps will automatically fetch a kubeconfig during installation. In `kube-auth`, set the key `cluster-id` to the cluster ID associated with the kubeconfig. When viewing a cluster in Rancher, the URL will look something like `https://<RANCHER_SERVER>/dashboard/c/<cluster id>/explorer`.
 
+Ensure that the user associated with the kubeconfig has permission to read namespaces globally.
+
 ---
 
 **Note for Rancher-managed clusters**

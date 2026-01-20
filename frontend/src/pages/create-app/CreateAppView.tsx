@@ -1,3 +1,5 @@
+import { UserContext } from "@/components/UserProvider";
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { GroupConfigFields } from "@/components/config/GroupConfigFields";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import {
   createDefaultCommonFormFields,
@@ -19,7 +20,6 @@ import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 
 export default function CreateAppView() {
   const { user } = useContext(UserContext);
@@ -158,14 +158,22 @@ export type NonNullableEnv = {
   isSensitive: boolean;
 }[];
 
-export const SubdomainStatus = ({ available }: { available: boolean }) => {
+export const NameStatus = ({
+  available,
+  resourceName,
+}: {
+  available: boolean;
+  resourceName: string;
+}) => {
+  const capitalized =
+    resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
   return available ? (
     <p className="text-green-500 text-sm">
-      <Check className="inline" /> Subdomain is available.
+      <Check className="inline" /> {capitalized} is available.
     </p>
   ) : (
     <p className="text-red-500 text-sm">
-      <X className="inline" /> Subdomain is in use.
+      <X className="inline" /> {capitalized} is in use.
     </p>
   );
 };
