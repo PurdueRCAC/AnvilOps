@@ -47,6 +47,17 @@ const onError = (
     // Don't show the error toast for the initial /user/me request
     return;
   }
+  // Don't show error toast for 404s on the branches endpoint
+  if (
+    args.length === 1 &&
+    "code" in error &&
+    error.code === 404 &&
+    typeof args[0].queryHash === "string" &&
+    args[0].queryHash.includes("/repos/") &&
+    args[0].queryHash.includes("/branches")
+  ) {
+    return;
+  }
   toast.error(
     `Something went wrong: ${error.message ?? JSON.stringify(error)}`,
   );

@@ -5,7 +5,7 @@ import { getRepositoriesByProject } from "../lib/registry.ts";
 import { ValidationError } from "./common/errors.ts";
 
 export async function listCharts() {
-  if (!env.ALLOW_HELM_DEPLOYMENTS) {
+  if (env.ALLOW_HELM_DEPLOYMENTS !== "true") {
     throw new ValidationError("Helm deployments are disabled");
   }
   return JSON.parse(

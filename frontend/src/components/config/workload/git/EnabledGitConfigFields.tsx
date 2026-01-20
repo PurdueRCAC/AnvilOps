@@ -1,4 +1,3 @@
-import { ImportRepoDialog } from "./ImportRepoDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -12,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
 import clsx from "clsx";
 import {
   BookMarked,
@@ -23,7 +23,7 @@ import {
   Hammer,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
+import { ImportRepoDialog } from "./ImportRepoDialog";
 
 export const EnabledGitConfigFields = ({
   orgId,
@@ -84,6 +84,16 @@ export const EnabledGitConfigFields = ({
     },
     {
       enabled: orgId !== undefined && repositoryId !== undefined,
+      // Sometimes when a repository was just created, the list of branches is empty and listRepoBranches returns a 404
+      retry(failureCount, error) {
+        if (error && "code" in error && error.code === 404) {
+          return failureCount < 3;
+        }
+        return false;
+      },
+      retryDelay(attemptIndex) {
+        return Math.min(500 * 2 ** attemptIndex, 4000);
+      },
     },
   );
 

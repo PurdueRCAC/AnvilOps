@@ -32,6 +32,10 @@ export async function listRepoBranches(
       repo: repo.name,
     });
 
+    if (branches.data.length === 0) {
+      throw new RepositoryNotFoundError();
+    }
+
     return {
       default: repo.default_branch,
       branches: branches.data.map((branch) => branch.name),

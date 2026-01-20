@@ -137,7 +137,7 @@ export class AppService {
         app.type === "update" ? app.existingAppId : undefined,
       );
     } else if (app.config.appType === "helm") {
-      if (!env.ALLOW_HELM_DEPLOYMENTS) {
+      if (env.ALLOW_HELM_DEPLOYMENTS !== "true") {
         throw new ValidationError("Helm deployments are disabled");
       }
     }
