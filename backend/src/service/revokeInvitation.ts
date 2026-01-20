@@ -1,4 +1,5 @@
 import { db, NotFoundError } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { InvitationNotFoundError } from "./common/errors.ts";
 
 export async function revokeInvitation(
@@ -8,6 +9,10 @@ export async function revokeInvitation(
 ) {
   try {
     await db.invitation.revoke(orgId, invitationId, userId);
+    logger.info(
+      { invitationId, userId, orgId },
+      "Organization invitation revoked",
+    );
   } catch (e) {
     if (e instanceof NotFoundError) {
       throw new InvitationNotFoundError(e);

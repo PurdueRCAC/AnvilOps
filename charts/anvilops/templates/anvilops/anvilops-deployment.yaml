@@ -249,6 +249,12 @@ spec:
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
             {{- end }}
+            - name: NODE_ENV
+              value: production
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.anvilops.env.otelEndpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.anvilops.env.otelServiceName | quote }}
             {{- with .Values.anvilops.env.extra -}}
             {{ toYaml . | nindent 12 }}
             {{- end }}

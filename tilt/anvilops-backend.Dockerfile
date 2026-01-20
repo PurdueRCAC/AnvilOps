@@ -61,7 +61,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates
 
-ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
+ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"]
 CMD ["./src/index.ts"]
 
 EXPOSE 3000

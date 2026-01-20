@@ -1,4 +1,5 @@
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { dequeueBuildJob } from "../lib/builder.ts";
 import {
   createOrUpdateApp,
@@ -52,6 +53,10 @@ export async function updateDeployment(secret: string, newStatus: string) {
     deployment.id,
     "BUILD",
     "Deployment status has been updated to " + newStatus,
+  );
+  logger.info(
+    { deploymentId: deployment.id, newStatus },
+    "Updated deployment status via /api/deployment/update",
   );
 
   if (config.source != "GIT") {

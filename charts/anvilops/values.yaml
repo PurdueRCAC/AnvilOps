@@ -22,6 +22,8 @@ anvilops:
     railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.15.4@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
     railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.15.4@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
     allowHelmDeployments: false
+    otelEndpoint: ""
+    otelServiceName: anvilops
     extra:
     # If you need to add extra environment variables, put them here with the standard Kubernetes syntax. For example:
     # - name: DEBUG

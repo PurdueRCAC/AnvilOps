@@ -1,3 +1,4 @@
+import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
@@ -8,6 +9,12 @@ type LogLineInput = {
   stream: "stdout" | "stderr";
   timestamp: number;
 };
+
+const meter = metrics.getMeter("log_ingest");
+const counter = meter.createCounter("anvilops_log_lines_ingested", {
+  description: "The number of log lines processed by /api/logs/ingest",
+  valueType: ValueType.INT,
+});
 
 export async function ingestLogs(
   deploymentId: number,
@@ -43,4 +50,5 @@ export async function ingestLogs(
     .filter((it) => it !== null);
 
   await db.deployment.insertLogs(logLines);
+  counter.add(logLines.length);
 }
