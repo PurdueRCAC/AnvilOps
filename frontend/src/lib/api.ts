@@ -12,8 +12,12 @@ import createClient from "openapi-react-query";
 import { toast } from "sonner";
 import { type paths } from "../generated/openapi";
 
+const acceptJson = new Headers();
+acceptJson.set("Accept", "application/json");
+
 const fetchClient = createFetchClient<paths>({
   baseUrl: "/api",
+  headers: acceptJson,
 });
 
 export const api = createClient(fetchClient);

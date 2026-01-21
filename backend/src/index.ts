@@ -138,7 +138,9 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
   if (req.accepts(["text/html", "application/json"]) === "application/json") {
     res.send({
+      code: 500,
       message: "Internal server error",
+      traceId: span?.spanContext()?.traceId,
     });
   } else {
     res.send(`
