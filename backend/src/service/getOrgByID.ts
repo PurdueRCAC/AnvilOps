@@ -45,8 +45,8 @@ export async function getOrgByID(orgId: number, userId: number) {
       let repoURL: string;
       if (config.source === "GIT") {
         try {
-          const repo = await gitProvider.getRepoById(config.repositoryId);
-          repoURL = repo.htmlURL;
+          const repo = await gitProvider?.getRepoById(config.repositoryId);
+          repoURL = repo?.htmlURL;
         } catch (error) {
           if (error instanceof RepositoryNotFoundError) {
             // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
