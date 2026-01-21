@@ -29,10 +29,23 @@ export async function getSettings() {
 
   return {
     appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
+    version: getVersionString(),
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
     isRancherManaged: isRancherManaged(),
     allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
   };
+}
+
+function getVersionString() {
+  let version = env.ANVILOPS_VERSION;
+  if (env.BUILD_DATE) {
+    version += " (" + new Date(env.BUILD_DATE).toLocaleDateString() + ")";
+  }
+
+  if (env.IN_TILT) {
+    version += " (dev)";
+  }
+  return version;
 }

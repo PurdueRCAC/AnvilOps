@@ -1,11 +1,29 @@
 import type { V1PodList } from "@kubernetes/client-node";
+import { metrics, ValueType } from "@opentelemetry/api";
 import stream from "node:stream";
 import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError, ValidationError } from "./common/errors.ts";
+
+const meter = metrics.getMeter("log_viewer");
+const dbConcurrentViewers = meter.createUpDownCounter(
+  "anvilops_concurrent_db_log_viewers",
+  {
+    description:
+      "The total number of open connections which are actively viewing a log stream from the database",
+    valueType: ValueType.INT,
+  },
+);
+const k8sConcurrentViewers = meter.createUpDownCounter(
+  "anvilops_concurrent_k8s_log_viewers",
+  {
+    description:
+      "The total number of open connections which are actively viewing a log stream directly from Kubernetes pods",
+    valueType: ValueType.INT,
+  },
+);
 
 export async function getAppLogs(
   appId: number,
@@ -63,8 +81,12 @@ export async function getAppLogs(
       `deployment_${deploymentId}_logs`,
       fetchNewLogs,
     );
+    dbConcurrentViewers.add(1);
 
-    abortController.signal.addEventListener("abort", unsubscribe);
+    abortController.signal.addEventListener("abort", () => {
+      dbConcurrentViewers.add(-1);
+      unsubscribe();
+    });
 
     // Send all previous logs now
     await fetchNewLogs();
@@ -83,7 +105,7 @@ export async function getAppLogs(
     let pods: V1PodList;
     try {
       pods = await core.listNamespacedPod({
-        namespace: getNamespace(app.namespace),
+        namespace: app.namespace,
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
       });
     } catch (err) {
@@ -96,15 +118,17 @@ export async function getAppLogs(
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
       const logAbortController = await log.log(
-        getNamespace(app.namespace),
+        app.namespace,
         podName,
         pod.spec.containers[0].name,
         logStream,
         { follow: true, tailLines: 500, timestamps: true },
       );
-      abortController.signal.addEventListener("abort", () =>
-        logAbortController.abort(),
-      );
+      k8sConcurrentViewers.add(1);
+      abortController.signal.addEventListener("abort", () => {
+        logAbortController.abort();
+        k8sConcurrentViewers.add(-1);
+      });
       let i = 0;
       let current = "";
       logStream.on("data", async (chunk: Buffer) => {

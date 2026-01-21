@@ -1,4 +1,5 @@
 import { db, NotFoundError } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { getLocalRepo, importRepo } from "../lib/import.ts";
 import { getOctokit } from "../lib/octokit.ts";
 import {
@@ -77,6 +78,16 @@ export async function importGitRepo(
   if (!state) {
     throw new NotFoundError("repoImportState");
   }
+
+  logger.info(
+    {
+      source: state.srcRepoURL,
+      destOwner: state.destRepoOwner,
+      destRepo: state.destRepoName,
+      makePrivate: state.makePrivate,
+    },
+    "Importing Git repository",
+  );
 
   const org = await db.org.getById(state.orgId);
 

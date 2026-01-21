@@ -14,6 +14,14 @@ const variables = {
    */
   IN_TILT: { required: false, defaultValue: null },
   /**
+   * The current version of AnvilOps; used in the UI
+   */
+  ANVILOPS_VERSION: { required: false, defaultValue: null },
+  /**
+   * The date that this AnvilOps container image was built; used in the UI
+   */
+  BUILD_DATE: { required: false, defaultValue: null },
+  /**
    * The CILogon OAuth client ID
    */
   CLIENT_ID: { required: true },

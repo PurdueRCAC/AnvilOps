@@ -1,19 +1,19 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SelectContent, SelectGroup, SelectItem } from "@/components/ui/select";
+import { api } from "@/lib/api";
+import { MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
 import type {
   CommonFormFields,
   WorkloadFormFields,
   WorkloadUpdate,
 } from "@/lib/form.types";
-import { SelectContent, SelectGroup, SelectItem } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { useAppConfig } from "@/components/AppConfigProvider";
-import { Label } from "@/components/ui/label";
-import { Link, Loader, MoveRight, X } from "lucide-react";
-import { MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
 import { cn, useDebouncedValue } from "@/lib/utils";
-import { api } from "@/lib/api";
-import { DiffSelect } from "../DiffSelect";
+import { NameStatus } from "@/pages/create-app/CreateAppView";
+import { Link, Loader, MoveRight, X } from "lucide-react";
 import type { ComponentProps } from "react";
-import { SubdomainStatus } from "@/pages/create-app/CreateAppView";
+import { DiffSelect } from "../DiffSelect";
 
 export const SubdomainDiff = ({
   base,
@@ -197,7 +197,10 @@ const SubdomainDiffInput = ({
               <Loader className="inline animate-spin" /> Checking subdomain...
             </span>
           ) : (
-            <SubdomainStatus available={subStatus!.available} />
+            <NameStatus
+              available={subStatus!.available}
+              resourceName="Subdomain"
+            />
           ))}
       </div>
     </div>

@@ -120,7 +120,7 @@ export const AppConfigFormFields = ({
       {state.appType === "workload" &&
         (state.source !== "git" || selectedOrg?.githubConnected) && (
           <CommonWorkloadConfigFields
-            state={state.workload}
+            appState={state}
             setState={commonWorkloadSetter}
             disabled={disabled}
             originalConfig={originalConfig}

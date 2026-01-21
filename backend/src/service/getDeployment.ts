@@ -1,7 +1,6 @@
 import type { V1Pod, V1PodList } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { getOctokit, getRepoById } from "../lib/octokit.ts";
 import { DeploymentNotFoundError } from "./common/errors.ts";
 import { deploymentConfigService } from "./helper/index.ts";
@@ -36,7 +35,7 @@ export async function getDeployment(deploymentId: number, userId: number) {
   if (config.appType === "workload") {
     pods = await api
       .listNamespacedPod({
-        namespace: getNamespace(app.namespace),
+        namespace: app.namespace,
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deployment.id}`,
       })
       .catch(() => ({ apiVersion: "v1", items: [] as V1Pod[] }));

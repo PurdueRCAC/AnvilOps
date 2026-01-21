@@ -88,7 +88,7 @@ docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRE
 
 For access control, AnvilOps can integrate with the Rancher API. If you are not using Rancher, leave the following values unset.
 
-In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). In production, set the `api-base` key of the `rancher-config` secret instead. Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of `rancher-config`.
+In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of the secret `rancher-config`.
 
 If you would like to make a sandbox project available to users, set the environment variable `SANDBOX_ID` to its project ID. In production, set the the `sandbox-id` key of the `rancher-config` secret.
 
@@ -116,13 +116,20 @@ Set the environment variable `LOGIN_TYPE` to the name of the login method that A
 
 ### Kubernetes API
 
-A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`. In production, set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+A kubeconfig file is needed to manage resources through the Kubernetes API. Specify the file by setting `KUBECONFIG` environment variable to its path. In development, if `KUBECONFIG` is not set, a kubeconfig file will be loaded from `$HOME/.kube`.
+
+In production, create a secret `kube-auth` and set the key `kubeconfig` in the secret `kube-auth` to the kubeconfig file.
+
+On Rancher-managed clusters, AnvilOps can automatically refresh the kubeconfig file. `kubeconfig` can be omitted from the secret, because AnvilOps will automatically fetch a kubeconfig during installation. In `kube-auth`, set the key `cluster-id` to the cluster ID associated with the kubeconfig. When viewing a cluster in Rancher, the URL will look something like `https://<RANCHER_SERVER>/dashboard/c/<cluster id>/explorer`.
+
+Ensure that the user associated with the kubeconfig has permission to read namespaces globally.
 
 ---
 
 **Note for Rancher-managed clusters**
 
 If your cluster uses a Rancher version < v2.10, the kubeconfig file must be configured to use an [Authorized Cluster Endpoint](https://ranchermanager.docs.rancher.com/reference-guides/rancher-manager-architecture/communicating-with-downstream-user-clusters#4-authorized-cluster-endpoint). This is to avoid a [bug](https://github.com/rancher/rancher/issues/41988) related to user impersonation. See the documentation for your Rancher version on configuring an Authorized Cluster Endpoint and using its context in your kubeconfig.
+In order to correctly refresh the kubeconfig, set the key `use-cluster-name` in the secret `kube-auth` to the name of the endpoint.
 
 ---
 
@@ -162,3 +169,9 @@ In production, apply the changes like this:
 ```sh
 npx prisma migrate deploy
 ```
+
+## OpenTelemetry
+
+AnvilOps can push logs, traces, and metrics to an OpenTelemetry collector. Set the `OTEL_EXPORTER_OTLP_ENDPOINT` field to a gRPC OTLP endpoint and make sure the app is being started with `--require backend/src/instrumentation.ts` (that path is `/app/src/instrumentation.ts` in Docker). In the default Docker container, the flag is added to the ENTRYPOINT, so you don't need to add it manually.
+
+You can modify the service name with the `OTEL_SERVICE_NAME` environment variable. By default, it's "anvilops".

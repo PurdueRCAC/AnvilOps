@@ -10,15 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
-import type { WorkloadFormFields, WorkloadUpdate } from "@/lib/form.types";
+import { MAX_SUBDOMAIN_LENGTH, getAppName } from "@/lib/form";
+import type { CommonFormFields, WorkloadUpdate } from "@/lib/form.types";
 import { useDebouncedValue } from "@/lib/utils";
-import { FormContext, SubdomainStatus } from "@/pages/create-app/CreateAppView";
+import { FormContext, NameStatus } from "@/pages/create-app/CreateAppView";
 import {
   Code2,
   Cog,
   Cpu,
   Database,
+  FolderLock,
   Link,
   Loader,
   Logs,
@@ -26,23 +27,25 @@ import {
   Server,
   X,
 } from "lucide-react";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { EnvVarGrid } from "./EnvVarGrid";
 import { MountsGrid } from "./MountsGrid";
 
 export const CommonWorkloadConfigFields = ({
-  state,
+  appState,
   setState,
   disabled,
   originalConfig,
 }: {
-  state: WorkloadFormFields;
+  appState: CommonFormFields;
   setState: (update: WorkloadUpdate) => void;
   disabled?: boolean;
   originalConfig?: components["schemas"]["DeploymentConfig"];
 }) => {
   const appConfig = useAppConfig();
   const appDomain = URL.parse(appConfig?.appDomain ?? "");
+
+  const state = appState.workload;
   const {
     port,
     env,
@@ -52,12 +55,19 @@ export const CommonWorkloadConfigFields = ({
     cpuCores,
     memoryInMiB,
     collectLogs,
+    namespace,
   } = state;
 
   const showSubdomainError =
     !!subdomain &&
     (subdomain.length > MAX_SUBDOMAIN_LENGTH ||
       subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+
+  const MAX_NAMESPACE_LEN = 63;
+  const showNamespaceError =
+    !!namespace &&
+    (namespace.length > MAX_NAMESPACE_LEN ||
+      namespace.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
 
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
@@ -67,12 +77,16 @@ export const CommonWorkloadConfigFields = ({
       ? originalConfig.subdomain
       : undefined;
   const debouncedSub = useDebouncedValue(subdomain);
+  const debouncedNamespace = useDebouncedValue(namespace);
 
   const enableSubdomainCheck =
     !!subdomain &&
     subdomain === debouncedSub &&
     subdomain !== originalSubdomain &&
     !showSubdomainError;
+
+  const enableNamespaceCheck =
+    !!namespace && namespace === debouncedNamespace && !showNamespaceError;
 
   const { data: subStatus, isPending: subLoading } = api.useQuery(
     "get",
@@ -86,6 +100,35 @@ export const CommonWorkloadConfigFields = ({
     },
     { enabled: enableSubdomainCheck },
   );
+
+  const { data: namespaceStatus, isPending: namespaceLoading } = api.useQuery(
+    "get",
+    "/app/namespace",
+    {
+      params: {
+        query: {
+          namespace: debouncedNamespace ?? "",
+        },
+      },
+    },
+    { enabled: enableNamespaceCheck },
+  );
+
+  const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
+
+  useEffect(() => {
+    if (!hasChangedNamespace) {
+      setState((state) => ({
+        ...state,
+        namespace:
+          getAppName(appState)
+            .toLowerCase()
+            .replaceAll(/[^a-zA-Z0-9-_]/g, "-") +
+          "-" +
+          Math.floor(Math.random() * 1_000_000),
+      }));
+    }
+  }, [state.git.repositoryId, state.image.imageTag]);
 
   const fixedSensitiveNames =
     originalConfig?.appType === "workload"
@@ -158,7 +201,10 @@ export const CommonWorkloadConfigFields = ({
             <div className="flex gap-5 text-sm">
               <X className="text-red-500" />
               <ul className="text-black-3 list-disc">
-                <li>A subdomain must have 54 or fewer characters.</li>
+                <li>
+                  A subdomain must have {MAX_SUBDOMAIN_LENGTH} or fewer
+                  characters.
+                </li>
                 <li>
                   A subdomain must only contain lowercase alphanumeric
                   characters or dashes(-).
@@ -178,7 +224,10 @@ export const CommonWorkloadConfigFields = ({
               </span>
             ) : (
               <>
-                <SubdomainStatus available={subStatus!.available} />
+                <NameStatus
+                  available={subStatus!.available}
+                  resourceName="Subdomain"
+                />
               </>
             ))}
         </div>
@@ -314,14 +363,14 @@ export const CommonWorkloadConfigFields = ({
             </AccordionContent>
           </AccordionItem>
         )}
-        {isExistingApp && (
-          <AccordionItem value="advanced">
-            <AccordionTrigger>
-              <Label className="pb-1">
-                <Cog className="inline" size={16} /> Advanced
-              </Label>
-            </AccordionTrigger>
-            <AccordionContent className="mt-2 space-y-10 px-4">
+        <AccordionItem value="advanced">
+          <AccordionTrigger>
+            <Label className="pb-1">
+              <Cog className="inline" size={16} /> Advanced
+            </Label>
+          </AccordionTrigger>
+          <AccordionContent className="mt-2 space-y-10 px-4">
+            {isExistingApp && (
               <div className="space-y-2">
                 <div>
                   <Label className="pb-1">
@@ -350,9 +399,70 @@ export const CommonWorkloadConfigFields = ({
                   </div>
                 </div>
               </div>
-            </AccordionContent>
-          </AccordionItem>
-        )}
+            )}
+
+            {!isExistingApp && (
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <Label className="pb-1" htmlFor="portNumber">
+                    <FolderLock className="inline" size={16} /> Namespace
+                  </Label>
+                  <span
+                    className="cursor-default text-red-500"
+                    title="This field is required."
+                  >
+                    *
+                  </span>
+                </div>
+                <Input
+                  disabled={disabled}
+                  name="namespace"
+                  id="namespace"
+                  placeholder="my-app"
+                  className="w-full"
+                  required
+                  value={namespace ?? ""}
+                  onChange={(e) => {
+                    setHasChangedNamespace(true);
+                    setState({ namespace: e.currentTarget.value });
+                  }}
+                />
+                {namespace && showNamespaceError && (
+                  <div className="flex gap-5 text-sm">
+                    <X className="text-red-500" />
+                    <ul className="text-black-3 list-disc">
+                      <li>
+                        A namespace must have between 1 and {MAX_NAMESPACE_LEN}{" "}
+                        characters.
+                      </li>
+                      <li>
+                        A namespace must only contain lowercase alphanumeric
+                        characters or dashes(-).
+                      </li>
+                      <li>
+                        A namespace must start and end with an alphanumeric
+                        character.
+                      </li>
+                    </ul>
+                  </div>
+                )}
+                {namespace &&
+                  !showNamespaceError &&
+                  (namespace !== debouncedNamespace || namespaceLoading ? (
+                    <span className="text-sm">
+                      <Loader className="inline animate-spin" /> Checking
+                      namespace...
+                    </span>
+                  ) : (
+                    <NameStatus
+                      available={namespaceStatus!.available}
+                      resourceName="Namespace"
+                    />
+                  ))}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
     </>
   );

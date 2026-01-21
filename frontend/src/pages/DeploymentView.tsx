@@ -29,7 +29,6 @@ export const DeploymentView = () => {
       },
     },
   );
-  console.log(deployment);
 
   const format = new Intl.DateTimeFormat(undefined, {
     dateStyle: "short",

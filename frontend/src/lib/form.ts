@@ -102,8 +102,8 @@ export const createDeploymentConfig = (
 };
 
 const generateNamespace = (appState: Required<CommonFormFields>): string => {
-  if (appState.appType === "workload" && appState.workload.createIngress) {
-    return appState.workload.subdomain as string;
+  if (appState.appType === "workload") {
+    return appState.workload.namespace as string;
   }
   return (
     getAppName(appState).replaceAll(/[^a-zA-Z0-9-_]/g, "_") +

@@ -74,7 +74,7 @@ const DeleteDialog = ({
                     <li>
                       Infrastructure associated with this application will still
                       be available in the Kubernetes namespace{" "}
-                      <b>anvilops-{app.namespace}</b>.
+                      <b>{app.namespace}</b>.
                     </li>
                   </>
                 ) : (

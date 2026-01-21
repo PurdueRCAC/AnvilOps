@@ -58,6 +58,7 @@ build_and_push() {
     -t "$IMAGE_TAG" \
     --cache-from="type=registry,ref=$CACHE_TAG" \
     --cache-to="type=registry,ref=$CACHE_TAG,mode=max" \
+    --build-arg BUILD_DATE=$(date -uIseconds) \
     "$BUILD_CONTEXT"
 
   IMAGE_ID=$(cat "$IIDFILE") # looks like "sha256:32975dcafd44d8c6f921d2276e2a39f42f268e8c9584d6c4d4c88f5a073b7b1d"
@@ -132,7 +133,6 @@ build_images() {
   build_and_push "log-shipper/Dockerfile" "log-shipper" ".anvilops.env.logShipperImage" "$REGISTRY_BASE/log-shipper"
 }
 
-
 copy_railpack_images() {
   # Copy Railpack images to our own registry to pin the versions and remove runtime dependency on GitHub
   RAILPACK_INTERNAL_FRONTEND_IMAGE="$REGISTRY_BASE/railpack-frontend:$RAILPACK_VERSION"
@@ -146,6 +146,7 @@ copy_railpack_images() {
 
 publish_chart() {
   set_value "$CHART_FILE" ".version" "$VERSION"
+  set_value "$CHART_FILE" ".appVersion" "$VERSION"
 
   CHART_PACKAGE_DIR=$(mktemp -d)
 

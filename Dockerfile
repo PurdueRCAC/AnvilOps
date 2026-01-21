@@ -91,7 +91,7 @@ EXPOSE 3000
 ENV TINI_VERSION=v0.19.0
 ADD --chown=65532:65532 --chmod=500 https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 
-ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types"]
+ENTRYPOINT ["/tini", "--", "/nodejs/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"]
 CMD ["/app/src/index.ts"]
 
 WORKDIR /app
@@ -105,3 +105,6 @@ COPY --chown=65532:65532 --from=backend_build --exclude=**/node_modules/** /app 
 
 USER 65532
 # ^ This user already exists in the distroless base image
+
+ARG BUILD_DATE=
+ENV BUILD_DATE=$BUILD_DATE

@@ -1,3 +1,4 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import type {
   Deployment,
@@ -6,6 +7,7 @@ import type {
   WorkloadConfigCreate,
 } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
+import { logger } from "../index.ts";
 import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
@@ -52,22 +54,24 @@ export async function updateApp(
   )[0];
 
   // ---------------- App group updates ----------------
+  let appGroupId: number;
   switch (appData.appGroup?.type) {
     case "add-to": {
       if (appData.appGroup.id === originalApp.appGroupId) {
         break;
       }
-      const group = await db.appGroup.getById(appData.appGroup.id);
+      appGroupId = appData.appGroup.id;
+      const group = await db.appGroup.getById(appGroupId);
       if (!group) {
         throw new ValidationError("Invalid app group");
       }
-      await db.app.setGroup(originalApp.id, appData.appGroup.id);
+      await db.app.setGroup(originalApp.id, appGroupId);
       break;
     }
 
     case "create-new": {
       appService.validateAppGroupName(appData.appGroup.name);
-      const appGroupId = await db.appGroup.create(
+      appGroupId = await db.appGroup.create(
         originalApp.orgId,
         appData.appGroup.name,
         false,
@@ -82,14 +86,17 @@ export async function updateApp(
       }
       const groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
       appService.validateAppGroupName(groupName);
-      const appGroupId = await db.appGroup.create(
-        originalApp.orgId,
-        groupName,
-        true,
-      );
+      appGroupId = await db.appGroup.create(originalApp.orgId, groupName, true);
       await db.app.setGroup(originalApp.id, appGroupId);
       break;
     }
+  }
+
+  if (appData.appGroup) {
+    logger.info(
+      { orgId: organization.id, appId: originalApp.id, appGroupId: appGroupId },
+      "App group updated",
+    );
   }
 
   // ---------------- App model updates ----------------
@@ -109,6 +116,10 @@ export async function updateApp(
 
   if (Object.keys(updates).length > 0) {
     await db.app.update(originalApp.id, updates);
+    logger.info(
+      { orgId: organization.id, appId: originalApp.id, updates },
+      "App updated",
+    );
   }
 
   const app = await db.app.getById(originalApp.id);
@@ -146,8 +157,16 @@ export async function updateApp(
     });
     // When the new image is built and deployed successfully, it will become the imageTag of the app's template deployment config so that future redeploys use it.
   } catch (err) {
+    const span = trace.getActiveSpan();
+    span?.recordException(err);
+    span?.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: "Failed to update app",
+    });
+
     throw new DeploymentError(err);
   }
+  logger.info({ orgId: organization.id, appId: app.id }, "App updated");
 }
 
 const shouldBuildOnUpdate = (

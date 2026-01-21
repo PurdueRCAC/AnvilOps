@@ -3,8 +3,8 @@
 
 anvilops:
   replicaCount: 1
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:0.2.0@sha256:edd2a250840bf1eee9cec7a81a00ad204c6c695e41250ea15d06bead3b6e8116
-  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:0.2.0@sha256:dee2df735235a880dcaa3c80ec8d958743baa61b79bc62f15fe0543534bdc4a3
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:0.3.0@sha256:0074c28bb2c4c74ea323e0f1167f9f3021c0f1a2a911974e7b91116878ff5b13
+  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:0.3.0@sha256:6054a9c4e2345f771a0bc0b9833cb5189ba4519bca632df1266791bd82047931
   imagePullPolicy: IfNotPresent
   env:
     baseURL: http://anvilops.minikube.local
@@ -13,15 +13,17 @@ anvilops:
     harborChartRepoName: anvilops-chart
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
-    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:0.2.0@sha256:4d581633d522ffa2d09583da48c38ba74653ee5401164ece5eb1205cb63f0dfe
-    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:0.2.0@sha256:87ebab52ef688e08c86628004bc6d9be5ecfb8e4501b21e045d9a0fa4c0d8fd9
-    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.2.0@sha256:d9c9c240fce02029cc0758cc03c3fb8878e47e42b953157ea690ad88bfb8d7a9
-    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:0.2.0@sha256:d67d1283920e00d20591cea564f798f9c76b62a84317402137b577749df444c9
-    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:0.2.0@sha256:0383304327d644c8d835edcabcdca4ef9573102d190ce2b74967c1567a615695
-    railpackInternalFrontendImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:0.15.4@sha256:ee70ab404505ce41ad52c15e1340d25384e9e76408d29910c6a302d61f497c4c
-    railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.15.4@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
-    railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.15.4@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
+    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:0.3.0@sha256:9f01e349a0dd5a49a00730ed638dec381acfb6b5e2496471e1e395de1bd457cf
+    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:0.3.0@sha256:c23a64b80ea381d732642c90bf67da80d27ce97999e665b34d1bf9121c361e69
+    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.3.0@sha256:b30c26f9ef107c78b831c4127c57c36d6c572e8c007b012688455a0d915689d6
+    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:0.3.0@sha256:60199df66c63df6db4f30aaa97dadfc3be8d4cf78a56516e733b2fa87a5da394
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:0.3.0@sha256:35ece5c02641eee92bfd0ee386056af8fd857bc5b379393c957e5fb8e8c39350
+    railpackInternalFrontendImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:0.17.0@sha256:aa2c58772b4cb9851767647b898e537ebb06067aadc2b62f51c97acdce2a61bc
+    railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.17.0@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
+    railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.17.0@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
     allowHelmDeployments: false
+    otelEndpoint: ""
+    otelServiceName: anvilops
     extra:
     # If you need to add extra environment variables, put them here with the standard Kubernetes syntax. For example:
     # - name: DEBUG
@@ -48,6 +50,7 @@ anvilops:
     # The name of the service account to use.
     # If not set and create is true, a name is generated using the fullname template
     name: ""
+    useKubeconfig: false
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
     # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
@@ -85,6 +88,12 @@ anvilops:
       annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
+rancher:
+  enabled: false
+  apiBase: ""
+  refreshTokens: true
+  refreshSchedule: "0 0 25 * *"
+  tokenTtl: 2592000000 # 30 days
 postgres:
   generateCredentials: true
   image: postgres:17

@@ -1,4 +1,5 @@
 import { ConflictError, db, NotFoundError } from "../db/index.ts";
+import { logger } from "../index.ts";
 import {
   OrgNotFoundError,
   UserNotFoundError,
@@ -22,6 +23,10 @@ export async function inviteUser(
 
   try {
     await db.invitation.send(orgId, inviterId, otherUser.id);
+    logger.info(
+      { orgId, inviterId, inviteeId: otherUser.id },
+      "Organization invitation sent",
+    );
   } catch (e: any) {
     if (e instanceof NotFoundError && e.message === "organization") {
       throw new OrgNotFoundError(null);
