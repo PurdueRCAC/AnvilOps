@@ -276,7 +276,7 @@ export const ImportRepoDialog = ({
               <Button
                 type="submit"
                 className="mt-2"
-                disabled={repoAlreadyExists}
+                disabled={repoAlreadyExists || isPending}
               >
                 {isPending ? (
                   <>
