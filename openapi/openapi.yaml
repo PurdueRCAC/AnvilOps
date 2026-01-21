@@ -32,6 +32,9 @@ paths:
               schema:
                 type: object
                 properties:
+                  version:
+                    type: string
+                    nullable: true
                   appDomain:
                     type: string
                     format: uri
