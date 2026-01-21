@@ -33,6 +33,7 @@ import {
 } from "./importGitRepo.ts";
 import { ingestLogsHandler } from "./ingestLogs.ts";
 import { inviteUserHandler } from "./inviteUser.ts";
+import { isNamespaceAvailableHandler } from "./isNamespaceAvailable.ts";
 import { isSubdomainAvailableHandler } from "./isSubdomainAvailable.ts";
 import { listChartsHandler } from "./listCharts.ts";
 import { listDeploymentsHandler } from "./listDeployments.ts";
@@ -85,6 +86,7 @@ export const handlers = {
   ingestLogs: ingestLogsHandler,
   inviteUser: inviteUserHandler,
   isSubdomainAvailable: isSubdomainAvailableHandler,
+  isNamespaceAvailable: isNamespaceAvailableHandler,
   listCharts: listChartsHandler,
   listDeployments: listDeploymentsHandler,
   listOrgGroups: listOrgGroupsHandler,

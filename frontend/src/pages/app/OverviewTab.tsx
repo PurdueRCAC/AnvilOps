@@ -228,7 +228,7 @@ export const OverviewTab = ({
               </HelpTooltip>
             </p>
             <p>
-              anvilops-{app.namespace}.anvilops-{app.namespace}
+              {app.namespace}.{app.namespace}
               .svc.cluster.local
             </p>
           </>

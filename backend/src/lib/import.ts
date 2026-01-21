@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { setTimeout } from "node:timers/promises";
+import { logger } from "../index.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { env } from "./env.ts";
 import { type GitProvider } from "./git/gitProvider.ts";
@@ -93,6 +94,11 @@ git push -u origin main`,
     },
   });
 
+  logger.info(
+    { jobNamespace: job.metadata.namespace, jobName: job.metadata.name },
+    "Created manual Git repo import job",
+  );
+
   await awaitJobCompletion(job.metadata.name);
 }
 
@@ -106,6 +112,13 @@ async function awaitJobCompletion(jobName: string) {
       return true;
     }
     if (result.status.failed > 0) {
+      logger.warn(
+        {
+          jobNamespace: result.metadata.namespace,
+          jobName: result.metadata.name,
+        },
+        "Git repo import job failed",
+      );
       throw new Error("Job failed");
     }
     await setTimeout(500);

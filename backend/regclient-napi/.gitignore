@@ -1,0 +1,4 @@
+dist
+build
+gobuild
+node_modules

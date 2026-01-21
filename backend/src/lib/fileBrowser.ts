@@ -1,6 +1,7 @@
 import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
+import { logger } from "../index.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { env } from "./env.ts";
 
@@ -136,6 +137,10 @@ async function getFileBrowserAddress(
         },
       },
     });
+    logger.info(
+      { jobName: job.metadata.name, jobNamespace: job.metadata.namespace },
+      "Created file browser pod",
+    );
   } catch (error) {
     if ((error as ApiException<any>).code === 409) {
       // A Job with this name already exists in this namespace. We don't need to recreate it.
@@ -155,6 +160,14 @@ async function getFileBrowserAddress(
       }
       const pod = pods.items[0];
       if (pod?.status?.phase === "Running" && pod?.status?.podIP) {
+        logger.info(
+          {
+            jobName: job.metadata.name,
+            jobNamespace: job.metadata.namespace,
+            address: pod.status.podIP,
+          },
+          "File browser pod started",
+        );
         return {
           address: `http://${pod.status.podIP}:8080`,
           code: pod.spec.containers[0].env[0].value,

@@ -1,6 +1,6 @@
 # This Dockerfile is used to build the AnvilOps backend for use with Tilt.
 # It's used instead of the main anvilops image because it's much smaller and faster to build.
-FROM node:24-alpine AS base
+FROM node:24-trixie-slim AS base
 
 # Generate TypeScript types from OpenAPI spec
 FROM base AS openapi_codegen
@@ -33,16 +33,41 @@ COPY backend/package*.json .
 COPY backend/prisma ./prisma
 RUN npm run prisma:generate
 
+# BACKEND: compile regclient Node-API bindings
+FROM base AS compile_regclient_bindings
+
+# https://docs.docker.com/reference/dockerfile/#example-cache-apt-packages
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends build-essential golang ca-certificates python3
+
+WORKDIR /app
+COPY backend/package*.json .
+COPY backend/regclient-napi ./regclient-napi
+COPY --from=backend_deps /app/node_modules ./node_modules
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    npm rebuild --foreground-scripts=true regclient-napi
+
 # Run the backend
 FROM base AS backend_run
 
-ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types"]
+# https://docs.docker.com/reference/dockerfile/#example-cache-apt-packages
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates
+
+ENTRYPOINT ["/usr/local/bin/node", "--experimental-strip-types", "--require", "/app/src/instrumentation.ts"]
 CMD ["./src/index.ts"]
 
 EXPOSE 3000
 
 WORKDIR /app
-COPY --from=regclient/regctl:v0.11.1-alpine /usr/local/bin/regctl /usr/local/bin/regctl
+COPY --from=compile_regclient_bindings /app/regclient-napi ./regclient-napi
 COPY --from=backend_prod_deps /app/node_modules ./node_modules
 COPY templates/templates.json ./templates.json
 COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma

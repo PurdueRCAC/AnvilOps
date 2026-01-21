@@ -3,6 +3,7 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
+import { logger } from "../index.ts";
 import { GitHubGitProvider } from "../lib/git/githubGitProvider.ts";
 import {
   GitHubInstallationForbiddenError,
@@ -63,12 +64,28 @@ export async function processGitHubOAuthResponse(
     // Update the organization's installation ID
     await db.org.setInstallationId(orgId, org.newInstallationId);
 
+    logger.info(
+      { userId, orgId, installationId: org.newInstallationId },
+      "GitHub installation ID verified (3/3)",
+    );
+
     // We're finally done! Redirect the user back to the frontend.
     return "done";
   } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
-    const userId = await GitHubGitProvider.getUserFromOAuthCode(code);
+    const { id: userId, login: userLogin } =
+      await GitHubGitProvider.getUserFromOAuthCode(code);
 
     await db.user.setGitHubUserId(userId, userId);
+
+    logger.info(
+      {
+        userId,
+        orgId,
+        githubUserId: userId,
+        githubUserLogin: userLogin,
+      },
+      "GitHub installation pending administrator approval (3/3)",
+    );
 
     // Redirect the user to a page that says the app approval is pending and that they can link the installation to an organization when the request is approved.
     return "approval-needed";

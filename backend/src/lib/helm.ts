@@ -8,7 +8,7 @@ import {
   svcK8s,
 } from "./cluster/kubernetes.ts";
 import { shouldImpersonate } from "./cluster/rancher.ts";
-import { createNamespaceConfig, getNamespace } from "./cluster/resources.ts";
+import { createNamespaceConfig } from "./cluster/resources.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { env } from "./env.ts";
 
@@ -113,7 +113,7 @@ export const upgrade = async (
   deployment: Deployment,
   config: HelmConfig,
 ) => {
-  const namespaceName = getNamespace(app.namespace);
+  const namespaceName = app.namespace;
 
   // Create namespace through Kubernetes API to ensure required Rancher annotations
   const api = getClientForClusterUsername(

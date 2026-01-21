@@ -1,6 +1,5 @@
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import {
   AppNotFoundError,
@@ -28,7 +27,7 @@ export async function getAppByID(appId: number, userId: number) {
         ["AppsV1Api"],
       );
       return await api.readNamespacedStatefulSet({
-        namespace: getNamespace(app.namespace),
+        namespace: app.namespace,
         name: app.name,
       });
     } catch {}

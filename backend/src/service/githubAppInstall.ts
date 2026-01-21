@@ -5,6 +5,7 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
+import { logger } from "../index.ts";
 import { getGitProviderType } from "../lib/git/gitProvider.ts";
 import { OrgAlreadyLinkedError, OrgNotFoundError } from "./common/errors.ts";
 
@@ -24,6 +25,7 @@ export async function createGitHubAppInstallState(
     throw new OrgNotFoundError(null);
   }
 
+  logger.info({ userId, orgId }, "GitHub installation flow started (1/3)");
   return await createState("CREATE_INSTALLATION", userId, orgId);
 }
 

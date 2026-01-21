@@ -32,6 +32,9 @@ paths:
               schema:
                 type: object
                 properties:
+                  version:
+                    type: string
+                    nullable: true
                   appDomain:
                     type: string
                     format: uri
@@ -1727,6 +1730,43 @@ paths:
         - name: subdomain
           in: query
           description: The subdomain to check.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                required: [available]
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /app/namespace:
+    description: Checks if a namespace is available for use.
+    get:
+      operationId: isNamespaceAvailable
+      parameters:
+        - name: namespace
+          in: query
+          description: The namespace to check.
           required: true
           schema:
             type: string

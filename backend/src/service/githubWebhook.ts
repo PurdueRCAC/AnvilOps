@@ -1,6 +1,8 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db, NotFoundError } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
+import { logger } from "../index.ts";
 import { env } from "../lib/env.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import {
@@ -16,66 +18,97 @@ export async function processGitHubWebhookPayload(
   action: string,
   requestBody: any,
 ) {
-  switch (event) {
-    case "repository": {
-      switch (action) {
-        case "transferred": {
-          return await handleRepositoryTransferred(
-            requestBody as components["schemas"]["webhook-repository-transferred"],
-          );
+  return await trace
+    .getTracer("github_webhook")
+    .startActiveSpan("process_webhook", async (span) => {
+      try {
+        switch (event) {
+          case "repository": {
+            switch (action) {
+              case "transferred": {
+                return await handleRepositoryTransferred(
+                  requestBody as components["schemas"]["webhook-repository-transferred"],
+                );
+              }
+              case "deleted": {
+                return await handleRepositoryDeleted(
+                  requestBody as components["schemas"]["webhook-repository-deleted"],
+                );
+              }
+              default: {
+                throw new UnknownWebhookRequestTypeError();
+              }
+            }
+          }
+          case "installation": {
+            switch (action) {
+              case "created": {
+                return await handleInstallationCreated(
+                  requestBody as components["schemas"]["webhook-installation-created"],
+                );
+              }
+              case "deleted": {
+                return await handleInstallationDeleted(
+                  requestBody as components["schemas"]["webhook-installation-deleted"],
+                );
+              }
+              default: {
+                throw new UnknownWebhookRequestTypeError();
+              }
+            }
+          }
+          case "push": {
+            return await handlePush(
+              requestBody as components["schemas"]["webhook-push"],
+            );
+          }
+          case "workflow_run": {
+            return await handleWorkflowRun(
+              requestBody as components["schemas"]["webhook-workflow-run"],
+            );
+          }
+          default: {
+            throw new UnknownWebhookRequestTypeError();
+          }
         }
-        case "deleted": {
-          return await handleRepositoryDeleted(
-            requestBody as components["schemas"]["webhook-repository-deleted"],
-          );
-        }
-        default: {
-          throw new UnknownWebhookRequestTypeError();
-        }
+      } catch (err) {
+        span.recordException(err);
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: "Uncaught error processing GitHub webhook",
+        });
+      } finally {
+        span.end();
       }
-    }
-    case "installation": {
-      switch (action) {
-        case "created": {
-          return await handleInstallationCreated(
-            requestBody as components["schemas"]["webhook-installation-created"],
-          );
-        }
-        case "deleted": {
-          return await handleInstallationDeleted(
-            requestBody as components["schemas"]["webhook-installation-deleted"],
-          );
-        }
-        default: {
-          throw new UnknownWebhookRequestTypeError();
-        }
-      }
-    }
-    case "push": {
-      return await handlePush(
-        requestBody as components["schemas"]["webhook-push"],
-      );
-    }
-    case "workflow_run": {
-      return await handleWorkflowRun(
-        requestBody as components["schemas"]["webhook-workflow-run"],
-      );
-    }
-    default: {
-      throw new UnknownWebhookRequestTypeError();
-    }
-  }
+    });
 }
 
 async function handleRepositoryTransferred(
   payload: components["schemas"]["webhook-repository-transferred"],
 ) {
+  logger.info(
+    {
+      changes: payload.changes,
+      repoId: payload.repository.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+    },
+    "Received GitHub webhook: repository transferred",
+  );
   // TODO Verify that the AnvilOps organization(s) linked to this repo still have access to it
 }
 
 async function handleRepositoryDeleted(
   payload: components["schemas"]["webhook-repository-deleted"],
 ) {
+  logger.info(
+    {
+      repoId: payload.repository.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+    },
+    "Received GitHub webhook: repository deleted",
+  );
   // Unlink the repository from all of its associated apps
   // Every deployment from that repository will now be listed as directly from the produced container image
   await db.deployment.unlinkRepositoryFromAllDeployments(payload.repository.id);
@@ -84,10 +117,23 @@ async function handleRepositoryDeleted(
 async function handleInstallationCreated(
   payload: components["schemas"]["webhook-installation-created"],
 ) {
+  logger.info(
+    {
+      installationId: payload.installation.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+      requesterId: payload.requester.id,
+      requesterLogin: payload.requester.login,
+    },
+    "Received GitHub webhook: installation created",
+  );
   // This webhook is sent when the GitHub App is installed or a request to install the GitHub App is approved. Here, we care about the latter.
   if (!payload.requester) {
     // Since this installation has no requester, it was created without going to an organization admin for approval. That means it's already been linked to an AnvilOps organization in src/handlers/githubOAuthCallback.ts.
     // TODO: Verify that the requester field is what I think it is. GitHub doesn't provide any description of it in their API docs.
+    logger.info(
+      "Installation has no requester; must have already been linked to an organization",
+    );
     return;
   }
 
@@ -98,6 +144,13 @@ async function handleInstallationCreated(
 
   // Find the person who requested the app installation and add a record linked to their account that allows them to link the installation to an organization of their choosing
   try {
+    logger.info(
+      {
+        githubUserId: payload.requester.id,
+        installationId: payload.installation.id,
+      },
+      "Creating unassigned installation",
+    );
     await db.user.createUnassignedInstallation(
       payload.requester.id,
       payload.installation.id,
@@ -116,6 +169,14 @@ async function handleInstallationCreated(
 async function handleInstallationDeleted(
   payload: components["schemas"]["webhook-installation-deleted"],
 ) {
+  logger.info(
+    {
+      installationId: payload.installation.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+    },
+    "Received GitHub webhook: installation deleted",
+  );
   // Unlink the GitHub App installation from the organization
   await db.org.unlinkInstallationFromAllOrgs(payload.installation.id);
 }
@@ -126,6 +187,18 @@ async function handleInstallationDeleted(
  * @throws {AppNotFoundError} if no apps redeploy on push to this branch
  */
 async function handlePush(payload: components["schemas"]["webhook-push"]) {
+  logger.info(
+    {
+      installationId: payload.installation.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+      repoId: payload.repository?.id,
+      headCommitSha: payload.head_commit.id,
+      ref: payload.ref,
+    },
+    "Received GitHub webhook: push",
+  );
+
   const repoId = payload.repository?.id;
   if (!repoId) {
     throw new ValidationError("Repository ID not specified");
@@ -177,6 +250,19 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
 async function handleWorkflowRun(
   payload: components["schemas"]["webhook-workflow-run"],
 ) {
+  logger.info(
+    {
+      installationId: payload.installation.id,
+      senderId: payload.sender.id,
+      senderLogin: payload.sender.login,
+      repoId: payload.repository?.id,
+      workflow: payload.workflow.name,
+      branch: payload.workflow_run.head_branch,
+      commit: payload.workflow_run.head_commit.id,
+      action: payload.action,
+    },
+    "Received GitHub webhook: workflow run",
+  );
   const repoId = payload.repository?.id;
   if (!repoId) {
     throw new ValidationError("Repository ID not specified");

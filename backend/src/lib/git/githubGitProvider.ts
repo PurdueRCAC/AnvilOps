@@ -2,6 +2,7 @@ import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import type { operations } from "@octokit/openapi-types";
 import { Octokit, RequestError } from "octokit";
 import { db } from "../../db/index.ts";
+import { logger } from "../../index.ts";
 import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
@@ -124,12 +125,24 @@ export class GitHubGitProvider implements GitProvider {
   ): Promise<number> {
     try {
       // Try to import the repo by using it as a template
-      return await this.attemptFastImport(
+      const ret = await this.attemptFastImport(
         sourceURL,
         newOwner,
         newRepoName,
         makePrivate,
       );
+      logger.info(
+        {
+          userId,
+          orgId,
+          source: sourceURL.toString(),
+          destOwner: newOwner,
+          destRepo: newRepoName,
+          makePrivate: makePrivate,
+        },
+        "Imported Git repository from template",
+      );
+      return ret;
     } catch (e) {
       if (e instanceof FastImportUnsupportedError) {
         // Fast import won't work with this repo; we need to clone it manually
@@ -176,6 +189,18 @@ export class GitHubGitProvider implements GitProvider {
     userId: number,
   ): Promise<{ repoId: number; orgId: number }> {
     const state = await db.repoImportState.get(stateId, userId);
+
+    logger.info(
+      {
+        userId,
+        stateId,
+        source: state.srcRepoURL.toString(),
+        destOwner: state.destRepoOwner,
+        destRepo: state.destRepoName,
+        makePrivate: state.makePrivate,
+      },
+      "Importing Git repository with manual clone/copy",
+    );
 
     if (!state) {
       throw new ValidationError("State not found");
@@ -480,7 +505,7 @@ export class GitHubGitProvider implements GitProvider {
         code,
       ).rest.users.getAuthenticated();
 
-    return user.data.id;
+    return { id: user.data.id, login: user.data.login };
   }
 
   static async userCanAccessInstallation(

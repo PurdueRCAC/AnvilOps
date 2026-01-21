@@ -41,6 +41,7 @@ spec:
           {{- end }}
           image: {{ .Values.anvilops.image | quote }}
           imagePullPolicy: {{ .Values.anvilops.imagePullPolicy }}
+          args: ["./src/index.ts"]
           ports:
             - name: http
               containerPort: 3000
@@ -60,7 +61,7 @@ spec:
               mountPath: /etc/ssl/certs/anvilops-tls.crt
               subPath: anvilops-tls.crt
               readOnly: true
-            {{- with .Values.anvilops.serviceAccount.secretName }}
+            {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
             - name: kube-auth
               mountPath: /opt/creds
               readOnly: true
@@ -74,6 +75,8 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
+            - name: ANVILOPS_VERSION
+              value: {{ .Chart.Version }}
             - name: CLUSTER_CONFIG_PATH
               value: /opt/config/cluster.json
             - name: POSTGRES_USER
@@ -156,24 +159,23 @@ spec:
                 secretKeyRef:
                   name: github-app
                   key: client-secret
+            {{- if .Values.rancher.enabled }}
+            {{- with .Values.rancher.apiBase }}
             - name: RANCHER_API_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: rancher-config
-                  key: api-base
-                  optional: true
+              value: {{ . }}
+            {{- end }}
             - name: RANCHER_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: rancher-config
                   key: api-token
-                  optional: true
             - name: SANDBOX_ID
               valueFrom:
                 secretKeyRef:
                   name: rancher-config
                   key: sandbox-id
                   optional: true
+            {{- end }}
             - name: FIELD_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
@@ -194,9 +196,15 @@ spec:
                 secretKeyRef:
                   name: image-delete-secret
                   key: password
-            {{- with .Values.anvilops.serviceAccount.secretName }}
+            {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"
+            - name: CLUSTER_ID # used for rotating the kubeconfig
+              valueFrom:
+                secretKeyRef:
+                  name: kube-auth
+                  key: cluster-id
+                  optional: true
             {{- end }}
             - name: CURRENT_NAMESPACE
               value: {{ .Release.Namespace }}
@@ -234,9 +242,24 @@ spec:
               value: {{ .Values.anvilops.env.helmDeployerImage }}
             - name: LOG_SHIPPER_IMAGE
               value: {{ .Values.anvilops.env.logShipperImage }}
+            - name: RAILPACK_INTERNAL_FRONTEND_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalFrontendImage }}
+            - name: RAILPACK_INTERNAL_BUILDER_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalBuilderImage }}
+            - name: RAILPACK_INTERNAL_RUNTIME_IMAGE
+              value: {{ .Values.anvilops.env.railpackInternalRuntimeImage }}
             {{- with .Values.anvilops.env.registryProtocol }}
             - name: REGISTRY_PROTOCOL
               value: {{ . }}
+            {{- end }}
+            - name: NODE_ENV
+              value: production
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.anvilops.env.otelEndpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.anvilops.env.otelServiceName | quote }}
+            {{- with .Values.anvilops.env.extra -}}
+            {{ toYaml . | nindent 12 }}
             {{- end }}
       volumes:
         - name: cluster-config
@@ -249,10 +272,10 @@ spec:
             items:
               - key: tls.crt
                 path: anvilops-tls.crt
-      {{- with .Values.anvilops.serviceAccount.secretName }}
+      {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
         - name: kube-auth
           secret:
-            secretName: {{ . }}
+            secretName: kube-auth
             optional: false
             items:
               - key: kubeconfig

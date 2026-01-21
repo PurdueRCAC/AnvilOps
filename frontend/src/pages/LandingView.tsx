@@ -309,6 +309,7 @@ export default function LandingView() {
         </Accordion>
       </div>
       <div className="h-10 w-full bg-black text-white text-sm text-center flex justify-center items-center">
+        {settings?.version ? <>AnvilOps {settings.version} &middot; </> : null}
         Made with 💛 by the AnvilOps Team
       </div>
     </>

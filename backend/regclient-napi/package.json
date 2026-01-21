@@ -1,0 +1,20 @@
+{
+  "name": "regclient-napi",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Node-API bindings for regclient",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "go build -C ./src -o ../gobuild/main.a -buildmode=c-archive main.go && node-gyp rebuild && tsc && cp build/Release/regclient_napi.node dist/regclient_napi.node && rm -r build gobuild",
+    "install": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "node-addon-api": "^8.5.0",
+    "node-gyp": "^12.1.0",
+    "typescript": "^5.9.3"
+  }
+}
