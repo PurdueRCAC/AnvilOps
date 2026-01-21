@@ -1,3 +1,5 @@
+name: Release
+
 on:
   workflow_dispatch:
     inputs:
@@ -16,6 +18,7 @@ on:
 
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
