@@ -18,3 +18,8 @@ infra/
 log-shipper/
 tilt/
 app-proxy/
+
+backend/regclient-napi/dist
+backend/regclient-napi/build
+backend/regclient-napi/gobuild
+backend/regclient-napi/node_modules

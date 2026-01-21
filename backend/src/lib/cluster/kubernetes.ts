@@ -12,10 +12,14 @@ import {
   Watch,
   type V1Namespace,
 } from "@kubernetes/client-node";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../../db/index.ts";
+import { logger } from "../../index.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
+
+const tracer = trace.getTracer("kubernetes-api");
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -72,36 +76,38 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
   projectId: string | undefined,
   apiClassNames: Names,
 ): Promise<Pick<APIClientTypes, Names[number]>> {
-  apiClassNames.forEach((name) => {
-    if (!APIClientFactory.hasOwnProperty(name)) {
-      throw new Error("Invalid API class " + name);
+  return await tracer.startActiveSpan("getClientsForRequest", async (span) => {
+    try {
+      apiClassNames.forEach((name) => {
+        if (!APIClientFactory.hasOwnProperty(name)) {
+          throw new Error("Invalid API class " + name);
+        }
+      });
+
+      const impersonate = shouldImpersonate(projectId);
+      const clusterUsername = !impersonate
+        ? null
+        : await db.user.getById(reqUserId).then((user) => user.clusterUsername);
+
+      return apiClassNames.reduce((result, apiClassName) => {
+        return {
+          ...result,
+          [apiClassName]: getClientForClusterUsername(
+            clusterUsername,
+            apiClassName,
+            impersonate,
+          ),
+        };
+      }, {}) as Pick<APIClientTypes, Names[number]>;
+    } catch (err) {
+      span.recordException(err);
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      throw err;
+    } finally {
+      span.end();
     }
   });
-
-  const impersonate = shouldImpersonate(projectId);
-  const clusterUsername = !impersonate
-    ? null
-    : await db.user.getById(reqUserId).then((user) => user.clusterUsername);
-
-  return apiClassNames.reduce((result, apiClassName) => {
-    return {
-      ...result,
-      [apiClassName]: getClientForClusterUsername(
-        clusterUsername,
-        apiClassName,
-        impersonate,
-      ),
-    };
-  }, {}) as Pick<APIClientTypes, Names[number]>;
 }
-
-export const namespaceInUse = async (namespace: string) => {
-  return resourceExists(svcK8s["KubernetesObjectApi"], {
-    apiVersion: "v1",
-    kind: "Namespace",
-    metadata: { name: namespace },
-  });
-};
 
 export const resourceExists = async (
   api: KubernetesObjectApi,
@@ -158,6 +164,7 @@ export const deleteNamespace = async (
       kind: "Namespace",
       metadata: { name },
     });
+    logger.info({ name }, "Deleted namespace");
   } catch (err) {
     if (err instanceof ApiException && (err.code === 404 || err.code === 403)) {
       return;
@@ -173,30 +180,42 @@ export const createOrUpdateApp = async (
   configs: K8sObject[],
   postCreate?: (api: KubernetesObjectApi) => void,
 ) => {
-  if (await resourceExists(api, namespace)) {
-    await api.patch(namespace);
-  } else {
-    await ensureNamespace(api, namespace);
-  }
+  trace
+    .getTracer("kubernetes-api")
+    .startActiveSpan("createOrUpdateApp", async (span) => {
+      try {
+        if (await resourceExists(api, namespace)) {
+          await api.patch(namespace);
+        } else {
+          await ensureNamespace(api, namespace);
+        }
 
-  for (let config of configs) {
-    if (await resourceExists(api, config)) {
-      await api.patch(
-        config,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        // Use the non-strategic merge patch here because app updates involve replacing entire lists instead of partially updating them.
-        // For example, when setting environment variables, the strategic merge strategy wouldn't remove environment variables
-        // that we didn't specify in the updated configuration unless we explicitly tell it to via `$retainKeys`.
-        // More info on patch types: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
-        PatchStrategy.MergePatch,
-      );
-    } else {
-      await api.create(config);
-    }
-  }
+        for (let config of configs) {
+          if (await resourceExists(api, config)) {
+            await api.patch(
+              config,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              // Use the non-strategic merge patch here because app updates involve replacing entire lists instead of partially updating them.
+              // For example, when setting environment variables, the strategic merge strategy wouldn't remove environment variables
+              // that we didn't specify in the updated configuration unless we explicitly tell it to via `$retainKeys`.
+              // More info on patch types: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
+              PatchStrategy.MergePatch,
+            );
+          } else {
+            await api.create(config);
+          }
+        }
 
-  postCreate?.(api);
+        postCreate?.(api);
+      } catch (err) {
+        span.recordException(err);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
 };

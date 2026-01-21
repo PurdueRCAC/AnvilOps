@@ -16,8 +16,13 @@ anvilops:
     railpackBuilderImage: anvilops/railpack-builder
     helmDeployerImage: anvilops/helm-deployer
     logShipperImage: anvilops/log-shipper
+    railpackInternalFrontendImage: ghcr.io/railwayapp/railpack-frontend:latest
+    railpackInternalBuilderImage: ghcr.io/railwayapp/railpack-builder:latest
+    railpackInternalRuntimeImage: ghcr.io/railwayapp/railpack-runtime:latest
     allowHelmDeployments: true
     registryProtocol: http
+    otelEndpoint: "" # the Tiltfile overrides this if monitoring is enabled
+    otelServiceName: anvilops
   cluster:
     name: "Local"
     faq:
@@ -26,7 +31,7 @@ anvilops:
       link: https://www.rcac.purdue.edu/knowledge/anvil/composable
   serviceAccount:
     create: false
-    secretName: kube-auth
+    useKubeconfig: true
   ingress:
     className: nginx
     hosts:

@@ -23,13 +23,11 @@ import {
   generateAutomaticEnvVars,
 } from "./resources/statefulset.ts";
 
-const NAMESPACE_PREFIX = "anvilops-";
-
 // Subdomain must pass RFC 1123
 export const MAX_SUBDOMAIN_LEN = 63;
 
-// Namespace must pass RFC 1123 (and service must pass RFC 1035)
-export const MAX_NAMESPACE_LEN = 63 - NAMESPACE_PREFIX.length;
+// Namespace must pass RFC 1123
+export const MAX_NAMESPACE_LEN = 63;
 
 // app.kubernetes.io/part-of label must pass RFC 1123
 // `-{groupId}-{organizationId}` is appended to group name to create the label value
@@ -41,8 +39,6 @@ export const MAX_STS_NAME_LEN = 60;
 
 export const getRandomTag = (): string => randomBytes(4).toString("hex");
 export const RANDOM_TAG_LEN = 8;
-
-export const getNamespace = (subdomain: string) => NAMESPACE_PREFIX + subdomain;
 
 let allowedIngressPeers: V1NetworkPolicyPeer[] | null;
 const getAllowedIngressPeers = (): V1NetworkPolicyPeer[] | null => {
@@ -226,9 +222,7 @@ export const createAppConfigsFromDeployment = async ({
   config: WorkloadConfig;
   migrating?: boolean;
 }) => {
-  const namespaceName = getNamespace(app.namespace);
-
-  const namespace = createNamespaceConfig(namespaceName, app.projectId);
+  const namespace = createNamespaceConfig(app.namespace, app.projectId);
   const configs: K8sObject[] = [];
 
   const octokit =
@@ -248,7 +242,7 @@ export const createAppConfigsFromDeployment = async ({
     const secretConfig = createSecretConfig(
       secretData,
       secretName,
-      namespaceName,
+      app.namespace,
     );
 
     // Secrets should be created first
@@ -259,8 +253,8 @@ export const createAppConfigsFromDeployment = async ({
     deploymentId: deployment.id,
     collectLogs: config.collectLogs,
     name: app.name,
-    namespace: namespaceName,
-    serviceName: namespaceName,
+    namespace: app.namespace,
+    serviceName: app.namespace,
     image: config.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
@@ -332,7 +326,7 @@ export const createAppConfigsFromDeployment = async ({
         // When migrating, AnvilOps-specific labels are removed, so grouping network policies will not work.
         // Delete all network policies that are managed by AnvilOps.
         const netpols = await api
-          .list("networking.k8s.io/v1", "NetworkPolicy", namespaceName)
+          .list("networking.k8s.io/v1", "NetworkPolicy", app.namespace)
           .then((data) =>
             data.items.map((item) => ({
               ...item,
@@ -363,7 +357,7 @@ export const createAppConfigsFromDeployment = async ({
 
       const resourceLists = await Promise.all(
         resourceTypes.map((type) =>
-          api.list(type.apiVersion, type.kind, namespaceName).then((data) =>
+          api.list(type.apiVersion, type.kind, app.namespace).then((data) =>
             data.items.map((item) => ({
               ...item,
               apiVersion: type.apiVersion,

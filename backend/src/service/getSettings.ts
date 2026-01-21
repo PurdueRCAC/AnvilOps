@@ -28,6 +28,7 @@ export async function getSettings() {
   const clusterConfig = await clusterConfigPromise;
 
   return {
+    version: getVersionString(),
     appDomain: !!env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
@@ -35,4 +36,16 @@ export async function getSettings() {
     isRancherManaged: isRancherManaged(),
     allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
   };
+}
+
+function getVersionString() {
+  let version = env.ANVILOPS_VERSION;
+  if (env.BUILD_DATE) {
+    version += " (" + new Date(env.BUILD_DATE).toLocaleDateString() + ")";
+  }
+
+  if (env.IN_TILT) {
+    version += " (dev)";
+  }
+  return version;
 }

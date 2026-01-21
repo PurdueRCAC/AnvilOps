@@ -1,7 +1,9 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express from "express";
 import * as client from "openid-client";
 import { db } from "../db/index.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
+import { logger } from "../index.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 import { env, parseCsv } from "./env.ts";
 
@@ -21,6 +23,13 @@ const scope = "openid email profile org.cilogon.userinfo";
 const allowedIdps = parseCsv(env.ALLOWED_IDPS);
 
 const getIdentity = (claims: client.IDToken) => {
+  if (process.env._PURDUE_GEDDES) {
+    // On Purdue's Geddes cluster, Rancher is not configured to use a claim available from CILogon as a principalId.
+    // Rather, it uses the Purdue-specific UID:
+    const email = claims.email as string;
+    return email.replace("@purdue.edu", "");
+  }
+
   return claims[env.LOGIN_CLAIM] as string;
 };
 
@@ -77,6 +86,7 @@ router.get("/oauth_callback", async (req, res) => {
         name: existingUser.name,
         email: existingUser.email,
       };
+      logger.info({ userId: existingUser.id }, "User logged in");
     } else {
       let clusterUsername: string;
       if (isRancherManaged()) {
@@ -103,11 +113,16 @@ router.get("/oauth_callback", async (req, res) => {
         name: newUser.name,
         email: newUser.email,
       };
+      logger.info(newUser, "User signed up");
     }
 
     return res.redirect("/dashboard");
   } catch (err) {
-    console.error(err);
+    const span = trace.getActiveSpan();
+    if (span) {
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      span.recordException(err);
+    }
     return res.redirect("/error?type=login");
   }
 });
@@ -128,6 +143,7 @@ const ALLOWED_ROUTES = [
   "/settings",
   "/templates",
 ];
+
 router.use((req, res, next) => {
   if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {
     next();
@@ -140,6 +156,9 @@ router.use((req, res, next) => {
     return;
   }
   (req as AuthenticatedRequest).user = req.session["user"];
+
+  trace.getActiveSpan()?.setAttribute("user.id", req.session["user"].id);
+
   next();
 });
 

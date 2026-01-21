@@ -3,11 +3,9 @@
 
 anvilops:
   replicaCount: 1
-
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:latest
-  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:latest
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:0.3.0@sha256:0074c28bb2c4c74ea323e0f1167f9f3021c0f1a2a911974e7b91116878ff5b13
+  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:0.3.0@sha256:6054a9c4e2345f771a0bc0b9833cb5189ba4519bca632df1266791bd82047931
   imagePullPolicy: IfNotPresent
-
   env:
     baseURL: http://anvilops.minikube.local
     appDomain: http://minikube.local
@@ -15,20 +13,26 @@ anvilops:
     harborChartRepoName: anvilops-chart
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
-    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:latest
-    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:latest
-    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:latest
-    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:latest
-    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:latest
+    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:0.3.0@sha256:9f01e349a0dd5a49a00730ed638dec381acfb6b5e2496471e1e395de1bd457cf
+    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:0.3.0@sha256:c23a64b80ea381d732642c90bf67da80d27ce97999e665b34d1bf9121c361e69
+    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.3.0@sha256:b30c26f9ef107c78b831c4127c57c36d6c572e8c007b012688455a0d915689d6
+    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:0.3.0@sha256:60199df66c63df6db4f30aaa97dadfc3be8d4cf78a56516e733b2fa87a5da394
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:0.3.0@sha256:35ece5c02641eee92bfd0ee386056af8fd857bc5b379393c957e5fb8e8c39350
+    railpackInternalFrontendImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:0.17.0@sha256:aa2c58772b4cb9851767647b898e537ebb06067aadc2b62f51c97acdce2a61bc
+    railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.17.0@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
+    railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.17.0@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
     allowHelmDeployments: false
-
+    otelEndpoint: ""
+    otelServiceName: anvilops
+    extra:
+    # If you need to add extra environment variables, put them here with the standard Kubernetes syntax. For example:
+    # - name: DEBUG
+    #   value: "*"
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
-
   # This is to override the chart name.
   nameOverride: ""
   fullnameOverride: ""
-
   securityContext:
     capabilities:
       drop: [ALL]
@@ -37,7 +41,6 @@ anvilops:
     runAsGroup: 65532
     readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
-
   # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
   serviceAccount:
     # Specifies whether a service account should be created
@@ -47,20 +50,19 @@ anvilops:
     # The name of the service account to use.
     # If not set and create is true, a name is generated using the fullname template
     name: ""
-
+    useKubeconfig: false
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
     # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
     type: ClusterIP
     port: 80
-
   # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
   ingress:
     enabled: true
     className: ""
     annotations:
-      # kubernetes.io/ingress.class: nginx
-      # kubernetes.io/tls-acme: "true"
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
     hosts:
       - host: anvilops.minikube.local
         paths:
@@ -70,7 +72,6 @@ anvilops:
     #  - secretName: chart-example-tls
     #    hosts:
     #      - chart-example.local
-
   resources:
     requests:
       cpu: 512m
@@ -78,13 +79,9 @@ anvilops:
     limits:
       cpu: 1000m
       memory: 1Gi
-
   nodeSelector: {}
-
   tolerations: []
-
   affinity: {}
-
   apps:
     ingress:
       className: nginx
@@ -96,6 +93,13 @@ anvilops:
       allowedIngressMatchLabels:
         - kubernetes.io/metadata.name: kube-system
         - kubernetes.io/metadata.name: ingress-nginx
+
+rancher:
+  enabled: false
+  apiBase: ""
+  refreshTokens: true
+  refreshSchedule: "0 0 25 * *"
+  tokenTtl: 2592000000 # 30 days
 
 postgres:
   generateCredentials: true
@@ -109,7 +113,6 @@ postgres:
     resources:
       requests:
         storage: 1Gi
-
 buildkitd:
   # Set this to `true` to install the BuildKit daemon in the cluster.
   # This is required, but if you already have it installed, you should set this to `false`.
@@ -128,7 +131,6 @@ buildkitd:
   # Check for support: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#set-up-a-node-to-support-user-namespaces
   # More on motivation: https://github.com/kubernetes/enhancements/tree/217d790720c5aef09b8bd4d6ca96284a0affe6c2/keps/sig-node/127-user-namespaces#motivation
   enableUserNamespaces: false
-
 harbor:
   # Set this to `true` to install the Harbor container image registry in the cluster.
   # This is required, but if you already have it installed, you should set this to `false`.
@@ -166,7 +168,6 @@ harbor:
       port: 5432
       username: anvilops
       existingSecret: postgres-credentials
-
 tenants:
   storageClassName: standard
   accessModes: [ReadWriteOnce]

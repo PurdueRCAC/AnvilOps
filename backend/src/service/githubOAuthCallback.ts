@@ -3,6 +3,7 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
+import { logger } from "../index.ts";
 import { getUserOctokit } from "../lib/octokit.ts";
 import {
   GitHubInstallationForbiddenError,
@@ -71,6 +72,11 @@ export async function processGitHubOAuthResponse(
     // Update the organization's installation ID
     await db.org.setInstallationId(orgId, org.newInstallationId);
 
+    logger.info(
+      { userId, orgId, installationId: org.newInstallationId },
+      "GitHub installation ID verified (3/3)",
+    );
+
     // We're finally done! Redirect the user back to the frontend.
     return "done";
   } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
@@ -78,6 +84,16 @@ export async function processGitHubOAuthResponse(
     const user = await octokit.rest.users.getAuthenticated();
 
     await db.user.setGitHubUserId(userId, user.data.id);
+
+    logger.info(
+      {
+        userId,
+        orgId,
+        githubUserId: user.data.id,
+        githubUserLogin: user.data.login,
+      },
+      "GitHub installation pending administrator approval (3/3)",
+    );
 
     // Redirect the user to a page that says the app approval is pending and that they can link the installation to an organization when the request is approved.
     return "approval-needed";

@@ -1,13 +1,12 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import {
   createOrUpdateApp,
   deleteNamespace,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
-import {
-  createAppConfigsFromDeployment,
-  getNamespace,
-} from "../lib/cluster/resources.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
@@ -36,9 +35,19 @@ export async function deleteApp(
       projectId,
       ["KubernetesObjectApi"],
     );
-    await deleteNamespace(api, getNamespace(namespace));
+    try {
+      await deleteNamespace(api, namespace);
+    } catch (err) {
+      logger.warn({ namespace }, "Failed to delete namespace");
+      const span = trace.getActiveSpan();
+      span?.recordException(err);
+      span?.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: "Failed to delete namespace",
+      });
+    }
   } else if (config.appType === "workload") {
-    // If the log shipper was enabled, redeploy without it
+    // Redeploy without the log shipper and without anvilops-related labels
     config.collectLogs = false; // <-- Disable log shipping
 
     const app = await db.app.getById(lastDeployment.appId);
@@ -70,8 +79,18 @@ export async function deleteApp(
   try {
     if (imageRepo) await deleteRepo(imageRepo);
   } catch (err) {
-    console.error("Couldn't delete image repository:", err);
+    logger.warn({ imageRepo }, "Failed to delete image repository");
+    const span = trace.getActiveSpan();
+    span?.recordException(err);
+    span?.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: "Failed to delete image repository",
+    });
   }
 
   await db.app.delete(appId);
+  logger.info(
+    { appId, userId, imageRepo, namespace, keepNamespace },
+    "App deleted",
+  );
 }

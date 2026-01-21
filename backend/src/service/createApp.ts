@@ -1,12 +1,18 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ConflictError, db } from "../db/index.ts";
 import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
+import { logger } from "../index.ts";
 import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
   getRandomTag,
 } from "../lib/cluster/resources.ts";
-import { OrgNotFoundError, ValidationError } from "./common/errors.ts";
+import {
+  DeploymentError,
+  OrgNotFoundError,
+  ValidationError,
+} from "./common/errors.ts";
 import {
   appService,
   deploymentConfigService,
@@ -77,6 +83,8 @@ export async function createApp(appData: NewApp, userId: number) {
       namespace: appData.namespace,
     });
 
+    logger.info({ orgId: appData.orgId, appId: app.id }, "App created");
+
     config = deploymentConfigService.populateImageTag(config, app);
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
@@ -86,11 +94,18 @@ export async function createApp(appData: NewApp, userId: number) {
     throw err;
   }
 
-  await deploymentService.create({
-    org: organization,
-    app,
-    commitMessage,
-    config,
-  });
+  try {
+    await deploymentService.create({
+      org: organization,
+      app,
+      commitMessage,
+      config,
+    });
+  } catch (err) {
+    const span = trace.getActiveSpan();
+    span?.recordException(err);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
+    throw new DeploymentError(err);
+  }
   return app.id;
 }
