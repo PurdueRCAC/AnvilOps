@@ -31,7 +31,7 @@ anvilops:
       link: https://www.rcac.purdue.edu/knowledge/anvil/composable
   serviceAccount:
     create: false
-    secretName: kube-auth
+    useKubeconfig: true
   ingress:
     className: nginx
     hosts:

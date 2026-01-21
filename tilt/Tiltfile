@@ -28,7 +28,7 @@ if separate_frontend_and_backend:
       "/usr/local/bin/node",
       "--experimental-strip-types",
       "--require", "/app/src/instrumentation.ts",
-      "--watch", "/app/src/index.ts"
+      "--watch"
     ],
     live_update=[
       sync("../backend/src", "/app/src"),
