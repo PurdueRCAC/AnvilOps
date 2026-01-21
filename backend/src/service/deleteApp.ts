@@ -6,10 +6,7 @@ import {
   deleteNamespace,
   getClientsForRequest,
 } from "../lib/cluster/kubernetes.ts";
-import {
-  createAppConfigsFromDeployment,
-  getNamespace,
-} from "../lib/cluster/resources.ts";
+import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
@@ -39,12 +36,9 @@ export async function deleteApp(
       ["KubernetesObjectApi"],
     );
     try {
-      await deleteNamespace(api, getNamespace(namespace));
+      await deleteNamespace(api, namespace);
     } catch (err) {
-      logger.warn(
-        { namespace: getNamespace(namespace) },
-        "Failed to delete namespace",
-      );
+      logger.warn({ namespace }, "Failed to delete namespace");
       const span = trace.getActiveSpan();
       span?.recordException(err);
       span?.setStatus({

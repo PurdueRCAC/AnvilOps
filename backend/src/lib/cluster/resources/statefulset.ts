@@ -44,7 +44,7 @@ export const generateAutomaticEnvVars = async (
     },
     {
       name: "ANVILOPS_CLUSTER_HOSTNAME",
-      value: `anvilops-${app.namespace}.anvilops-${app.namespace}.svc.cluster.local`,
+      value: `${app.namespace}.${app.namespace}.svc.cluster.local`,
     },
     {
       name: "ANVILOPS_APP_NAME",

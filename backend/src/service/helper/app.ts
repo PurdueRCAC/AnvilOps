@@ -1,6 +1,5 @@
 import type { Organization, User } from "../../db/models.ts";
 import type { components } from "../../generated/openapi.ts";
-import { namespaceInUse } from "../../lib/cluster/kubernetes.ts";
 import {
   canManageProject,
   isRancherManaged,
@@ -13,6 +12,7 @@ import {
 import { env } from "../../lib/env.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { ValidationError } from "../../service/common/errors.ts";
+import { isNamespaceAvailable } from "../isNamespaceAvailable.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
 interface CreateAppInput {
   type: "create";
@@ -160,7 +160,7 @@ export class AppService {
       );
     }
 
-    if (await namespaceInUse(app.namespace)) {
+    if (!(await isNamespaceAvailable(app.namespace))) {
       throw new ValidationError("namespace is unavailable");
     }
 

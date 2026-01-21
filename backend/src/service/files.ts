@@ -1,5 +1,4 @@
 import { db } from "../db/index.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
 import {
@@ -39,7 +38,7 @@ export async function forwardToFileBrowser(
   }
 
   const response = await forwardRequest(
-    getNamespace(app.namespace),
+    app.namespace,
     volumeClaimName,
     path,
     requestInit,

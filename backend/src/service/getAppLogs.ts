@@ -5,7 +5,6 @@ import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getNamespace } from "../lib/cluster/resources.ts";
 import { AppNotFoundError, ValidationError } from "./common/errors.ts";
 
 const meter = metrics.getMeter("log_viewer");
@@ -106,7 +105,7 @@ export async function getAppLogs(
     let pods: V1PodList;
     try {
       pods = await core.listNamespacedPod({
-        namespace: getNamespace(app.namespace),
+        namespace: app.namespace,
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
       });
     } catch (err) {
@@ -119,7 +118,7 @@ export async function getAppLogs(
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
       const logAbortController = await log.log(
-        getNamespace(app.namespace),
+        app.namespace,
         podName,
         pod.spec.containers[0].name,
         logStream,

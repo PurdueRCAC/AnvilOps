@@ -1,10 +1,6 @@
-import { KubeConfig } from "@kubernetes/client-node";
 import { getOrCreate } from "../cache.ts";
 import { env } from "../env.ts";
 import { getClientForClusterUsername } from "./kubernetes.ts";
-
-const kc = new KubeConfig();
-kc.loadFromDefault();
 
 const token = env["RANCHER_TOKEN"];
 const headers = {
