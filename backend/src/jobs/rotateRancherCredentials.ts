@@ -12,6 +12,7 @@ import * as yaml from "yaml";
 const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
 const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
 const RANCHER_SECRET_NAME = process.env.RANCHER_SECRET_NAME;
+const RANCHER_TOKEN_TTL = parseInt(process.env.RANCHER_TOKEN_TTL, 10);
 
 if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
   console.log("RANCHER_API_BASE or RANCHER_TOKEN not set, skipping rotation");
@@ -37,7 +38,7 @@ const rancherTokenReq = await fetch(`${RANCHER_API_BASE}/tokens`, {
   },
   body: JSON.stringify({
     type: "token",
-    ttl: 2592000000, // 30 days
+    ttl: RANCHER_TOKEN_TTL,
   }),
 });
 
