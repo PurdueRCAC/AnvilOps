@@ -90,9 +90,9 @@ anvilops:
       # kubernetes.io/tls-acme: "true"
     netpol:
       createIngressNetworkPolicy: false
-      allowedIngressMatchLabels:
-        - kubernetes.io/metadata.name: kube-system
-        - kubernetes.io/metadata.name: ingress-nginx
+      # allowedIngressMatchLabels:
+      #   - kubernetes.io/metadata.name: kube-system
+      #   - kubernetes.io/metadata.name: ingress-nginx
 
 rancher:
   enabled: false

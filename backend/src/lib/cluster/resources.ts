@@ -14,6 +14,7 @@ import type {
   Organization,
   WorkloadConfig,
 } from "../../db/models.ts";
+import { logger } from "../../index.ts";
 import { env } from "../env.ts";
 import { getOctokit } from "../octokit.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
@@ -160,7 +161,14 @@ const createIngressNetPol = ({
   namespace: string;
   groupLabels: { [key: string]: string };
 }): V1NetworkPolicy & K8sObject => {
-  if (!env.CREATE_INGRESS_NETPOL || !env.ALLOW_INGRESS_FROM) {
+  if (!env.CREATE_INGRESS_NETPOL) {
+    return null;
+  }
+
+  if (!env.ALLOW_INGRESS_FROM) {
+    logger.warn(
+      "ALLOW_INGRESS_FROM is not set, skipping network policy creation",
+    );
     return null;
   }
 
