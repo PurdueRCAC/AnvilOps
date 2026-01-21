@@ -50,6 +50,9 @@ If an option has a ⭐ beside it, you will likely have to change it to fit your 
 |     | **App ingress configuration**                                                                          | _These values influence the generated `Ingress` configuration created for every app._                                                                                                                                                                                  |                                                                                                 |
 | ⭐  | `anvilops.apps.ingress.className`                                                                      | Ingress class name                                                                                                                                                                                                                                                     | nginx                                                                                           |
 |     | `anvilops.apps.ingress.annotations`                                                                    | Annotations added to end users' `Ingress` resources.                                                                                                                                                                                                                   |                                                                                                 |
+|     | **App network policy configuration**                                                                   | _These values control NetworkPolicy resources created for tenant apps to restrict ingress traffic._                                                                                                                                                                    |                                                                                                 |
+| ⭐  | `anvilops.apps.netpol.createIngressNetworkPolicy`                                                      | If `true`, creates NetworkPolicy resources in tenant namespaces that restrict ingress traffic. Requires `allowedIngressMatchLabels` to be configured.                                                                                                                  | false                                                                                           |
+| ⭐  | `anvilops.apps.netpol.allowedIngressMatchLabels`                                                       | A list of label selectors that specify which namespaces are allowed to send ingress traffic to tenant apps. Apps in the same app group are always allowed. See notes below for important considerations.                                                               | `[{kubernetes.io/metadata.name: kube-system}, {kubernetes.io/metadata.name: ingress-nginx}]`    |
 |     | **Postgres configuration**                                                                             | _AnvilOps uses Postgres to store all user data except container images._                                                                                                                                                                                               |                                                                                                 |
 |     | `postgres.generateCredentials`                                                                         | Automatically generate a password and field encryption secret and store them in a secret called `postgres-credentials`. If you set this to `false`, populate that secret with random values in the `password` and `field-encryption-key` keys.                         | true                                                                                            |
 |     | `postgres.image`                                                                                       | The image to use for the Postgres deployment.                                                                                                                                                                                                                          | postgres:17                                                                                     |
@@ -107,6 +110,35 @@ For example, if your `appDomain` was `https://example.com` (users' apps would be
 - Type: `A` or `AAAA`
 - Domain: `*.example.com`
 - IP: the public IP address of your ingress controller
+
+## Network Policy Configuration
+
+When `anvilops.apps.netpol.createIngressNetworkPolicy` is `true` and `anvilops.apps.netpol.allowedIngressMatchLabels` is configured, AnvilOps creates NetworkPolicy resources in tenant namespaces to restrict ingress. These policies allowlist ingress from:
+
+1. Namespaces matching any of the label selectors specified in `allowedIngressMatchLabels`
+2. Apps within the same app group
+
+All other ingress traffic is blocked by default.
+
+### Configuring `allowedIngressMatchLabels`
+
+The `allowedIngressMatchLabels` field accepts a list of label selectors identifying namespaces to allow traffic from. For example, this default configuration allowlists traffic from the namespaces `kube-system` and `ingress-nginx`.
+
+```yaml
+allowedIngressMatchLabels:
+  - kubernetes.io/metadata.name: kube-system
+  - kubernetes.io/metadata.name: ingress-nginx
+```
+
+- **The network policy will block ingress from all namespaces that do not have an allowlisted label and are not part of the app group.** This could include many system services.
+
+- If `createIngressNetworkPolicy` is set to `true`, make sure to include all namespaces that need to communicate with tenant apps in `allowedIngressMatchLabels`.
+
+### Rancher Project Isolation
+
+When project isolation is enabled, it may be sufficient to set `allowedIngressMatchLabels` to an empty list(`[]`). This is because Rancher will create network policies in each namespace to allow traffic from the System project(as well as the current project).
+
+Setting `createIngressNetworkPolicy: true` will still ensure that apps that are in the same group can communicate across projects.
 
 ## Required Secrets
 
