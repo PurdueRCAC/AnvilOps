@@ -29,8 +29,8 @@ export async function getDeployment(deploymentId: number, userId: number) {
   let pods: V1PodList | null = null;
   if (config.source === "GIT") {
     const gitProvider = await getGitProvider(org.id);
-    const repo = await gitProvider.getRepoById(config.repositoryId);
-    repositoryURL = repo.htmlURL;
+    const repo = await gitProvider?.getRepoById(config.repositoryId);
+    repositoryURL = repo?.htmlURL;
   }
   if (config.appType === "workload") {
     pods = await api
