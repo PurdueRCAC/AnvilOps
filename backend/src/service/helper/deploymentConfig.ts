@@ -63,7 +63,7 @@ export class DeploymentConfigService {
           }
 
           console.error(err);
-          throw new Error("Failed to look up GitHub repository", {
+          throw new Error("Failed to look up Git repository", {
             cause: err,
           });
         }
@@ -289,7 +289,7 @@ export class DeploymentConfigService {
           throw new ValidationError("Workflow not found");
         }
       } catch (err) {
-        throw new ValidationError("Failed to look up GitHub workflow");
+        throw new ValidationError("Failed to look up workflow");
       }
     }
   }

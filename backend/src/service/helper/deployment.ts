@@ -35,7 +35,7 @@ type GitOptions =
   | { skipBuild: boolean; checkRun?: undefined }
   | {
       skipBuild?: false;
-      checkRun: { pending: boolean; owner: string; repo: string };
+      checkRun: { pending: boolean };
     };
 
 export class DeploymentService {
@@ -142,7 +142,7 @@ export class DeploymentService {
   }) {
     if (opts?.checkRun) {
       // Webhook event deployment
-      const { pending, owner, repo } = opts.checkRun;
+      const { pending } = opts.checkRun;
       if (pending) {
         // AnvilOps is waiting for another CI workflow to finish before deploying the app. Create a "Pending" check run for now.
         // When the other workflow completes, this method will be called again with `pending` set to `false`.

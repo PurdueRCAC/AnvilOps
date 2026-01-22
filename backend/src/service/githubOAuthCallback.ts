@@ -72,10 +72,10 @@ export async function processGitHubOAuthResponse(
     // We're finally done! Redirect the user back to the frontend.
     return "done";
   } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
-    const { id: userId, login: userLogin } =
+    const { id: githubUserId, login: userLogin } =
       await GitHubGitProvider.getUserFromOAuthCode(code);
 
-    await db.user.setGitHubUserId(userId, userId);
+    await db.user.setGitHubUserId(userId, githubUserId);
 
     logger.info(
       {
