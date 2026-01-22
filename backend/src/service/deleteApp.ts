@@ -46,6 +46,18 @@ export async function deleteApp(
         message: "Failed to delete namespace",
       });
     }
+
+    try {
+      if (imageRepo) await deleteRepo(imageRepo);
+    } catch (err) {
+      logger.warn({ imageRepo }, "Failed to delete image repository");
+      const span = trace.getActiveSpan();
+      span?.recordException(err);
+      span?.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: "Failed to delete image repository",
+      });
+    }
   } else if (config.appType === "workload") {
     // Redeploy without the log shipper and without anvilops-related labels
     config.collectLogs = false; // <-- Disable log shipping
@@ -72,20 +84,6 @@ export async function deleteApp(
       ["KubernetesObjectApi"],
     );
     await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
-  }
-
-  // TODO: redeploy without AnvilOps-specified labels
-
-  try {
-    if (imageRepo) await deleteRepo(imageRepo);
-  } catch (err) {
-    logger.warn({ imageRepo }, "Failed to delete image repository");
-    const span = trace.getActiveSpan();
-    span?.recordException(err);
-    span?.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: "Failed to delete image repository",
-    });
   }
 
   await db.app.delete(appId);
