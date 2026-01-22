@@ -76,7 +76,7 @@ spec:
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
             - name: ANVILOPS_VERSION
-              value: {{ .Chart.Version }}
+              value: {{ .Chart.Version | quote }}
             - name: CLUSTER_CONFIG_PATH
               value: /opt/config/cluster.json
             - name: POSTGRES_USER
@@ -118,7 +118,7 @@ spec:
                   name: session-secret
                   key: secret
             - name: BASE_URL
-              value: {{ .Values.anvilops.env.baseURL }}
+              value: {{ .Values.anvilops.env.baseURL | quote }}
             - name: GITHUB_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
@@ -162,7 +162,7 @@ spec:
             {{- if .Values.rancher.enabled }}
             {{- with .Values.rancher.apiBase }}
             - name: RANCHER_API_BASE
-              value: {{ . }}
+              value: {{ . | quote }}
             {{- end }}
             - name: RANCHER_TOKEN
               valueFrom:
@@ -224,6 +224,8 @@ spec:
             {{- with .Values.anvilops.apps.netpol.allowedIngressMatchLabels }}
             - name: ALLOW_INGRESS_FROM
               value: {{ toJson . | quote }}
+            {{- else -}}
+            {{- fail "anvilops.apps.netpol.createIngressNetworkPolicy is enabled, but anvilops.apps.netpol.allowedIngressMatchLabels does not have a value." -}}
             {{- end }}
             {{- end }}
             - name: STORAGE_CLASS_NAME
@@ -237,7 +239,7 @@ spec:
             - name: CHART_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborChartRepoName }}
             - name: ALLOW_HELM_DEPLOYMENTS
-              value: "{{ .Values.anvilops.env.allowHelmDeployments }}"
+              value: {{ .Values.anvilops.env.allowHelmDeployments | quote }}
             - name: BUILDKITD_ADDRESS
               value: {{ .Values.buildkitd.address }}
             - name: FILE_BROWSER_IMAGE
