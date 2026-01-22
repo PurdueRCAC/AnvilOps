@@ -81,7 +81,7 @@ export interface GitProvider {
     stateId: string,
     code: string,
     userId: number,
-  ): Promise<{ repoId: number; orgId: number }>;
+  ): Promise<{ repoId: number; orgId: number; repoName: string }>;
 
   /**
    * Returns the name and email that AnvilOps should use to push the initial commit when copying

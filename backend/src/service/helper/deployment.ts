@@ -35,7 +35,7 @@ type GitOptions =
   | { skipBuild: boolean; checkRun?: undefined }
   | {
       skipBuild?: false;
-      checkRun: { pending: boolean };
+      checkRun: { pending: boolean; owner: string; repo: string };
     };
 
 export class DeploymentService {

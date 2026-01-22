@@ -20,7 +20,11 @@ export const importGitRepoHandler: HandlerMap["importGitRepoCreateState"] =
         return json(200, res, { url: result.url });
       } else {
         // The repo was created immediately & we don't need to redirect to GitHub for authorization
-        return json(201, res, { orgId: result.orgId, repoId: result.repoId });
+        return json(201, res, {
+          orgId: result.orgId,
+          repoId: result.repoId,
+          repoName: ctx.request.requestBody.destRepo,
+        });
       }
     } catch (e) {
       if (e instanceof OrgNotFoundError) {
@@ -43,5 +47,9 @@ export const importGitRepoContinueHandler: HandlerMap["importGitRepo"] = async (
     ctx.request.requestBody.code,
     req.user.id,
   );
-  return json(201, res, { orgId: result.orgId, repoId: result.repoId });
+  return json(201, res, {
+    orgId: result.orgId,
+    repoId: result.repoId,
+    repoName: result.repoName,
+  });
 };

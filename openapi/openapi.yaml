@@ -735,7 +735,9 @@ paths:
                   repoId:
                     type: number
                     format: int64
-                required: [orgId, repoId]
+                  repoName:
+                    type: string
+                required: [orgId, repoId, repoName]
         "400":
           description: Validation failed
           content:

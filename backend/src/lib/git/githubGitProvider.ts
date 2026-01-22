@@ -187,7 +187,7 @@ export class GitHubGitProvider implements GitProvider {
     stateId: string,
     code: string,
     userId: number,
-  ): Promise<{ repoId: number; orgId: number }> {
+  ): Promise<{ repoId: number; orgId: number; repoName: string }> {
     const state = await db.repoImportState.get(stateId, userId);
 
     logger.info(
@@ -216,7 +216,11 @@ export class GitHubGitProvider implements GitProvider {
     await this.importRepoManually(new URL(state.srcRepoURL), repo.data.id);
     await db.repoImportState.delete(stateId);
 
-    return { repoId: repo.data.id, orgId: state.orgId };
+    return {
+      repoId: repo.data.id,
+      orgId: state.orgId,
+      repoName: state.destRepoName,
+    };
   }
 
   async getBotCommitterDetails(): Promise<{ name: string; email: string }> {

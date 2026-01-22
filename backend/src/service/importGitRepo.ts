@@ -69,14 +69,14 @@ export async function continueImportGitRepo(
   stateId: string,
   code: string,
   userId: number,
-): Promise<{ orgId: number; repoId: number }> {
+): Promise<{ orgId: number; repoId: number; repoName: string }> {
   const gitProvider = await getGitProviderByRepoImportState(stateId, userId);
 
-  const { repoId, orgId } = await gitProvider.continueImportRepo(
+  const { repoId, orgId, repoName } = await gitProvider.continueImportRepo(
     stateId,
     code,
     userId,
   );
 
-  return { orgId, repoId };
+  return { orgId, repoId, repoName };
 }
