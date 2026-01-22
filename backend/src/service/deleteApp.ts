@@ -46,8 +46,20 @@ export async function deleteApp(
         message: "Failed to delete namespace",
       });
     }
-  } else if (config.appType === "workload" && config.collectLogs) {
-    // If the log shipper was enabled, redeploy without it
+
+    try {
+      if (imageRepo) await deleteRepo(imageRepo);
+    } catch (err) {
+      logger.warn({ imageRepo }, "Failed to delete image repository");
+      const span = trace.getActiveSpan();
+      span?.recordException(err);
+      span?.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: "Failed to delete image repository",
+      });
+    }
+  } else if (config.appType === "workload") {
+    // Redeploy without the log shipper and without anvilops-related labels
     config.collectLogs = false; // <-- Disable log shipping
 
     const app = await db.app.getById(lastDeployment.appId);
@@ -57,13 +69,14 @@ export async function deleteApp(
     ]);
 
     const { namespace, configs, postCreate } =
-      await createAppConfigsFromDeployment(
+      await createAppConfigsFromDeployment({
         org,
         app,
         appGroup,
-        lastDeployment,
+        deployment: lastDeployment,
         config,
-      );
+        migrating: true, // Deploy without any anvilops-related labels
+      });
 
     const { KubernetesObjectApi: api } = await getClientsForRequest(
       userId,
@@ -71,20 +84,6 @@ export async function deleteApp(
       ["KubernetesObjectApi"],
     );
     await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
-  }
-
-  // TODO: redeploy without AnvilOps-specified labels
-
-  try {
-    if (imageRepo) await deleteRepo(imageRepo);
-  } catch (err) {
-    logger.warn({ imageRepo }, "Failed to delete image repository");
-    const span = trace.getActiveSpan();
-    span?.recordException(err);
-    span?.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: "Failed to delete image repository",
-    });
   }
 
   await db.app.delete(appId);

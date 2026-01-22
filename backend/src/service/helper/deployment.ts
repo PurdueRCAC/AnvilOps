@@ -332,13 +332,13 @@ export class DeploymentService {
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment(
+        await createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
           deployment,
           config,
-        );
+        });
       const api = getClientForClusterUsername(
         app.clusterUsername,
         "KubernetesObjectApi",
