@@ -1,7 +1,7 @@
 import { InstallationNotFoundError } from "../lib/octokit.ts";
 import { claimOrg } from "../service/claimOrg.ts";
 import { OrgNotFoundError } from "../service/common/errors.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const claimOrgHandler: HandlerMap["claimOrg"] = async (
@@ -28,5 +28,5 @@ export const claimOrgHandler: HandlerMap["claimOrg"] = async (
     }
     throw e;
   }
-  return json(200, res, {});
+  return empty(200, res);
 };

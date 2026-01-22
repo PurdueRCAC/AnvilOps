@@ -24,7 +24,7 @@ export const importGitRepoCreateStateHandler: HandlerMap["importGitRepoCreateSta
         });
       } else {
         // The repo was created immediately & we don't need to redirect to GitHub for authorization
-        return json(201, res, { orgId: result.orgId, repoId: result.repoId });
+        return json(201, res, { repoId: result.repoId });
       }
     } catch (e) {
       if (e instanceof OrgNotFoundError) {

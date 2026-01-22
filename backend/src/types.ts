@@ -30,7 +30,7 @@ type EmptyObject = Record<never, never>;
 // Wrapping all the generic type parameters of `Context` with `OrEmpty<...>` makes it so that it satisfies openapi-backend's Handler type while also accomplishing our goal of making the result unusable within handler functions.
 type OrEmpty<Input> = NonNeverOr<Input, EmptyObject>;
 
-type Handler<O extends keyof apiOperations> = (
+export type Handler<O extends keyof apiOperations> = (
   ctx: Context<
     OrEmpty<ValuesOf<apiOperations[O]["requestBody"]["content"]>>,
     OrEmpty<apiOperations[O]["parameters"]["path"]>,
@@ -41,7 +41,7 @@ type Handler<O extends keyof apiOperations> = (
   req: O extends keyof typeof ALLOWED_ANONYMOUS_ROUTES
     ? ExpressRequest
     : AuthenticatedRequest,
-  res: ExpressResponse,
+  res: HandlerResponse<apiOperations[O]["responses"]>,
   next: NextFunction,
 ) => OptionalPromise<HandlerResponse<apiOperations[O]["responses"]>>;
 
@@ -54,27 +54,40 @@ type ResponseMap = {
   [statusCode in ResponseType]?: {
     headers: { [name: string]: unknown };
     content?: {
-      "application/json"?: object;
-      "text/event-stream"?: any;
-      "application/octet-stream"?: any;
+      "application/json"?: unknown;
+      "text/event-stream"?: unknown;
+      "application/octet-stream"?: unknown;
     };
   };
 };
 
-export type HandlerResponse<T extends ResponseMap> = ExpressResponse;
+export type HandlerResponse<T extends ResponseMap> = ExpressResponse & {
+  _internal_do_not_use_responseMap?: T;
+};
 
 export const json = <
   ResMap extends ResponseMap,
   Code extends keyof ResMap & number,
-  Content extends ResMap[Code]["content"]["application/json"],
 >(
   statusCode: Code,
-  res: ExpressResponse,
-  json: Content["application/json"] extends never
-    ? Record<PropertyKey, never>
-    : Required<Content>,
+  res: HandlerResponse<ResMap>,
+  json: ResMap[Code] extends { content: { "application/json": infer T } }
+    ? T
+    : never,
 ): HandlerResponse<ResMap> => {
   return res.status(statusCode as number).json(json);
+};
+
+export const empty = <
+  ResMap extends ResponseMap,
+  Code extends keyof ResponseMap & number,
+>(
+  statusCode: [ResMap[Code]["content"]] extends [never]
+    ? Code
+    : "Error: This status code expects a body in the OpenAPI spec. Use json() instead.",
+  res: HandlerResponse<ResMap>,
+): HandlerResponse<ResMap> => {
+  return res.status(statusCode as unknown as number).end();
 };
 
 export const redirect = <
@@ -86,6 +99,12 @@ export const redirect = <
   url: string,
 ): HandlerResponse<ResMap> => {
   res.redirect(statusCode, url);
+  return res;
+};
+
+export const unsafeGenericResponse = <ResMap extends ResponseMap>(
+  res: ExpressResponse,
+): HandlerResponse<ResMap> => {
   return res;
 };
 

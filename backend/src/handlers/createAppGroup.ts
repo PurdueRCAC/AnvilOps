@@ -5,7 +5,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { createAppGroup } from "../service/createAppGroup.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
@@ -17,7 +17,7 @@ export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
 
   try {
     await createAppGroup(req.user.id, data.orgId, data.name, data.apps);
-    return json(200, res, {});
+    return empty(200, res);
   } catch (e) {
     if (e instanceof AppCreateError) {
       const ex = e.cause!;

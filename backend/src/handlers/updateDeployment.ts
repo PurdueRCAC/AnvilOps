@@ -3,7 +3,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { updateDeployment } from "../service/updateDeployment.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 
 export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
   ctx,
@@ -13,7 +13,7 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
   const { secret, status } = ctx.request.requestBody;
   try {
     await updateDeployment(secret, status);
-    return json(200, res, undefined);
+    return empty(200, res);
   } catch (e) {
     console.error(e);
     if (e instanceof ValidationError) {
