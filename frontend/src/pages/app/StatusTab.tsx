@@ -50,7 +50,7 @@ export const StatusTab = ({
   );
 
   const pods = status?.pods;
-  const statefulSet = status?.statefulSet;
+  const deployment = status?.deployment;
   const events = status?.events;
 
   const activePods = pods?.filter(
@@ -61,8 +61,8 @@ export const StatusTab = ({
   );
 
   const updating =
-    statefulSet?.currentRevision !== statefulSet?.updateRevision ||
-    statefulSet?.generation !== statefulSet?.observedGeneration;
+    deployment?.currentRevision !== deployment?.updateRevision ||
+    deployment?.generation !== deployment?.observedGeneration;
 
   const {
     mutateAsync: deletePod,
@@ -74,10 +74,9 @@ export const StatusTab = ({
     <>
       <h2 className="text-xl font-medium mb-2">
         Pods{" "}
-        {statefulSet && (
+        {deployment && (
           <span className="opacity-50">
-            ({statefulSet?.readyReplicas ?? 0}/{statefulSet?.replicas ?? 0}{" "}
-            ready)
+            ({deployment?.readyReplicas ?? 0}/{deployment?.replicas ?? 0} ready)
           </span>
         )}
       </h2>
@@ -109,10 +108,10 @@ export const StatusTab = ({
         <div className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
           <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
             <Loader className="animate-spin" /> Update In Progress (
-            {statefulSet?.updatedReplicas
-              ? statefulSet.replicas! - statefulSet.updatedReplicas
-              : (statefulSet?.readyReplicas ?? 0)}
-            /{statefulSet?.replicas})
+            {deployment?.currentReplicas
+              ? deployment.replicas! - deployment.currentReplicas
+              : (deployment?.readyReplicas ?? 0)}
+            /{deployment?.replicas})
           </h3>
           <p>New pods are being created to replace old ones.</p>
         </div>

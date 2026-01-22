@@ -162,7 +162,7 @@ export class DeploymentConfigService {
       replicas: config.replicas,
       port: config.port,
       mounts: config.mounts,
-      commitHash: "unknown",
+      commitHash: null,
       imageTag: config.imageTag,
     };
   }

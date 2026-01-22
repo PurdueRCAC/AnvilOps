@@ -216,6 +216,7 @@ export const createDeploymentConfig = async (
           app: params.name,
         },
       },
+      replicas: params.replicas,
       template: {
         metadata: {
           labels: {

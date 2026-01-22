@@ -15,40 +15,55 @@ export async function getAppByID(appId: number, userId: number) {
     throw new AppNotFoundError();
   }
 
+  const [org, appGroup, currentConfig] = await Promise.all([
+    db.org.getById(app.orgId),
+    db.appGroup.getById(app.appGroupId),
+    db.deployment.getConfig(recentDeployment.id),
+  ]);
+
   // Fetch the current StatefulSet to read its labels
   const getK8sDeployment = async () => {
+    if (currentConfig.appType !== "workload") {
+      return null;
+    }
     try {
       const { AppsV1Api: api } = await getClientsForRequest(
         userId,
         app.projectId,
         ["AppsV1Api"],
       );
-      return await api.readNamespacedStatefulSet({
-        namespace: app.namespace,
-        name: app.name,
-      });
+      if (currentConfig.asWorkloadConfig().mounts.length > 0) {
+        return await api.readNamespacedStatefulSet({
+          namespace: app.namespace,
+          name: app.name,
+        });
+      } else {
+        return await api.readNamespacedDeployment({
+          namespace: app.namespace,
+          name: app.name,
+        });
+      }
     } catch {}
   };
 
-  const [org, appGroup, currentConfig, activeDeployment] = await Promise.all([
-    db.org.getById(app.orgId),
-    db.appGroup.getById(app.appGroupId),
-    db.deployment.getConfig(recentDeployment.id),
-    (await getK8sDeployment())?.spec?.template?.metadata?.labels?.[
-      "anvilops.rcac.purdue.edu/deployment-id"
-    ],
+  // Fetch repository info if this app is deployed from a Git repository
+  const [{ repoId, repoURL }, activeDeployment] = await Promise.all([
+    (async () => {
+      if (currentConfig.source === "GIT" && org.githubInstallationId) {
+        const octokit = await getOctokit(org.githubInstallationId);
+        const repo = await getRepoById(octokit, currentConfig.repositoryId);
+        return { repoId: repo.id, repoURL: repo.html_url };
+      } else {
+        return { repoId: undefined, repoURL: undefined };
+      }
+    })(),
+    getK8sDeployment(),
   ]);
 
-  // Fetch repository info if this app is deployed from a Git repository
-  const { repoId, repoURL } = await (async () => {
-    if (currentConfig.source === "GIT" && org.githubInstallationId) {
-      const octokit = await getOctokit(org.githubInstallationId);
-      const repo = await getRepoById(octokit, currentConfig.repositoryId);
-      return { repoId: repo.id, repoURL: repo.html_url };
-    } else {
-      return { repoId: undefined, repoURL: undefined };
-    }
-  })();
+  const activeDeploymentId =
+    activeDeployment?.metadata?.labels?.[
+      "anvilops.rcac.purdue.edu/deployment-id"
+    ];
 
   return {
     id: app.id,
@@ -68,7 +83,9 @@ export async function getAppByID(appId: number, userId: number) {
       name: !appGroup.isMono ? appGroup.name : undefined,
       id: app.appGroupId,
     },
-    activeDeployment: activeDeployment ? parseInt(activeDeployment) : undefined,
+    activeDeployment: activeDeploymentId
+      ? parseInt(activeDeploymentId)
+      : undefined,
     deploymentCount,
   };
 }

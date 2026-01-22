@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { AppNotFoundError, ValidationError } from "../service/common/errors.ts";
 import { getAppStatus, type StatusUpdate } from "../service/getAppStatus.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -41,6 +41,10 @@ export const getAppStatusHandler: HandlerMap["getAppStatus"] = async (
       update,
     );
   } catch (e) {
+    if (e instanceof ValidationError) {
+      return json(400, res, { code: 400, message: e.message });
+    }
+
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found." });
     }

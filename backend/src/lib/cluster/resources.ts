@@ -38,6 +38,10 @@ export const MAX_STS_NAME_LEN = 60;
 
 export const getRandomTag = (): string => randomBytes(4).toString("hex");
 export const RANDOM_TAG_LEN = 8;
+
+export const isStatefulSet = (config: WorkloadConfig) =>
+  config.mounts.length > 0;
+
 export interface K8sObject {
   apiVersion: string;
   kind: string;

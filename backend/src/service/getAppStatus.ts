@@ -1,17 +1,19 @@
 import {
   AbortError,
+  V1StatefulSet,
   type CoreV1EventList,
   type KubernetesListObject,
   type KubernetesObject,
+  type V1Deployment,
   type V1PodCondition,
   type V1PodList,
-  type V1StatefulSet,
   type Watch,
 } from "@kubernetes/client-node";
-import { metrics, ValueType } from "@opentelemetry/api";
+import { ValueType, metrics } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { isStatefulSet } from "../lib/cluster/resources.ts";
+import { AppNotFoundError, ValidationError } from "./common/errors.ts";
 
 const meter = metrics.getMeter("app_status_viewer");
 const concurrentViewers = meter.createUpDownCounter(
@@ -31,20 +33,27 @@ export async function getAppStatus(
   abortController: AbortController,
   callback: (status: StatusUpdate) => Promise<void>,
 ) {
-  const app = await db.app.getById(appId, {
-    requireUser: { id: userId },
-  });
+  const [app, config] = await Promise.all([
+    db.app.getById(appId, {
+      requireUser: { id: userId },
+    }),
+    db.app.getDeploymentConfig(appId),
+  ]);
 
   if (!app) {
     throw new AppNotFoundError();
   }
 
+  if (config.appType === "helm") {
+    throw new ValidationError("Cannot get app status for helm apps");
+  }
+
   let pods: V1PodList;
-  let statefulSet: V1StatefulSet;
+  let deployment: V1StatefulSet | V1Deployment;
   let events: CoreV1EventList;
 
   const update = async () => {
-    if (!pods || !events || !statefulSet) return;
+    if (!pods || !events || !deployment) return;
     const newStatus = {
       pods: pods.items.map((pod) => ({
         id: pod.metadata?.uid,
@@ -73,14 +82,16 @@ export async function getAppStatus(
         firstTimestamp: event.firstTimestamp.toISOString(),
         lastTimestamp: event.lastTimestamp.toISOString(),
       })),
-      statefulSet: {
-        readyReplicas: statefulSet.status.readyReplicas,
-        updatedReplicas: statefulSet.status.currentReplicas,
-        replicas: statefulSet.status.replicas,
-        generation: statefulSet.metadata.generation,
-        observedGeneration: statefulSet.status.observedGeneration,
-        currentRevision: statefulSet.status.currentRevision,
-        updateRevision: statefulSet.status.updateRevision,
+      deployment: {
+        readyReplicas: deployment.status.readyReplicas,
+        replicas: deployment.spec.replicas,
+        generation: deployment.metadata.generation,
+        observedGeneration: deployment.status.observedGeneration,
+        ...(deployment instanceof V1StatefulSet && {
+          currentReplicas: deployment.status.currentReplicas,
+          currentRevision: deployment.status.currentRevision,
+          updateRevision: deployment.status.updateRevision,
+        }),
       },
     };
 
@@ -128,25 +139,44 @@ export async function getAppStatus(
     );
     abortController.signal.addEventListener("abort", () => podWatcher.abort());
 
-    const statefulSetWatcher = await watchList(
-      watch,
-      `/apis/apps/v1/namespaces/${ns}/statefulsets`,
-      async () =>
-        await apps.listNamespacedStatefulSet({
-          namespace: ns,
-        }),
-      {},
-      async (newValue) => {
-        statefulSet = newValue.items.find(
-          (it) => it.metadata.name === app.name,
-        );
-        await update();
-      },
-      close,
-    );
-    abortController.signal.addEventListener("abort", () =>
-      statefulSetWatcher.abort(),
-    );
+    let watcher: Awaited<ReturnType<typeof watchList>>;
+    if (isStatefulSet(config.asWorkloadConfig())) {
+      watcher = await watchList(
+        watch,
+        `/apis/apps/v1/namespaces/${ns}/statefulsets`,
+        async () =>
+          await apps.listNamespacedStatefulSet({
+            namespace: ns,
+          }),
+        {},
+        async (newValue) => {
+          deployment = newValue.items.find(
+            (it) => it.metadata.name === app.name,
+          );
+          await update();
+        },
+        close,
+      );
+    } else {
+      watcher = await watchList(
+        watch,
+        `/apis/apps/v1/namespaces/${ns}/deployments`,
+        async () =>
+          await apps.listNamespacedDeployment({
+            namespace: ns,
+          }),
+        {},
+        async (newValue) => {
+          deployment = newValue.items.find(
+            (it) => it.metadata.name === app.name,
+          );
+          await update();
+        },
+        close,
+      );
+    }
+
+    abortController.signal.addEventListener("abort", () => watcher.abort());
 
     const fieldSelector = `involvedObject.kind=StatefulSet,involvedObject.name=${app.name},type=Warning`;
 

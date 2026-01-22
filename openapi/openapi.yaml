@@ -2655,12 +2655,12 @@ components:
                 $ref: "#/components/schemas/ContainerState"
               ip:
                 type: string
-        statefulSet:
+        deployment:
           type: object
           properties:
             readyReplicas:
               type: number
-            updatedReplicas:
+            currentReplicas:
               type: number
             replicas:
               type: number
@@ -2689,6 +2689,7 @@ components:
               lastTimestamp:
                 type: string
                 format: date-time
+      required: [pods, events, deployment]
     RancherProject:
       type: object
       properties:
