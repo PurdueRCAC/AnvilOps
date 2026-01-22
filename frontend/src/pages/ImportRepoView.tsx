@@ -24,7 +24,9 @@ export const ImportRepoView = () => {
         });
 
         toast.success("Repository imported!");
-        navigate(`/create-app?org=${response.orgId}&repo=${response.repoId}`);
+        navigate(
+          `/create-app?org=${response.orgId}&repo=${response.repoId}&repoName=${response.repoName}`,
+        );
       } catch (e) {
         setError(true);
         return;
