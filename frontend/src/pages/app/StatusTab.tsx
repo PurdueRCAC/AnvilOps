@@ -108,10 +108,8 @@ export const StatusTab = ({
         <div className="bg-blue-100 rounded-md p-4 border border-blue-50 my-4">
           <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
             <Loader className="animate-spin" /> Update In Progress (
-            {deployment?.currentReplicas
-              ? deployment.replicas! - deployment.currentReplicas
-              : (deployment?.readyReplicas ?? 0)}
-            /{deployment?.replicas})
+            {activePods?.filter((it) => it.podReady)?.length ?? 0}/
+            {deployment?.replicas})
           </h3>
           <p>New pods are being created to replace old ones.</p>
         </div>
@@ -259,15 +257,18 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
               This container is crashing repeatedly. It will be restarted{" "}
               {getRestartTime(pod)}.
             </p>
-            {lastState(pod, "terminated")?.finishedAt && (
-              <p className="mt-1">
-                It most recently exited at{" "}
-                {timeFormat.format(
-                  new Date(lastState(pod, "terminated")!.finishedAt!),
-                )}{" "}
-                with status code {lastState(pod, "terminated")?.exitCode}.
-              </p>
-            )}
+            {(() => {
+              const terminated = lastState(pod, "terminated");
+              return (
+                terminated?.finishedAt && (
+                  <p className="mt-1">
+                    It most recently exited at{" "}
+                    {timeFormat.format(new Date(terminated.finishedAt))} with
+                    status code {terminated.exitCode}.
+                  </p>
+                )
+              );
+            })()}
           </>
         );
       case "ErrImagePull":

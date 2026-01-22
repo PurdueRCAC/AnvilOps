@@ -2660,8 +2660,6 @@ components:
           properties:
             readyReplicas:
               type: number
-            currentReplicas:
-              type: number
             replicas:
               type: number
             generation:
