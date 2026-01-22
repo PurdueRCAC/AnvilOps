@@ -1,8 +1,9 @@
 import type {
   KubernetesObjectApi,
   V1EnvVar,
-  V1Ingress,
   V1Namespace,
+  V1NetworkPolicy,
+  V1NetworkPolicyPeer,
   V1Secret,
 } from "@kubernetes/client-node";
 import { randomBytes } from "node:crypto";
@@ -13,6 +14,8 @@ import type {
   Organization,
   WorkloadConfig,
 } from "../../db/models.ts";
+import { logger } from "../../index.ts";
+import { env } from "../env.ts";
 import { getOctokit } from "../octokit.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
@@ -37,6 +40,28 @@ export const MAX_STS_NAME_LEN = 60;
 
 export const getRandomTag = (): string => randomBytes(4).toString("hex");
 export const RANDOM_TAG_LEN = 8;
+
+let allowedIngressPeers: V1NetworkPolicyPeer[] | null;
+const getAllowedIngressPeers = (): V1NetworkPolicyPeer[] | null => {
+  if (!env.CREATE_INGRESS_NETPOL || !env.ALLOW_INGRESS_FROM) {
+    return null;
+  }
+
+  if (!allowedIngressPeers) {
+    const allowedLabels = JSON.parse(env.ALLOW_INGRESS_FROM) as {
+      [key: string]: string;
+    }[];
+    allowedIngressPeers = allowedLabels.map((labels) => ({
+      namespaceSelector: {
+        matchLabels: labels,
+      },
+      podSelector: {},
+    }));
+  }
+
+  return allowedIngressPeers;
+};
+
 export interface K8sObject {
   apiVersion: string;
   kind: string;
@@ -127,6 +152,55 @@ const createSecretConfig = (
   };
 };
 
+const createIngressNetPol = ({
+  name,
+  namespace,
+  groupLabels,
+}: {
+  name: string;
+  namespace: string;
+  groupLabels: { [key: string]: string };
+}): V1NetworkPolicy & K8sObject => {
+  if (!env.CREATE_INGRESS_NETPOL) {
+    return null;
+  }
+
+  if (!env.ALLOW_INGRESS_FROM) {
+    logger.warn(
+      "ALLOW_INGRESS_FROM is not set, skipping network policy creation",
+    );
+    return null;
+  }
+
+  return {
+    apiVersion: "networking.k8s.io/v1",
+    kind: "NetworkPolicy",
+    metadata: {
+      name,
+      namespace,
+    },
+    spec: {
+      podSelector: {
+        matchLabels: groupLabels,
+      },
+      policyTypes: ["Ingress"],
+      ingress: [
+        {
+          _from: [
+            ...getAllowedIngressPeers(),
+            {
+              namespaceSelector: {
+                matchLabels: groupLabels, // Allow ingress from pods in namespaces of this group
+              },
+              podSelector: {},
+            },
+          ],
+        },
+      ],
+    },
+  } satisfies V1NetworkPolicy;
+};
+
 const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
   config.metadata.labels = { ...config.metadata.labels, ...labels };
   if (config.spec?.template) {
@@ -141,29 +215,37 @@ const applyLabels = (config: K8sObject, labels: { [key: string]: string }) => {
   }
 };
 
-export const createAppConfigsFromDeployment = async (
-  org: Organization,
-  app: App,
-  appGroup: AppGroup,
-  deployment: Deployment,
-  conf: WorkloadConfig,
-) => {
+export const createAppConfigsFromDeployment = async ({
+  org,
+  app,
+  appGroup,
+  deployment,
+  config,
+  migrating = false,
+}: {
+  org: Organization;
+  app: App;
+  appGroup: AppGroup;
+  deployment: Deployment;
+  config: WorkloadConfig;
+  migrating?: boolean;
+}) => {
   const namespace = createNamespaceConfig(app.namespace, app.projectId);
   const configs: K8sObject[] = [];
 
   const octokit =
-    conf.source === "GIT" ? await getOctokit(org.githubInstallationId) : null;
+    config.source === "GIT" ? await getOctokit(org.githubInstallationId) : null;
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = await getEnvVars(
-    conf.getEnv(),
+    config.getEnv(),
     secretName,
     octokit,
     deployment,
-    conf,
+    config,
     app,
   );
-  const secretData = getEnvRecord(conf.getEnv());
+  const secretData = getEnvRecord(config.getEnv());
   if (secretData !== null) {
     const secretConfig = createSecretConfig(
       secretData,
@@ -177,20 +259,20 @@ export const createAppConfigsFromDeployment = async (
 
   const params = {
     deploymentId: deployment.id,
-    collectLogs: conf.collectLogs,
+    collectLogs: config.collectLogs,
     name: app.name,
     namespace: app.namespace,
     serviceName: app.namespace,
-    image: conf.imageTag,
+    image: config.imageTag,
     env: envVars,
     logIngestSecret: app.logIngestSecret,
-    subdomain: conf.subdomain,
-    createIngress: conf.createIngress,
-    port: conf.port,
-    replicas: conf.replicas,
-    mounts: conf.mounts,
-    requests: conf.requests,
-    limits: conf.limits,
+    subdomain: config.subdomain,
+    createIngress: config.createIngress,
+    port: config.port,
+    replicas: config.replicas,
+    mounts: config.mounts,
+    requests: config.requests,
+    limits: config.limits,
   };
 
   const svc = createServiceConfig(params);
@@ -204,46 +286,113 @@ export const createAppConfigsFromDeployment = async (
   }
 
   const appGroupLabel = `${appGroup.name.replaceAll(" ", "_")}-${appGroup.id}-${org.id}`;
-  const labels = {
+  const groupLabels = {
     "anvilops.rcac.purdue.edu/app-group-id": appGroup.id.toString(),
+    "app.kubernetes.io/part-of": appGroupLabel,
+  };
+  const labels = {
+    ...groupLabels,
     "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
     "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
     "app.kubernetes.io/name": app.name,
-    "app.kubernetes.io/part-of": appGroupLabel,
     "app.kubernetes.io/managed-by": "anvilops",
   };
-  applyLabels(namespace, labels);
-  for (let config of configs) {
-    applyLabels(config, labels);
+
+  if (migrating) {
+    // When migrating off AnvilOps, remove the labels by setting their values to null
+    const deletedLabels = Object.keys(labels).reduce(
+      (deleted, key) => ({ ...deleted, [key]: null }),
+      {},
+    );
+    applyLabels(namespace, deletedLabels);
+    for (let config of configs) {
+      applyLabels(config, deletedLabels);
+    }
+  } else {
+    const netpol = createIngressNetPol({
+      name: params.name,
+      namespace: params.namespace,
+      groupLabels,
+    });
+
+    if (netpol) {
+      configs.push(netpol);
+    }
+
+    applyLabels(namespace, labels);
+    for (let config of configs) {
+      applyLabels(config, labels);
+    }
   }
+
   const postCreate = async (api: KubernetesObjectApi) => {
     // Clean up secrets and ingresses from previous deployments of the app
-    const secrets = (await api
-      .list("v1", "Secret", app.namespace)
-      .then((data) => data.items)
-      .then((data) =>
-        data.map((d) => ({ ...d, apiVersion: "v1", kind: "Secret" })),
-      )) as (V1Secret & K8sObject)[];
-    const ingresses = (await api
-      .list("networking.k8s.io/v1", "Ingress", app.namespace)
-      .then((data) => data.items)
-      .then((data) =>
-        data.map((d) => ({
-          ...d,
+    const outdatedResources = [];
+
+    if (migrating) {
+      if (env.CREATE_INGRESS_NETPOL) {
+        // When migrating, AnvilOps-specific labels are removed, so grouping network policies will not work.
+        // Delete all network policies that are managed by AnvilOps.
+        const netpols = await api
+          .list("networking.k8s.io/v1", "NetworkPolicy", app.namespace)
+          .then((data) =>
+            data.items.map((item) => ({
+              ...item,
+              apiVersion: "networking.k8s.io/v1",
+              kind: "NetworkPolicy",
+            })),
+          );
+
+        outdatedResources.push(
+          ...netpols.filter(
+            (netpol) =>
+              netpol.metadata.labels?.["app.kubernetes.io/managed-by"] ===
+              "anvilops",
+          ),
+        );
+      }
+    } else {
+      const resourceTypes = [
+        {
+          apiVersion: "v1",
+          kind: "Secret",
+        },
+        {
           apiVersion: "networking.k8s.io/v1",
           kind: "Ingress",
-        })),
-      )) as (V1Ingress & K8sObject)[];
+        },
+      ];
+
+      const resourceLists = await Promise.all(
+        resourceTypes.map((type) =>
+          api.list(type.apiVersion, type.kind, app.namespace).then((data) =>
+            data.items.map((item) => ({
+              ...item,
+              apiVersion: type.apiVersion,
+              kind: type.kind,
+            })),
+          ),
+        ),
+      );
+
+      outdatedResources.concat(
+        resourceLists
+          .flat()
+          .filter(
+            (resource) =>
+              parseInt(
+                resource.metadata.labels?.[
+                  "anvilops.rcac.purdue.edu/deployment-id"
+                ],
+              ) !== deployment.id,
+          ),
+      );
+    }
 
     await Promise.all(
-      [...secrets, ...ingresses]
-        .filter(
-          (secret) =>
-            parseInt(
-              secret.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
-            ) !== deployment.id,
-        )
-        .map((secret) => api.delete(secret).catch((err) => console.error(err))),
+      outdatedResources.map((resource) =>
+        api.delete(resource).catch((err) => console.error(err)),
+      ),
     );
   };
   return { namespace, configs, postCreate };
