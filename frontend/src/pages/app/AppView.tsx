@@ -49,7 +49,7 @@ export default function AppView() {
   );
 
   // Pre-fetch the data that's needed for the Overview tab. This helps make the page load a bit faster because, without this, the OverviewTab component could only start fetching this after the queries in this component finish.
-  useQueryClient().prefetchQuery(
+  void useQueryClient().prefetchQuery(
     api.queryOptions("get", "/app/{appId}/deployments", {
       params: {
         path: { appId: parseInt(params.id!) },

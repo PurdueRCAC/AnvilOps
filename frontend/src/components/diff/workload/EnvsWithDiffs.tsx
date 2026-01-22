@@ -22,14 +22,14 @@ export const EnvsWithDiffs = ({
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
-    for (const i in envVars) {
+    for (const i of envVars.keys()) {
       if (
         envVars[i].name === "" &&
         envVars[i].value === "" &&
         !envVars[i].isSensitive &&
-        +i < envVars.length - 1
+        i < envVars.length - 1
       ) {
-        setEnvironmentVariables((prev) => prev.toSpliced(+i, 1));
+        setEnvironmentVariables((prev) => prev.toSpliced(i, 1));
         return;
       }
     }
@@ -43,7 +43,7 @@ export const EnvsWithDiffs = ({
         { name: "", value: "", isSensitive: false },
       ]);
     }
-  }, [envVars]);
+  }, [envVars, setEnvironmentVariables]);
 
   const currentEnv = envVars.reduce(
     (obj, current) => {

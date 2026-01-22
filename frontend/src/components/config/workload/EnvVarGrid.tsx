@@ -1,9 +1,9 @@
-import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
 import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -21,14 +21,14 @@ export const EnvVarGrid = ({
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
-    for (const i in envVars) {
+    for (const i of envVars.keys()) {
       if (
         envVars[i].name === "" &&
         envVars[i].value === "" &&
         !envVars[i].isSensitive &&
-        +i < envVars.length - 1
+        i < envVars.length - 1
       ) {
-        setEnvironmentVariables((prev) => prev.toSpliced(+i, 1));
+        setEnvironmentVariables((prev) => prev.toSpliced(i, 1));
         return;
       }
     }
@@ -42,7 +42,7 @@ export const EnvVarGrid = ({
         { name: "", value: "", isSensitive: false },
       ]);
     }
-  }, [envVars]);
+  }, [envVars, setEnvironmentVariables]);
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content_min-content] items-center gap-2">

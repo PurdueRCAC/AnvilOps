@@ -85,8 +85,8 @@ const DeleteDialog = ({
                       infrastructure will be deleted.
                     </li>
                     <li>
-                      Your project's subdomain will become available for other
-                      projects to use.
+                      Your project&apos;s subdomain will become available for
+                      other projects to use.
                     </li>
                   </>
                 )}
@@ -114,7 +114,7 @@ const DeleteDialog = ({
                   params: { path: { appId: app.id } },
                   body: { keepNamespace },
                 });
-              } catch (e) {
+              } catch {
                 toast.error("There was a problem deleting your project.");
                 return;
               }

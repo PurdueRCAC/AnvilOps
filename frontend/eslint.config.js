@@ -30,6 +30,15 @@ export default defineConfig({
     "default-case": "warn",
     "better-tailwindcss/enforce-consistent-line-wrapping": "off",
     "better-tailwindcss/enforce-consistent-class-order": "off",
+    "@typescript-eslint/no-misused-promises": [
+      "error",
+      {
+        checksVoidReturn: {
+          attributes: false, // Don't report errors for functions in JSX attributes that are expected to return `void` but actually return a Promise
+        },
+      },
+    ],
+    "react-refresh/only-export-components": "warn",
   },
   extends: [
     js.configs.recommended,

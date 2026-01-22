@@ -1,3 +1,5 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
+import { EnvsWithDiffs } from "@/components/diff/workload/EnvsWithDiffs";
 import {
   Accordion,
   AccordionContent,
@@ -5,6 +7,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
+import { SelectContent, SelectGroup, SelectItem } from "@/components/ui/select";
+import type {
+  CommonFormFields,
+  WorkloadFormFields,
+  WorkloadUpdate,
+} from "@/lib/form.types";
 import {
   Code2,
   Cog,
@@ -15,16 +23,8 @@ import {
   Terminal,
 } from "lucide-react";
 import { DiffInput } from "../DiffInput";
-import type {
-  CommonFormFields,
-  WorkloadFormFields,
-  WorkloadUpdate,
-} from "@/lib/form.types";
-import { EnvsWithDiffs } from "@/components/diff/workload/EnvsWithDiffs";
-import { SelectContent, SelectGroup, SelectItem } from "@/components/ui/select";
-import { useAppConfig } from "@/components/AppConfigProvider";
-import { SubdomainDiff } from "./SubdomainDiff";
 import { DiffSelect } from "../DiffSelect";
+import { SubdomainDiff } from "./SubdomainDiff";
 
 export const CommonWorkloadConfigDiff = ({
   base,
@@ -207,7 +207,7 @@ export const CommonWorkloadConfigDiff = ({
                 </Label>
                 <p className="text-black-2 text-sm">
                   When this setting is disabled, you will only be able to view
-                  logs from the most recent, alive pod from your app's most
+                  logs from the most recent, alive pod from your app&apos;s most
                   recent deployment.
                 </p>
               </div>

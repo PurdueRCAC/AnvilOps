@@ -59,21 +59,20 @@ export default function CreateAppView() {
     <div className="mx-auto flex max-w-prose">
       <form
         className="my-10 flex w-full flex-col gap-6"
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
           const finalGroupState = groupState as Required<GroupFormFields>;
           const finalAppState = appState as Required<CommonFormFields>;
 
-          try {
-            const result = await createApp({
-              body: {
-                orgId: finalGroupState.orgId,
-                appGroup: finalGroupState.groupOption,
-                ...createNewAppWithoutGroup(finalAppState),
-              },
-            });
-            navigate(`/app/${result.id}`);
-          } catch (err) {}
+          createApp({
+            body: {
+              orgId: finalGroupState.orgId,
+              appGroup: finalGroupState.groupOption,
+              ...createNewAppWithoutGroup(finalAppState),
+            },
+          })
+            .then((result) => navigate(`/app/${result.id}`))
+            .catch(console.error);
         }}
       >
         <h2 className="mb-4 text-3xl font-bold">Create an App</h2>

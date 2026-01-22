@@ -28,16 +28,8 @@ export const ConfigTab = ({
   app: App;
   tab: string;
   setTab: Dispatch<string>;
-  refetch: (options: RefetchOptions | undefined) => Promise<any>;
+  refetch: (options: RefetchOptions | undefined) => Promise<unknown>;
 }) => {
-  if (!isWorkloadConfig(app.config)) {
-    return (
-      <div className="py-8 text-center">
-        <p>Configuration editing is not available for Helm-based apps.</p>
-      </div>
-    );
-  }
-
   const [state, setState] = useState<CommonFormFields>(
     getFormStateFromApp(app),
   );
@@ -51,6 +43,14 @@ export const ConfigTab = ({
   );
 
   const { user } = useContext(UserContext);
+
+  if (!isWorkloadConfig(app.config)) {
+    return (
+      <div className="py-8 text-center">
+        <p>Configuration editing is not available for Helm-based apps.</p>
+      </div>
+    );
+  }
 
   const enableSaveButton =
     state.source !== "git" ||
@@ -73,7 +73,7 @@ export const ConfigTab = ({
         if (tab === "configuration") {
           setTab("overview");
         }
-        refetch({});
+        void refetch({});
       }}
       className="flex flex-col gap-8"
     >

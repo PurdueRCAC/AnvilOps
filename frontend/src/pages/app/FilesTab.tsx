@@ -34,7 +34,14 @@ import {
   Trash,
   UploadCloud,
 } from "lucide-react";
-import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import type { App } from "./AppView";
 
@@ -200,15 +207,38 @@ export const FilesTab = ({ app }: { app: App }) => {
         </>
       ) : files?.type === "file" ? (
         <div className="mt-4 flex flex-col items-center justify-center">
-          <FilePreview
-            key={files.modifiedAt} // Refetch the file if it's modified
-            file={files}
-            app={app}
-            path={path}
-            volumeClaimName={params.params.query.volumeClaimName}
-            refresh={refreshFiles}
-            goUp={goUp}
-          />
+          {
+            // Large files can't be previewed
+            files.size! > 10_000_000 ? (
+              <div className="mt-24 flex flex-col items-center justify-center">
+                <File size={48} />
+                <p className="mt-2 text-xl">{files.name}</p>
+                <p className="mt-1 opacity-50">{files.fileType}</p>
+                <div className="mt-8 flex items-center justify-between gap-6 rounded-xl bg-gray-100 p-4">
+                  <p>This file is too large to be previewed.</p>
+                  <a
+                    href={getDownloadURL(
+                      app.id,
+                      path,
+                      params.params.query.volumeClaimName,
+                    )}
+                  >
+                    <Button>Download</Button>
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <FilePreview
+                key={files.modifiedAt} // Refetch the file if it's modified
+                file={files}
+                app={app}
+                path={path}
+                volumeClaimName={params.params.query.volumeClaimName}
+                refresh={refreshFiles}
+                goUp={goUp}
+              />
+            )
+          }
         </div>
       ) : files?.type === "directory" ? (
         <div className="mt-4 flex flex-col gap-1">
@@ -224,7 +254,7 @@ export const FilesTab = ({ app }: { app: App }) => {
                 app={app}
                 path={path}
                 onComplete={() => {
-                  refreshFiles();
+                  void refreshFiles();
                   goUp();
                 }}
                 volumeClaimName={params.params.query.volumeClaimName}
@@ -281,6 +311,10 @@ const LazyEditor = lazy(() =>
   import("../../lib/monaco").then((module) => ({ default: module.Editor })),
 );
 
+function getDownloadURL(appId: number, path: string, volumeClaimName: string) {
+  return `/api/app/${appId}/file/download?path=${encodeURIComponent(path)}&volumeClaimName=${encodeURIComponent(volumeClaimName)}`;
+}
+
 const FilePreview = ({
   file,
   path,
@@ -298,7 +332,7 @@ const FilePreview = ({
 }) => {
   const [raw, setRaw] = useState(false);
 
-  const downloadURL = `/api/app/${app.id}/file/download?path=${encodeURIComponent(path)}&volumeClaimName=${encodeURIComponent(volumeClaimName)}`;
+  const downloadURL = getDownloadURL(app.id, path, volumeClaimName);
 
   const [content, setContent] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -320,7 +354,7 @@ const FilePreview = ({
           setLoading(false);
         });
     }
-  }, [shouldDownload]);
+  }, [shouldDownload, content, loading, error, downloadURL]);
 
   const requestDownload = () => {
     if (!shouldDownload) setShouldDownload(true);
@@ -361,28 +395,11 @@ const FilePreview = ({
     </>
   );
 
-  if (file.size! > 10_000_000) {
-    // Large files can't be previewed
-    return (
-      <div className="mt-24 flex flex-col items-center justify-center">
-        <File size={48} />
-        <p className="mt-2 text-xl">{file.name}</p>
-        <p className="mt-1 opacity-50">{file.fileType}</p>
-        <div className="mt-8 flex items-center justify-between gap-6 rounded-xl bg-gray-100 p-4">
-          <p>This file is too large to be previewed.</p>
-          <a href={downloadURL}>
-            <Button>Download</Button>
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   const [editorContent, setEditorContent] = useState(content);
   const [editorVisible, setEditorVisible] = useState(false);
   const [saved, setSaved] = useState(true);
 
-  const save = async () => {
+  const save = useCallback(async () => {
     const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(dirname(path))}`;
     const formData = new FormData();
     formData.set("type", "file");
@@ -399,7 +416,7 @@ const FilePreview = ({
     } finally {
       setSaving(false);
     }
-  };
+  }, [app.id, editorContent, file.name, path, volumeClaimName]);
 
   useEffect(() => {
     if (content && !editorContent) {
@@ -422,13 +439,13 @@ const FilePreview = ({
       const handler = (e: KeyboardEvent) => {
         if (e.ctrlKey && e.key === "s") {
           e.preventDefault();
-          save();
+          void save();
         }
       };
       window.addEventListener("keydown", handler);
       return () => window.removeEventListener("keydown", handler);
     }
-  }, [editorVisible]);
+  }, [editorVisible, save]);
 
   const [saving, setSaving] = useState(false);
 
@@ -475,7 +492,7 @@ const FilePreview = ({
     return (
       <div className="w-full">
         <Header />
-        <img src={downloadURL} />
+        <img src={downloadURL} alt={file.name} />
       </div>
     );
   }
@@ -488,7 +505,7 @@ const FilePreview = ({
         <p className="mt-2 text-xl">{file.name}</p>
         <p className="mt-1 opacity-50">{file.fileType}</p>
         <div className="mt-8 rounded-xl bg-gray-100 p-4">
-          <p>We can't preview this file type.</p>
+          <p>We can&apos;t preview this file type.</p>
           <Button
             variant="outline"
             className="mt-4 mr-4"
@@ -679,7 +696,7 @@ const FileUpload = ({
           Files will be placed in <code>{parentDir}</code>.
         </p>
         <form
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             const promise = fetch(uploadURL, {

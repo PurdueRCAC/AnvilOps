@@ -241,12 +241,12 @@ export const RedeployModal = ({
                   <Label className="flex-col items-start">
                     <div className="flex gap-2">
                       <RadioGroupItem value="useConfig" />
-                      Reuse this deployment's configuration
+                      Reuse this deployment&apos;s configuration
                     </div>
                     <p className="text-black-3 mb-4 ml-6 text-sm">
                       AnvilOps will create a new deployment using this
-                      deployment's configuration as a template, plus any edits
-                      you decide to make.
+                      deployment&apos;s configuration as a template, plus any
+                      edits you decide to make.
                     </p>
                   </Label>
                 </RadioGroup>

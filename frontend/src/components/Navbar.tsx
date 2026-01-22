@@ -23,7 +23,7 @@ export default function Navbar() {
           to={user ? "/dashboard" : "/"}
           className="flex items-center gap-2 text-xl font-bold"
         >
-          <img src={logo} className="h-10" />
+          <img src={logo} alt="AnvilOps logo" className="h-10" />
         </Link>
         <p className="text-3xl italic">{settings.clusterName}</p>
       </div>

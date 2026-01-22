@@ -119,9 +119,9 @@ export const ImportRepoDialog = ({
               body: {
                 destIsOrg: installation.targetType === "Organization",
                 destOwner: installation.targetName,
-                destRepo: formData.get("destRepoName")!.toString(),
+                destRepo: formData.get("destRepoName") as string,
                 makePrivate: !!formData.get("makePrivate"),
-                sourceURL: formData.get("srcRepoURL")!.toString(),
+                sourceURL: formData.get("srcRepoURL") as string,
               },
               params: { path: { orgId } },
             });

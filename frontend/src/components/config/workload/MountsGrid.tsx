@@ -1,9 +1,9 @@
-import { TooltipTrigger } from "@radix-ui/react-tooltip";
-import { Trash2 } from "lucide-react";
-import { Fragment, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
+import { TooltipTrigger } from "@radix-ui/react-tooltip";
+import { Trash2 } from "lucide-react";
+import { Fragment, useEffect } from "react";
 
 export type Mounts = { path: string; amountInMiB: number }[];
 
@@ -17,16 +17,16 @@ export const MountsGrid = ({
   setValue: (updater: (mounts: Mounts) => Mounts) => void;
 }) => {
   useEffect(() => {
-    for (const i in mounts) {
-      if (mounts[i].path === "" && +i < mounts.length - 1) {
-        setMounts((prev) => prev.toSpliced(+i, 1));
+    for (const i of mounts.keys()) {
+      if (mounts[i].path === "" && i < mounts.length - 1) {
+        setMounts((prev) => prev.toSpliced(i, 1));
         return;
       }
     }
     if (mounts[mounts.length - 1]?.path !== "") {
       setMounts((prev) => [...prev, { path: "", amountInMiB: 1024 }]);
     }
-  }, [mounts]);
+  }, [mounts, setMounts]);
 
   return (
     <div className="grid grid-cols-[3fr_min-content_1fr_min-content_min-content] items-center gap-2">

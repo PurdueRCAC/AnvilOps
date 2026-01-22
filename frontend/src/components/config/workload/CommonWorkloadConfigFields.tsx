@@ -61,13 +61,13 @@ export const CommonWorkloadConfigFields = ({
   const showSubdomainError =
     !!subdomain &&
     (subdomain.length > MAX_SUBDOMAIN_LENGTH ||
-      subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+      subdomain.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const MAX_NAMESPACE_LEN = 63;
   const showNamespaceError =
     !!namespace &&
     (namespace.length > MAX_NAMESPACE_LEN ||
-      namespace.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+      namespace.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
@@ -174,7 +174,8 @@ export const CommonWorkloadConfigFields = ({
           </Label>
           <div className="relative flex items-center gap-2">
             <span className="absolute left-2 text-sm opacity-50">
-              {appDomain?.protocol}//
+              {appDomain?.protocol}
+              {"//"}
             </span>
             <Input
               disabled={disabled || !createIngress}
@@ -378,8 +379,8 @@ export const CommonWorkloadConfigFields = ({
                   </Label>
                   <p className="text-black-2 text-sm">
                     When this setting is disabled, you will only be able to view
-                    logs from the most recent, alive pod from your app's most
-                    recent deployment.
+                    logs from the most recent, alive pod from your app&apos;s
+                    most recent deployment.
                   </p>
                   <div className="mt-4 flex items-center gap-2">
                     <Checkbox
@@ -394,7 +395,7 @@ export const CommonWorkloadConfigFields = ({
                       }}
                     />
                     <Label htmlFor="collectLogs">
-                      Record application logs as they're produced
+                      Record application logs as they&apos;re produced
                     </Label>
                   </div>
                 </div>

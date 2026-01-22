@@ -69,8 +69,8 @@ export const DeploymentStatus = ({
           </p>
         </TooltipTrigger>
         <TooltipContent>
-          {deployment.podStatus?.failed} of your app's pods have crashed. Check
-          the Status and Logs tabs for more info.
+          {deployment.podStatus?.failed} of your app&apos;s pods have crashed.
+          Check the Status and Logs tabs for more info.
         </TooltipContent>
       </Tooltip>
     );

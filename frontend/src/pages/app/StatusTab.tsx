@@ -27,6 +27,8 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
   timeStyle: "medium",
 });
 
+type AppStatus = components["schemas"]["AppStatus"];
+
 export const StatusTab = ({
   app,
   activeDeployment,
@@ -34,9 +36,7 @@ export const StatusTab = ({
   app: App;
   activeDeployment: DeploymentInfo | undefined;
 }) => {
-  const [status, setStatus] = useState<
-    components["schemas"]["AppStatus"] | null
-  >(null);
+  const [status, setStatus] = useState<AppStatus | null>(null);
 
   const { connecting, connected } = useEventSource(
     new URL(
@@ -45,7 +45,7 @@ export const StatusTab = ({
     ["message"],
     (_, event) => {
       const data = event.data as string;
-      setStatus(JSON.parse(data));
+      setStatus(JSON.parse(data) as AppStatus);
     },
   );
 
@@ -279,7 +279,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
               <CircleX /> Error
             </p>
             <p>
-              Can't pull the container image. Make sure the image name is
+              Can&apos;t pull the container image. Make sure the image name is
               spelled correctly and the registry is publicly accessible.
             </p>
           </>
@@ -300,7 +300,7 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
               <CircleX /> Error
             </p>
             <p>
-              There is something wrong with the container's configuration:{" "}
+              There is something wrong with the container&apos;s configuration:{" "}
               {waiting.message}.
             </p>
           </>
@@ -432,7 +432,7 @@ function getRestartTime(pod: Pod) {
     return "soon";
   }
 
-  const message = pod.containerState.waiting?.message!;
+  const message = pod.containerState.waiting!.message!;
 
   // Example: "back-off 5m0s restarting failed container=minecraft-server pod=minecraft-server-0_anvilops-mc(7ee242c3-6eaa-4331-8476-0fea4d944809)"
   const result = /back-off (.*) restarting failed/.exec(message);
@@ -445,13 +445,13 @@ function getRestartTime(pod: Pod) {
 
   const lastCrashTime =
     pod.lastState && "terminated" in pod.lastState
-      ? new Date(pod.lastState?.terminated?.finishedAt!).getTime()
+      ? new Date(pod.lastState.terminated!.finishedAt!).getTime()
       : undefined;
 
   if (lastCrashTime) {
     return "at " + timeFormat.format(new Date(lastCrashTime + ms));
   } else {
-    return "in " + result;
+    return "in " + result[1];
   }
 }
 

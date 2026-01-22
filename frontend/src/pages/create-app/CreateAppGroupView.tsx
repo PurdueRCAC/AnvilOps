@@ -1,3 +1,4 @@
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,18 +13,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
-import { Fragment, useContext, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { FormContext } from "./CreateAppView";
-import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import {
   createDefaultCommonFormFields,
   createNewAppWithoutGroup,
   getAppName,
 } from "@/lib/form";
-import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
+import { Fragment, useContext, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { FormContext } from "./CreateAppView";
 
 type GroupCreate = { type: "create-new"; name: string };
 export default function CreateAppGroupView() {
@@ -55,7 +55,7 @@ export default function CreateAppGroupView() {
         (org) => org.id === parseInt(orgId) && org.githubConnected,
       )
     );
-  }, [user, groupState.orgId]);
+  }, [user, orgId]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const showGroupNameError = useMemo(() => {
@@ -63,14 +63,14 @@ export default function CreateAppGroupView() {
     return (
       groupName.length > 0 &&
       (groupName.length > MAX_GROUP_LENGTH ||
-        !groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/))
+        !groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_.]*$/))
     );
   }, [groupName]);
 
   return (
     <div className="mx-auto flex max-w-prose">
       <form
-        className="spa my-10 flex w-full flex-col gap-6"
+        className="my-10 flex w-full flex-col gap-6"
         onSubmit={async (e) => {
           e.preventDefault();
           // const formData = new FormData(e.currentTarget);

@@ -74,7 +74,7 @@ export default function LandingView() {
         <p className="mb-8">
           AnvilOps continuously keeps your deployment in sync with your Git
           repository. <br />
-          Here's how it works:
+          Here&apos;s how it works:
         </p>
         <div className="relative flex flex-col gap-12">
           <div className="bg-gold absolute inset-y-0 start-[calc(1rem-1px)] -z-50 my-6 w-0.5" />
@@ -129,7 +129,7 @@ export default function LandingView() {
               <li>Sign in to AnvilOps</li>
               <li>Connect your GitHub organization</li>
               <li>Fill in a few details about your app</li>
-              <li>That's it! 🥳</li>
+              <li>That&apos;s it! 🥳</li>
             </ol>
           </div>
         </div>

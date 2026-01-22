@@ -28,6 +28,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Status, type App } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
+
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
   timeStyle: "medium",
@@ -155,7 +156,7 @@ export const OverviewTab = ({
         deploymentId={redeployId!}
         app={app}
         onSubmitted={() => {
-          refetchDeployments();
+          void refetchDeployments();
           refetchApp();
         }}
       />
@@ -224,8 +225,8 @@ export const OverviewTab = ({
                 Use this address when possible for improved speed and
                 compatibility with non-HTTP protocols.
                 <br />
-                End users cannot use this address, as it's only valid within the
-                cluster.
+                End users cannot use this address, as it&apos;s only valid
+                within the cluster.
               </HelpTooltip>
             </p>
             <p>
@@ -343,7 +344,7 @@ export const OverviewTab = ({
                     }
                     variant="outline"
                     className="cursor-pointer disabled:cursor-not-allowed"
-                    onClick={async () => {
+                    onClick={() => {
                       setRedeployOpen(true);
                       setRedeployId(d.id);
                     }}
@@ -365,7 +366,7 @@ export const OverviewTab = ({
                       className="disabled:cursor-not-allowed"
                       onClick={() => {
                         setPage((page) => page - 1);
-                        refetchDeployments();
+                        void refetchDeployments();
                       }}
                     >
                       <ChevronLeft />
@@ -386,7 +387,7 @@ export const OverviewTab = ({
                       className="disabled:cursor-not-allowed"
                       onClick={() => {
                         setPage((page) => page + 1);
-                        refetchDeployments();
+                        void refetchDeployments();
                       }}
                     >
                       <ChevronRight />

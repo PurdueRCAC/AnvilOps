@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ArrowLeft, CircleX, Loader } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -13,23 +13,24 @@ export const ImportRepoView = () => {
 
   const [isError, setError] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await importRepo({
-          body: {
-            state: search.get("state")!.toString(),
-            code: search.get("code")?.toString(),
-          },
-        });
-
+  const executeImport = useEffectEvent(() => {
+    importRepo({
+      body: {
+        state: search.get("state")!.toString(),
+        code: search.get("code")?.toString(),
+      },
+    })
+      .then((response) => {
         toast.success("Repository imported!");
         navigate(`/create-app?org=${response.orgId}&repo=${response.repoId}`);
-      } catch (e) {
+      })
+      .catch(() => {
         setError(true);
-        return;
-      }
-    })();
+      });
+  });
+
+  useEffect(() => {
+    executeImport();
   }, []);
 
   return (

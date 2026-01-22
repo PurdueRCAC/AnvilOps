@@ -1,5 +1,5 @@
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Component, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -9,10 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { GroupFormFields } from "@/lib/form.types";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { api } from "@/lib/api";
-import { Input } from "@/components/ui/input";
+import type { GroupFormFields } from "@/lib/form.types";
+import { Component, X } from "lucide-react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 
 export const GroupConfigFields = ({
   state,
@@ -42,7 +42,7 @@ export const GroupConfigFields = ({
     if (!groupName) return true;
     return (
       groupName.length > MAX_GROUP_LENGTH ||
-      !groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_\.]*$/)
+      !groupName.match(/^[a-zA-Z0-9][ a-zA-Z0-9-_.]*$/)
     );
   }, [groupName]);
 

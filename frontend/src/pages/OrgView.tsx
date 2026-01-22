@@ -75,7 +75,7 @@ export default function OrgView() {
                       await deleteOrg({
                         params: { path: { orgId } },
                       });
-                    } catch (e) {
+                    } catch {
                       toast.error(
                         "There was a problem deleting your organization.",
                       );
@@ -103,7 +103,7 @@ const Card = ({
 }) => {
   return (
     <div className="h-60 w-full grow md:h-90 md:max-w-1/5 md:min-w-80">
-      <h4 className="text-md mb-2 opacity-50 lg:text-lg">{title}</h4>
+      <h4 className="mb-2 text-base opacity-50 lg:text-lg">{title}</h4>
       <div className="size-full rounded-md bg-stone-50 shadow-sm shadow-stone-300">
         {children}
       </div>
@@ -137,7 +137,7 @@ const InvitationsList = () => {
                   params: { path: { orgId: inv.org.id, invId: inv.id } },
                 });
                 toast.success("Invitation accepted!");
-                refetchUser!({});
+                await refetchUser!({});
               }}
               disabled={acceptInvitePending}
             >
@@ -155,7 +155,7 @@ const InvitationsList = () => {
                   params: { path: { orgId: inv.org.id, invId: inv.id } },
                 });
                 toast.success("Invitation rejected!");
-                refetchUser!({});
+                void refetchUser!({});
               }}
               disabled={deleteInvitePending}
             >
@@ -218,7 +218,7 @@ const OrgSection = ({
                   className="flex h-14 items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200"
                 >
                   <div className="space-x-2">
-                    <span className="text-md">{m.name}</span>
+                    <span className="text-base">{m.name}</span>
                     <span className="opacity-50">
                       <a href={`mailto:${m.email}`} className="hover:underline">
                         {m.email}
@@ -248,7 +248,7 @@ const OrgSection = ({
                           toast.success(
                             `${m.name} has been removed from ${name}.`,
                           );
-                          refetch();
+                          void refetch();
                         }}
                       >
                         <X className="size-5 text-red-500" />
@@ -262,7 +262,7 @@ const OrgSection = ({
                   key={invite.id}
                   className="flex h-14 items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200"
                 >
-                  <p className="text-md italic opacity-50">
+                  <p className="text-base italic opacity-50">
                     {invite.invitee.name}
                   </p>
                   <div className="flex items-center justify-end gap-4">
@@ -277,7 +277,7 @@ const OrgSection = ({
                           params: { path: { orgId, invId: invite.id } },
                         });
                         toast.success("Invitation revoked!");
-                        refetch();
+                        void refetch();
                       }}
                       disabled={
                         deleteInvitePending &&
@@ -296,7 +296,7 @@ const OrgSection = ({
                 e.preventDefault();
                 const form = e.currentTarget as HTMLFormElement;
                 const formData = new FormData(form);
-                const email = formData.get("email")?.toString();
+                const email = formData.get("email") as string;
                 if (!email) return;
                 try {
                   await invite({
@@ -308,7 +308,7 @@ const OrgSection = ({
                 } catch (e) {
                   console.error(e);
                 }
-                refetch();
+                void refetch();
               }}
             >
               <Input
@@ -339,7 +339,7 @@ const OrgSection = ({
                 <div key={`app-${orgId}-${app.id}`}>
                   <Link to={`/app/${app.id}`}>
                     <div className="flex h-14 w-full items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200">
-                      <p className="text-md">{app.displayName}</p>
+                      <p className="text-base">{app.displayName}</p>
                       <div className="w-24">
                         <Status status={app.status} />
                       </div>
@@ -363,7 +363,7 @@ const OrgSection = ({
                 <>
                   <Button
                     variant="outline"
-                    className="text-bold border border-red-400 text-red-600 shadow-xs shadow-red-800 hover:text-red-700 hover:shadow-sm"
+                    className="border border-red-400 text-red-600 shadow-xs shadow-red-800 hover:text-red-700 hover:shadow-sm"
                   >
                     Transfer Ownership
                   </Button>
