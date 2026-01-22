@@ -36,7 +36,7 @@ const api = new OpenAPIBackend({
       });
     },
 
-    preOperationHandler: (ctx, req, res) => {
+    preOperationHandler: (ctx, req: ExpressRequest) => {
       const span = trace.getActiveSpan();
       if (span) {
         span.setAttribute("http.operation.id", ctx?.operation?.operationId);

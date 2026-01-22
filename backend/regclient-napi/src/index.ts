@@ -60,7 +60,7 @@ export async function getImageConfig(
   const obj = JSON.parse(result) as NativeGetImageConfigBindingResult;
 
   if (obj.success === true) {
-    return obj.result as ImageConfig;
+    return obj.result;
   } else {
     throw new Error(obj.error);
   }

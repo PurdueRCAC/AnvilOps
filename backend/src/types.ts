@@ -38,7 +38,7 @@ export type HandlerMap = {
 type ResponseType = number | "default";
 type ResponseMap = {
   [statusCode in ResponseType]?: {
-    headers: any;
+    headers: { [name: string]: unknown };
     content?: {
       "application/json"?: any;
       "text/event-stream"?: any;
@@ -56,7 +56,9 @@ export const json = <
 >(
   statusCode: Code,
   res: ExpressResponse,
-  json: Content["application/json"] extends never ? {} : Required<Content>,
+  json: Content["application/json"] extends never
+    ? Record<PropertyKey, never>
+    : Required<Content>,
 ): HandlerResponse<ResMap> => {
   return res.status(statusCode as number).json(json);
 };
