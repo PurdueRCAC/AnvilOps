@@ -28,7 +28,7 @@ import { githubInstallCallbackHandler } from "./githubInstallCallback.ts";
 import { githubOAuthCallbackHandler } from "./githubOAuthCallback.ts";
 import { githubWebhookHandler } from "./githubWebhook.ts";
 import {
-  importGitRepoCreateStateHandler,
+  importGitRepoContinueHandler,
   importGitRepoHandler,
 } from "./importGitRepo.ts";
 import { ingestLogsHandler } from "./ingestLogs.ts";
@@ -81,8 +81,8 @@ export const handlers = {
   githubInstallCallback: githubInstallCallbackHandler,
   githubOAuthCallback: githubOAuthCallbackHandler,
   githubWebhook: githubWebhookHandler,
-  importGitRepo: importGitRepoHandler,
-  importGitRepoCreateState: importGitRepoCreateStateHandler,
+  importGitRepo: importGitRepoContinueHandler,
+  importGitRepoCreateState: importGitRepoHandler,
   ingestLogs: ingestLogsHandler,
   inviteUser: inviteUserHandler,
   isSubdomainAvailable: isSubdomainAvailableHandler,

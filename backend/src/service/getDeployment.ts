@@ -1,7 +1,7 @@
 import type { V1Pod, V1PodList } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { DeploymentNotFoundError } from "./common/errors.ts";
 import { deploymentConfigService } from "./helper/index.ts";
 
@@ -28,9 +28,9 @@ export async function getDeployment(deploymentId: number, userId: number) {
   let repositoryURL: string | null = null;
   let pods: V1PodList | null = null;
   if (config.source === "GIT") {
-    const octokit = await getOctokit(org.githubInstallationId);
-    const repo = await getRepoById(octokit, config.repositoryId);
-    repositoryURL = repo.html_url;
+    const gitProvider = await getGitProvider(org.id);
+    const repo = await gitProvider?.getRepoById(config.repositoryId);
+    repositoryURL = repo?.htmlURL;
   }
   if (config.appType === "workload") {
     pods = await api

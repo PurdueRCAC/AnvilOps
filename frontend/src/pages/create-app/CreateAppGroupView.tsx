@@ -1,3 +1,4 @@
+import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,18 +13,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
-import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
-import { Fragment, useContext, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { FormContext } from "./CreateAppView";
-import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import {
   createDefaultCommonFormFields,
   createNewAppWithoutGroup,
   getAppName,
 } from "@/lib/form";
-import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
+import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
+import { Globe, Loader, Plus, Rocket, X } from "lucide-react";
+import { Fragment, useContext, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { FormContext } from "./CreateAppView";
 
 type GroupCreate = { type: "create-new"; name: string };
 export default function CreateAppGroupView() {
@@ -40,7 +40,7 @@ export default function CreateAppGroupView() {
   const {
     orgId,
     groupOption: { name: groupName },
-  } = groupState as { orgId?: string; groupOption: GroupCreate };
+  } = groupState as { orgId?: number; groupOption: GroupCreate };
 
   const [appStates, setAppStates] = useState<CommonFormFields[]>([
     createDefaultCommonFormFields(),
@@ -51,9 +51,7 @@ export default function CreateAppGroupView() {
   const shouldShowDeploy = useMemo(() => {
     return (
       orgId === undefined ||
-      user?.orgs.some(
-        (org) => org.id === parseInt(orgId) && org.githubConnected,
-      )
+      user?.orgs?.some((org) => org.id === orgId && org.gitProvider !== null)
     );
   }, [user, groupState.orgId]);
 
@@ -81,7 +79,7 @@ export default function CreateAppGroupView() {
             await createAppGroup({
               body: {
                 name: groupName,
-                orgId: parseInt(orgId!),
+                orgId: orgId!,
                 apps: finalAppStates.map(createNewAppWithoutGroup),
               },
             });

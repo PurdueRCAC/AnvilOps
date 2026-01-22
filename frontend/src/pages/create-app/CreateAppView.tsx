@@ -15,6 +15,7 @@ import { api } from "@/lib/api";
 import {
   createDefaultCommonFormFields,
   createNewAppWithoutGroup,
+  generateNamespace,
 } from "@/lib/form";
 import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import { Check, Globe, Loader, Rocket, X } from "lucide-react";
@@ -38,13 +39,17 @@ export default function CreateAppView() {
     groupOption: { type: "standalone" },
   });
 
-  const [appState, setAppState] = useState<CommonFormFields>(
-    createDefaultCommonFormFields({
-      repositoryId: search.has("repo")
-        ? parseInt(search.get("repo")!.toString())
-        : undefined,
-    }),
-  );
+  const initialState = createDefaultCommonFormFields({
+    ...(search.has("repo") &&
+      search.has("repoName") && {
+        repositoryId: parseInt(search.get("repo")!),
+        repoName: search.get("repoName")!,
+      }),
+  });
+  if (search.has("repoName")) {
+    initialState.workload.namespace = generateNamespace(initialState);
+  }
+  const [appState, setAppState] = useState<CommonFormFields>(initialState);
 
   const navigate = useNavigate();
 
@@ -52,7 +57,7 @@ export default function CreateAppView() {
     groupState.orgId === undefined ||
     appState.source !== "git" ||
     user?.orgs.some(
-      (org) => org.id === groupState.orgId && org.githubConnected,
+      (org) => org.id === groupState.orgId && org.gitProvider !== null,
     );
 
   return (

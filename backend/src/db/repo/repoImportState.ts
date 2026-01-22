@@ -10,7 +10,6 @@ export class RepoImportStateRepo {
   async create(
     userId: number,
     orgId: number,
-    isOrg: boolean,
     owner: string,
     repo: string,
     makePrivate: boolean,
@@ -24,7 +23,6 @@ export class RepoImportStateRepo {
         srcRepoURL: sourceURL,
         userId: userId,
         orgId: orgId,
-        destIsOrg: isOrg,
       },
       select: { id: true },
     });

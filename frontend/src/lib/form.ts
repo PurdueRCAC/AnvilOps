@@ -101,15 +101,21 @@ export const createDeploymentConfig = (
   throw new Error("Invalid app type");
 };
 
-const generateNamespace = (appState: Required<CommonFormFields>): string => {
+export const generateNamespace = (appState: CommonFormFields): string => {
+  return (
+    getAppName(appState)
+      .toLowerCase()
+      .replaceAll(/[^a-zA-Z0-9-_]/g, "-") +
+    "-" +
+    Math.floor(Math.random() * 1_000_000)
+  );
+};
+
+const getNamespace = (appState: Required<CommonFormFields>): string => {
   if (appState.appType === "workload") {
     return appState.workload.namespace as string;
   }
-  return (
-    getAppName(appState).replaceAll(/[^a-zA-Z0-9-_]/g, "_") +
-    "-" +
-    Math.floor(Math.random() * 10_000)
-  );
+  return generateNamespace(appState);
 };
 
 export const createNewAppWithoutGroup = (
@@ -117,7 +123,7 @@ export const createNewAppWithoutGroup = (
 ): components["schemas"]["NewAppWithoutGroupInfo"] => {
   return {
     name: getAppName(appState),
-    namespace: generateNamespace(appState),
+    namespace: getNamespace(appState),
     projectId: appState.projectId ?? undefined,
     config: createDeploymentConfig(appState),
   };
@@ -166,7 +172,7 @@ const getCleanedAppName = (name: string) =>
         .toLowerCase()
         .substring(0, 60)
         .replace(/[^a-z0-9-]/g, "")
-    : "New App";
+    : "new-app";
 
 export const getAppName = ({
   source,

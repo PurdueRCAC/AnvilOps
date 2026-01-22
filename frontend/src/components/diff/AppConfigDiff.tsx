@@ -113,7 +113,7 @@ export const AppConfigDiff = ({
         />
       )}
       {state.appType === "workload" &&
-        (state.source !== "git" || selectedOrg?.githubConnected) && (
+        (state.source !== "git" || selectedOrg?.gitProvider !== null) && (
           <CommonWorkloadConfigDiff
             disabled={disabled}
             base={baseFormState}

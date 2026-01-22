@@ -4,7 +4,7 @@ import {
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
 import { logger } from "../index.ts";
-import { getUserOctokit } from "../lib/octokit.ts";
+import { GitHubGitProvider } from "../lib/git/githubGitProvider.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,
@@ -39,8 +39,6 @@ export async function processGitHubOAuthResponse(
 
   // Verify that the user has access to the installation
   if (action === "VERIFY_INSTALLATION_ACCESS") {
-    const octokit = getUserOctokit(code);
-
     const org = await db.org.getById(orgId, {
       requireUser: { id: userId, permissionLevel: PermissionLevel.OWNER },
     });
@@ -53,18 +51,12 @@ export async function processGitHubOAuthResponse(
       throw new InstallationNotFoundError(null);
     }
 
-    const installations = (
-      await octokit.rest.apps.listInstallationsForAuthenticatedUser()
-    ).data.installations;
-    let found = false;
-    for (const install of installations) {
-      if (install.id === org.newInstallationId) {
-        found = true;
-        break;
-      }
-    }
+    const canAccess = GitHubGitProvider.userCanAccessInstallation(
+      code,
+      org.newInstallationId,
+    );
 
-    if (!found) {
+    if (!canAccess) {
       // The user doesn't have access to the new installation
       throw new GitHubInstallationForbiddenError();
     }
@@ -80,17 +72,17 @@ export async function processGitHubOAuthResponse(
     // We're finally done! Redirect the user back to the frontend.
     return "done";
   } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
-    const octokit = getUserOctokit(code);
-    const user = await octokit.rest.users.getAuthenticated();
+    const { id: githubUserId, login: userLogin } =
+      await GitHubGitProvider.getUserFromOAuthCode(code);
 
-    await db.user.setGitHubUserId(userId, user.data.id);
+    await db.user.setGitHubUserId(userId, githubUserId);
 
     logger.info(
       {
         userId,
         orgId,
-        githubUserId: user.data.id,
-        githubUserLogin: user.data.login,
+        githubUserId: userId,
+        githubUserLogin: userLogin,
       },
       "GitHub installation pending administrator approval (3/3)",
     );

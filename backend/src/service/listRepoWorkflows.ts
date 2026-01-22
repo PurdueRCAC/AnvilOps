@@ -1,11 +1,7 @@
 import { RequestError } from "octokit";
 import { db } from "../db/index.ts";
-import { getOctokit } from "../lib/octokit.ts";
-import {
-  InstallationNotFoundError,
-  OrgNotFoundError,
-  RepositoryNotFoundError,
-} from "./common/errors.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
+import { OrgNotFoundError, RepositoryNotFoundError } from "./common/errors.ts";
 
 export async function listRepoWorkflows(
   orgId: number,
@@ -20,20 +16,9 @@ export async function listRepoWorkflows(
     throw new OrgNotFoundError(null);
   }
 
-  if (org.githubInstallationId == null) {
-    throw new InstallationNotFoundError(null);
-  }
-
   try {
-    const octokit = await getOctokit(org.githubInstallationId);
-    const workflows = (await octokit
-      .request({
-        method: "GET",
-        url: `/repositories/${repoId}/actions/workflows`,
-      })
-      .then((res) => res.data.workflows)) as Awaited<
-      ReturnType<typeof octokit.rest.actions.getWorkflow>
-    >["data"][];
+    const gitProvider = await getGitProvider(org.id);
+    const workflows = await gitProvider.getWorkflows(repoId);
     return workflows.map((workflow) => ({
       id: workflow.id,
       name: workflow.name,

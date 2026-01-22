@@ -1,3 +1,5 @@
+import { DiffInput } from "@/components/diff/DiffInput";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -6,8 +8,11 @@ import {
   SelectItem,
   SelectLabel,
 } from "@/components/ui/select";
+import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
+import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
 import { cn } from "@/lib/utils";
+import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
   BookMarked,
   ClipboardCheck,
@@ -17,11 +22,6 @@ import {
   GitBranch,
   Hammer,
 } from "lucide-react";
-import { DiffInput } from "@/components/diff/DiffInput";
-import type { components } from "@/generated/openapi";
-import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
-import { Button } from "@/components/ui/button";
-import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import { DiffSelect } from "../../DiffSelect";
 
 export const GitConfigDiff = ({
@@ -37,7 +37,7 @@ export const GitConfigDiff = ({
   setGitState: (state: Partial<GitFormFields>) => void;
   disabled?: boolean;
 }) => {
-  if (!selectedOrg?.githubConnected) {
+  if (!selectedOrg?.gitProvider) {
     if (selectedOrg?.permissionLevel === "OWNER") {
       return (
         <div>

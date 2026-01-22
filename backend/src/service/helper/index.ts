@@ -1,5 +1,4 @@
 import { db } from "../../db/index.ts";
-import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { AppService } from "./app.ts";
 import { DeploymentService } from "./deployment.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
@@ -12,6 +11,4 @@ export const deploymentService = new DeploymentService(
   db.app,
   db.appGroup,
   db.deployment,
-  getOctokit,
-  getRepoById,
 );

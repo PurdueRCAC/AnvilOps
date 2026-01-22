@@ -16,7 +16,7 @@ import type {
 } from "../../db/models.ts";
 import { logger } from "../../index.ts";
 import { env } from "../env.ts";
-import { getOctokit } from "../octokit.ts";
+import { getGitProvider } from "../git/gitProvider.ts";
 import { createIngressConfig } from "./resources/ingress.ts";
 import { createServiceConfig } from "./resources/service.ts";
 import {
@@ -233,14 +233,14 @@ export const createAppConfigsFromDeployment = async ({
   const namespace = createNamespaceConfig(app.namespace, app.projectId);
   const configs: K8sObject[] = [];
 
-  const octokit =
-    config.source === "GIT" ? await getOctokit(org.githubInstallationId) : null;
+  const gitProvider =
+    config.source === "GIT" ? await getGitProvider(org.id) : null;
 
   const secretName = `${app.name}-secrets-${deployment.id}`;
   const envVars = await getEnvVars(
     config.getEnv(),
     secretName,
-    octokit,
+    gitProvider,
     deployment,
     config,
     app,
