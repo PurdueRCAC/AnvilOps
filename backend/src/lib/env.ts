@@ -12,15 +12,15 @@ const variables = {
   /**
    * Set this to any non-null value when AnvilOps is running in a Tilt development environment
    */
-  IN_TILT: { required: false, defaultValue: null },
+  IN_TILT: { required: false, defaultValue: null as string | null },
   /**
    * The current version of AnvilOps; used in the UI
    */
-  ANVILOPS_VERSION: { required: false, defaultValue: null },
+  ANVILOPS_VERSION: { required: false, defaultValue: null as string | null },
   /**
    * The date that this AnvilOps container image was built; used in the UI
    */
-  BUILD_DATE: { required: false, defaultValue: null },
+  BUILD_DATE: { required: false, defaultValue: null as string | null },
   /**
    * The CILogon OAuth client ID
    */
@@ -277,10 +277,10 @@ for (const [key, _params] of Object.entries(variables)) {
     if (params.required === true) {
       notFound.push(key);
     } else if (params.defaultValue !== undefined) {
-      env[key] = params.defaultValue;
+      env[key as keyof typeof variables] = params.defaultValue;
     }
   } else {
-    env[key] = value;
+    env[key as keyof typeof variables] = value;
   }
 }
 

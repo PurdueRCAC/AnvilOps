@@ -40,7 +40,7 @@ export async function deleteApp(
     } catch (err) {
       logger.warn({ namespace }, "Failed to delete namespace");
       const span = trace.getActiveSpan();
-      span?.recordException(err);
+      span?.recordException(err as Error);
       span?.setStatus({
         code: SpanStatusCode.ERROR,
         message: "Failed to delete namespace",
@@ -80,7 +80,7 @@ export async function deleteApp(
   } catch (err) {
     logger.warn({ imageRepo }, "Failed to delete image repository");
     const span = trace.getActiveSpan();
-    span?.recordException(err);
+    span?.recordException(err as Error);
     span?.setStatus({
       code: SpanStatusCode.ERROR,
       message: "Failed to delete image repository",

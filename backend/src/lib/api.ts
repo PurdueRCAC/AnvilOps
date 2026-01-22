@@ -1,4 +1,4 @@
-import { trace, type Span } from "@opentelemetry/api";
+import { trace } from "@opentelemetry/api";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -42,7 +42,7 @@ const api = new OpenAPIBackend({
         span.setAttribute("http.operation.id", ctx?.operation?.operationId);
         span.setAttribute("http.route", ctx?.operation?.path);
       }
-      const rootSpan = req["_otel_root_span"] as Span; // This property is set in src/instrumentation.ts when a request is received
+      const rootSpan = req._otel_root_span; // This property is set in src/instrumentation.ts when a request is received
       if (rootSpan) {
         const spanEnd = rootSpan.end.bind(rootSpan);
         rootSpan.end = (input) => {

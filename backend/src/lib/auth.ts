@@ -2,6 +2,7 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express from "express";
 import * as client from "openid-client";
 import { db } from "../db/index.ts";
+import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { logger } from "../index.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
@@ -96,7 +97,7 @@ router.get("/oauth_callback", async (req, res) => {
           if (!clusterUsername) {
             throw new Error();
           }
-        } catch (e) {
+        } catch {
           return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
         }
       }
@@ -108,7 +109,7 @@ router.get("/oauth_callback", async (req, res) => {
         clusterUsername,
       );
 
-      (req.session as any).user = {
+      req.session.user = {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
@@ -121,7 +122,7 @@ router.get("/oauth_callback", async (req, res) => {
     const span = trace.getActiveSpan();
     if (span) {
       span.setStatus({ code: SpanStatusCode.ERROR });
-      span.recordException(err);
+      span.recordException(err as Error);
     }
     return res.redirect("/error?type=login");
   }
@@ -135,7 +136,7 @@ router.post("/logout", (req, res, next) => {
   });
 });
 
-const ALLOWED_ROUTES = [
+export const ALLOWED_ANONYMOUS_ROUTES = [
   "/liveness",
   "/deployment/update",
   "/github/webhook",
@@ -144,8 +145,18 @@ const ALLOWED_ROUTES = [
   "/templates",
 ];
 
+export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
+  // Used to determine whether an endpoint's request type should be Request or AuthenticatedRequest. Should match the array above.
+  "livenessProbe",
+  "updateDeployment",
+  "githubWebhook",
+  "ingestLogs",
+  "getSettings",
+  "getTemplates",
+];
+
 router.use((req, res, next) => {
-  if (ALLOWED_ROUTES.some((path) => req.url.startsWith(path))) {
+  if (ALLOWED_ANONYMOUS_ROUTES.some((path) => req.url.startsWith(path))) {
     next();
     return;
   }

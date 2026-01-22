@@ -100,13 +100,13 @@ export async function createAppGroup(
       });
     } catch (err) {
       const span = trace.getActiveSpan();
-      span?.recordException(err);
+      span?.recordException(err as Error);
       span?.setStatus({
         code: SpanStatusCode.ERROR,
         message:
           "Failed to create app's initial deployment while creating app group",
       });
-      throw new AppCreateError(appData.name, err);
+      throw new AppCreateError(appData.name, err as Error);
     }
   }
 }

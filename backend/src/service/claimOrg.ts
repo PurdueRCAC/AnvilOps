@@ -24,11 +24,13 @@ export async function claimOrg(
           throw new InstallationNotFoundError(e);
         case "organization":
           throw new OrgNotFoundError(e);
+        default:
+          throw e;
       }
     }
 
     const span = trace.getActiveSpan();
-    span?.recordException(e);
+    span?.recordException(e as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
 
     throw e;

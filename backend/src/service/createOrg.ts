@@ -13,7 +13,7 @@ export async function createOrg(
     return org;
   } catch (err) {
     const span = trace.getActiveSpan();
-    span?.recordException(err);
+    span?.recordException(err as Error);
     span?.setStatus({
       code: SpanStatusCode.ERROR,
       message: "Failed to create organization",

@@ -353,7 +353,7 @@ export class DeploymentService {
           );
         } catch {}
       }
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
 
     if (checkRun?.data?.id) {
@@ -414,10 +414,10 @@ export class DeploymentService {
       log(
         deployment.id,
         "BUILD",
-        `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+        `Failed to apply Kubernetes resources: ${JSON.stringify(e)}`,
         "stderr",
       );
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
   }
 
@@ -444,10 +444,10 @@ export class DeploymentService {
       log(
         deployment.id,
         "BUILD",
-        `Failed to create Helm deployment job: ${JSON.stringify(e?.body ?? e)}`,
+        `Failed to create Helm deployment job: ${JSON.stringify(e)}`,
         "stderr",
       );
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
   }
 

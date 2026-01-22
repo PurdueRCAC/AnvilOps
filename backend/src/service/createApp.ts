@@ -59,6 +59,7 @@ export async function createApp(appData: NewApp, userId: number) {
         appData.appGroup.name,
         false,
       );
+      break;
     }
 
     case "standalone": {
@@ -103,9 +104,9 @@ export async function createApp(appData: NewApp, userId: number) {
     });
   } catch (err) {
     const span = trace.getActiveSpan();
-    span?.recordException(err);
+    span?.recordException(err as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
-    throw new DeploymentError(err);
+    throw new DeploymentError(err as Error);
   }
   return app.id;
 }

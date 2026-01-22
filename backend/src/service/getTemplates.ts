@@ -11,7 +11,7 @@ type Template =
   paths["/templates"]["get"]["responses"]["200"]["content"]["application/json"][0];
 
 const templatesPromise = readFile(path, "utf8").then(
-  (file) => JSON.parse(file.toString()) as Template[],
+  (file) => JSON.parse(file.toString()) as Record<string, Template>,
 );
 
 export async function getTemplates() {

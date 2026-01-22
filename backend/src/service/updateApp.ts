@@ -90,6 +90,10 @@ export async function updateApp(
       await db.app.setGroup(originalApp.id, appGroupId);
       break;
     }
+
+    default: {
+      throw new ValidationError("Unexpected app group action type");
+    }
   }
 
   if (appData.appGroup) {
@@ -101,7 +105,7 @@ export async function updateApp(
 
   // ---------------- App model updates ----------------
 
-  const updates = {} as Record<string, any>;
+  const updates = {} as Record<string, string | boolean>;
   if (appData.displayName !== undefined) {
     updates.displayName = appData.displayName;
   }
@@ -158,13 +162,13 @@ export async function updateApp(
     // When the new image is built and deployed successfully, it will become the imageTag of the app's template deployment config so that future redeploys use it.
   } catch (err) {
     const span = trace.getActiveSpan();
-    span?.recordException(err);
+    span?.recordException(err as Error);
     span?.setStatus({
       code: SpanStatusCode.ERROR,
       message: "Failed to update app",
     });
 
-    throw new DeploymentError(err);
+    throw new DeploymentError(err as Error);
   }
   logger.info({ orgId: organization.id, appId: app.id }, "App updated");
 }
@@ -219,7 +223,7 @@ const withSensitiveEnv = (
     isSensitive: boolean;
   }[],
 ) => {
-  const lastEnvMap =
+  const lastEnvMap: Record<string, string> =
     lastPlaintextEnv?.reduce((map, env) => {
       return Object.assign(map, { [env.name]: env.value });
     }, {}) ?? {};

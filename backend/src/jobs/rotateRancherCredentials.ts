@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   AppsV1Api,
   CoreV1Api,
@@ -48,7 +49,9 @@ if (!rancherTokenReq.ok) {
   );
 }
 
-const tokenRes = await rancherTokenReq.json();
+const tokenRes = (await rancherTokenReq.json()) as {
+  token: string;
+};
 const token = Buffer.from(tokenRes["token"], "utf-8").toString("base64");
 
 await api.patchNamespacedSecret(
@@ -85,11 +88,17 @@ if (KUBECONFIG_SECRET_NAME) {
       throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
     }
 
-    const kubeConfigRes = await kcReq.json();
+    const kubeConfigRes = (await kcReq.json()) as {
+      baseType: "generateKubeConfigOutput";
+      config: string;
+      type: "generateKubeConfigOutput";
+    };
     let kubeConfig = kubeConfigRes["config"];
 
     if (USE_CLUSTER_NAME) {
-      const body = yaml.parse(kubeConfig);
+      const body = yaml.parse(kubeConfig) as object & {
+        "current-context": string;
+      };
       body["current-context"] = USE_CLUSTER_NAME;
       kubeConfig = yaml.stringify(body);
     }

@@ -28,11 +28,11 @@ type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
 
 export class DeploymentRepo {
   private client: PrismaClientType;
-  private publish: (topic: string, payload: unknown) => Promise<void>;
+  private publish: (topic: string, payload: string) => Promise<void>;
 
   constructor(
     client: PrismaClientType,
-    publish: (topic: string, payload: unknown) => Promise<void>,
+    publish: (topic: string, payload: string) => Promise<void>,
   ) {
     this.client = client;
     this.publish = publish;
@@ -415,14 +415,23 @@ export class DeploymentRepo {
       take: pageSize,
     });
 
-    return deployments.map((deployment) => ({
-      ...deployment,
-      config: undefined,
-      appType: deployment.config.appType,
-      source: deployment.config.workloadConfig?.source,
-      commitHash: deployment.config.workloadConfig?.commitHash,
-      imageTag: deployment.config.workloadConfig?.imageTag,
-      repositoryId: deployment.config.workloadConfig?.repositoryId,
-    }));
+    return deployments.map(
+      (deployment) =>
+        ({
+          id: deployment.id,
+          appId: deployment.appId,
+          checkRunId: deployment.checkRunId,
+          commitMessage: deployment.commitMessage,
+          configId: deployment.configId,
+          createdAt: deployment.createdAt,
+          status: deployment.status,
+          updatedAt: deployment.updatedAt,
+          workflowRunId: deployment.workflowRunId,
+          source: deployment.config.workloadConfig?.source,
+          commitHash: deployment.config.workloadConfig?.commitHash,
+          imageTag: deployment.config.workloadConfig?.imageTag,
+          repositoryId: deployment.config.workloadConfig?.repositoryId,
+        }) satisfies DeploymentWithSourceInfo,
+    );
   }
 }

@@ -72,7 +72,7 @@ export async function processGitHubWebhookPayload(
           }
         }
       } catch (err) {
-        span.recordException(err);
+        span.recordException(err as Error);
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: "Uncaught error processing GitHub webhook",

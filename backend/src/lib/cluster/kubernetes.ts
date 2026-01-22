@@ -46,8 +46,11 @@ const baseKc = new KubeConfig();
 baseKc.loadFromDefault();
 
 export const svcK8s = {} as APIClientTypes;
-for (const apiClassName in APIClientFactory) {
-  svcK8s[apiClassName] = APIClientFactory[apiClassName](baseKc);
+for (const apiClassName of Object.keys(APIClientFactory)) {
+  Object.assign(svcK8s, {
+    [apiClassName as APIClassName]:
+      APIClientFactory[apiClassName as APIClassName](baseKc),
+  });
 }
 Object.freeze(svcK8s);
 
@@ -56,7 +59,7 @@ export function getClientForClusterUsername<T extends APIClassName>(
   apiClassName: T,
   shouldImpersonate: boolean,
 ): APIClientTypes[T] {
-  if (!APIClientFactory.hasOwnProperty(apiClassName)) {
+  if (!Object.prototype.hasOwnProperty.call(APIClientFactory, apiClassName)) {
     throw new Error("Invalid API class " + apiClassName);
   }
   if (!shouldImpersonate || !clusterUsername) {
@@ -79,7 +82,7 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
   return await tracer.startActiveSpan("getClientsForRequest", async (span) => {
     try {
       apiClassNames.forEach((name) => {
-        if (!APIClientFactory.hasOwnProperty(name)) {
+        if (!Object.prototype.hasOwnProperty.call(APIClientFactory, name)) {
           throw new Error("Invalid API class " + name);
         }
       });
@@ -100,7 +103,7 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
         };
       }, {}) as Pick<APIClientTypes, Names[number]>;
     } catch (err) {
-      span.recordException(err);
+      span.recordException(err as Error);
       span.setStatus({ code: SpanStatusCode.ERROR });
       throw err;
     } finally {
@@ -141,7 +144,7 @@ export const ensureNamespace = async (
       if (
         res.status.phase === "Active" &&
         REQUIRED_LABELS.every((label) =>
-          res.metadata.annotations.hasOwnProperty(label),
+          Object.prototype.hasOwnProperty.call(res.metadata.annotations, label),
         )
       ) {
         return;
@@ -180,7 +183,7 @@ export const createOrUpdateApp = async (
   configs: K8sObject[],
   postCreate?: (api: KubernetesObjectApi) => void,
 ) => {
-  trace
+  await trace
     .getTracer("kubernetes-api")
     .startActiveSpan("createOrUpdateApp", async (span) => {
       try {
@@ -190,9 +193,10 @@ export const createOrUpdateApp = async (
           await ensureNamespace(api, namespace);
         }
 
-        for (const config of configs) {
-          if (await resourceExists(api, config)) {
-            await api.patch(
+        const promises = configs.map(async (config) => {
+          const exists = await resourceExists(api, config);
+          if (exists) {
+            return api.patch(
               config,
               undefined,
               undefined,
@@ -205,13 +209,15 @@ export const createOrUpdateApp = async (
               PatchStrategy.MergePatch,
             );
           } else {
-            await api.create(config);
+            return api.create(config);
           }
-        }
+        });
+
+        await Promise.all(promises);
 
         postCreate?.(api);
       } catch (err) {
-        span.recordException(err);
+        span.recordException(err as Error);
         span.setStatus({ code: SpanStatusCode.ERROR });
         throw err;
       } finally {

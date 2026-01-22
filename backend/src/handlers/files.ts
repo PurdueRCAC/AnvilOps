@@ -1,4 +1,5 @@
 import type { Response as ExpressResponse } from "express";
+import type { OutgoingHttpHeaders } from "node:http";
 import { Readable } from "node:stream";
 import {
   AppNotFoundError,
@@ -124,7 +125,7 @@ async function forward(
       break;
     }
     if (!res.headersSent) {
-      const headers = {};
+      const headers: OutgoingHttpHeaders = {};
       for (const header of [
         "Content-Type",
         "Content-Length",

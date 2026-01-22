@@ -60,10 +60,7 @@ export class Database {
 
   cache = new CacheRepo(this.client);
 
-  deployment = new DeploymentRepo(
-    this.client,
-    this.publish.bind(this) as typeof this.publish,
-  );
+  deployment = new DeploymentRepo(this.client, this.publish.bind(this));
 
   invitation = new InvitationRepo(this.client);
 

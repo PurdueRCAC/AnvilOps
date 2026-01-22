@@ -12,20 +12,19 @@ const SANDBOX_ID = env["SANDBOX_ID"];
 
 export const isRancherManaged = () => !!API_BASE_URL && !!token;
 
-const fetchRancherResource = async (endpoint: string) => {
-  return fetch(`${API_BASE_URL}/${endpoint}`, { headers })
-    .then((res) => res.text())
-    .then((res) => JSON.parse(res))
-    .then((res) => {
-      if (res.type === "error") {
-        throw res;
-      }
-      return res;
-    });
+const fetchRancherResource = async <T extends { type: string }>(
+  endpoint: string,
+) => {
+  const res = await fetch(`${API_BASE_URL}/${endpoint}`, { headers });
+  const json = (await res.json()) as T;
+  if (json.type === "error") {
+    throw new Error(JSON.stringify(json));
+  }
+  return json;
 };
 
 const getProjectById = async (id: string) => {
-  const project = await fetchRancherResource(`projects/${id}`);
+  const project = await fetchRancherResource<RancherProject>(`projects/${id}`);
   return {
     id: project.id,
     name: project.name,
@@ -34,14 +33,15 @@ const getProjectById = async (id: string) => {
 };
 
 const fetchUserProjects = async (rancherId: string) => {
-  const bindings = await fetchRancherResource(
-    `projectRoleTemplateBindings?userId=${rancherId}`,
-  ).then((res) => res.data);
+  const bindings =
+    await fetchRancherResource<RancherProjectRoleTemplateBindingsResponse>(
+      `projectRoleTemplateBindings?userId=${rancherId}`,
+    ).then((res) => res.data);
   const projectIds = bindings
-    ? bindings.map((binding: any) => binding.projectId)
+    ? bindings.map((binding) => binding.projectId)
     : [];
   projectIds.push(SANDBOX_ID);
-  const uniqueProjectIds = [...new Set(projectIds)] as string[];
+  const uniqueProjectIds = [...new Set(projectIds)];
 
   const authClient = getClientForClusterUsername(
     rancherId,
@@ -50,7 +50,7 @@ const fetchUserProjects = async (rancherId: string) => {
   );
   const canDeployIn = await Promise.all(
     uniqueProjectIds.map((projectId) => {
-      if (projectId === SANDBOX_ID) return true;
+      if (projectId === SANDBOX_ID) return Promise.resolve(true);
 
       const simpleProjectId = projectId.split(":")[1]; // Split the project id off from the cluster id
 
@@ -129,9 +129,9 @@ const getProjectAccessReview = async (userId: string, projectId: string) => {
 };
 
 export const getRancherUserID = async (eppn: string) => {
-  const users = await fetchRancherResource("users");
+  const users = await fetchRancherResource<RancherUsersListResponse>("users");
   const principalId = `${env.LOGIN_TYPE}_user://${eppn}`;
-  const user = users?.data?.find((user: any) =>
+  const user = users?.data?.find((user) =>
     user.principalIds.some((id: string) => id === principalId),
   );
 
@@ -151,7 +151,7 @@ export const getProjectsForUser = async (
     await getOrCreate(`rancher-projects-${rancherId}`, 15, async () =>
       JSON.stringify(await fetchUserProjects(rancherId)),
     ),
-  );
+  ) as Awaited<ReturnType<typeof fetchUserProjects>>;
 };
 
 export const canManageProject = async (userId: string, projectId: string) => {
@@ -164,3 +164,173 @@ export const canManageProject = async (userId: string, projectId: string) => {
 
 export const shouldImpersonate = (projectId: string) =>
   projectId !== SANDBOX_ID;
+
+type RancherProject = {
+  actions: {
+    /** URL */
+    exportYaml: string;
+  };
+  annotations: Record<string, string>;
+  baseType: "project";
+  clusterId: string;
+  conditions: {
+    /** ISO-formatted date string */
+    lastUpdateTime: string;
+    status: "True" | "False";
+    type: string;
+  }[];
+  /** ISO-formatted date string */
+  created: string;
+  createdTS: number;
+  creatorId: string;
+  description: string;
+  id: string;
+  labels: Record<string, string>;
+  links: Record<string, string>;
+  name: string;
+  namespaceId: null;
+  state: string;
+  transitioning: string;
+  transitioningMessage: string;
+  type: "project";
+  uuid: string;
+};
+
+type RancherProjectRoleTemplateBindingsResponse = {
+  type: "collection";
+  links: {
+    /** URL */
+    self: string;
+  };
+  createTypes: {
+    /** URL */
+    projectRoleTemplateBinding: string;
+  };
+  actions: object;
+  pagination: { limit: number; total: number };
+  sort: {
+    order: "asc" | "desc";
+    /** URL */
+    reverse: string;
+    links: {
+      /** URL */
+      serviceAccount: string;
+      /** URL */
+      uuid: string;
+    };
+  };
+  filters: Record<string, object>;
+  resourceType: "projectRoleTemplateBinding";
+  data: {
+    annotations: Record<string, string>;
+    baseType: "projectRoleTemplateBinding";
+    /** ISO date string */
+    created: string;
+    createdTS: number;
+    creatorId: string | null;
+    groupId: string | null;
+    groupPrincipalId: string | null;
+    id: string;
+    labels: Record<string, string>;
+    /** Map of URLs */
+    links: Record<"remove" | "self" | "update", string>;
+    name: string;
+    namespaceId: string | null;
+    projectId: string;
+    roleTemplateId: string;
+    type: "projectRoleTemplateBinding";
+    userId: string;
+    userPrincipalId: string;
+    uuid: string;
+  }[];
+};
+
+type RancherUsersListResponse = {
+  type: "collection";
+  links: {
+    /** URL */ self: string;
+  };
+  createTypes: {
+    /** URL */ user: string;
+  };
+  actions: {
+    /** URL */ changepassword: string;
+    /** URL */ refreshauthprovideraccess: string;
+  };
+  pagination: { limit: 1000; total: 168 };
+  sort: {
+    order: "asc";
+    /** URL */
+    reverse: string;
+    /** Map of URLs */
+    links: Record<
+      | "description"
+      | "name"
+      | "password"
+      | "state"
+      | "transitioning"
+      | "transitioningMessage"
+      | "username"
+      | "uuid",
+      string
+    >;
+  };
+  filters: Record<
+    | "created"
+    | "creatorId"
+    | "description"
+    | "enabled"
+    | "id"
+    | "me"
+    | "mustChangePassword"
+    | "name"
+    | "password"
+    | "removed"
+    | "state"
+    | "transitioning"
+    | "transitioningMessage"
+    | "username"
+    | "uuid",
+    object
+  >;
+  resourceType: "user";
+  data: {
+    /** Map of URLs */
+    actions: Record<"refreshauthprovideraccess" | "setpassword", string>;
+    annotations: Record<string, string>;
+    baseType: "user";
+    conditions: {
+      /** ISO date */ lastUpdateTime: string;
+      status: "True" | "False";
+      type: string;
+    }[];
+    /** ISO date */
+    created: string;
+    createdTS: number;
+    creatorId: string | null;
+    description: string;
+    enabled: boolean;
+    id: string;
+    labels: Record<string, string>;
+    /** Map of URLs */
+    links: Record<
+      | "clusterRoleTemplateBindings"
+      | "globalRoleBindings"
+      | "projectRoleTemplateBindings"
+      | "remove"
+      | "self"
+      | "tokens"
+      | "update",
+      string
+    >;
+    me: false;
+    mustChangePassword: false;
+    name: string;
+    principalIds: string[];
+    state: string;
+    transitioning: string;
+    transitioningMessage: string;
+    type: "user";
+    uuid: string;
+  }[];
+};
