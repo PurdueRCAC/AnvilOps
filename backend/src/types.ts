@@ -50,7 +50,7 @@ export type HandlerMap = {
 };
 
 type ResponseType = number | "default";
-type ResponseMap = {
+export type ResponseMap = {
   [statusCode in ResponseType]?: {
     headers: { [name: string]: unknown };
     content?: {

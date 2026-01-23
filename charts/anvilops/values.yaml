@@ -88,12 +88,19 @@ anvilops:
       annotations:
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
+    netpol:
+      createIngressNetworkPolicy: false
+      # allowedIngressMatchLabels:
+      #   - kubernetes.io/metadata.name: kube-system
+      #   - kubernetes.io/metadata.name: ingress-nginx
+
 rancher:
   enabled: false
   apiBase: ""
   refreshTokens: true
   refreshSchedule: "0 0 25 * *"
-  tokenTtl: 2592000000 # 30 days
+  tokenTtl: "2592000000" # 30 days
+
 postgres:
   generateCredentials: true
   image: postgres:17

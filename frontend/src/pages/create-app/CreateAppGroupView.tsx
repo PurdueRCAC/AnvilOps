@@ -40,7 +40,7 @@ export default function CreateAppGroupView() {
   const {
     orgId,
     groupOption: { name: groupName },
-  } = groupState as { orgId?: string; groupOption: GroupCreate };
+  } = groupState as { orgId?: number; groupOption: GroupCreate };
 
   const [appStates, setAppStates] = useState<CommonFormFields[]>([
     createDefaultCommonFormFields(),
@@ -51,9 +51,7 @@ export default function CreateAppGroupView() {
   const shouldShowDeploy = useMemo(() => {
     return (
       orgId === undefined ||
-      user?.orgs.some(
-        (org) => org.id === parseInt(orgId) && org.githubConnected,
-      )
+      user?.orgs?.some((org) => org.id === orgId && org.gitProvider !== null)
     );
   }, [user, orgId]);
 
@@ -81,7 +79,7 @@ export default function CreateAppGroupView() {
             await createAppGroup({
               body: {
                 name: groupName,
-                orgId: parseInt(orgId!),
+                orgId: orgId!,
                 apps: finalAppStates.map(createNewAppWithoutGroup),
               },
             });

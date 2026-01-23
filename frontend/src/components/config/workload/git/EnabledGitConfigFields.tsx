@@ -58,6 +58,7 @@ export const EnabledGitConfigFields = ({
     dockerfilePath,
     branch,
   } = gitState;
+
   const {
     data: repos,
     isPending: reposLoading,

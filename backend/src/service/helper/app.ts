@@ -10,10 +10,15 @@ import {
   MAX_STS_NAME_LEN,
 } from "../../lib/cluster/resources.ts";
 import { env } from "../../lib/env.ts";
+import { getGitProvider } from "../../lib/git/gitProvider.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
-import { ValidationError } from "../../service/common/errors.ts";
+import {
+  InstallationNotFoundError,
+  ValidationError,
+} from "../../service/common/errors.ts";
 import { isNamespaceAvailable } from "../isNamespaceAvailable.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
+
 interface CreateAppInput {
   type: "create";
   name: string;
@@ -66,15 +71,17 @@ export class AppService {
       throw new ValidationError(appValidationErrors.join(","));
     }
 
-    if (
-      apps.some(
-        (app) =>
-          app.config.source === "git" && !organization.githubInstallationId,
-      )
-    ) {
-      throw new ValidationError(
-        "The AnvilOps GitHub App is not installed in this organization.",
-      );
+    if (apps.some((app) => app.config.source === "git")) {
+      try {
+        await getGitProvider(organization.id);
+      } catch (err) {
+        if (err instanceof InstallationNotFoundError) {
+          throw new ValidationError(
+            "The AnvilOps GitHub App is not installed in this organization.",
+          );
+        }
+        throw err;
+      }
     }
 
     const metadata = await Promise.allSettled(

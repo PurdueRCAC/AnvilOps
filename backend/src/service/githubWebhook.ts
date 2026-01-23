@@ -4,7 +4,7 @@ import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
 import { logger } from "../index.ts";
 import { env } from "../lib/env.ts";
-import { getOctokit } from "../lib/octokit.ts";
+import { getGitProvider } from "../lib/git/gitProvider.ts";
 import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
@@ -154,7 +154,9 @@ async function handleInstallationCreated(
     await db.user.createUnassignedInstallation(
       payload.requester.id,
       payload.installation.id,
-      payload.installation["login"] ?? payload.installation.account.name,
+      "login" in payload.installation.account
+        ? payload.installation.account.login
+        : payload.installation.account.name,
       payload.installation.html_url,
     );
   } catch (e) {
@@ -333,15 +335,13 @@ async function handleWorkflowRun(
         if (!deployment.checkRunId) {
           continue;
         }
-        const octokit = await getOctokit(org.githubInstallationId);
+        const gitProvider = await getGitProvider(org.id);
         try {
-          await octokit.rest.checks.update({
-            check_run_id: deployment.checkRunId,
-            owner: payload.repository.owner.login,
-            repo: payload.repository.name,
-            status: "completed",
-            conclusion: "cancelled",
-          });
+          await gitProvider.updateCheckStatus(
+            payload.repository.id,
+            deployment.checkRunId,
+            "cancelled",
+          );
           log(
             deployment.id,
             "BUILD",
@@ -361,11 +361,7 @@ async function handleWorkflowRun(
         app,
         deployment,
         config,
-        checkRunOpts: {
-          type: "update",
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-        },
+        createOrUpdateCheckRun: true,
       });
     }
   }

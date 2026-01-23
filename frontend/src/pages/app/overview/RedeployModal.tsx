@@ -335,7 +335,7 @@ export const RedeployModal = ({
                   }
                 />
                 {(redeployState.configState.source !== "git" ||
-                  selectedOrg?.githubConnected) && (
+                  selectedOrg?.gitProvider !== null) && (
                   <Button
                     className="float-right mt-4"
                     type="button"

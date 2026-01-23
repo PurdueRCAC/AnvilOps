@@ -1,13 +1,18 @@
 import type { Response } from "express";
-import { InstallationNotFoundError } from "../lib/octokit.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
+  InstallationNotFoundError,
   OrgNotFoundError,
 } from "../service/common/errors.ts";
 import { processGitHubOAuthResponse } from "../service/githubOAuthCallback.ts";
-import { redirect, type HandlerMap } from "../types.ts";
+import {
+  redirect,
+  type HandlerMap,
+  type HandlerResponse,
+  type ResponseMap,
+} from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 /**
@@ -54,7 +59,7 @@ export const githubOAuthCallbackHandler: HandlerMap["githubOAuthCallback"] =
     }
   };
 
-export function githubConnectError(
+export function githubConnectError<ResMap extends ResponseMap>(
   res: Response,
   code:
     | "IDP_ERROR"
@@ -63,6 +68,6 @@ export function githubConnectError(
     | "DIFF_ACCOUNT"
     | "ORG_FAIL"
     | "",
-) {
+): HandlerResponse<ResMap> {
   return redirect(302, res, `/error?type=github_app&code=${code}`);
 }

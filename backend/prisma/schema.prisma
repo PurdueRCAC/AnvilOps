@@ -288,7 +288,6 @@ model RepoImportState {
   id            String       @id @default(uuid())
   createdAt     DateTime     @default(now())
   srcRepoURL    String
-  destIsOrg     Boolean
   destRepoOwner String
   destRepoName  String
   makePrivate   Boolean

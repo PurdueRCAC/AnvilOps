@@ -1,9 +1,13 @@
-import type { Octokit } from "octokit";
 import { db } from "../db/index.ts";
 import type { DeploymentWithSourceInfo } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import { getOctokit, getRepoById } from "../lib/octokit.ts";
-import { AppNotFoundError, ValidationError } from "./common/errors.ts";
+import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
+import {
+  AppNotFoundError,
+  InstallationNotFoundError,
+  RepositoryNotFoundError,
+  ValidationError,
+} from "./common/errors.ts";
 
 export async function listDeployments(
   appId: number,
@@ -35,17 +39,23 @@ export async function listDeployments(
   const distinctRepoIDs = [
     ...new Set(deployments.map((it) => it.repositoryId).filter(Boolean)),
   ];
-  let octokit: Octokit;
-  if (distinctRepoIDs.length > 0 && org.githubInstallationId) {
-    octokit = await getOctokit(org.githubInstallationId);
+  let gitProvider: GitProvider;
+  if (distinctRepoIDs.length > 0) {
+    try {
+      gitProvider = await getGitProvider(org.id);
+    } catch (e) {
+      if (!(e instanceof InstallationNotFoundError)) {
+        throw e;
+      }
+    }
   }
   const repos = await Promise.all(
     distinctRepoIDs.map(async (id) => {
       if (id) {
         try {
-          return octokit ? await getRepoById(octokit, id) : null;
+          return gitProvider ? await gitProvider.getRepoById(id) : null;
         } catch (error) {
-          if (error?.status === 404) {
+          if (error instanceof RepositoryNotFoundError) {
             // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
             return undefined;
           }
@@ -78,7 +88,7 @@ export async function listDeployments(
       id: deployment.id,
       appId: deployment.appId,
       repositoryURL:
-        repos[distinctRepoIDs.indexOf(deployment.repositoryId)]?.html_url,
+        repos[distinctRepoIDs.indexOf(deployment.repositoryId)]?.htmlURL,
       commitHash: deployment.commitHash,
       commitMessage: deployment.commitMessage,
       status: deployment.status,

@@ -1,8 +1,8 @@
-import { EnabledGitConfigFields } from "./EnabledGitConfigFields";
+import { Button } from "@/components/ui/button";
 import type { components } from "@/generated/openapi";
 import type { CommonFormFields, GitFormFields } from "@/lib/form.types";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
-import { Button } from "@/components/ui/button";
+import { EnabledGitConfigFields } from "./EnabledGitConfigFields";
 
 export const GitConfigFields = ({
   selectedOrg,
@@ -15,7 +15,7 @@ export const GitConfigFields = ({
   setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
   disabled?: boolean;
 }) => {
-  if (!selectedOrg?.githubConnected) {
+  if (!selectedOrg?.gitProvider) {
     if (selectedOrg?.permissionLevel === "OWNER") {
       return (
         <div>

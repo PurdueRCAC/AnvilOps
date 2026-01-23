@@ -1,4 +1,3 @@
-import { Octokit } from "octokit";
 import type {
   App,
   AppGroup,
@@ -23,8 +22,12 @@ import {
 import { shouldImpersonate } from "../../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../../lib/cluster/resources.ts";
 import { env } from "../../lib/env.ts";
+import {
+  getGitProvider,
+  type CommitStatus,
+  type GitProvider,
+} from "../../lib/git/gitProvider.ts";
 import { upgrade } from "../../lib/helm.ts";
-import { getOctokit, getRepoById } from "../../lib/octokit.ts";
 import { DeploymentError } from "../common/errors.ts";
 import { log } from "../githubWebhook.ts";
 
@@ -39,20 +42,14 @@ export class DeploymentService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
-  private getOctokitFn: typeof getOctokit;
-  private getRepoByIdFn: typeof getRepoById;
   constructor(
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
-    getOctokitFn?: typeof getOctokit,
-    getRepoByIdFn?: typeof getRepoById,
   ) {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
-    this.getOctokitFn = getOctokitFn ?? getOctokit;
-    this.getRepoByIdFn = getRepoByIdFn ?? getRepoById;
   }
 
   /**
@@ -145,16 +142,15 @@ export class DeploymentService {
   }) {
     if (opts?.checkRun) {
       // Webhook event deployment
-      const { pending, owner, repo } = opts.checkRun;
+      const { pending } = opts.checkRun;
       if (pending) {
         // AnvilOps is waiting for another CI workflow to finish before deploying the app. Create a "Pending" check run for now.
         // When the other workflow completes, this method will be called again with `pending` set to `false`.
-        this.createPendingCheckRun({
+        await this.createPendingCheckRun({
           org,
           app,
           deployment,
           config,
-          checkRunOpts: { owner, repo },
         });
       } else {
         await this.completeGitDeployment({
@@ -162,11 +158,7 @@ export class DeploymentService {
           app,
           deployment,
           config,
-          checkRunOpts: {
-            type: "create",
-            owner,
-            repo,
-          },
+          createOrUpdateCheckRun: true,
         });
       }
     } else if (opts?.skipBuild) {
@@ -181,7 +173,13 @@ export class DeploymentService {
       });
     } else {
       // Regular app creation
-      await this.completeGitDeployment({ org, app, deployment, config });
+      await this.completeGitDeployment({
+        org,
+        app,
+        deployment,
+        config,
+        createOrUpdateCheckRun: false,
+      });
     }
   }
 
@@ -194,41 +192,26 @@ export class DeploymentService {
     app,
     deployment,
     config,
-    checkRunOpts,
   }: {
     org: Organization;
     app: App;
     deployment: Deployment;
     config: GitConfig;
-    checkRunOpts: {
-      owner: string;
-      repo: string;
-    };
   }) {
     try {
-      const checkRun = await this.handleCheckRun({
-        octokit: await this.getOctokitFn(org.githubInstallationId),
+      const checkRunId = await this.createCheckRun(
+        await getGitProvider(org.id),
         deployment,
         config,
-        checkRun: {
-          type: "create",
-          opts: {
-            owner: checkRunOpts.owner,
-            repo: checkRunOpts.repo,
-            status: "queued",
-          },
-        },
-      });
+        config.repositoryId,
+        "queued",
+      );
       log(
         deployment.id,
         "BUILD",
-        "Created GitHub check run with status Queued at " +
-          checkRun.data.html_url,
+        "Created GitHub check run with status Queued",
       );
-      await this.deploymentRepo.setCheckRunId(
-        deployment.id,
-        checkRun?.data?.id,
-      );
+      await this.deploymentRepo.setCheckRunId(deployment.id, checkRunId);
       await this.cancelAllOtherDeployments(org, app, deployment.id, false);
     } catch (e) {
       console.error("Failed to set check run: ", e);
@@ -244,73 +227,48 @@ export class DeploymentService {
     app,
     deployment,
     config,
-    checkRunOpts,
+    createOrUpdateCheckRun,
   }: {
     org: Organization;
     app: App;
     deployment: Deployment;
     config: GitConfig;
-    checkRunOpts?: {
-      type: "create" | "update";
-      owner: string;
-      repo: string;
-      status?: "in_progress" | "completed" | "queued";
-    };
+    createOrUpdateCheckRun: boolean;
   }) {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
 
     let jobId: string | undefined;
-    let octokit: Octokit;
-    let checkRun:
-      | Awaited<ReturnType<Octokit["rest"]["checks"]["create"]>>
-      | Awaited<ReturnType<Octokit["rest"]["checks"]["update"]>>;
-    if (checkRunOpts) {
-      octokit = await this.getOctokitFn(org.githubInstallationId);
-      const { owner, repo, status } = checkRunOpts;
+    let gitProvider: GitProvider;
+    let checkRunId: number | undefined;
+    if (createOrUpdateCheckRun) {
+      gitProvider = await getGitProvider(org.id);
       try {
-        switch (checkRunOpts.type) {
-          case "create": {
-            checkRun = await this.handleCheckRun({
-              octokit,
-              deployment,
-              config,
-              checkRun: {
-                type: "create",
-                opts: { owner, repo, status: status ?? "in_progress" },
-              },
-            });
-            log(
-              deployment.id,
-              "BUILD",
-              "Created GitHub check run with status In Progress at " +
-                checkRun.data.html_url,
-            );
-            break;
-          }
-
-          case "update": {
-            checkRun = await this.handleCheckRun({
-              octokit,
-              deployment,
-              config,
-              checkRun: {
-                type: "update",
-                opts: {
-                  owner,
-                  repo,
-                  status: status ?? "in_progress",
-                  check_run_id: deployment.checkRunId,
-                },
-              },
-            });
-            log(
-              deployment.id,
-              "BUILD",
-              "Updated GitHub check run to In Progress at " +
-                checkRun.data.html_url,
-            );
-            break;
-          }
+        if (deployment.checkRunId) {
+          await this.updateCheckRun(
+            gitProvider,
+            config.repositoryId,
+            deployment.checkRunId,
+            "in_progress",
+          );
+          log(
+            deployment.id,
+            "BUILD",
+            "Updated GitHub check run to In Progress",
+          );
+        } else {
+          checkRunId = await this.createCheckRun(
+            gitProvider,
+            deployment,
+            config,
+            config.repositoryId,
+            "in_progress",
+          );
+          log(
+            deployment.id,
+            "BUILD",
+            "Created GitHub check run with status In Progress",
+          );
+          await this.deploymentRepo.setCheckRunId(deployment.id, checkRunId);
         }
       } catch (e) {
         console.error("Failed to set check run: ", e);
@@ -328,24 +286,15 @@ export class DeploymentService {
         "stderr",
       );
       await this.deploymentRepo.setStatus(deployment.id, "ERROR");
-      if (checkRunOpts && checkRun?.data?.id) {
+      if (createOrUpdateCheckRun && checkRunId) {
         // If a check run was created, make sure it's marked as failed
         try {
-          await this.handleCheckRun({
-            octokit,
-            deployment,
-            config,
-            checkRun: {
-              type: "update",
-              opts: {
-                check_run_id: checkRun.data.id,
-                owner: checkRunOpts.owner,
-                repo: checkRunOpts.repo,
-                status: "completed",
-                conclusion: "failure",
-              },
-            },
-          });
+          await this.updateCheckRun(
+            gitProvider,
+            config.repositoryId,
+            checkRunId,
+            "failure",
+          );
           log(
             deployment.id,
             "BUILD",
@@ -354,10 +303,6 @@ export class DeploymentService {
         } catch {}
       }
       throw new DeploymentError(e as Error);
-    }
-
-    if (checkRun?.data?.id) {
-      await this.deploymentRepo.setCheckRunId(deployment.id, checkRun.data.id);
     }
   }
 
@@ -387,13 +332,13 @@ export class DeploymentService {
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment(
+        await createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
           deployment,
           config,
-        );
+        });
       const api = getClientForClusterUsername(
         app.clusterUsername,
         "KubernetesObjectApi",
@@ -451,50 +396,28 @@ export class DeploymentService {
     }
   }
 
-  private async handleCheckRun({
-    octokit,
-    deployment,
-    config,
-    checkRun,
-  }: {
-    octokit: Octokit;
-    deployment: Omit<Deployment, "secret">;
-    config: GitConfig;
-    checkRun:
-      | {
-          type: "create";
-          opts: {
-            owner: string;
-            repo: string;
-            status: "in_progress" | "completed" | "queued";
-          };
-        }
-      | {
-          type: "update";
-          opts: {
-            owner: string;
-            repo: string;
-            check_run_id: number;
-            status: "in_progress" | "completed" | "queued";
-            conclusion?: "cancelled" | "failure" | "success";
-          };
-        };
-  }) {
-    switch (checkRun.type) {
-      case "create": {
-        return await octokit.rest.checks.create({
-          ...checkRun.opts,
-          head_sha: config.commitHash,
-          name: "AnvilOps",
-          details_url: `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
-        });
-        break;
-      }
-      case "update": {
-        return await octokit.rest.checks.update(checkRun.opts);
-        break;
-      }
-    }
+  private async createCheckRun(
+    gitProvider: GitProvider,
+    deployment: Omit<Deployment, "secret">,
+    config: GitConfig,
+    repoId: number,
+    status: CommitStatus,
+  ) {
+    return await gitProvider.createCheckStatus(
+      repoId,
+      config.commitHash,
+      status,
+      `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
+    );
+  }
+
+  private async updateCheckRun(
+    gitProvider: GitProvider,
+    repoId: number,
+    checkId: number,
+    newStatus: CommitStatus,
+  ) {
+    await gitProvider.updateCheckStatus(repoId, checkId, newStatus);
   }
 
   /**
@@ -516,35 +439,24 @@ export class DeploymentService {
         : statuses.filter((it) => it != "ERROR" && it != "COMPLETE"),
     );
 
-    let octokit: Octokit;
+    let gitProvider: GitProvider;
     for (const deployment of deployments) {
       if (deployment.id === deploymentId) {
         continue;
       }
       if (deployment.checkRunId) {
         // Should have a check run that is either queued or in_progress
-        if (!octokit) {
-          octokit = await this.getOctokitFn(org.githubInstallationId);
+        if (!gitProvider) {
+          gitProvider = await getGitProvider(org.id);
         }
         const config = deployment.config.asGitConfig();
-
-        const repo = await this.getRepoByIdFn(octokit, config.repositoryId);
         try {
-          await this.handleCheckRun({
-            octokit,
-            deployment,
-            config,
-            checkRun: {
-              type: "update",
-              opts: {
-                check_run_id: deployment.checkRunId,
-                owner: repo.owner.login,
-                repo: repo.name,
-                status: "completed",
-                conclusion: "cancelled",
-              },
-            },
-          });
+          await this.updateCheckRun(
+            gitProvider,
+            config.repositoryId,
+            deployment.checkRunId,
+            "cancelled",
+          );
           log(
             deployment.id,
             "BUILD",

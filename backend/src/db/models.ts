@@ -212,7 +212,6 @@ export interface AppCreate {
 export interface RepoImportState {
   id: string;
   srcRepoURL: string;
-  destIsOrg: boolean;
   destRepoOwner: string;
   destRepoName: string;
   makePrivate: boolean;

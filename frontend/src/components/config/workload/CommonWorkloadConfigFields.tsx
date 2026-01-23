@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { MAX_SUBDOMAIN_LENGTH, getAppName } from "@/lib/form";
+import { MAX_SUBDOMAIN_LENGTH, generateNamespace } from "@/lib/form";
 import type { CommonFormFields, WorkloadUpdate } from "@/lib/form.types";
 import { useDebouncedValue } from "@/lib/utils";
 import { FormContext, NameStatus } from "@/pages/create-app/CreateAppView";
@@ -120,12 +120,7 @@ export const CommonWorkloadConfigFields = ({
     if (!hasChangedNamespace) {
       setState((state) => ({
         ...state,
-        namespace:
-          getAppName(appState)
-            .toLowerCase()
-            .replaceAll(/[^a-zA-Z0-9-_]/g, "-") +
-          "-" +
-          Math.floor(Math.random() * 1_000_000),
+        namespace: generateNamespace(appState),
       }));
     }
   }, [state.git.repositoryId, state.image.imageTag]);

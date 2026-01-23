@@ -37,7 +37,7 @@ export const GitConfigDiff = ({
   setGitState: (state: Partial<GitFormFields>) => void;
   disabled?: boolean;
 }) => {
-  if (!selectedOrg?.githubConnected) {
+  if (!selectedOrg?.gitProvider) {
     if (selectedOrg?.permissionLevel === "OWNER") {
       return (
         <div>

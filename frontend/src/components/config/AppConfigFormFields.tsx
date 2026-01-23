@@ -118,7 +118,7 @@ export const AppConfigFormFields = ({
         />
       )}
       {state.appType === "workload" &&
-        (state.source !== "git" || selectedOrg?.githubConnected) && (
+        (state.source !== "git" || selectedOrg?.gitProvider !== null) && (
           <CommonWorkloadConfigFields
             appState={state}
             setState={commonWorkloadSetter}

@@ -1,4 +1,3 @@
-import { Octokit } from "octokit";
 import type {
   App,
   DeploymentConfig,
@@ -16,9 +15,17 @@ import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
 import { generateVolumeName } from "../../lib/cluster/resources/statefulset.ts";
 import { env } from "../../lib/env.ts";
-import { getOctokit, getRepoById } from "../../lib/octokit.ts";
+import {
+  getGitProvider,
+  type GitProvider,
+  type GitRepository,
+} from "../../lib/git/gitProvider.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
-import { ValidationError } from "../common/errors.ts";
+import {
+  InstallationNotFoundError,
+  RepositoryNotFoundError,
+  ValidationError,
+} from "../common/errors.ts";
 
 type GitWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
   source: "git";
@@ -30,65 +37,63 @@ type ImageWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
 
 export class DeploymentConfigService {
   private appRepo: AppRepo;
-  private getOctokitFn: typeof getOctokit;
-  private getRepoByIdFn: typeof getRepoById;
-  constructor(
-    appRepo: AppRepo,
-    getOctokitFn = getOctokit,
-    getRepoByIdFn = getRepoById,
-  ) {
+
+  constructor(appRepo: AppRepo) {
     this.appRepo = appRepo;
-    this.getOctokitFn = getOctokitFn;
-    this.getRepoByIdFn = getRepoByIdFn;
   }
 
   async prepareDeploymentMetadata(
     config: components["schemas"]["DeploymentConfig"],
-    organization: Pick<Organization, "githubInstallationId">,
+    organization: Pick<Organization, "id">,
   ): Promise<{
     config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate;
     commitMessage: string | null;
   }> {
     switch (config.source) {
       case "git": {
-        let octokit: Octokit, repo: Awaited<ReturnType<typeof getRepoById>>;
+        let gitProvider: GitProvider, repo: GitRepository;
 
         try {
-          octokit = await this.getOctokitFn(organization.githubInstallationId);
-          repo = await this.getRepoByIdFn(octokit, config.repositoryId);
+          gitProvider = await getGitProvider(organization.id);
         } catch (err) {
-          if (err.status === 404) {
-            throw new ValidationError("Invalid repository id");
+          if (err instanceof InstallationNotFoundError) {
+            throw new ValidationError(
+              "Organization is not connected to a Git provider.",
+            );
           }
 
           console.error(err);
-          throw new Error("Failed to look up GitHub repository");
+          throw new Error("Failed to look up Git repository", {
+            cause: err,
+          });
         }
 
-        await this.validateGitConfig(config, octokit, repo);
+        try {
+          repo = await gitProvider.getRepoById(config.repositoryId);
+        } catch (err) {
+          if (err instanceof RepositoryNotFoundError) {
+            throw new ValidationError("Repository not found");
+          }
+          throw err;
+        }
+
+        await this.validateGitConfig(config, gitProvider);
 
         let commitHash: string;
         let commitMessage: string;
         if (config.commitHash) {
           commitHash = config.commitHash;
-          const commit = await octokit.rest.git.getCommit({
-            owner: repo.owner.login,
-            repo: repo.name,
-            commit_sha: commitHash,
-          });
-          commitMessage = commit.data.message;
+          commitMessage = await gitProvider.getCommitMessage(
+            config.repositoryId,
+            commitHash,
+          );
         } else {
-          const latestCommit = (
-            await octokit.rest.repos.listCommits({
-              per_page: 1,
-              owner: repo.owner.login,
-              repo: repo.name,
-              sha: config.branch,
-            })
-          ).data[0];
-
+          const latestCommit = await gitProvider.getLatestCommit(
+            config.repositoryId,
+            config.branch,
+          );
           commitHash = latestCommit.sha;
-          commitMessage = latestCommit.commit.message;
+          commitMessage = latestCommit.message;
         }
 
         return {
@@ -259,11 +264,7 @@ export class DeploymentConfigService {
     this.validateMounts(config.mounts);
   }
 
-  async validateGitConfig(
-    config: GitWorkloadConfig,
-    octokit: Octokit,
-    repo: Awaited<ReturnType<typeof getRepoById>>,
-  ) {
+  async validateGitConfig(config: GitWorkloadConfig, gitProvider: GitProvider) {
     const { rootDir, builder, dockerfilePath, event, eventId } = config;
     if (rootDir.startsWith("/") || rootDir.includes(`"`)) {
       throw new ValidationError("Invalid root directory");
@@ -283,17 +284,12 @@ export class DeploymentConfigService {
 
     if (config.event === "workflow_run" && config.eventId) {
       try {
-        const workflows = await (
-          octokit.request({
-            method: "GET",
-            url: `/repositories/${repo.id}/actions/workflows`,
-          }) as ReturnType<typeof octokit.rest.actions.listRepoWorkflows>
-        ).then((res) => res.data.workflows);
+        const workflows = await gitProvider.getWorkflows(config.repositoryId);
         if (!workflows.some((workflow) => workflow.id === config.eventId)) {
           throw new ValidationError("Workflow not found");
         }
       } catch (err) {
-        throw new ValidationError("Failed to look up GitHub workflow");
+        throw new ValidationError("Failed to look up workflow");
       }
     }
   }
