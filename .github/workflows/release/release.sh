@@ -97,7 +97,7 @@ copy_image() {
   echo "- \`$IMAGE_REF\`" >> "$NOTES_FILE"
 }
 
-RAILPACK_VERSION=$(cat "$PROJECT_ROOT/builders/railpack/Dockerfile" | grep "RAILPACK_VERSION=" | cut -d= -f 2)
+RAILPACK_VERSION=$(grep "RAILPACK_VERSION=" "$PROJECT_ROOT/builders/railpack/Dockerfile" | cut -d= -f 2)
 RAILPACK_RELEASE_SHA=$(gh api "repos/railwayapp/railpack/commits/v$RAILPACK_VERSION" --jq '.sha')
 
 get_railpack_image_tag() {

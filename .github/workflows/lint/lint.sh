@@ -37,7 +37,7 @@ cd "$PROJECT_ROOT/backend/regclient-napi" || exit 1
 npx node-gyp configure
 
 NAPI_HEADER_DIR=$(node -p 'require("node-addon-api").include' | cut -d\" -f 2 -)
-NODE_HEADER_DIR="$(cat build/config.gypi | grep nodedir | cut -d\" -f 4 -)/include/node"
+NODE_HEADER_DIR="$(grep nodedir build/config.gypi | cut -d\" -f 4 -)/include/node"
 cd src || exit 1
 
 go build -o ../gobuild/main.a -buildmode=c-archive main.go
