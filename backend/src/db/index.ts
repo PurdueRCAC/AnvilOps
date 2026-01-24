@@ -3,7 +3,6 @@ import type { DefaultArgs } from "@prisma/client/runtime/client";
 import connectPgSimple from "connect-pg-simple";
 import session from "express-session";
 import { Pool, type Notification } from "pg";
-import "../../prisma/types.js";
 import { PrismaClient } from "../generated/prisma/client.ts";
 import { env } from "../lib/env.ts";
 import { AppRepo } from "./repo/app.ts";

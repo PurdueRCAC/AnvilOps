@@ -58,7 +58,7 @@ build_and_push() {
     -t "$IMAGE_TAG" \
     --cache-from="type=registry,ref=$CACHE_TAG" \
     --cache-to="type=registry,ref=$CACHE_TAG,mode=max" \
-    --build-arg BUILD_DATE=$(date -uIseconds) \
+    --build-arg BUILD_DATE="$(date -uIseconds)" \
     "$BUILD_CONTEXT"
 
   IMAGE_ID=$(cat "$IIDFILE") # looks like "sha256:32975dcafd44d8c6f921d2276e2a39f42f268e8c9584d6c4d4c88f5a073b7b1d"

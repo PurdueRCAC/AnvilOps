@@ -6,6 +6,7 @@
     "unifiedjs.vscode-mdx",
     "Prisma.prisma",
     "redhat.vscode-yaml",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "timonwong.shellcheck"
   ]
 }

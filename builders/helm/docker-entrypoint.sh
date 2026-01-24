@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -eo pipefail
 
@@ -7,7 +7,8 @@ set_status() {
 }
 
 run_job() {
-  helm $HELM_ARGS
+  read -r -a args <<< "$HELM_ARGS"
+  helm "${args[@]}"
 }
 
 set_status "DEPLOYING"

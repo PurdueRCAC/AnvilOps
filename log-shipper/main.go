@@ -155,11 +155,11 @@ func readStream(name string, file io.Reader) {
 	for scan() {
 		// Print the line to the standard output so that `kubectl logs` will still work to view the app's logs
 		if name == "stderr" {
-			os.Stderr.Write(scanner.Bytes())
-			os.Stderr.Write([]byte("\n"))
+			_, _ = os.Stderr.Write(scanner.Bytes())
+			_, _ = os.Stderr.Write([]byte("\n"))
 		} else {
-			os.Stdout.Write(scanner.Bytes())
-			os.Stdout.Write([]byte("\n"))
+			_, _ = os.Stdout.Write(scanner.Bytes())
+			_, _ = os.Stdout.Write([]byte("\n"))
 		}
 		// Enqueue the line to be uploaded to the AnvilOps backend
 		// Wait up to 100ms for the queue to empty, otherwise drop the message
