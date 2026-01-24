@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { components } from "@/generated/openapi";
+import type { components, operations } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import {
   ArrowUp,
@@ -280,7 +280,7 @@ export const FilesTab = ({ app }: { app: App }) => {
             </>
           ) : (
             files?.files?.map((file) => (
-              <div
+              <button
                 key={path + file.name}
                 className="flex cursor-pointer items-center gap-2 p-2 hover:bg-gray-100"
                 onClick={() => {
@@ -297,7 +297,7 @@ export const FilesTab = ({ app }: { app: App }) => {
                   <File className="opacity-50" />
                 )}
                 {file.name}
-              </div>
+              </button>
             ))
           )}
           <CreateOptions />
@@ -642,7 +642,9 @@ const CreateFile = ({
                   volumeClaimName,
                 },
               },
-              body: formData as unknown as any,
+              body: formData as NonNullable<
+                operations["writeAppFile"]["requestBody"]
+              >["content"]["multipart/form-data"],
             }).then(onComplete);
             toast.promise(promise, {
               success: `${type === "file" ? "File" : "Folder"} created successfully!`,

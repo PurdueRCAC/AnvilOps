@@ -117,7 +117,7 @@ export const StatusTab = ({
           <p>New pods are being created to replace old ones.</p>
         </div>
       )}
-      {events?.map((event) => <EventInfo event={event} />)}
+      {events?.map((event) => <EventInfo event={event} key={event.id} />)}
       {connecting ? null : !pods || pods.length === 0 ? (
         <div className="my-4 rounded-md bg-gray-50 p-4">
           <p className="flex items-center gap-2">
@@ -380,9 +380,9 @@ const PodStatusText = ({ pod }: { pod: Pod }) => {
 };
 
 // https://stackoverflow.com/a/50375286
-type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
-  x: infer I,
-) => void
+type UnionToIntersection<U> = (
+  U extends unknown ? (x: U) => void : never
+) extends (x: infer I) => void
   ? I
   : never;
 
@@ -393,7 +393,7 @@ type AllContainerStates = UnionToIntersection<
 function containerState<K extends keyof AllContainerStates>(
   pod: Pod,
   type: K,
-): AllContainerStates[K] | undefined {
+): AllContainerStates[K] {
   if (!pod.containerState) return undefined;
   return getState(pod.containerState, type);
 }
@@ -401,7 +401,7 @@ function containerState<K extends keyof AllContainerStates>(
 function lastState<K extends keyof AllContainerStates>(
   pod: Pod,
   type: K,
-): AllContainerStates[K] | undefined {
+): AllContainerStates[K] {
   if (!pod.lastState) return undefined;
   return getState(pod.lastState, type);
 }
@@ -409,7 +409,7 @@ function lastState<K extends keyof AllContainerStates>(
 function getState<K extends keyof AllContainerStates>(
   obj: components["schemas"]["ContainerState"],
   type: K,
-): AllContainerStates[K] | undefined {
+): AllContainerStates[K] {
   if (!obj) {
     return undefined;
   }

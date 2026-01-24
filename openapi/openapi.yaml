@@ -2693,6 +2693,8 @@ components:
           items:
             type: object
             properties:
+              id:
+                type: string
               message:
                 type: string
               reason:

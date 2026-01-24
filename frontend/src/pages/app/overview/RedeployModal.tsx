@@ -23,7 +23,14 @@ import {
 import type { CommonFormFields } from "@/lib/form.types";
 import { cn, isWorkloadConfig } from "@/lib/utils";
 import { Container, GitCommit, Loader, Rocket } from "lucide-react";
-import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
+import {
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type Dispatch,
+} from "react";
 import { AppConfigDiff } from "../../../components/diff/AppConfigDiff";
 import type { App } from "../AppView";
 
@@ -37,7 +44,7 @@ const getDefaultRedeployState = () => ({
 
 export const RedeployModal = ({
   isOpen,
-  setOpen,
+  setOpen: _setOpen,
   app,
   deploymentId,
   onSubmitted,
@@ -89,22 +96,25 @@ export const RedeployModal = ({
     }));
   };
 
+  const _setRadioValue = useEffectEvent(setRadioValue);
+
   useEffect(() => {
     if (
       !pastDeploymentLoading &&
       pastDeployment &&
       redeployState.radioValue === undefined
     ) {
-      setRadioValue("useBuild");
+      _setRadioValue("useBuild");
     }
-  }, [pastDeployment, pastDeploymentLoading, isOpen]);
+  }, [pastDeployment, pastDeploymentLoading, isOpen, redeployState.radioValue]);
 
-  useEffect(() => {
-    // Clear inputs when closing the dialog
-    if (!isOpen) {
+  const setOpen = (open: boolean) => {
+    _setOpen(open);
+    if (!open) {
+      // Clear inputs when closing the dialog
       setRedeployState(getDefaultRedeployState());
     }
-  }, [isOpen]);
+  };
 
   const { user } = useContext(UserContext);
   const selectedOrg = user?.orgs?.find((org) => org.id === app.orgId);

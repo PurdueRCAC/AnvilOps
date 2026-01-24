@@ -68,6 +68,7 @@ export async function getAppStatus(
         ip: pod.status.podIP,
       })),
       events: events.items.map((event) => ({
+        id: event.metadata.uid,
         reason: event.reason,
         message: event.message,
         count: event.count,

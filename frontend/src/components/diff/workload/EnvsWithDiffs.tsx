@@ -112,6 +112,7 @@ export const EnvsWithDiffs = ({
               }}
             />
             <span className="w-fit align-middle text-xl">=</span>
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- This label is associated with its child */}
             <label>
               <Input
                 disabled={disabled}
