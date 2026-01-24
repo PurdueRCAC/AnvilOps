@@ -45,13 +45,14 @@ export async function updateApp(
   ]);
 
   // performs validation
-  let { config: updatedConfig, commitMessage } = (
+  const { config: _config, commitMessage } = (
     await appService.prepareMetadataForApps(organization, user, {
       type: "update",
       existingAppId: originalApp.id,
       ...appData,
     })
   )[0];
+  let updatedConfig = _config;
 
   // ---------------- App group updates ----------------
   let appGroupId: number;
@@ -173,11 +174,11 @@ export async function updateApp(
   logger.info({ orgId: organization.id, appId: app.id }, "App updated");
 }
 
-const shouldBuildOnUpdate = (
+function shouldBuildOnUpdate(
   oldConfig: DeploymentConfig,
   newConfig: WorkloadConfigCreate | HelmConfigCreate,
   currentDeployment: Deployment,
-) => {
+) {
   // Only Git apps need to be built
   if (newConfig.source !== "GIT") {
     return false;
@@ -212,17 +213,17 @@ const shouldBuildOnUpdate = (
   }
 
   return false;
-};
+}
 
 // Patch the null(hidden) values of env vars sent from client with the sensitive plaintext
-const withSensitiveEnv = (
+function withSensitiveEnv(
   lastPlaintextEnv: PrismaJson.EnvVar[],
   envVars: {
     name: string;
     value: string | null;
     isSensitive: boolean;
   }[],
-) => {
+) {
   const lastEnvMap: Record<string, string> =
     lastPlaintextEnv?.reduce((map, env) => {
       return Object.assign(map, { [env.name]: env.value });
@@ -236,4 +237,4 @@ const withSensitiveEnv = (
         }
       : env,
   );
-};
+}

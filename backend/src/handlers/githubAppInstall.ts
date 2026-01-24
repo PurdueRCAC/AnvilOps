@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import { env } from "../lib/env.ts";
 import {
   OrgAlreadyLinkedError,
@@ -50,7 +51,7 @@ export const githubAppInstallHandler: HandlerMap["githubAppInstall"] = async (
     } else if (e instanceof OrgNotFoundError) {
       return json(404, res, { code: 404, message: "Organization not found." });
     } else {
-      console.error("Error creating GitHub OAuth state:", e);
+      logger.error(e, "Error creating GitHub OAuth state");
       return githubConnectError(res, "STATE_FAIL");
     }
   }

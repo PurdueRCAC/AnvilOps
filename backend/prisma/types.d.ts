@@ -16,5 +16,5 @@ declare namespace PrismaJson {
 
   type VolumeMount = { path: string; amountInMiB: number };
 
-  type HelmValues = any;
+  type HelmValues = Record<string, unknown>;
 }

@@ -8,6 +8,7 @@ import {
   type V1Deployment,
 } from "@kubernetes/client-node";
 import { exit } from "node:process";
+import { setTimeout } from "node:timers/promises";
 import * as yaml from "yaml";
 
 const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
@@ -154,12 +155,14 @@ let ready = false;
 const maxDelay = 5000;
 const maxRetries = 8;
 for (let i = 0; i < maxRetries; i++) {
+  // eslint-disable-next-line no-await-in-loop
   if (await isDeploymentReady(deployment)) {
     ready = true;
     break;
   }
   const delay = Math.min(500 * Math.pow(2, i), maxDelay);
-  await new Promise((resolve) => setTimeout(resolve, delay));
+  // eslint-disable-next-line no-await-in-loop
+  await setTimeout(delay);
 }
 
 if (!ready) {

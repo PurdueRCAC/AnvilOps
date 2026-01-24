@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import { AppNotFoundError } from "../service/common/errors.ts";
 import { deleteApp } from "../service/deleteApp.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
@@ -16,7 +17,7 @@ export const deleteAppHandler: HandlerMap["deleteApp"] = async (
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found" });
     } else {
-      console.error("Error deleting app: ", appId, e);
+      logger.error(e, "Failed to delete app");
       return json(500, res, { code: 500, message: "Failed to delete app" });
     }
   }

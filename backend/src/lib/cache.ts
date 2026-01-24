@@ -1,5 +1,6 @@
 import { LRUCache } from "lru-cache";
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 
 let lastCleanup = 0;
 
@@ -30,7 +31,7 @@ export async function getOrCreate(
       // (We aren't `await`ing this because it should happen in the background)
     } catch (error) {
       // (Don't rethrow this - it's annoying but shouldn't break things if we can't update the cache)
-      console.error("Error updating cached value:", error);
+      logger.warn(error, "Failed to update cached value");
     }
     return value;
   }
@@ -45,18 +46,14 @@ export async function get(key: string): Promise<string | undefined> {
 
   if (new Date().getTime() - lastCleanup > 60_000) {
     // Remove expired keys up to once every minute
-    try {
-      db.cache.clean();
-      lastCleanup = Date.now();
-    } catch (error) {
-      console.error("Failed to remove expired cache keys:", error);
-    }
+    db.cache.clean().catch((err) => logger.warn(err, "Failed to clean cache"));
+    lastCleanup = Date.now();
   }
 
   try {
     return await db.cache.get(key);
   } catch (e) {
-    console.error("Failed to look up cache key", key, ":", e);
+    logger.warn({ cacheKey: key, error: e }, "Failed to look up cache key");
     return undefined;
   }
 }

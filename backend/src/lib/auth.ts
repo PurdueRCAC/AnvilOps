@@ -39,7 +39,7 @@ const router = express.Router();
 router.get("/login", async (req, res) => {
   const code_verifier = client.randomPKCECodeVerifier();
   const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
-  (req.session as any).code_verifier = code_verifier;
+  req.session.code_verifier = code_verifier;
 
   const params: Record<string, string> = {
     redirect_uri,
@@ -53,7 +53,7 @@ router.get("/login", async (req, res) => {
   const config = await getConfig();
   if (!config.serverMetadata().supportsPKCE()) {
     const nonce = client.randomNonce();
-    (req.session as any).nonce = nonce;
+    req.session.nonce = nonce;
     params.nonce = nonce;
   }
 
@@ -68,21 +68,24 @@ router.get("/oauth_callback", async (req, res) => {
       await getConfig(),
       new URL(currentUrl),
       {
-        pkceCodeVerifier: (req.session as any).code_verifier,
-        expectedNonce: (req.session as any).nonce,
+        pkceCodeVerifier: req.session.code_verifier,
+        expectedNonce: req.session.nonce,
         idTokenExpected: true,
       },
     );
 
     const claims = tokens.claims();
 
-    if (allowedIdps && !allowedIdps.includes(claims.idp.toString())) {
+    if (
+      allowedIdps &&
+      !allowedIdps.includes((claims.idp as string).toString())
+    ) {
       return res.redirect("/error?type=login&code=IDP_ERROR");
     }
     const existingUser = await db.user.getByCILogonUserId(claims.sub);
 
     if (existingUser) {
-      (req.session as any).user = {
+      req.session.user = {
         id: existingUser.id,
         name: existingUser.name,
         email: existingUser.email,
@@ -97,7 +100,8 @@ router.get("/oauth_callback", async (req, res) => {
           if (!clusterUsername) {
             throw new Error();
           }
-        } catch {
+        } catch (e) {
+          logger.error(e, "Failed to fetch user's Rancher user ID");
           return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
         }
       }

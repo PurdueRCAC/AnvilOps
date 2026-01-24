@@ -395,7 +395,11 @@ export const createAppConfigsFromDeployment = async ({
 
     await Promise.all(
       outdatedResources.map((resource) =>
-        api.delete(resource).catch((err) => console.error(err)),
+        api
+          .delete(resource)
+          .catch((err) =>
+            logger.error(err, "Failed to delete outdated Kubernetes resource"),
+          ),
       ),
     );
   };

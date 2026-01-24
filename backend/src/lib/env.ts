@@ -130,10 +130,6 @@ const variables = {
    */
   GITHUB_WEBHOOK_SECRET: { required: true },
   /**
-   * The hostname of a Harbor instance that contains users' app container images, e.g. https://registry.anvil.rcac.purdue.edu. Used to delete old images when an app is deleted.
-   */
-  DELETE_REPO_HOST: { required: true },
-  /**
    * The username of a Harbor robot account that can delete image repositories (including the `robot$<project name>+` prefix). Used to delete old images when an app is deleted.
    */
   DELETE_REPO_USERNAME: { required: true },

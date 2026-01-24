@@ -33,7 +33,7 @@ export async function createApp(appData: NewApp, userId: number) {
 
   let app: App;
 
-  let { config, commitMessage } = (
+  const { config, commitMessage } = (
     await appService.prepareMetadataForApps(organization, user, {
       type: "create",
       ...appData,
@@ -74,6 +74,8 @@ export async function createApp(appData: NewApp, userId: number) {
     }
   }
 
+  let deploymentConfig = config;
+
   try {
     app = await db.app.create({
       orgId: appData.orgId,
@@ -86,7 +88,10 @@ export async function createApp(appData: NewApp, userId: number) {
 
     logger.info({ orgId: appData.orgId, appId: app.id }, "App created");
 
-    config = deploymentConfigService.populateImageTag(config, app);
+    deploymentConfig = deploymentConfigService.populateImageTag(
+      deploymentConfig,
+      app,
+    );
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
     if (err instanceof ConflictError && err.message === "namespace") {
@@ -100,7 +105,7 @@ export async function createApp(appData: NewApp, userId: number) {
       org: organization,
       app,
       commitMessage,
-      config,
+      config: deploymentConfig,
     });
   } catch (err) {
     const span = trace.getActiveSpan();

@@ -13,6 +13,7 @@ import {
   type V1Namespace,
 } from "@kubernetes/client-node";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { setTimeout } from "node:timers/promises";
 import { db } from "../../db/index.ts";
 import { logger } from "../../index.ts";
 import { env } from "../env.ts";
@@ -140,6 +141,7 @@ export const ensureNamespace = async (
   await api.create(namespace);
   for (let i = 0; i < 20; i++) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const res: V1Namespace = await api.read(namespace);
       if (
         res.status.phase === "Active" &&
@@ -149,9 +151,20 @@ export const ensureNamespace = async (
       ) {
         return;
       }
-    } catch (err) {}
+    } catch (err) {
+      if (
+        !(err instanceof ApiException) ||
+        (err.code !== 404 && err.code !== 403)
+      ) {
+        logger.error(
+          err,
+          "Failed to look up namespace while waiting for it to be created",
+        );
+      }
+    }
 
-    await new Promise((r) => setTimeout(r, 200));
+    // eslint-disable-next-line no-await-in-loop
+    await setTimeout(200);
   }
 
   throw new Error("Timed out waiting for namespace to create");
@@ -181,7 +194,7 @@ export const createOrUpdateApp = async (
   name: string,
   namespace: V1Namespace & K8sObject,
   configs: K8sObject[],
-  postCreate?: (api: KubernetesObjectApi) => void,
+  postCreate?: (api: KubernetesObjectApi) => Promise<unknown>,
 ) => {
   await trace
     .getTracer("kubernetes-api")
@@ -215,7 +228,7 @@ export const createOrUpdateApp = async (
 
         await Promise.all(promises);
 
-        postCreate?.(api);
+        await postCreate?.(api);
       } catch (err) {
         span.recordException(err as Error);
         span.setStatus({ code: SpanStatusCode.ERROR });

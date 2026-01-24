@@ -1,3 +1,4 @@
+import { logger } from "../../index.ts";
 import { getOrCreate } from "../cache.ts";
 import { env } from "../env.ts";
 import { getClientForClusterUsername } from "./kubernetes.ts";
@@ -32,49 +33,56 @@ const getProjectById = async (id: string) => {
   };
 };
 
+const getProjectAccessReview = async (userId: string, projectId: string) => {
+  if (!projectId) {
+    return false;
+  }
+  if (projectId === SANDBOX_ID) {
+    return true;
+  }
+  const simpleProjectId = projectId.split(":")[1];
+  const authClient = getClientForClusterUsername(
+    userId,
+    "AuthorizationV1Api",
+    true,
+  );
+  try {
+    const review = await authClient.createSelfSubjectAccessReview({
+      body: {
+        spec: {
+          resourceAttributes: {
+            group: "management.cattle.io",
+            resource: "projects",
+            verb: "manage-namespaces",
+            name: simpleProjectId,
+          },
+        },
+      },
+    });
+    return review.status.allowed;
+  } catch (err) {
+    logger.error(err, "Failed to create SelfSubjectAccessReview");
+    return false;
+  }
+};
+
 const fetchUserProjects = async (rancherId: string) => {
   const bindings =
     await fetchRancherResource<RancherProjectRoleTemplateBindingsResponse>(
       `projectRoleTemplateBindings?userId=${rancherId}`,
     ).then((res) => res.data);
+
   const projectIds = bindings
     ? bindings.map((binding) => binding.projectId)
     : [];
   projectIds.push(SANDBOX_ID);
+
   const uniqueProjectIds = [...new Set(projectIds)];
 
-  const authClient = getClientForClusterUsername(
-    rancherId,
-    "AuthorizationV1Api",
-    true,
-  );
   const canDeployIn = await Promise.all(
-    uniqueProjectIds.map((projectId) => {
-      if (projectId === SANDBOX_ID) return Promise.resolve(true);
-
-      const simpleProjectId = projectId.split(":")[1]; // Split the project id off from the cluster id
-
-      return authClient
-        .createSelfSubjectAccessReview({
-          body: {
-            spec: {
-              resourceAttributes: {
-                group: "management.cattle.io",
-                resource: "projects",
-                verb: "manage-namespaces",
-                name: simpleProjectId,
-              },
-            },
-          },
-        })
-        .then(
-          (review) => review.status.allowed,
-          (err) => {
-            console.error(err);
-            return false;
-          },
-        );
-    }),
+    uniqueProjectIds.map((projectId) =>
+      getProjectAccessReview(rancherId, projectId),
+    ),
   );
 
   const allowedProjectIds = uniqueProjectIds.filter(
@@ -91,41 +99,6 @@ const fetchUserProjects = async (rancherId: string) => {
       };
     }),
   );
-};
-
-const getProjectAccessReview = async (userId: string, projectId: string) => {
-  if (!projectId) {
-    return false;
-  }
-  if (projectId === SANDBOX_ID) {
-    return true;
-  }
-  const simpleProjectId = projectId.split(":")[1];
-  const authClient = getClientForClusterUsername(
-    userId,
-    "AuthorizationV1Api",
-    true,
-  );
-  return authClient
-    .createSelfSubjectAccessReview({
-      body: {
-        spec: {
-          resourceAttributes: {
-            group: "management.cattle.io",
-            resource: "projects",
-            verb: "manage-namespaces",
-            name: simpleProjectId,
-          },
-        },
-      },
-    })
-    .then(
-      (review) => review.status.allowed,
-      (err) => {
-        console.error(err);
-        return false;
-      },
-    );
 };
 
 export const getRancherUserID = async (eppn: string) => {

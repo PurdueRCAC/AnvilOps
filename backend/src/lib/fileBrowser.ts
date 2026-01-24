@@ -53,7 +53,7 @@ async function getFileBrowserAddress(
       }
     }
   } catch (err) {
-    if ((err as ApiException<any>).code !== 404) {
+    if ((err as ApiException<unknown>).code !== 404) {
       throw new Error("Failed to read file browser job", { cause: err });
     }
   }
@@ -142,7 +142,7 @@ async function getFileBrowserAddress(
       "Created file browser pod",
     );
   } catch (error) {
-    if ((error as ApiException<any>).code === 409) {
+    if ((error as ApiException<unknown>).code === 409) {
       // A Job with this name already exists in this namespace. We don't need to recreate it.
     } else {
       throw error;
@@ -151,6 +151,7 @@ async function getFileBrowserAddress(
 
   for (let i = 0; i < 30; i++) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const pods = await svcK8s["CoreV1Api"].listNamespacedPod({
         namespace,
         labelSelector: `batch.kubernetes.io/job-name=${jobName}`,
@@ -174,10 +175,11 @@ async function getFileBrowserAddress(
         };
       }
     } catch (err) {
-      if ((err as ApiException<any>).code !== 404) {
+      if ((err as ApiException<unknown>).code !== 404) {
         throw new Error("Failed to find file browser pod", { cause: err });
       }
     }
+    // eslint-disable-next-line no-await-in-loop
     await setTimeout(500);
   }
 

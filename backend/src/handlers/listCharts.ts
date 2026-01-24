@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import { ValidationError } from "../service/common/errors.ts";
 import { listCharts } from "../service/listCharts.ts";
 import { json, type HandlerMap } from "../types.ts";
@@ -15,7 +16,7 @@ export const listChartsHandler: HandlerMap["listCharts"] = async (
         message: e.message,
       });
     }
-    console.error(e);
+    logger.error(e, "Failed to fetch deployable Helm charts");
     return json(500, res, {
       code: 500,
       message: "Something went wrong.",

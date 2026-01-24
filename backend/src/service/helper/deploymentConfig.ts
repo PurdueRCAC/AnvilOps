@@ -62,7 +62,6 @@ export class DeploymentConfigService {
             );
           }
 
-          console.error(err);
           throw new Error("Failed to look up Git repository", {
             cause: err,
           });
@@ -289,7 +288,7 @@ export class DeploymentConfigService {
           throw new ValidationError("Workflow not found");
         }
       } catch (err) {
-        throw new ValidationError("Failed to look up workflow");
+        throw new ValidationError("Failed to look up workflow", { cause: err });
       }
     }
   }
@@ -348,8 +347,10 @@ export class DeploymentConfigService {
     try {
       // Look up the image in its registry to make sure it exists
       await getImageConfig(reference);
-    } catch (e) {
-      throw new ValidationError("Image could not be found in its registry.");
+    } catch (err) {
+      throw new ValidationError("Image could not be found in its registry.", {
+        cause: err,
+      });
     }
   }
 

@@ -1,4 +1,5 @@
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import {
@@ -30,16 +31,21 @@ export async function getAppByID(appId: number, userId: number) {
         namespace: app.namespace,
         name: app.name,
       });
-    } catch {}
+    } catch (e) {
+      logger.error(e, "Failed to read StatefulSet of deployment");
+    }
   };
 
   const [org, appGroup, currentConfig, activeDeployment] = await Promise.all([
     db.org.getById(app.orgId),
     db.appGroup.getById(app.appGroupId),
     db.deployment.getConfig(recentDeployment.id),
-    (await getK8sDeployment())?.spec?.template?.metadata?.labels?.[
-      "anvilops.rcac.purdue.edu/deployment-id"
-    ],
+    getK8sDeployment().then(
+      (d) =>
+        d?.spec?.template?.metadata?.labels?.[
+          "anvilops.rcac.purdue.edu/deployment-id"
+        ],
+    ),
   ]);
 
   // Fetch repository info if this app is deployed from a Git repository

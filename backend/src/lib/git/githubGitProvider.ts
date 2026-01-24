@@ -19,6 +19,8 @@ import {
   type GitRepository,
 } from "./gitProvider.ts";
 
+class FastImportUnsupportedError extends Error {}
+
 const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
   "utf-8",
 );
@@ -331,14 +333,14 @@ export class GitHubGitProvider implements GitProvider {
   }
 
   async getWorkflows(repoId: number): Promise<GitCIWorkflow[]> {
-    const workflows = (await this.octokit
-      .request({
-        method: "GET",
-        url: `/repositories/${repoId}/actions/workflows`,
-      })
-      .then((res) => res.data.workflows)) as Awaited<
-      ReturnType<typeof this.octokit.rest.actions.getWorkflow>
-    >["data"][];
+    const response = (await this.octokit.request({
+      method: "GET",
+      url: `/repositories/${repoId}/actions/workflows`,
+    })) as Awaited<
+      ReturnType<typeof this.octokit.rest.actions.listRepoWorkflows>
+    >;
+
+    const workflows = response.data.workflows;
 
     return workflows.map((w) => ({ id: w.id, name: w.name, path: w.path }));
   }
@@ -479,8 +481,9 @@ export class GitHubGitProvider implements GitProvider {
   private async getInstallationAccessToken() {
     const { token } = (await this.octokit.auth({
       type: "installation",
-    })) as any;
-    return token as string;
+    })) as { token: string };
+
+    return token;
   }
 
   private async getGitHubRepoById(repoId: number) {
@@ -549,5 +552,3 @@ export class GitHubGitProvider implements GitProvider {
     });
   }
 }
-
-class FastImportUnsupportedError extends Error {}

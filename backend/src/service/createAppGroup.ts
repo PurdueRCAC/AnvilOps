@@ -70,7 +70,8 @@ export async function createAppGroup(
   // }
 
   for (const { appData, metadata } of appsWithMetadata) {
-    let { config, commitMessage } = metadata;
+    const { config: _config, commitMessage } = metadata;
+    let config = _config;
     let app: App;
     try {
       app = await db.app.create({

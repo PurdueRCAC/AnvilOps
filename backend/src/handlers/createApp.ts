@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import {
   DeploymentError,
   OrgNotFoundError,
@@ -25,12 +26,13 @@ export const createAppHandler: HandlerMap["createApp"] = async (
       });
     } else if (e instanceof DeploymentError) {
       // The app was created, but a Deployment couldn't be created
+      logger.error(e, "Failed to create app's first deloyment");
       return json(500, res, {
         code: 500,
         message: "Failed to create a deployment for your app.",
       });
     } else {
-      console.error(e);
+      logger.error(e, "Failed to create app");
       return json(500, res, {
         code: 500,
         message: "There was a problem creating your app.",

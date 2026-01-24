@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import {
   DeploymentNotFoundError,
   ValidationError,
@@ -15,12 +16,12 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
     await updateDeployment(secret, status);
     return empty(200, res);
   } catch (e) {
-    console.error(e);
     if (e instanceof ValidationError) {
       return json(404, res, { code: 400, message: e.message });
     } else if (e instanceof DeploymentNotFoundError) {
       return json(404, res, { code: 404, message: "Deployment not found." });
     }
+    logger.error(e, "Failed to update deployment");
     throw e;
   }
 };

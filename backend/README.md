@@ -137,7 +137,8 @@ In order to correctly refresh the kubeconfig, set the key `use-cluster-name` in 
 
 AnvilOps expects environment variables to be set to credentials of an account with repository delete permissions from your Harbor project:
 
-- `DELETE_REPO_HOST`: the hostname of the registry
+- `REGISTRY_HOSTNAME`: the hostname of the registry
+- `REGISTRY_PROTOCOL`: the protocol registry (`http` or `https`)
 - `DELETE_REPO_USERNAME`: the account's username (if you're using a robot account, which we recommend, make sure to include the `robot$<project name>+` prefix)
 - `DELETE_REPO_PASSWORD`: the account's password (if you're using a robot account, this is referred to as the account's secret in the Harbor UI)
 

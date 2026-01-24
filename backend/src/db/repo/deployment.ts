@@ -288,8 +288,12 @@ export class DeploymentRepo {
     if (config === null) {
       return null;
     }
-    const { getEnv, displayEnv, asGitConfig, ...clonable } = config;
-    const newConfig = structuredClone(clonable);
+    const newConfig = structuredClone(config);
+
+    delete newConfig.getEnv;
+    delete newConfig.displayEnv;
+    delete newConfig.asGitConfig;
+
     const env = config.getEnv();
     return { ...newConfig, env };
   }

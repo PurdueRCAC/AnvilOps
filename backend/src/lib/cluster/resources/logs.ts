@@ -55,7 +55,7 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
     },
   });
 
-  for (const container of clone.spec.containers) {
+  const promises = clone.spec.containers.map(async (container) => {
     if (!container.volumeMounts) {
       container.volumeMounts = [];
     }
@@ -102,7 +102,9 @@ export async function wrapWithLogExporter<T extends V1PodTemplateSpec>(
         value: deploymentId.toString(),
       },
     );
-  }
+  });
+
+  await Promise.all(promises);
 
   return clone;
 }

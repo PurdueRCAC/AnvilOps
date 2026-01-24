@@ -1,9 +1,10 @@
-import type { V1PodList } from "@kubernetes/client-node";
+import { ApiException, type V1PodList } from "@kubernetes/client-node";
 import { metrics, ValueType } from "@opentelemetry/api";
 import stream from "node:stream";
 import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
+import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { AppNotFoundError, ValidationError } from "./common/errors.ts";
 
@@ -64,28 +65,36 @@ export async function getAppLogs(
       if (newLogs.length > 0) {
         lastLogId = newLogs[0].id;
       }
-      for (const log of newLogs) {
-        await callback({
-          id: log.id,
-          type: log.type,
-          stream: log.stream,
-          log: log.content,
-          pod: log.podName,
-          time: log.timestamp.toISOString(),
-        });
-      }
+
+      await Promise.all(
+        newLogs.map((log) =>
+          callback({
+            id: log.id,
+            type: log.type,
+            stream: log.stream,
+            log: log.content,
+            pod: log.podName,
+            time: log.timestamp.toISOString(),
+          }),
+        ),
+      );
     };
 
     // When new logs come in, send them to the client
     const unsubscribe = await db.subscribe(
       `deployment_${deploymentId}_logs`,
-      fetchNewLogs,
+      () =>
+        void fetchNewLogs().catch((err) =>
+          logger.error(err, "Failed to fetch new logs"),
+        ),
     );
     dbConcurrentViewers.add(1);
 
     abortController.signal.addEventListener("abort", () => {
       dbConcurrentViewers.add(-1);
-      unsubscribe();
+      unsubscribe().catch((err) =>
+        logger.error(err, "Failed to unsubscribe from log notifications"),
+      );
     });
 
     // Send all previous logs now
@@ -109,12 +118,17 @@ export async function getAppLogs(
         labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
       });
     } catch (err) {
+      if (
+        !(err instanceof ApiException) ||
+        (err.code !== 404 && err.code !== 403)
+      ) {
+        logger.error(err, "Failed to fetch app pods list");
+      }
       // Namespace may not be ready yet
       pods = { apiVersion: "v1", items: [] };
     }
 
-    for (let podIndex = 0; podIndex < pods.items.length; podIndex++) {
-      const pod = pods.items[podIndex];
+    const promises = pods.items.map(async (pod, podIndex) => {
       const podName = pod.metadata.name;
       const logStream = new stream.PassThrough();
       const logAbortController = await log.log(
@@ -131,7 +145,7 @@ export async function getAppLogs(
       });
       let i = 0;
       let current = "";
-      logStream.on("data", async (chunk: Buffer) => {
+      logStream.on("data", (chunk: Buffer) => {
         const str = chunk.toString();
         current += str;
         if (str.endsWith("\n") || str.endsWith("\r")) {
@@ -140,18 +154,22 @@ export async function getAppLogs(
           for (const line of lines) {
             if (line.trim().length === 0) continue;
             const [date, ...text] = line.split(" ");
-            await callback({
+            void callback({
               type: "RUNTIME",
               log: text.join(" "),
               stream: "stdout",
               pod: podName,
               time: date,
               id: podIndex * 100_000_000 + i,
+            }).catch((err) => {
+              logger.error(err, "Failed to process log callback");
             });
             i++;
           }
         }
       });
-    }
+    });
+
+    await Promise.all(promises);
   }
 }

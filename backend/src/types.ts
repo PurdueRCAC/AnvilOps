@@ -121,5 +121,8 @@ declare module "express-session" {
       name: string;
       email: string;
     };
+
+    code_verifier?: string;
+    nonce?: string;
   }
 }

@@ -19,8 +19,8 @@ const configPath =
     : env.CLUSTER_CONFIG_PATH;
 
 if (configPath) {
-  clusterConfigPromise = readFile(configPath).then((file) =>
-    JSON.parse(file.toString()),
+  clusterConfigPromise = readFile(configPath).then(
+    (file) => JSON.parse(file.toString()) as ClusterConfig,
   );
 }
 

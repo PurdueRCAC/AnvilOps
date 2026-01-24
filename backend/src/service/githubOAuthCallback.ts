@@ -29,7 +29,7 @@ export async function processGitHubOAuthResponse(
     userId = parsed.userId;
     orgId = parsed.orgId;
   } catch (e) {
-    throw new GitHubOAuthStateMismatchError();
+    throw new GitHubOAuthStateMismatchError(null, { cause: e });
   }
 
   // Verify that the user ID hasn't changed
@@ -51,7 +51,7 @@ export async function processGitHubOAuthResponse(
       throw new InstallationNotFoundError(null);
     }
 
-    const canAccess = GitHubGitProvider.userCanAccessInstallation(
+    const canAccess = await GitHubGitProvider.userCanAccessInstallation(
       code,
       org.newInstallationId,
     );
