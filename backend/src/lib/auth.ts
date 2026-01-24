@@ -123,6 +123,7 @@ router.get("/oauth_callback", async (req, res) => {
 
     return res.redirect("/dashboard");
   } catch (err) {
+    logger.error(err, "Error processing user login");
     const span = trace.getActiveSpan();
     if (span) {
       span.setStatus({ code: SpanStatusCode.ERROR });
