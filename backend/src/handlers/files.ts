@@ -153,4 +153,6 @@ async function forward(
     }
     res.write(chunk);
   }
+
+  res.end();
 }
