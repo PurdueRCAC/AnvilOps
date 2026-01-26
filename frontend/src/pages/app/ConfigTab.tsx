@@ -3,6 +3,7 @@ import { UserContext } from "@/components/UserProvider";
 import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { GroupConfigFields } from "@/components/config/GroupConfigFields";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
@@ -37,6 +38,10 @@ export const ConfigTab = ({
     getGroupStateFromApp(app),
   );
 
+  const [forceRebuild, setForceRebuild] = useState(false);
+
+  const rebuildRequired = isRebuildRequired(app, state);
+
   const { mutateAsync: updateApp, isPending: updatePending } = api.useMutation(
     "put",
     "/app/{appId}",
@@ -68,6 +73,7 @@ export const ConfigTab = ({
             appGroup: groupState.groupOption,
             projectId: state.projectId ?? undefined,
             config: createDeploymentConfig(finalAppState),
+            forceRebuild,
           },
         });
         if (tab === "configuration") {
@@ -142,18 +148,88 @@ export const ConfigTab = ({
         />
       </FormContext>
       {enableSaveButton && (
-        <Button className="mt-8 max-w-max" disabled={updatePending}>
-          {updatePending ? (
-            <>
-              <Loader className="animate-spin" /> Saving...
-            </>
-          ) : (
-            <>
-              <Save /> Save
-            </>
-          )}
-        </Button>
+        <>
+          <Label className="mt-8 flex items-start gap-2">
+            <Checkbox
+              disabled={rebuildRequired}
+              checked={forceRebuild || rebuildRequired}
+              onCheckedChange={(checked) => {
+                setForceRebuild(!!checked);
+              }}
+            />
+            <div className="flex flex-col gap-2">
+              Rebuild my application
+              <span className="text-sm text-gray-500">
+                {rebuildRequired ? (
+                  <>
+                    A new build is required due to the settings you&apos;ve
+                    changed.
+                  </>
+                ) : (
+                  <>
+                    Build a new version of your application using this updated
+                    configuration.
+                  </>
+                )}
+              </span>
+            </div>
+          </Label>
+          <Button type="submit" className="max-w-max" disabled={updatePending}>
+            {updatePending ? (
+              <>
+                <Loader className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save /> Save
+              </>
+            )}
+          </Button>
+        </>
       )}
     </form>
   );
 };
+
+// Keep in sync with the shouldBuildOnUpdate function in backend/src/service/updateApp.ts
+function isRebuildRequired(app: App, state: CommonFormFields) {
+  const oldConfig = app.config;
+  const newConfig = state.workload.git;
+
+  const { data: currentDeployment } = api.useQuery(
+    "get",
+    "/app/{appId}/deployments/{deploymentId}",
+    { params: { path: { appId: app.id, deploymentId: app.activeDeployment } } },
+    { enabled: !!app.activeDeployment },
+  );
+
+  // Only Git apps need to be built
+  if (state.appType !== "workload" || state.source !== "git") {
+    return false;
+  }
+
+  // Either this app has not been built in the past, or it has not been built successfully
+  if (oldConfig.source !== "git" || currentDeployment?.status === "ERROR") {
+    return true;
+  }
+
+  // The code has changed
+  if (
+    newConfig.branch !== oldConfig.branch ||
+    newConfig.repositoryId != oldConfig.repositoryId
+  ) {
+    return true;
+  }
+
+  // Build options have changed
+  if (
+    newConfig.builder != oldConfig.builder ||
+    newConfig.rootDir != oldConfig.rootDir ||
+    (newConfig.builder === "dockerfile" &&
+      newConfig.dockerfilePath != oldConfig.dockerfilePath)
+  ) {
+    return true;
+  }
+
+  return false;
+}
