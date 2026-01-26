@@ -22,11 +22,11 @@ Kubernetes is extremely powerful, but its large feature set makes it quite compl
 
 CI/CD stands for Continuous Integration and Continuous Delivery/Deployment. It's the name for a set of systems that enable software developers to release updates quickly by automating the build, testing, and deployment processes.
 
-AnvilOps can automatically builds your application for you. Just select one of the supported builders: the Dockerfile builder, which builds from a Dockerfile inside your GitHub repository, or [Railpack](/reference/railpack), which detects the application type and automatically builds it without extra configuration.
+AnvilOps can automatically builds your application for you. Just select one of the builders: the Dockerfile builder, for customized builds, or [Railpack](/reference/railpack), which detects the application type and automatically builds it.
 
 ![ Build options on the AnvilOps app creation form. Two builders are available: Dockerfile and Railpack.](./what-is-anvilops/builders.png)
 
-When you create an App with AnvilOps, the platform gives you the option to enable automatic builds and deployments. When you push a commit to your GitHub repository, AnvilOps will rebuild your application and immediately deploy the change, allowing you to iterate quickly without setting up a custom CI/CD pipeline.
+AnvilOps can automatically build and deploy your app in response to certain events. For instance, when you push a commit to your GitHub repository, AnvilOps will rebuild your application and immediately deploy the change, allowing you to iterate quickly without setting up a custom CI/CD pipeline.
 
 ### Logging and Monitoring
 
@@ -40,4 +40,4 @@ You can also see the current status of all your application's pods in realtime a
 
 ### Automatic Subdomain and TLS Certificate
 
-Every app deployed on AnvilOps gets its own subdomain, and TLS encryption is handled for you. If you are deploying on Anvil, you may select a subdomain of `anvilops.rcac.purdue.edu`. If you are deploying on Geddes, you may select a subdomain of `anvilops.geddes.rcac.purdue.edu`.
+Every app deployed on AnvilOps can have its own subdomain, and TLS encryption is handled for you. On Anvil, you may select a subdomain of `anvilcloud.rcac.purdue.edu`. On Geddes, you may select a subdomain of `geddes.rcac.purdue.edu`.

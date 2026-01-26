@@ -82,10 +82,16 @@ The module to use to build your repository into a container image, from the spec
 
 ## Public URL <span style="color: #cfb991">\*</span>
 
-A unique subdomain. AnvilOps will then make your application publicly accessible at
+A unique subdomain. AnvilOps can make your application publicly accessible at
 
 ```
 https://<subdomain>.anvilcloud.rcac.purdue.edu
+```
+
+or
+
+```
+https://<subdomain>.geddes.rcac.purdue.edu
 ```
 
 on port 80, without any authentication. **This setting cannot be changed later.**
@@ -144,14 +150,10 @@ The amount of memory, in MiB, to allocate to your application.
 
 ## Advanced
 
-These options configure [the Kubernetes settings of the same names](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/).
+### Keep Historical Logs
 
-Note that post-start and pre-stop commands [may run more than once](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#hook-delivery-guarantees) in rare cases.
+By default, AnvilOps wraps your application in a process in a command that captures its logs and sends them to AnvilOps to be viewed from the dashboard. This behavior can be disabled later.
 
-### Post-Start Command
+### Namespace
 
-A command to run after the application has started and is ready to receive requests.
-
-### Pre-Stop Command
-
-A command to run before the application is terminated. This only applies when AnvilOps is gracefully terminating your application. If your application terminates itself, this command is not run.
+When creating an app, AnvilOps will automatically generate a namespace for your application. You can also specify the namespace. It cannot be changed later.
