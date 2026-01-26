@@ -73,7 +73,10 @@ export const ConfigTab = ({
             appGroup: groupState.groupOption,
             projectId: state.projectId ?? undefined,
             config: createDeploymentConfig(finalAppState),
-            forceRebuild,
+            forceRebuild:
+              state.appType === "workload" &&
+              state.source === "git" &&
+              forceRebuild,
           },
         });
         if (tab === "configuration") {
