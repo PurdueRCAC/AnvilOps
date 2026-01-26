@@ -26,8 +26,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Status, type App, type DeploymentStatus } from "./AppView";
+import { Status, type App } from "./AppView";
 import { RedeployModal } from "./overview/RedeployModal";
+
 export const format = new Intl.DateTimeFormat(undefined, {
   dateStyle: "short",
   timeStyle: "medium",
@@ -130,6 +131,7 @@ export const OverviewTab = ({
               href={`${app.repositoryURL}/tree/${app.config.branch}/${workflow.path}`}
               target="_blank"
               className="underline"
+              rel="noreferrer"
             >
               {workflow.name}
             </a>
@@ -154,12 +156,12 @@ export const OverviewTab = ({
         deploymentId={redeployId!}
         app={app}
         onSubmitted={() => {
-          refetchDeployments();
+          void refetchDeployments();
           refetchApp();
         }}
       />
-      <h3 className="text-xl font-medium mb-4">General</h3>
-      <div className="grid grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4 max-w-max">
+      <h3 className="mb-4 text-xl font-medium">General</h3>
+      <div className="grid max-w-max grid-cols-[repeat(2,max-content)] gap-x-8 gap-y-4">
         {app.config.source === "git" ? (
           <>
             <p className="flex items-center gap-2">
@@ -169,7 +171,7 @@ export const OverviewTab = ({
             <p>
               <a
                 href={app.repositoryURL}
-                className="underline flex gap-1 items-center"
+                className="flex items-center gap-1 underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -202,7 +204,7 @@ export const OverviewTab = ({
                     temp.hostname = app.config.subdomain + "." + temp.hostname;
                     return temp.toString();
                   })()}
-                  className="underline flex gap-1 items-center"
+                  className="flex items-center gap-1 underline"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -223,8 +225,8 @@ export const OverviewTab = ({
                 Use this address when possible for improved speed and
                 compatibility with non-HTTP protocols.
                 <br />
-                End users cannot use this address, as it's only valid within the
-                cluster.
+                End users cannot use this address, as it&apos;s only valid
+                within the cluster.
               </HelpTooltip>
             </p>
             <p>
@@ -235,8 +237,8 @@ export const OverviewTab = ({
         )}
       </div>
       <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
-      <h3 className="text-xl font-medium mt-8">Recent Deployments</h3>
-      <p className="opacity-50 mb-2">
+      <h3 className="mt-8 text-xl font-medium">Recent Deployments</h3>
+      <p className="mb-2 opacity-50">
         {app.config.source === "git" && app.cdEnabled ? (
           <>
             Automatically triggered by {deployTrigger}
@@ -249,14 +251,14 @@ export const OverviewTab = ({
         ) : null}
       </p>
       {isPending ? (
-        <div className="flex gap-2 items-center text-black-4">
-          <Loader className="animate-spin inline" />
+        <div className="text-black-4 flex items-center gap-2">
+          <Loader className="inline animate-spin" />
           <span>Loading past deployments...</span>
         </div>
       ) : (
-        <table className="w-full my-4 [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
+        <table className="my-4 w-full border-b [&_:is(th,td):first-child]:pr-4 [&_:is(th,td):last-child]:pl-4 [&_:is(th,td):not(:first-child,:last-child)]:px-4">
           <thead>
-            <tr className="*:text-start *:pb-2 *:font-medium border-b">
+            <tr className="border-b *:pb-2 *:text-start *:font-medium">
               <th>Created</th>
               <th>Source</th>
               <th>Status</th>
@@ -276,7 +278,7 @@ export const OverviewTab = ({
                       <Tooltip>
                         <TooltipTrigger>
                           <span
-                            className="flex items-center gap-2 bg-green-500 rounded-full px-2 py-1 text-xs text-white"
+                            className="flex items-center gap-2 rounded-full bg-green-500 px-2 py-1 text-xs text-white"
                             title=""
                           >
                             <CheckCheck size={14} /> Current
@@ -300,8 +302,9 @@ export const OverviewTab = ({
                       href={`${d.repositoryURL}/commit/${d.commitHash}`}
                       target="_blank"
                       className="flex items-center gap-2"
+                      rel="noreferrer"
                     >
-                      <span className="opacity-50 flex items-center gap-1">
+                      <span className="flex items-center gap-1 opacity-50">
                         <GitCommit className="shrink-0" />
                         {d.commitHash?.substring(0, 7) ?? "Unknown"}
                       </span>
@@ -314,7 +317,7 @@ export const OverviewTab = ({
                       <TooltipTrigger>
                         <p className="flex items-center gap-2">
                           <Container />{" "}
-                          <span className="truncate max-w-96">
+                          <span className="max-w-96 truncate">
                             {d.imageTag}
                           </span>
                         </p>
@@ -324,7 +327,7 @@ export const OverviewTab = ({
                   )}
                 </td>
                 <td>
-                  <Status status={d.status as DeploymentStatus} />
+                  <Status status={d.status} />
                 </td>
                 <td className="py-2">
                   <Link to={`/app/${app.id}/deployment/${d.id}`}>
@@ -341,7 +344,7 @@ export const OverviewTab = ({
                     }
                     variant="outline"
                     className="cursor-pointer disabled:cursor-not-allowed"
-                    onClick={async () => {
+                    onClick={() => {
                       setRedeployOpen(true);
                       setRedeployId(d.id);
                     }}
@@ -356,14 +359,14 @@ export const OverviewTab = ({
             <tfoot>
               <tr>
                 <td colSpan={4}>
-                  <div className="flex justify-center items-center gap-5">
+                  <div className="flex items-center justify-center gap-5">
                     <Button
                       variant="outline"
                       disabled={page == 0}
                       className="disabled:cursor-not-allowed"
                       onClick={() => {
                         setPage((page) => page - 1);
-                        refetchDeployments();
+                        void refetchDeployments();
                       }}
                     >
                       <ChevronLeft />
@@ -384,7 +387,7 @@ export const OverviewTab = ({
                       className="disabled:cursor-not-allowed"
                       onClick={() => {
                         setPage((page) => page + 1);
-                        refetchDeployments();
+                        void refetchDeployments();
                       }}
                     >
                       <ChevronRight />

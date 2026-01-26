@@ -12,10 +12,10 @@ export async function listCharts() {
     await getOrCreate("charts", 60 * 60, async () =>
       JSON.stringify(await listChartsFromRegistry()),
     ),
-  );
+  ) as Awaited<ReturnType<typeof listChartsFromRegistry>>;
 }
 
-const listChartsFromRegistry = async () => {
+async function listChartsFromRegistry() {
   const [repos, token] = await Promise.all([
     getRepositoriesByProject(env.CHART_PROJECT_NAME),
     getChartToken(),
@@ -35,4 +35,4 @@ const listChartsFromRegistry = async () => {
     version: chart.version,
     valueSpec: chart.values,
   }));
-};
+}

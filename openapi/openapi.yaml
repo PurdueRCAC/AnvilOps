@@ -1383,6 +1383,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "403":
+          description: PersistentVolume access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "404":
           description: App or file not found
           content:
@@ -1460,6 +1466,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "403":
+          description: PersistentVolume access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "404":
           description: App or parent directory not found
           content:
@@ -1479,8 +1491,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "403":
+          description: PersistentVolume access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "404":
-          description: Not Found
+          description: App or file not found
           content:
             application/json:
               schema:
@@ -1514,6 +1532,12 @@ paths:
       responses:
         "400":
           description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: PersistentVolume access denied
           content:
             application/json:
               schema:
@@ -2669,6 +2693,8 @@ components:
           items:
             type: object
             properties:
+              id:
+                type: string
               message:
                 type: string
               reason:

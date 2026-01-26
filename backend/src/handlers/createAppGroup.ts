@@ -1,3 +1,4 @@
+import { logger } from "../index.ts";
 import {
   AppCreateError,
   DeploymentError,
@@ -5,7 +6,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { createAppGroup } from "../service/createAppGroup.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
@@ -17,7 +18,7 @@ export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
 
   try {
     await createAppGroup(req.user.id, data.orgId, data.name, data.apps);
-    return json(200, res, {});
+    return empty(200, res);
   } catch (e) {
     if (e instanceof AppCreateError) {
       const ex = e.cause!;
@@ -30,12 +31,13 @@ export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
         });
       } else if (ex instanceof DeploymentError) {
         // The app was created, but a Deployment couldn't be created
+        logger.error(e, "Failed to create app's first deloyment");
         return json(500, res, {
           code: 500,
           message: `Failed to create a deployment for ${e.appName}.`,
         });
       } else {
-        console.error(ex);
+        logger.error(e, "Failed to create app");
         return json(500, res, {
           code: 500,
           message: `There was a problem creating ${e.appName}.`,

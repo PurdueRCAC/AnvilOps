@@ -1,0 +1,26 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  security-scan:
+    name: Run Trivy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Install Tools
+        uses: jdx/mise-action@v3
+        with:
+          version: 2026.1.4
+          install: true
+          mise_toml: |
+            [tools]
+            trivy = "0.68.2"
+
+      - name: Run Trivy
+        run: trivy repository --exit-code 1 .

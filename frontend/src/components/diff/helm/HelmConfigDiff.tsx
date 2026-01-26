@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */ // TODO
+
 import type { CommonFormFields, HelmFormFields } from "@/lib/form.types";
 
-//@ts-ignore
+//@ts-expect-error WIP
 export const HelmConfigDiff = ({
   base,
   helmState,

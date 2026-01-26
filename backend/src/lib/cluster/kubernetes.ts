@@ -13,6 +13,7 @@ import {
   type V1Namespace,
 } from "@kubernetes/client-node";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { setTimeout } from "node:timers/promises";
 import { db } from "../../db/index.ts";
 import { logger } from "../../index.ts";
 import { env } from "../env.ts";
@@ -46,8 +47,11 @@ const baseKc = new KubeConfig();
 baseKc.loadFromDefault();
 
 export const svcK8s = {} as APIClientTypes;
-for (let apiClassName in APIClientFactory) {
-  svcK8s[apiClassName] = APIClientFactory[apiClassName](baseKc);
+for (const apiClassName of Object.keys(APIClientFactory)) {
+  Object.assign(svcK8s, {
+    [apiClassName as APIClassName]:
+      APIClientFactory[apiClassName as APIClassName](baseKc),
+  });
 }
 Object.freeze(svcK8s);
 
@@ -56,11 +60,11 @@ export function getClientForClusterUsername<T extends APIClassName>(
   apiClassName: T,
   shouldImpersonate: boolean,
 ): APIClientTypes[T] {
-  if (!APIClientFactory.hasOwnProperty(apiClassName)) {
+  if (!Object.prototype.hasOwnProperty.call(APIClientFactory, apiClassName)) {
     throw new Error("Invalid API class " + apiClassName);
   }
   if (!shouldImpersonate || !clusterUsername) {
-    return svcK8s[apiClassName] as APIClientTypes[T];
+    return svcK8s[apiClassName];
   } else {
     const kc = new KubeConfig();
     kc.loadFromOptions({
@@ -79,7 +83,7 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
   return await tracer.startActiveSpan("getClientsForRequest", async (span) => {
     try {
       apiClassNames.forEach((name) => {
-        if (!APIClientFactory.hasOwnProperty(name)) {
+        if (!Object.prototype.hasOwnProperty.call(APIClientFactory, name)) {
           throw new Error("Invalid API class " + name);
         }
       });
@@ -100,7 +104,7 @@ export async function getClientsForRequest<Names extends APIClassName[]>(
         };
       }, {}) as Pick<APIClientTypes, Names[number]>;
     } catch (err) {
-      span.recordException(err);
+      span.recordException(err as Error);
       span.setStatus({ code: SpanStatusCode.ERROR });
       throw err;
     } finally {
@@ -137,18 +141,30 @@ export const ensureNamespace = async (
   await api.create(namespace);
   for (let i = 0; i < 20; i++) {
     try {
+      // eslint-disable-next-line no-await-in-loop
       const res: V1Namespace = await api.read(namespace);
       if (
         res.status.phase === "Active" &&
         REQUIRED_LABELS.every((label) =>
-          res.metadata.annotations.hasOwnProperty(label),
+          Object.prototype.hasOwnProperty.call(res.metadata.annotations, label),
         )
       ) {
         return;
       }
-    } catch (err) {}
+    } catch (err) {
+      if (
+        !(err instanceof ApiException) ||
+        (err.code !== 404 && err.code !== 403)
+      ) {
+        logger.error(
+          err,
+          "Failed to look up namespace while waiting for it to be created",
+        );
+      }
+    }
 
-    await new Promise((r) => setTimeout(r, 200));
+    // eslint-disable-next-line no-await-in-loop
+    await setTimeout(200);
   }
 
   throw new Error("Timed out waiting for namespace to create");
@@ -178,9 +194,9 @@ export const createOrUpdateApp = async (
   name: string,
   namespace: V1Namespace & K8sObject,
   configs: K8sObject[],
-  postCreate?: (api: KubernetesObjectApi) => void,
+  postCreate?: (api: KubernetesObjectApi) => Promise<unknown>,
 ) => {
-  trace
+  await trace
     .getTracer("kubernetes-api")
     .startActiveSpan("createOrUpdateApp", async (span) => {
       try {
@@ -190,9 +206,10 @@ export const createOrUpdateApp = async (
           await ensureNamespace(api, namespace);
         }
 
-        for (let config of configs) {
-          if (await resourceExists(api, config)) {
-            await api.patch(
+        const promises = configs.map(async (config) => {
+          const exists = await resourceExists(api, config);
+          if (exists) {
+            return api.patch(
               config,
               undefined,
               undefined,
@@ -205,13 +222,15 @@ export const createOrUpdateApp = async (
               PatchStrategy.MergePatch,
             );
           } else {
-            await api.create(config);
+            return api.create(config);
           }
-        }
+        });
 
-        postCreate?.(api);
+        await Promise.all(promises);
+
+        await postCreate?.(api);
       } catch (err) {
-        span.recordException(err);
+        span.recordException(err as Error);
         span.setStatus({ code: SpanStatusCode.ERROR });
         throw err;
       } finally {

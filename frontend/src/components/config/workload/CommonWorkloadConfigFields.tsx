@@ -61,13 +61,13 @@ export const CommonWorkloadConfigFields = ({
   const showSubdomainError =
     !!subdomain &&
     (subdomain.length > MAX_SUBDOMAIN_LENGTH ||
-      subdomain.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+      subdomain.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const MAX_NAMESPACE_LEN = 63;
   const showNamespaceError =
     !!namespace &&
     (namespace.length > MAX_NAMESPACE_LEN ||
-      namespace.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+      namespace.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
@@ -136,7 +136,7 @@ export const CommonWorkloadConfigFields = ({
 
   return (
     <>
-      <h3 className="mt-4 font-bold pb-1 border-b">Deployment Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
       {appDomain !== null && (
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
@@ -145,7 +145,7 @@ export const CommonWorkloadConfigFields = ({
             </Label>
             {createIngress && (
               <span
-                className="text-red-500 h-fit cursor-default"
+                className="h-fit cursor-default text-red-500"
                 title="This field is required."
               >
                 *
@@ -167,9 +167,10 @@ export const CommonWorkloadConfigFields = ({
             />
             <span className="text-sm">Make my app public</span>
           </Label>
-          <div className="flex relative items-center gap-2">
+          <div className="relative flex items-center gap-2">
             <span className="absolute left-2 text-sm opacity-50">
-              {appDomain?.protocol}//
+              {appDomain?.protocol}
+              {"//"}
             </span>
             <Input
               disabled={disabled || !createIngress}
@@ -177,7 +178,7 @@ export const CommonWorkloadConfigFields = ({
               name="subdomain"
               id="subdomain"
               placeholder="my-app"
-              className="w-full pl-14 pr-45"
+              className="w-full pr-45 pl-14"
               pattern="[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
               value={subdomain ?? ""}
               onChange={(e) => {
@@ -193,7 +194,7 @@ export const CommonWorkloadConfigFields = ({
             </span>
           </div>
           {subdomain && showSubdomainError && (
-            <div className="text-sm flex gap-5">
+            <div className="flex gap-5 text-sm">
               <X className="text-red-500" />
               <ul className="text-black-3 list-disc">
                 <li>
@@ -215,7 +216,7 @@ export const CommonWorkloadConfigFields = ({
             subdomain !== originalSubdomain &&
             (subdomain !== debouncedSub || subLoading ? (
               <span className="text-sm">
-                <Loader className="animate-spin inline" /> Checking subdomain...
+                <Loader className="inline animate-spin" /> Checking subdomain...
               </span>
             ) : (
               <>
@@ -233,7 +234,7 @@ export const CommonWorkloadConfigFields = ({
             <Server className="inline" size={16} /> Port Number
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -255,13 +256,13 @@ export const CommonWorkloadConfigFields = ({
           }}
         />
       </div>
-      <div className="grid grid-cols-2 gap-y-2 gap-x-8">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2">
         <div className="flex items-baseline gap-2">
           <Label className="pb-1" htmlFor="cpuCores">
             <Cpu className="inline" size={16} /> CPU Cores
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -272,7 +273,7 @@ export const CommonWorkloadConfigFields = ({
             <MemoryStick className="inline" size={16} /> Memory
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -340,7 +341,7 @@ export const CommonWorkloadConfigFields = ({
                   Volume mounts cannot be edited after an app has been created.
                 </p>
               )}
-              <p className="opacity-50 text-sm mb-4">
+              <p className="mb-4 text-sm opacity-50">
                 Preserve files contained at these paths across app restarts. All
                 other files will be discarded. Every replica will get its own
                 separate volume.
@@ -364,19 +365,19 @@ export const CommonWorkloadConfigFields = ({
               <Cog className="inline" size={16} /> Advanced
             </Label>
           </AccordionTrigger>
-          <AccordionContent className="space-y-10 px-4 mt-2">
+          <AccordionContent className="mt-2 space-y-10 px-4">
             {isExistingApp && (
               <div className="space-y-2">
                 <div>
                   <Label className="pb-1">
                     <Logs className="inline" size={16} /> Keep Historical Logs
                   </Label>
-                  <p className="text-sm text-black-2">
+                  <p className="text-black-2 text-sm">
                     When this setting is disabled, you will only be able to view
-                    logs from the most recent, alive pod from your app's most
-                    recent deployment.
+                    logs from the most recent, alive pod from your app&apos;s
+                    most recent deployment.
                   </p>
-                  <div className="flex items-center gap-2 mt-4">
+                  <div className="mt-4 flex items-center gap-2">
                     <Checkbox
                       disabled={disabled}
                       name="collectLogs"
@@ -389,7 +390,7 @@ export const CommonWorkloadConfigFields = ({
                       }}
                     />
                     <Label htmlFor="collectLogs">
-                      Record application logs as they're produced
+                      Record application logs as they&apos;re produced
                     </Label>
                   </div>
                 </div>
@@ -403,7 +404,7 @@ export const CommonWorkloadConfigFields = ({
                     <FolderLock className="inline" size={16} /> Namespace
                   </Label>
                   <span
-                    className="text-red-500 cursor-default"
+                    className="cursor-default text-red-500"
                     title="This field is required."
                   >
                     *
@@ -423,7 +424,7 @@ export const CommonWorkloadConfigFields = ({
                   }}
                 />
                 {namespace && showNamespaceError && (
-                  <div className="text-sm flex gap-5">
+                  <div className="flex gap-5 text-sm">
                     <X className="text-red-500" />
                     <ul className="text-black-3 list-disc">
                       <li>
@@ -445,7 +446,7 @@ export const CommonWorkloadConfigFields = ({
                   !showNamespaceError &&
                   (namespace !== debouncedNamespace || namespaceLoading ? (
                     <span className="text-sm">
-                      <Loader className="animate-spin inline" /> Checking
+                      <Loader className="inline animate-spin" /> Checking
                       namespace...
                     </span>
                   ) : (

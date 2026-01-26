@@ -14,22 +14,26 @@ const port = 8080;
 const rootDir = "/files";
 const authToken = process.env.AUTH_TOKEN;
 
-const server = createServer(async (req, res) => {
-  try {
-    return await handle(req, res);
-  } catch (error) {
+const server = createServer((req, res) => {
+  handle(req, res).catch((error) => {
     console.error(error);
     res.writeHead(500, { "Content-Type": "text/plain" });
     res.write("Internal server error");
     res.end();
-  }
+  });
 });
 
 async function handle(
   req: IncomingMessage,
   res: ServerResponse<IncomingMessage>,
 ) {
+  if (!req.url) {
+    throw new Error("Request URL not present");
+  }
   const url = URL.parse(req.url, `http://${req.headers.host}`);
+  if (!url) {
+    throw new Error("Invalid request URL");
+  }
   const search = url.searchParams;
 
   if (url.pathname === "/livez") {
@@ -55,7 +59,7 @@ async function handle(
 
       if (req.method === "GET") {
         try {
-          const fileName = search.get("path");
+          const fileName = search.get("path")!;
           const filePath = join(rootDir, join("/", fileName));
 
           const mimeType =
@@ -84,7 +88,7 @@ async function handle(
             const readStream = createReadStream(filePath);
 
             await new Promise((resolve, reject) => {
-              readStream.on("data", async (chunk) => {
+              readStream.on("data", (chunk) => {
                 if (!res.headersSent) {
                   res.writeHead(200, {
                     "Content-Type": mimeType,
@@ -92,7 +96,7 @@ async function handle(
                     "Content-Disposition": `attachment; filename="${
                       // Remove all characters that might cause the header to not be parsed correctly (https://httpwg.org/specs/rfc6266.html#header.field.definition)
                       basename(filePath).replaceAll(
-                        /[^a-zA-Z0-9-_ ().\[\]#&]/g,
+                        /[^a-zA-Z0-9-_ ().[\]#&]/g,
                         "-",
                       )
                     }"`,
@@ -101,8 +105,14 @@ async function handle(
                 const canWriteMoreNow = res.write(chunk);
                 if (!canWriteMoreNow) {
                   readStream.pause();
-                  await once(res, "drain");
-                  readStream.resume();
+                  once(res, "drain")
+                    .then(() => readStream.resume())
+                    .catch((err) =>
+                      console.error(
+                        "Error waiting for read stream to drain",
+                        err,
+                      ),
+                    );
                 }
               });
 
@@ -134,12 +144,14 @@ async function handle(
           res.end();
         }
       } else if (req.method === "POST") {
-        const [fields, files] = await formidable({
+        const [fields] = await formidable({
           allowEmptyFiles: true,
           minFileSize: 0,
           uploadDir: join(rootDir, join("/", search.get("path")!.toString())),
-          filename: (name, ext, part, form) => {
-            return join("/", part.originalFilename);
+          filename: (name, ext, part) => {
+            return part.originalFilename
+              ? join("/", part.originalFilename)
+              : "uploaded_file";
           },
         }).parse(req);
         if (!fields["type"]) {

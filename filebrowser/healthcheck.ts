@@ -7,5 +7,6 @@ try {
     exit(1);
   }
 } catch (e) {
+  console.error(e);
   exit(1);
 }

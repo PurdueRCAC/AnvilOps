@@ -70,7 +70,8 @@ export async function createAppGroup(
   // }
 
   for (const { appData, metadata } of appsWithMetadata) {
-    let { config, commitMessage } = metadata;
+    const { config: _config, commitMessage } = metadata;
+    let config = _config;
     let app: App;
     try {
       app = await db.app.create({
@@ -100,13 +101,13 @@ export async function createAppGroup(
       });
     } catch (err) {
       const span = trace.getActiveSpan();
-      span?.recordException(err);
+      span?.recordException(err as Error);
       span?.setStatus({
         code: SpanStatusCode.ERROR,
         message:
           "Failed to create app's initial deployment while creating app group",
       });
-      throw new AppCreateError(appData.name, err);
+      throw new AppCreateError(appData.name, err as Error);
     }
   }
 }

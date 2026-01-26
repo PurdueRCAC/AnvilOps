@@ -5,7 +5,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { inviteUser } from "../service/inviteUser.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const inviteUserHandler: HandlerMap["inviteUser"] = async (
@@ -19,7 +19,7 @@ export const inviteUserHandler: HandlerMap["inviteUser"] = async (
       ctx.request.params.orgId,
       ctx.request.requestBody.email,
     );
-    return json(201, res, {});
+    return empty(201, res);
   } catch (e) {
     if (e instanceof UserNotFoundError) {
       return json(404, res, {

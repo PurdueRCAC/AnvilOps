@@ -14,6 +14,7 @@ import { AppRepo } from "../../db/repo/app.ts";
 import { AppGroupRepo } from "../../db/repo/appGroup.ts";
 import { DeploymentRepo } from "../../db/repo/deployment.ts";
 import { DeploymentStatus } from "../../generated/prisma/enums.ts";
+import { logger } from "../../index.ts";
 import { cancelBuildJobsForApp, createBuildJob } from "../../lib/builder.ts";
 import {
   createOrUpdateApp,
@@ -214,7 +215,7 @@ export class DeploymentService {
       await this.deploymentRepo.setCheckRunId(deployment.id, checkRunId);
       await this.cancelAllOtherDeployments(org, app, deployment.id, false);
     } catch (e) {
-      console.error("Failed to set check run: ", e);
+      logger.error(e, "Failed to create check run");
     }
   }
 
@@ -271,7 +272,7 @@ export class DeploymentService {
           await this.deploymentRepo.setCheckRunId(deployment.id, checkRunId);
         }
       } catch (e) {
-        console.error("Failed to set check run: ", e);
+        logger.error(e, "Failed to create or update check run");
       }
     }
 
@@ -300,9 +301,11 @@ export class DeploymentService {
             "BUILD",
             "Updated GitHub check run to Completed with conclusion Failure",
           );
-        } catch {}
+        } catch (e) {
+          logger.error(e, "Failed to update check run and write log line");
+        }
       }
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
   }
 
@@ -359,10 +362,10 @@ export class DeploymentService {
       log(
         deployment.id,
         "BUILD",
-        `Failed to apply Kubernetes resources: ${JSON.stringify(e?.body ?? e)}`,
+        `Failed to apply Kubernetes resources: ${JSON.stringify(e)}`,
         "stderr",
       );
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
   }
 
@@ -389,10 +392,10 @@ export class DeploymentService {
       log(
         deployment.id,
         "BUILD",
-        `Failed to create Helm deployment job: ${JSON.stringify(e?.body ?? e)}`,
+        `Failed to create Helm deployment job: ${JSON.stringify(e)}`,
         "stderr",
       );
-      throw new DeploymentError(e);
+      throw new DeploymentError(e as Error);
     }
   }
 
@@ -440,33 +443,37 @@ export class DeploymentService {
     );
 
     let gitProvider: GitProvider;
-    for (const deployment of deployments) {
-      if (deployment.id === deploymentId) {
-        continue;
-      }
-      if (!!deployment.checkRunId) {
-        // Should have a check run that is either queued or in_progress
-        if (!gitProvider) {
-          gitProvider = await getGitProvider(org.id);
+    await Promise.all(
+      deployments.map(async (deployment) => {
+        if (deployment.id === deploymentId) {
+          return;
         }
-        const config = deployment.config.asGitConfig();
-        try {
-          await this.updateCheckRun(
-            gitProvider,
-            config.repositoryId,
-            deployment.checkRunId,
-            "cancelled",
-          );
-          log(
-            deployment.id,
-            "BUILD",
-            "Updated GitHub check run to Completed with conclusion Cancelled",
-          );
-        } catch (e) {}
-      }
-      if (deployment.status != "COMPLETE") {
-        await this.deploymentRepo.setStatus(deployment.id, "CANCELLED");
-      }
-    }
+        if (deployment.checkRunId) {
+          // Should have a check run that is either queued or in_progress
+          if (!gitProvider) {
+            gitProvider = await getGitProvider(org.id);
+          }
+          const config = deployment.config.asGitConfig();
+          try {
+            await this.updateCheckRun(
+              gitProvider,
+              config.repositoryId,
+              deployment.checkRunId,
+              "cancelled",
+            );
+            log(
+              deployment.id,
+              "BUILD",
+              "Updated GitHub check run to Completed with conclusion Cancelled",
+            );
+          } catch (e) {
+            logger.error(e, "Failed to update check run and write log line");
+          }
+        }
+        if (deployment.status != "COMPLETE") {
+          await this.deploymentRepo.setStatus(deployment.id, "CANCELLED");
+        }
+      }),
+    );
   }
 }

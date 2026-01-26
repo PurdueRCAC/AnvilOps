@@ -77,7 +77,7 @@ func main() {
 		if err != nil {
 			errorLogger.Panicf("Error setting up stdout redirection: %s\n", err.Error())
 		}
-		defer stdout.Close()
+		defer func() { _ = stdout.Close() }()
 		go readStream("stdout", stdout)
 	}
 
@@ -87,7 +87,7 @@ func main() {
 		if err != nil {
 			errorLogger.Panicf("Error setting up stderr redirection: %s\n", err.Error())
 		}
-		defer stderr.Close()
+		defer func() { _ = stderr.Close() }()
 		go readStream("stderr", stderr)
 	}
 
@@ -155,11 +155,11 @@ func readStream(name string, file io.Reader) {
 	for scan() {
 		// Print the line to the standard output so that `kubectl logs` will still work to view the app's logs
 		if name == "stderr" {
-			os.Stderr.Write(scanner.Bytes())
-			os.Stderr.Write([]byte("\n"))
+			_, _ = os.Stderr.Write(scanner.Bytes())
+			_, _ = os.Stderr.Write([]byte("\n"))
 		} else {
-			os.Stdout.Write(scanner.Bytes())
-			os.Stdout.Write([]byte("\n"))
+			_, _ = os.Stdout.Write(scanner.Bytes())
+			_, _ = os.Stdout.Write([]byte("\n"))
 		}
 		// Enqueue the line to be uploaded to the AnvilOps backend
 		// Wait up to 100ms for the queue to empty, otherwise drop the message
@@ -283,7 +283,7 @@ func send(lines []LogLine, env *EnvVars) {
 		}
 	} else if res.StatusCode != 200 {
 		body, err := io.ReadAll(res.Body)
-		res.Body.Close()
+		_ = res.Body.Close()
 
 		if err != nil {
 			errorLogger.Printf("Error uploading logs: %v (error reading response body)\n", res.StatusCode)
@@ -303,7 +303,7 @@ func send(lines []LogLine, env *EnvVars) {
 			}
 		}
 	} else {
-		res.Body.Close()
+		_ = res.Body.Close()
 	}
 }
 

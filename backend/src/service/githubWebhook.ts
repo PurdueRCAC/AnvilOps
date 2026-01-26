@@ -16,7 +16,7 @@ import { deploymentConfigService, deploymentService } from "./helper/index.ts";
 export async function processGitHubWebhookPayload(
   event: string,
   action: string,
-  requestBody: any,
+  requestBody: unknown,
 ) {
   return await trace
     .getTracer("github_webhook")
@@ -72,7 +72,7 @@ export async function processGitHubWebhookPayload(
           }
         }
       } catch (err) {
-        span.recordException(err);
+        span.recordException(err as Error);
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: "Uncaught error processing GitHub webhook",
@@ -83,6 +83,7 @@ export async function processGitHubWebhookPayload(
     });
 }
 
+// eslint-disable-next-line require-await, @typescript-eslint/require-await -- TODO
 async function handleRepositoryTransferred(
   payload: components["schemas"]["webhook-repository-transferred"],
 ) {
@@ -154,7 +155,9 @@ async function handleInstallationCreated(
     await db.user.createUnassignedInstallation(
       payload.requester.id,
       payload.installation.id,
-      payload.installation["login"] ?? payload.installation.account.name,
+      "login" in payload.installation.account
+        ? payload.installation.account.login
+        : payload.installation.account.name,
       payload.installation.html_url,
     );
   } catch (e) {
@@ -219,28 +222,32 @@ async function handlePush(payload: components["schemas"]["webhook-push"]) {
     throw new AppNotFoundError();
   }
 
-  for (const app of apps) {
-    const org = await db.org.getById(app.orgId);
-    const oldConfig = (await db.app.getDeploymentConfig(app.id)).asGitConfig();
-    const config = deploymentConfigService.populateNewCommit(
-      oldConfig,
-      app,
-      payload.head_commit.id,
-    );
-    await deploymentService.create({
-      org,
-      app,
-      commitMessage: payload.head_commit.message,
-      config,
-      git: {
-        checkRun: {
-          pending: false,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
+  await Promise.all(
+    apps.map(async (app) => {
+      const org = await db.org.getById(app.orgId);
+      const oldConfig = (
+        await db.app.getDeploymentConfig(app.id)
+      ).asGitConfig();
+      const config = deploymentConfigService.populateNewCommit(
+        oldConfig,
+        app,
+        payload.head_commit.id,
+      );
+      await deploymentService.create({
+        org,
+        app,
+        commitMessage: payload.head_commit.message,
+        config,
+        git: {
+          checkRun: {
+            pending: false,
+            owner: payload.repository.owner.login,
+            repo: payload.repository.name,
+          },
         },
-      },
-    });
-  }
+      });
+    }),
+  );
 }
 
 /**
@@ -285,94 +292,100 @@ async function handleWorkflowRun(
   }
 
   if (payload.action === "requested") {
-    for (const app of apps) {
-      const org = await db.org.getById(app.orgId);
-      const oldConfig = (
-        await db.app.getDeploymentConfig(app.id)
-      ).asGitConfig();
-      const config = deploymentConfigService.populateNewCommit(
-        oldConfig,
-        app,
-        payload.workflow_run.head_commit.id,
-      );
-      await deploymentService.create({
-        org,
-        app,
-        commitMessage: payload.workflow_run.head_commit.message,
-        workflowRunId: payload.workflow_run.id,
-        config,
-        git: {
-          checkRun: {
-            pending: true,
-            owner: payload.repository.owner.login,
-            repo: payload.repository.name,
-          },
-        },
-      });
-    }
-  } else if (payload.action === "completed") {
-    for (const app of apps) {
-      const org = await db.org.getById(app.orgId);
-      const deployment = await db.deployment.getFromWorkflowRunId(
-        app.id,
-        payload.workflow_run.id,
-      );
-
-      if (!deployment || deployment.status !== "PENDING") {
-        // If the app was deleted, nothing to do
-        // If the deployment was canceled, its check run will be updated to canceled
-        continue;
-      }
-      if (payload.workflow_run.conclusion !== "success") {
-        // No need to build for unsuccessful workflow run
-        log(
-          deployment.id,
-          "BUILD",
-          "Workflow run did not complete successfully",
+    await Promise.all(
+      apps.map(async (app) => {
+        const org = await db.org.getById(app.orgId);
+        const oldConfig = (
+          await db.app.getDeploymentConfig(app.id)
+        ).asGitConfig();
+        const config = deploymentConfigService.populateNewCommit(
+          oldConfig,
+          app,
+          payload.workflow_run.head_commit.id,
         );
-        if (!deployment.checkRunId) {
-          continue;
+        await deploymentService.create({
+          org,
+          app,
+          commitMessage: payload.workflow_run.head_commit.message,
+          workflowRunId: payload.workflow_run.id,
+          config,
+          git: {
+            checkRun: {
+              pending: true,
+              owner: payload.repository.owner.login,
+              repo: payload.repository.name,
+            },
+          },
+        });
+      }),
+    );
+  } else if (payload.action === "completed") {
+    await Promise.all(
+      apps.map(async (app) => {
+        const org = await db.org.getById(app.orgId);
+        const deployment = await db.deployment.getFromWorkflowRunId(
+          app.id,
+          payload.workflow_run.id,
+        );
+
+        if (!deployment || deployment.status !== "PENDING") {
+          // If the app was deleted, nothing to do
+          // If the deployment was canceled, its check run will be updated to canceled
+          return;
         }
-        const gitProvider = await getGitProvider(org.id);
-        try {
-          await gitProvider.updateCheckStatus(
-            payload.repository.id,
-            deployment.checkRunId,
-            "cancelled",
-          );
+        if (payload.workflow_run.conclusion !== "success") {
+          // No need to build for unsuccessful workflow run
           log(
             deployment.id,
             "BUILD",
-            "Updated GitHub check run to Completed with conclusion Cancelled",
+            "Workflow run did not complete successfully",
           );
-          await db.deployment.setStatus(deployment.id, "CANCELLED");
-        } catch (e) {}
-        continue;
-      }
+          if (!deployment.checkRunId) {
+            return;
+          }
+          const gitProvider = await getGitProvider(org.id);
+          try {
+            await gitProvider.updateCheckStatus(
+              payload.repository.id,
+              deployment.checkRunId,
+              "cancelled",
+            );
+            log(
+              deployment.id,
+              "BUILD",
+              "Updated GitHub check run to Completed with conclusion Cancelled",
+            );
+            await db.deployment.setStatus(deployment.id, "CANCELLED");
+          } catch (e) {
+            logger.error(e, "Error updating check status and logging failure");
+          }
+          return;
+        }
 
-      const config = (
-        await db.deployment.getConfig(deployment.id)
-      ).asGitConfig();
+        const config = (
+          await db.deployment.getConfig(deployment.id)
+        ).asGitConfig();
 
-      await deploymentService.completeGitDeployment({
-        org,
-        app,
-        deployment,
-        config,
-        createOrUpdateCheckRun: true,
-      });
-    }
+        await deploymentService.completeGitDeployment({
+          org,
+          app,
+          deployment,
+          config,
+          createOrUpdateCheckRun: true,
+        });
+      }),
+    );
   }
 }
 
-export async function log(
+export function log(
   deploymentId: number,
   type: LogType,
   content: string,
   stream: LogStream = "stdout",
 ) {
-  try {
-    await db.deployment.insertLogs([
+  db.deployment
+    .insertLogs([
       {
         deploymentId,
         content,
@@ -381,8 +394,8 @@ export async function log(
         podName: undefined,
         timestamp: new Date(),
       },
-    ]);
-  } catch {
-    // Don't let errors bubble up and disrupt the deployment process
-  }
+    ])
+    .catch((err) => {
+      logger.error(err, "Failed to write deployment log line");
+    });
 }

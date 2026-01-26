@@ -20,14 +20,14 @@ import type { App } from "./AppView";
 export const DangerZoneTab = ({ app }: { app: App }) => {
   return (
     <>
-      <h2 className="text-xl font-medium mb-2">Migrate Project</h2>
-      <p className="opacity-50 mb-4">
+      <h2 className="mb-2 text-xl font-medium">Migrate Project</h2>
+      <p className="mb-4 opacity-50">
         AnvilOps will stop managing this application, but Kubernetes resources
         will not be deleted.
       </p>
       <DeleteDialog app={app} keepNamespace={true} />
-      <h2 className="text-xl font-medium mb-2 mt-4">Delete Project</h2>
-      <p className="opacity-50 mb-4">
+      <h2 className="mt-4 mb-2 text-xl font-medium">Delete Project</h2>
+      <p className="mb-4 opacity-50">
         Permanently delete all deployments, logs, and compute resources
         associated with this project without affecting the source Git
         repository.
@@ -64,7 +64,7 @@ const DeleteDialog = ({
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div>
-              <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+              <ul className="mt-2 mb-4 *:ml-4 *:list-disc">
                 {keepNamespace ? (
                   <>
                     <li>AnvilOps will stop managing this application.</li>
@@ -85,8 +85,8 @@ const DeleteDialog = ({
                       infrastructure will be deleted.
                     </li>
                     <li>
-                      Your project's subdomain will become available for other
-                      projects to use.
+                      Your project&apos;s subdomain will become available for
+                      other projects to use.
                     </li>
                   </>
                 )}
@@ -114,7 +114,7 @@ const DeleteDialog = ({
                   params: { path: { appId: app.id } },
                   body: { keepNamespace },
                 });
-              } catch (e) {
+              } catch {
                 toast.error("There was a problem deleting your project.");
                 return;
               }

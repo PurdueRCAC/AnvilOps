@@ -185,7 +185,7 @@ export type HelmConfig = {
   url: string;
   version: string;
   urlType: HelmUrlType;
-  values?: any;
+  values?: PrismaJson.HelmValues;
 };
 
 export type HelmConfigCreate = Omit<HelmConfig, "id">;

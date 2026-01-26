@@ -25,14 +25,14 @@ import type {
 } from "../models.ts";
 
 type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
-type PrismaHelmConfigCreate = Omit<HelmConfigCreate, "appType" | "source">;
+
 export class DeploymentRepo {
   private client: PrismaClientType;
-  private publish: (topic: string, payload: any) => Promise<void>;
+  private publish: (topic: string, payload: string) => Promise<void>;
 
   constructor(
     client: PrismaClientType,
-    publish: (topic: string, payload: any) => Promise<void>,
+    publish: (topic: string, payload: string) => Promise<void>,
   ) {
     this.client = client;
     this.publish = publish;
@@ -140,7 +140,7 @@ export class DeploymentRepo {
   }
 
   async getFromSecret(secret: string): Promise<Deployment | null> {
-    return this.client.deployment.findUnique({
+    return await this.client.deployment.findUnique({
       where: { secret: secret },
       select: {
         id: true,
@@ -161,7 +161,7 @@ export class DeploymentRepo {
     appId: number,
     workflowRunId: number,
   ): Promise<Deployment | null> {
-    return this.client.deployment.findUnique({
+    return await this.client.deployment.findUnique({
       where: { appId, workflowRunId },
       select: {
         id: true,
@@ -214,7 +214,7 @@ export class DeploymentRepo {
 
     let obj: WorkloadConfig | HelmConfig;
     if (config.appType === "workload") {
-      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig!);
+      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig);
     } else if (config.appType === "helm") {
       obj = {
         ...config.helmConfig,
@@ -229,14 +229,14 @@ export class DeploymentRepo {
       ...obj,
       asWorkloadConfig() {
         if (obj.appType === "workload") {
-          return obj as WorkloadConfig;
+          return obj;
         } else {
           throw new Error("DeploymentConfig is not a WorkloadConfig");
         }
       },
       asHelmConfig() {
         if (obj.appType === "helm") {
-          return obj as HelmConfig;
+          return obj;
         } else {
           throw new Error("DeploymentConfig is not a HelmConfig");
         }
@@ -244,7 +244,7 @@ export class DeploymentRepo {
       asGitConfig() {
         return wrapped.asWorkloadConfig().asGitConfig();
       },
-    } satisfies DeploymentConfig;
+    } satisfies DeploymentConfig as DeploymentConfig;
 
     return wrapped;
   }
@@ -279,7 +279,7 @@ export class DeploymentRepo {
           throw new Error("Workload is not deployed from Git");
         }
       },
-    } satisfies WorkloadConfig;
+    } satisfies WorkloadConfig as WorkloadConfig;
 
     return obj;
   }
@@ -288,8 +288,12 @@ export class DeploymentRepo {
     if (config === null) {
       return null;
     }
-    const { getEnv, displayEnv, asGitConfig, ...clonable } = config;
-    const newConfig = structuredClone(clonable);
+    const newConfig = structuredClone(config);
+
+    delete newConfig.getEnv;
+    delete newConfig.displayEnv;
+    delete newConfig.asGitConfig;
+
     const env = config.getEnv();
     return { ...newConfig, env };
   }
@@ -337,12 +341,14 @@ export class DeploymentRepo {
       deploymentIds.add(log.deploymentId);
     }
 
-    for (const deploymentId of deploymentIds) {
-      if (typeof deploymentId !== "number") {
-        continue;
-      }
-      await this.publish(`deployment_${deploymentId}_logs`, "");
-    }
+    await Promise.all(
+      [...deploymentIds].map((deploymentId) => {
+        if (typeof deploymentId !== "number") {
+          return Promise.resolve();
+        }
+        return this.publish(`deployment_${deploymentId}_logs`, "");
+      }),
+    );
   }
 
   async unlinkRepositoryFromAllDeployments(repoId: number) {
@@ -413,14 +419,23 @@ export class DeploymentRepo {
       take: pageSize,
     });
 
-    return deployments.map((deployment) => ({
-      ...deployment,
-      config: undefined,
-      appType: deployment.config.appType,
-      source: deployment.config.workloadConfig?.source,
-      commitHash: deployment.config.workloadConfig?.commitHash,
-      imageTag: deployment.config.workloadConfig?.imageTag,
-      repositoryId: deployment.config.workloadConfig?.repositoryId,
-    }));
+    return deployments.map(
+      (deployment) =>
+        ({
+          id: deployment.id,
+          appId: deployment.appId,
+          checkRunId: deployment.checkRunId,
+          commitMessage: deployment.commitMessage,
+          configId: deployment.configId,
+          createdAt: deployment.createdAt,
+          status: deployment.status,
+          updatedAt: deployment.updatedAt,
+          workflowRunId: deployment.workflowRunId,
+          source: deployment.config.workloadConfig?.source,
+          commitHash: deployment.config.workloadConfig?.commitHash,
+          imageTag: deployment.config.workloadConfig?.imageTag,
+          repositoryId: deployment.config.workloadConfig?.repositoryId,
+        }) satisfies DeploymentWithSourceInfo,
+    );
   }
 }

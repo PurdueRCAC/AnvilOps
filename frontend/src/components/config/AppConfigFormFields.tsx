@@ -56,7 +56,7 @@ export const AppConfigFormFields = ({
       {appConfig.isRancherManaged && (
         <ProjectConfig state={state} setState={setState} disabled={disabled} />
       )}
-      <h3 className="mt-4 font-bold pb-1 border-b">Source Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Source Options</h3>
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
           <Label htmlFor="deploymentSource" className="pb-1">
@@ -64,7 +64,7 @@ export const AppConfigFormFields = ({
             Deployment Source
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *

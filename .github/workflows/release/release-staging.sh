@@ -11,4 +11,4 @@ COMMIT="$(git rev-parse HEAD)"
 VERSION="0.0.0-staging.$(date +%s)-${COMMIT:0:10}"
 
 CURRENT_DIR=$(dirname "$0")
-$CURRENT_DIR/release.sh "$VERSION"
+"$CURRENT_DIR"/release.sh "$VERSION"

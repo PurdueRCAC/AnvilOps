@@ -27,7 +27,7 @@ export async function inviteUser(
       { orgId, inviterId, inviteeId: otherUser.id },
       "Organization invitation sent",
     );
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof NotFoundError && e.message === "organization") {
       throw new OrgNotFoundError(null);
     }

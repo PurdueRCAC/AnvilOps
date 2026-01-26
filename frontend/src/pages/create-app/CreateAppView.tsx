@@ -61,27 +61,26 @@ export default function CreateAppView() {
     );
 
   return (
-    <div className="flex max-w-prose mx-auto">
+    <div className="mx-auto flex max-w-prose">
       <form
-        className="flex flex-col gap-6 w-full my-10"
-        onSubmit={async (e) => {
+        className="my-10 flex w-full flex-col gap-6"
+        onSubmit={(e) => {
           e.preventDefault();
           const finalGroupState = groupState as Required<GroupFormFields>;
           const finalAppState = appState as Required<CommonFormFields>;
 
-          try {
-            const result = await createApp({
-              body: {
-                orgId: finalGroupState.orgId,
-                appGroup: finalGroupState.groupOption,
-                ...createNewAppWithoutGroup(finalAppState),
-              },
-            });
-            navigate(`/app/${result.id}`);
-          } catch (err) {}
+          createApp({
+            body: {
+              orgId: finalGroupState.orgId,
+              appGroup: finalGroupState.groupOption,
+              ...createNewAppWithoutGroup(finalAppState),
+            },
+          })
+            .then((result) => navigate(`/app/${result.id}`))
+            .catch(console.error);
         }}
       >
-        <h2 className="font-bold text-3xl mb-4">Create an App</h2>
+        <h2 className="mb-4 text-3xl font-bold">Create an App</h2>
         <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <Label htmlFor="selectOrg" className="pb-1">
@@ -89,7 +88,7 @@ export default function CreateAppView() {
               Organization
             </Label>
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -173,11 +172,11 @@ export const NameStatus = ({
   const capitalized =
     resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
   return available ? (
-    <p className="text-green-500 text-sm">
+    <p className="text-sm text-green-500">
       <Check className="inline" /> {capitalized} is available.
     </p>
   ) : (
-    <p className="text-red-500 text-sm">
+    <p className="text-sm text-red-500">
       <X className="inline" /> {capitalized} is in use.
     </p>
   );

@@ -7,7 +7,12 @@ import {
   OrgNotFoundError,
 } from "../service/common/errors.ts";
 import { processGitHubOAuthResponse } from "../service/githubOAuthCallback.ts";
-import { redirect, type HandlerMap } from "../types.ts";
+import {
+  redirect,
+  type HandlerMap,
+  type HandlerResponse,
+  type ResponseMap,
+} from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 /**
@@ -32,7 +37,10 @@ export const githubOAuthCallbackHandler: HandlerMap["githubOAuthCallback"] =
       } else if (result === "approval-needed") {
         return redirect(302, res, "/github-approval-pending");
       } else {
-        throw new Error("Unexpected GitHub OAuth result: " + result);
+        result satisfies never;
+        throw new Error(
+          "Unexpected GitHub OAuth result: " + JSON.stringify(result),
+        );
       }
     } catch (e) {
       if (e instanceof GitHubOAuthStateMismatchError) {
@@ -51,7 +59,7 @@ export const githubOAuthCallbackHandler: HandlerMap["githubOAuthCallback"] =
     }
   };
 
-export const githubConnectError = (
+export function githubConnectError<ResMap extends ResponseMap>(
   res: Response,
   code:
     | "IDP_ERROR"
@@ -60,6 +68,6 @@ export const githubConnectError = (
     | "DIFF_ACCOUNT"
     | "ORG_FAIL"
     | "",
-) => {
+): HandlerResponse<ResMap> {
   return redirect(302, res, `/error?type=github_app&code=${code}`);
-};
+}

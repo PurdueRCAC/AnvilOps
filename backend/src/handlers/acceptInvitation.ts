@@ -1,6 +1,6 @@
 import { acceptInvitation } from "../service/acceptInvitation.ts";
 import { InvitationNotFoundError } from "../service/common/errors.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const acceptInvitationHandler: HandlerMap["acceptInvitation"] = async (
@@ -14,12 +14,12 @@ export const acceptInvitationHandler: HandlerMap["acceptInvitation"] = async (
       ctx.request.params.orgId,
       req.user.id,
     );
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof InvitationNotFoundError) {
       return json(404, res, { code: 404, message: "Invitation not found." });
     }
     throw e;
   }
 
-  return json(200, res, {});
+  return empty(200, res);
 };

@@ -5,6 +5,7 @@ import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
 import {
   AppNotFoundError,
   InstallationNotFoundError,
+  RepositoryNotFoundError,
   ValidationError,
 } from "./common/errors.ts";
 
@@ -54,7 +55,7 @@ export async function listDeployments(
         try {
           return gitProvider ? await gitProvider.getRepoById(id) : null;
         } catch (error) {
-          if (error?.status === 404) {
+          if (error instanceof RepositoryNotFoundError) {
             // The repo couldn't be found. Either it doesn't exist or the installation doesn't have permission to see it.
             return undefined;
           }

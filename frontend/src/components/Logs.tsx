@@ -72,19 +72,19 @@ export const Logs = ({
   return (
     <>
       {connecting ? (
-        <p className="flex items-center gap-2 text-sm font-mono">
+        <p className="flex items-center gap-2 font-mono text-sm">
           <Loader className="animate-spin" /> Connecting...
         </p>
       ) : !connected ? (
-        <p className="text-amber-600 flex items-center gap-2 text-sm mb-2 font-mono">
+        <p className="mb-2 flex items-center gap-2 font-mono text-sm text-amber-600">
           <AlertTriangle /> Disconnected. New logs will not appear until the
           connection is re-established.
         </p>
       ) : (
-        <p className="text-blue-500 flex items-center gap-2 text-sm mb-2 font-mono">
-          <div className="relative w-4 h-5">
-            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-pulse" />
-            <div className="absolute top-1/2 left-1/2 -translate-1/2 size-2 rounded-full bg-blue-500 animate-ping" />
+        <p className="mb-2 flex items-center gap-2 font-mono text-sm text-blue-500">
+          <div className="relative h-5 w-4">
+            <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-pulse rounded-full bg-blue-500" />
+            <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-ping rounded-full bg-blue-500" />
           </div>
           Receiving logs in realtime
         </p>
@@ -102,7 +102,7 @@ export const Logs = ({
             lastScroll.current.scrollTop = element.scrollTop;
           }
         }}
-        className="bg-gray-100 font-mono w-full rounded-md my-4 py-4 overflow-x-auto max-h-[70vh]"
+        className="my-4 max-h-[70vh] w-full overflow-x-auto rounded-md bg-gray-100 py-4 font-mono"
       >
         {logs && logs.length > 0 ? (
           <table className="w-full">
@@ -111,12 +111,12 @@ export const Logs = ({
                 <tr
                   key={log.id}
                   className={clsx(
-                    "font-mono whitespace-pre-wrap [&>*]:align-top",
+                    `font-mono whitespace-pre-wrap *:align-top`,
                     log.stream === "stderr" &&
-                      "text-red-900 bg-red-100 first:rounded-t-md last:rounded-b-md",
+                      `bg-red-100 text-red-900 first:rounded-t-md last:rounded-b-md`,
                   )}
                 >
-                  <td className="opacity-50 whitespace-nowrap w-0 pl-4 pr-2">
+                  <td className="w-0 pr-2 pl-4 whitespace-nowrap opacity-50">
                     {/* "w-0" above forces this column to take up as little horizontal space as possible */}
                     {new Date(log.time).toLocaleString()}
                   </td>
@@ -125,7 +125,7 @@ export const Logs = ({
                       <span className="opacity-70">{log.pod}</span>
                     </td>
                   )}
-                  <td className="pl-2 pr-4">
+                  <td className="pr-4 pl-2">
                     <p>{log.log}</p>
                   </td>
                 </tr>
@@ -137,7 +137,7 @@ export const Logs = ({
             <p className="flex gap-2 text-lg font-medium">
               <SatelliteDish /> Logs Unavailable
             </p>
-            <p className="opacity-50 ml-8">
+            <p className="ml-8 opacity-50">
               {["PENDING", "BUILDING"].includes(deployment.status)
                 ? "Waiting for the build to start."
                 : null}
@@ -148,7 +148,7 @@ export const Logs = ({
             <p className="flex gap-2 text-lg font-medium">
               <FileClock /> No Logs Found
             </p>
-            <p className="opacity-50 ml-8">
+            <p className="ml-8 opacity-50">
               {["PENDING", "BUILDING", "DEPLOYING"].includes(deployment.status)
                 ? "Waiting for your app to be deployed."
                 : ["COMPLETE", "STOPPED"].includes(deployment.status) &&

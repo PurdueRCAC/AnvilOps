@@ -1,4 +1,5 @@
 import type {
+  KubernetesObject,
   KubernetesObjectApi,
   V1EnvVar,
   V1Namespace,
@@ -107,7 +108,7 @@ const getEnvVars = async (
   ...autoEnvParams: Parameters<typeof generateAutomaticEnvVars>
 ): Promise<V1EnvVar[]> => {
   const envVars = [];
-  for (let envVar of env) {
+  for (const envVar of env) {
     envVars.push({
       name: envVar.name,
       valueFrom: {
@@ -301,11 +302,14 @@ export const createAppConfigsFromDeployment = async ({
   if (migrating) {
     // When migrating off AnvilOps, remove the labels by setting their values to null
     const deletedLabels = Object.keys(labels).reduce(
-      (deleted, key) => ({ ...deleted, [key]: null }),
+      (deleted, key): Record<string, null> => ({
+        ...deleted,
+        [key]: null,
+      }),
       {},
     );
     applyLabels(namespace, deletedLabels);
-    for (let config of configs) {
+    for (const config of configs) {
       applyLabels(config, deletedLabels);
     }
   } else {
@@ -320,14 +324,14 @@ export const createAppConfigsFromDeployment = async ({
     }
 
     applyLabels(namespace, labels);
-    for (let config of configs) {
+    for (const config of configs) {
       applyLabels(config, labels);
     }
   }
 
   const postCreate = async (api: KubernetesObjectApi) => {
     // Clean up secrets and ingresses from previous deployments of the app
-    const outdatedResources = [];
+    const outdatedResources: KubernetesObject[] = [];
 
     if (migrating) {
       if (env.CREATE_INGRESS_NETPOL) {
@@ -375,8 +379,8 @@ export const createAppConfigsFromDeployment = async ({
         ),
       );
 
-      outdatedResources.concat(
-        resourceLists
+      outdatedResources.push(
+        ...resourceLists
           .flat()
           .filter(
             (resource) =>
@@ -391,7 +395,11 @@ export const createAppConfigsFromDeployment = async ({
 
     await Promise.all(
       outdatedResources.map((resource) =>
-        api.delete(resource).catch((err) => console.error(err)),
+        api
+          .delete(resource)
+          .catch((err) =>
+            logger.error(err, "Failed to delete outdated Kubernetes resource"),
+          ),
       ),
     );
   };

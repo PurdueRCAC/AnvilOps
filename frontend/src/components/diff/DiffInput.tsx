@@ -20,7 +20,7 @@ export const DiffInput = ({
   const isDifferent = (!!left || !!right) && (left ?? "") !== (right ?? "");
 
   return (
-    <div className="grid grid-cols-[1fr_4rem_1fr] w-full gap-4 items-center justify-items-center">
+    <div className="grid w-full grid-cols-[1fr_4rem_1fr] place-items-center gap-4">
       <Input
         {...inputProps}
         value={left ?? ""}

@@ -36,7 +36,9 @@ export const getAppLogsHandler: HandlerMap["getAppLogs"] = async (
     if (lastEventIdHeader) {
       try {
         lastLogId = parseInt(lastEventIdHeader.toString());
-      } catch {}
+      } catch {
+        // Just start at the beginning
+      }
     }
 
     await getAppLogs(

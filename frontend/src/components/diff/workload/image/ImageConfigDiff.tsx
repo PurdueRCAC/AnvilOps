@@ -19,11 +19,11 @@ export const ImageConfigDiff = ({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
-        <Label htmlFor="imageTag" className="pb-1 mb-2">
+        <Label htmlFor="imageTag" className="mb-2 pb-1">
           <Tag className="inline" size={16} /> Image tag
         </Label>
         <span
-          className="text-red-500 cursor-default"
+          className="cursor-default text-red-500"
           title="This field is required."
         >
           *

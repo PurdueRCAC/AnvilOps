@@ -19,6 +19,8 @@ import {
   type GitRepository,
 } from "./gitProvider.ts";
 
+class FastImportUnsupportedError extends Error {}
+
 const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
   "utf-8",
 );
@@ -27,8 +29,12 @@ const installationIdSymbol = Symbol("installationId");
 
 const githubAuthCache = {
   get: (key: string) => get(`github-auth-${key}`),
-  set: (key: string, value: any) =>
+  set: (key: string, value: string) =>
     set(`github-auth-${key}`, value, 45 * 60, false), // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+};
+
+type InstallationScopedOctokit = Octokit & {
+  [installationIdSymbol]: number;
 };
 
 async function getOctokit(installationId: number) {
@@ -43,19 +49,24 @@ async function getOctokit(installationId: number) {
     },
   });
 
-  octokit[installationIdSymbol] = installationId;
+  const scopedOctokit: InstallationScopedOctokit = {
+    ...octokit,
+    [installationIdSymbol]: installationId,
+  };
+
+  scopedOctokit[installationIdSymbol] = installationId;
   try {
     // Run the authorization step right now so that we can rethrow if the installation wasn't found
-    await octokit.auth({ type: "installation" });
+    await scopedOctokit.auth({ type: "installation" });
   } catch (e) {
     if ((e as RequestError)?.status === 404) {
       // Installation not found. Remove it from its organization(s).
       await db.org.unlinkInstallationFromAllOrgs(installationId);
-      throw new InstallationNotFoundError(e);
+      throw new InstallationNotFoundError(e as Error);
     }
     throw e;
   }
-  return octokit;
+  return scopedOctokit;
 }
 
 export class GitHubGitProvider implements GitProvider {
@@ -322,14 +333,14 @@ export class GitHubGitProvider implements GitProvider {
   }
 
   async getWorkflows(repoId: number): Promise<GitCIWorkflow[]> {
-    const workflows = (await this.octokit
-      .request({
-        method: "GET",
-        url: `/repositories/${repoId}/actions/workflows`,
-      })
-      .then((res) => res.data.workflows)) as Awaited<
-      ReturnType<typeof this.octokit.rest.actions.getWorkflow>
-    >["data"][];
+    const response = (await this.octokit.request({
+      method: "GET",
+      url: `/repositories/${repoId}/actions/workflows`,
+    })) as Awaited<
+      ReturnType<typeof this.octokit.rest.actions.listRepoWorkflows>
+    >;
+
+    const workflows = response.data.workflows;
 
     return workflows.map((w) => ({ id: w.id, name: w.name, path: w.path }));
   }
@@ -470,8 +481,9 @@ export class GitHubGitProvider implements GitProvider {
   private async getInstallationAccessToken() {
     const { token } = (await this.octokit.auth({
       type: "installation",
-    })) as any;
-    return token as string;
+    })) as { token: string };
+
+    return token;
   }
 
   private async getGitHubRepoById(repoId: number) {
@@ -540,5 +552,3 @@ export class GitHubGitProvider implements GitProvider {
     });
   }
 }
-
-class FastImportUnsupportedError extends Error {}

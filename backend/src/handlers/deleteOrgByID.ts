@@ -1,6 +1,6 @@
 import { OrgNotFoundError } from "../service/common/errors.ts";
 import { deleteOrgByID } from "../service/deleteOrgByID.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const deleteOrgByIDHandler: HandlerMap["deleteOrgByID"] = async (
@@ -18,5 +18,5 @@ export const deleteOrgByIDHandler: HandlerMap["deleteOrgByID"] = async (
     }
   }
 
-  return json(200, res, {});
+  return empty(200, res);
 };

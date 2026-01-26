@@ -4,3 +4,10 @@ charts/**/*.yaml
 templates/extensions/**/*.yaml
 !templates/extensions/**/values.yaml
 # ^ Prettier doesn't know how to interpret Go templates so it thinks we're writing invalid YAML
+
+frontend/dist
+frontend/src/generated
+backend/src/generated
+docs/dist
+docs/.astro
+backend/regclient-napi/dist

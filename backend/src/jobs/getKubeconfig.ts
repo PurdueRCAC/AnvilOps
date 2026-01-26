@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   CoreV1Api,
   KubeConfig,
@@ -42,11 +43,15 @@ if (!kcReq.ok) {
   throw new Error("Failed to get kubeconfig: " + kcReq.statusText);
 }
 
-const kubeConfigRes = await kcReq.json();
-let kubeConfig = kubeConfigRes["config"];
+const kubeConfigRes = (await kcReq.json()) as {
+  baseType: "generateKubeConfigOutput";
+  config: string;
+  type: "generateKubeConfigOutput";
+};
+let kubeConfig = kubeConfigRes.config;
 
 if (USE_CLUSTER_NAME) {
-  const body = yaml.parse(kubeConfig);
+  const body = yaml.parse(kubeConfig) as object & { "current-context": string };
   body["current-context"] = USE_CLUSTER_NAME;
   kubeConfig = yaml.stringify(body);
 }

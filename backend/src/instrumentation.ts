@@ -1,3 +1,4 @@
+/* eslint-disable no-console */ // We can't import pino from this file because it needs to be instrumented first.
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 register("@opentelemetry/instrumentation/hook.mjs", pathToFileURL("./"));
@@ -16,6 +17,7 @@ import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import { PrismaInstrumentation } from "@prisma/instrumentation";
+import { IncomingMessage } from "node:http";
 
 const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 const serviceName = process.env.OTEL_SERVICE_NAME ?? "anvilops";
@@ -42,8 +44,10 @@ if (endpoint) {
       getNodeAutoInstrumentations({
         "@opentelemetry/instrumentation-http": {
           requestHook: (span, request) => {
-            // Used in src/lib/api.ts to override spans' names when openapi-backend handles routing for a request
-            request["_otel_root_span"] = span;
+            if (request instanceof IncomingMessage) {
+              // Used in src/lib/api.ts to override spans' names when openapi-backend handles routing for a request
+              request._otel_root_span = span;
+            }
           },
         },
       }),

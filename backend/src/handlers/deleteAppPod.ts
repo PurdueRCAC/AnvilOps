@@ -1,6 +1,6 @@
 import { AppNotFoundError } from "../service/common/errors.ts";
 import { deleteAppPod } from "../service/deleteAppPod.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const deleteAppPodHandler: HandlerMap["deleteAppPod"] = async (
@@ -20,5 +20,5 @@ export const deleteAppPodHandler: HandlerMap["deleteAppPod"] = async (
     }
     throw e;
   }
-  return json(204, res, {});
+  return empty(204, res);
 };

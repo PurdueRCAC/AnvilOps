@@ -265,6 +265,7 @@ model HelmConfig {
   url                String
   version            String
   urlType            HelmUrlType
+  ///[HelmValues]
   values             Json?
 }
 

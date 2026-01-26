@@ -1,6 +1,8 @@
 import { V1Pod } from "@kubernetes/client-node";
 import { randomBytes } from "node:crypto";
 import type { App, Deployment, HelmConfig } from "../db/models.ts";
+import { logger } from "../index.ts";
+import { ValidationError } from "../service/common/errors.ts";
 import {
   ensureNamespace,
   getClientForClusterUsername,
@@ -17,7 +19,7 @@ type Chart = {
   version: string;
   description?: string;
   note?: string;
-  values: Record<string, any>;
+  values: PrismaJson.HelmValues;
 };
 
 type ChartTagList = {
@@ -26,18 +28,25 @@ type ChartTagList = {
 };
 
 export const getChartToken = async () => {
-  return fetch(
+  return await fetch(
     `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
   )
     .then((res) => {
       if (!res.ok) {
-        console.error(res);
+        logger.error(
+          { status: res.status },
+          "Failed to get Helm chart pull token",
+        );
         throw new Error(res.statusText);
       }
       return res;
     })
     .then((res) => res.text())
-    .then((res) => JSON.parse(res))
+    .then(
+      (res) =>
+        // https://distribution.github.io/distribution/spec/auth/jwt/#getting-a-bearer-token
+        JSON.parse(res) as { token: string },
+    )
     .then((res) => {
       return res.token;
     });
@@ -48,7 +57,7 @@ const getChart = async (
   version: string,
   token: string,
 ): Promise<Chart> => {
-  return fetch(
+  const res = await fetch(
     `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
     {
       headers: {
@@ -56,29 +65,31 @@ const getChart = async (
         Accept: "application/vnd.oci.image.manifest.v1+json",
       },
     },
-  )
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(res.statusText);
-      }
-      return res;
-    })
-    .then((res) => res.text())
-    .then((res) => JSON.parse(res))
-    .then((res) => {
-      const annotations = res.annotations;
-      if ("anvilops-values" in annotations) {
-        return {
-          name: annotations["org.opencontainers.image.title"],
-          version: annotations["org.opencontainers.image.version"],
-          description: annotations["org.opencontainers.image.description"],
-          note: annotations["anvilops-note"],
-          values: JSON.parse(annotations["anvilops-values"]),
-        };
-      } else {
-        return null;
-      }
-    });
+  );
+  if (!res.ok) {
+    throw new Error(res.statusText);
+  }
+  const json = (await res.json()) as { annotations: Record<string, string> };
+  const annotations = json.annotations;
+  if ("anvilops-values" in annotations) {
+    const values = JSON.parse(annotations["anvilops-values"]) as unknown;
+    if (typeof values !== "object") {
+      logger.warn(
+        { valuesType: typeof values },
+        "Invalid anvilops-values annotation on Helm chart: values was not an object",
+      );
+      return null;
+    }
+    return {
+      name: annotations["org.opencontainers.image.title"],
+      version: annotations["org.opencontainers.image.version"],
+      description: annotations["org.opencontainers.image.description"],
+      note: annotations["anvilops-note"],
+      values: values as Record<string, unknown>,
+    };
+  } else {
+    return null;
+  }
 };
 
 export const getLatestChart = async (
@@ -126,9 +137,9 @@ export const upgrade = async (
     try {
       await ensureNamespace(api, namespace);
     } catch (err) {
-      throw new Error(
-        `Failed to create namespace ${namespaceName}: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      throw new Error(`Failed to create namespace ${namespaceName}`, {
+        cause: err,
+      });
     }
   }
 
@@ -151,6 +162,10 @@ export const upgrade = async (
     case "oci": {
       args.push(release, "--version", version, url);
       break;
+    }
+
+    default: {
+      throw new ValidationError("Unknown Helm installation URL type");
     }
   }
 
@@ -261,7 +276,7 @@ export const upgrade = async (
       },
     });
   } catch (e) {
-    console.error(e);
+    logger.error(e, "Failed to create Helm deployment job");
     throw e;
   }
 };

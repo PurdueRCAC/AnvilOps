@@ -104,6 +104,7 @@ git push -u origin main`,
 
 async function awaitJobCompletion(jobName: string) {
   for (let i = 0; i < 120; i++) {
+    // eslint-disable-next-line no-await-in-loop
     const result = await svcK8s["BatchV1Api"].readNamespacedJobStatus({
       namespace: env.CURRENT_NAMESPACE,
       name: jobName,
@@ -121,6 +122,7 @@ async function awaitJobCompletion(jobName: string) {
       );
       throw new Error("Job failed");
     }
+    // eslint-disable-next-line no-await-in-loop
     await setTimeout(500);
   }
   return false;

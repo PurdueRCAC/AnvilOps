@@ -115,7 +115,7 @@ export const generateVolumeName = (mountPath: string) => {
 export const createStatefulSetConfig = async (
   params: DeploymentParams,
 ): Promise<V1StatefulSet & K8sObject> => {
-  let base: V1StatefulSet & K8sObject = {
+  const base: V1StatefulSet & K8sObject = {
     apiVersion: "apps/v1",
     kind: "StatefulSet",
     metadata: {

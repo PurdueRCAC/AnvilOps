@@ -50,10 +50,10 @@ export default function LandingView() {
 
   return (
     <>
-      <div className="mx-auto max-w-4xl my-10">
-        <h1 className="text-4xl font-bold mb-4 mt-16">
+      <div className="mx-auto my-10 max-w-4xl">
+        <h1 className="mt-16 mb-4 text-4xl font-bold">
           Deploy your app in{" "}
-          <span className="underline decoration-[4px] decoration-gold">
+          <span className="decoration-gold underline decoration-[4px]">
             seconds
           </span>
           .
@@ -63,31 +63,31 @@ export default function LandingView() {
           {settings.clusterName ?? "a Kubernetes cluster"} without writing
           Kubernetes manifests.
         </p>
-        <Link to="/create-app" className="inline-block mt-8">
+        <Link to="/create-app" className="mt-8 inline-block">
           <Button>Deploy Now</Button>
         </Link>
 
-        <h2 className="text-4xl font-bold mb-4 mt-16 flex gap-2">
+        <h2 className="mt-16 mb-4 flex gap-2 text-4xl font-bold">
           <GitPullRequestArrow size={38} />
           Seamless Git Integration
         </h2>
         <p className="mb-8">
           AnvilOps continuously keeps your deployment in sync with your Git
           repository. <br />
-          Here's how it works:
+          Here&apos;s how it works:
         </p>
         <div className="relative flex flex-col gap-12">
-          <div className="absolute start-[calc(1rem-1px)] bg-gold -z-50 inset-y-0 w-0.5 my-6" />
-          <div className="flex gap-4 items-center">
-            <div className="size-8 rounded-full bg-gold flex items-center justify-center">
+          <div className="bg-gold absolute inset-y-0 start-[calc(1rem-1px)] -z-50 my-6 w-0.5" />
+          <div className="flex items-center gap-4">
+            <div className="bg-gold flex size-8 items-center justify-center rounded-full">
               1
             </div>
             <p>
               <GitCommit size={32} /> You push a commit to your Git repository
             </p>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="size-8 rounded-full bg-gold flex items-center justify-center">
+          <div className="flex items-center gap-4">
+            <div className="bg-gold flex size-8 items-center justify-center rounded-full">
               2
             </div>
             <p>
@@ -95,8 +95,8 @@ export default function LandingView() {
               code
             </p>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="size-8 rounded-full bg-gold flex items-center justify-center">
+          <div className="flex items-center gap-4">
+            <div className="bg-gold flex size-8 items-center justify-center rounded-full">
               3
             </div>
             <p>
@@ -106,14 +106,14 @@ export default function LandingView() {
           </div>
         </div>
 
-        <h2 className="text-4xl font-bold mb-4 mt-16 flex gap-2">
+        <h2 className="mt-16 mb-4 flex gap-2 text-4xl font-bold">
           <LifeBuoy size={38} />
           Kubernetes is hard. Let us handle it for you.
         </h2>
-        <div className="grid grid-cols-2 max-w-4xl gap-4">
-          <div className="rounded-md bg-stone-50 border border-input p-4">
+        <div className="grid max-w-4xl grid-cols-2 gap-4">
+          <div className="border-input rounded-md border bg-stone-50 p-4">
             <h3 className="text-lg font-bold">Without AnvilOps</h3>
-            <ol className="list-decimal pl-4 space-y-1 mt-2">
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
               <li>Install Docker and kubectl</li>
               <li>Create a Dockerfile</li>
               <li>Build and tag the Docker image</li>
@@ -123,18 +123,18 @@ export default function LandingView() {
               <li>Apply configurations to your cluster</li>
             </ol>
           </div>
-          <div className="rounded-md bg-stone-50 border border-input p-4">
+          <div className="border-input rounded-md border bg-stone-50 p-4">
             <h3 className="text-lg font-bold">With AnvilOps</h3>
-            <ol className="list-decimal pl-4 space-y-1 mt-2">
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
               <li>Sign in to AnvilOps</li>
               <li>Connect your GitHub organization</li>
               <li>Fill in a few details about your app</li>
-              <li>That's it! 🥳</li>
+              <li>That&apos;s it! 🥳</li>
             </ol>
           </div>
         </div>
 
-        <h2 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
+        <h2 className="mt-16 mb-4 flex gap-2 text-4xl font-bold">
           <History size={38} />
           Monitor and roll back your deployments
         </h2>
@@ -142,7 +142,7 @@ export default function LandingView() {
           Each push to the selected branch creates a new deployment on the
           cluster.
         </p>
-        <div className="space-y-2 mt-2">
+        <div className="mt-2 space-y-2">
           <p className="flex gap-1">
             <LayoutDashboard />
             <span className="font-bold">Rapid status updates.</span> View log
@@ -159,17 +159,17 @@ export default function LandingView() {
             configuration with replicas, autoscaling, storage, and more.
           </p>
         </div>
-        <h1 className="text-4xl font-bold flex gap-2 mb-4 mt-16">
-          <GitHubIcon className="w-8 inline" /> Bring your repository as-is
+        <h1 className="mt-16 mb-4 flex gap-2 text-4xl font-bold">
+          <GitHubIcon className="inline w-8" /> Bring your repository as-is
         </h1>
         <p className="flex gap-1">
           <Container size={24} /> Railpack analyzes your repository to build a
           container image— no need for a Dockerfile!
         </p>
-        <p className="font-bold text-black-3">
+        <p className="text-black-3 font-bold">
           Supported languages and frameworks:
         </p>
-        <div className="py-3 flex gap-5 flex-wrap">
+        <div className="flex flex-wrap gap-5 py-3">
           <a rel="nofollow" href="https://nodejs.org/">
             <FaNodeJs size={56} className="text-black-4 hover:text-gold-4" />
           </a>
@@ -263,14 +263,14 @@ export default function LandingView() {
             <SiCplusplus size={56} className="text-black-4 hover:text-gold-4" />
           </p>
         </div>
-        <h1 className="text-4xl font-bold mb-4 mt-16">FAQs</h1>
+        <h1 className="mt-16 mb-4 text-4xl font-bold">FAQs</h1>
         <Accordion type="single" collapsible>
           {settings.faq?.question && settings.faq?.answer && (
             <AccordionItem value="q1">
-              <AccordionTrigger className="font-bold text-lg">
+              <AccordionTrigger className="text-lg font-bold">
                 {settings.faq.question}
               </AccordionTrigger>
-              <AccordionContent className="text-pretty p-4 text-base">
+              <AccordionContent className="p-4 text-base text-pretty">
                 {settings.faq.answer}
                 {settings.faq?.link && (
                   <p>
@@ -290,10 +290,10 @@ export default function LandingView() {
           )}
 
           <AccordionItem value="q2">
-            <AccordionTrigger className="font-bold text-lg">
+            <AccordionTrigger className="text-lg font-bold">
               What languages and frameworks are supported?
             </AccordionTrigger>
-            <AccordionContent className="text-pretty p-4 text-base">
+            <AccordionContent className="p-4 text-base text-pretty">
               Any application with a Dockerfile is supported. We also support
               zero-configuration deployments from every language and framework
               that{" "}
@@ -308,7 +308,7 @@ export default function LandingView() {
           </AccordionItem>
         </Accordion>
       </div>
-      <div className="h-10 w-full bg-black text-white text-sm text-center flex justify-center items-center">
+      <div className="flex h-10 w-full items-center justify-center bg-black text-center text-sm text-white">
         {settings?.version ? <>AnvilOps {settings.version} &middot; </> : null}
         Made with 💛 by the AnvilOps Team
       </div>

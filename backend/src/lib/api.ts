@@ -1,4 +1,4 @@
-import { trace, type Span } from "@opentelemetry/api";
+import { trace } from "@opentelemetry/api";
 import addFormats from "ajv-formats";
 import {
   type Request as ExpressRequest,
@@ -20,15 +20,15 @@ const api = new OpenAPIBackend({
   handlers: {
     ...handlers,
 
-    methodNotAllowed: (ctxt, req, res) => {
+    methodNotAllowed: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(405).json({ code: 405, message: "Method not allowed" });
     },
 
-    notFound: (ctxt, req, res) => {
+    notFound: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(404).json({ code: 404, message: "No such method" });
     },
 
-    validationFail: (ctx, req, res) => {
+    validationFail: (ctx, req: ExpressRequest, res: ExpressResponse) => {
       return res.status(400).json({
         code: 400,
         message: "Request validation failed",
@@ -36,13 +36,13 @@ const api = new OpenAPIBackend({
       });
     },
 
-    preOperationHandler: (ctx, req, res) => {
+    preOperationHandler: (ctx, req: ExpressRequest) => {
       const span = trace.getActiveSpan();
       if (span) {
         span.setAttribute("http.operation.id", ctx?.operation?.operationId);
         span.setAttribute("http.route", ctx?.operation?.path);
       }
-      const rootSpan = req["_otel_root_span"] as Span; // This property is set in src/instrumentation.ts when a request is received
+      const rootSpan = req._otel_root_span; // This property is set in src/instrumentation.ts when a request is received
       if (rootSpan) {
         const spanEnd = rootSpan.end.bind(rootSpan);
         rootSpan.end = (input) => {
@@ -78,7 +78,7 @@ const api = new OpenAPIBackend({
   },
 });
 
-api.init();
+await api.init();
 
 export default async function handler(
   req: ExpressRequest,

@@ -11,13 +11,13 @@ export async function acceptInvitation(
   try {
     await db.invitation.accept(invitationId, orgId, inviteeId);
     logger.info({ invitationId, orgId, inviteeId }, "Invitation accepted");
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof NotFoundError) {
       throw new InvitationNotFoundError(e);
     }
 
     const span = trace.getActiveSpan();
-    span?.recordException(e);
+    span?.recordException(e as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
 
     throw e;

@@ -52,7 +52,7 @@ AnvilOps is not designed for public use. Access to AnvilOps should only be share
 #### Applications
 
 - End users' applications are deployed in separate namespaces.
-- ~~By default, [network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) are created that prevent applications from communicating with other pods in the cluster. AnvilOps apps must be allowed to cross-communicate by placing them in the same App Group.~~ (WIP)
+- When enabled, [network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) are created that prevent other pods in the cluster from connecting to AnvilOps applications. AnvilOps apps can be allowed to cross-communicate by placing them in the same App Group.
 - For stronger isolation, consider using something like [Kata Containers](https://katacontainers.io/), which places containers into separate microVMs.
 
 #### Secrets

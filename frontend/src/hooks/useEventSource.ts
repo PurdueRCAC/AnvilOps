@@ -29,7 +29,7 @@ export const useEventSource = <T extends string>(
     };
 
     for (const eventName of eventNames) {
-      eventSource.addEventListener(eventName, (event: MessageEvent<any>) =>
+      eventSource.addEventListener(eventName, (event: MessageEvent) =>
         onMessage(eventName, event),
       );
     }

@@ -55,7 +55,7 @@ export const SubdomainDiff = ({
           </Label>
           {createIngress && (
             <span
-              className="text-red-500 h-fit cursor-default"
+              className="h-fit cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -64,7 +64,6 @@ export const SubdomainDiff = ({
         </div>
       </div>
       <SubdomainDiffInput
-        id="subdomain"
         disabled={disabled || !createIngress}
         required={createIngress}
         left={baseWorkloadState?.subdomain ?? undefined}
@@ -88,14 +87,12 @@ const SubdomainDiffInput = ({
   required,
   disabled,
   leftPlaceholder = "(N/A)",
-  id,
   ...inputProps
 }: ComponentProps<typeof Input> & {
   left: string | undefined;
   right: string | undefined;
   setRight: (value: string) => void;
   leftPlaceholder?: string;
-  id: string;
 }) => {
   const appConfig = useAppConfig();
   const appDomain = URL.parse(appConfig?.appDomain ?? "");
@@ -103,7 +100,7 @@ const SubdomainDiffInput = ({
     !!right &&
     right !== left &&
     (right.length > MAX_SUBDOMAIN_LENGTH ||
-      right.match(/^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/) === null);
+      right.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const debouncedSub = useDebouncedValue(right);
   const enableSubdomainCheck =
@@ -124,11 +121,12 @@ const SubdomainDiffInput = ({
 
   const isDifferent = (!!left || !!right) && (left ?? "") !== (right ?? "");
   return (
-    <div className="grid grid-cols-[1fr_4rem_1fr] w-full gap-4 items-center justify-items-center">
+    <div className="grid w-full grid-cols-[1fr_4rem_1fr] place-items-center gap-4">
       {left ? (
-        <div className="flex relative items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <span className="absolute left-2 text-sm opacity-50">
-            {appDomain?.protocol}//
+            {appDomain?.protocol}
+            {"//"}
           </span>
           <Input
             {...inputProps}
@@ -136,7 +134,7 @@ const SubdomainDiffInput = ({
             placeholder={leftPlaceholder}
             disabled
             required={false}
-            className={cn("w-full pl-14 pr-45", isDifferent && "bg-red-50")}
+            className={cn("w-full pr-45 pl-14", isDifferent && "bg-red-50")}
           />
           <span className="absolute right-2 text-sm opacity-50">
             .{appDomain?.host}
@@ -148,20 +146,21 @@ const SubdomainDiffInput = ({
           placeholder={leftPlaceholder}
           disabled
           required={false}
-          className={cn("w-full pl-14 pr-45", isDifferent && "bg-red-50")}
+          className={cn("w-full pr-45 pl-14", isDifferent && "bg-red-50")}
         />
       )}
       <MoveRight />
-      <div className="flex relative items-center gap-2 w-full">
+      <div className="relative flex w-full items-center gap-2">
         <span className="absolute left-2 text-sm opacity-50">
-          {appDomain?.protocol}//
+          {appDomain?.protocol}
+          {"//"}
         </span>
         <Input
           {...inputProps}
           value={!disabled ? (right ?? "") : "(N/A)"}
           disabled={disabled}
           required={required}
-          className={cn("w-full pl-14 pr-45", isDifferent && "bg-green-50")}
+          className={cn("w-full pr-45 pl-14", isDifferent && "bg-green-50")}
           onChange={(e) => {
             const subdomain = e.currentTarget.value
               .toLowerCase()
@@ -175,7 +174,7 @@ const SubdomainDiffInput = ({
       </div>
       <div className="col-start-3 text-left">
         {showSubdomainError && (
-          <div className="text-sm flex gap-5">
+          <div className="flex gap-5 text-sm">
             <X className="text-red-500" />
             <ul className="text-black-3 list-disc">
               <li>A subdomain must have 54 or fewer characters.</li>
@@ -194,7 +193,7 @@ const SubdomainDiffInput = ({
           right !== left &&
           (right !== debouncedSub || subLoading ? (
             <span className="text-sm">
-              <Loader className="animate-spin inline" /> Checking subdomain...
+              <Loader className="inline animate-spin" /> Checking subdomain...
             </span>
           ) : (
             <NameStatus

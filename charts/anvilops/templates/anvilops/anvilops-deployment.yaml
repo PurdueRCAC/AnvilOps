@@ -181,11 +181,6 @@ spec:
                 secretKeyRef:
                   name: postgres-credentials
                   key: field-encryption-key
-            - name: DELETE_REPO_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: image-delete-secret
-                  key: server
             - name: DELETE_REPO_USERNAME
               valueFrom:
                 secretKeyRef:

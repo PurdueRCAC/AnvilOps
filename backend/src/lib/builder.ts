@@ -295,6 +295,7 @@ async function createJobFromDeployment(
         setHeaderOptions("Content-Type", PatchStrategy.MergePatch),
       );
     } catch (e) {
+      logger.error(e, "Failed to update secret to be owned by its builder job");
       try {
         // The secret won't get cleaned up automatically when the build job does.
         // Remove it manually now and throw an error.
@@ -302,7 +303,12 @@ async function createJobFromDeployment(
           name: secretName,
           namespace: env.CURRENT_NAMESPACE,
         });
-      } catch {}
+      } catch (err) {
+        logger.error(
+          err,
+          "Failed to delete secret while handling error updating the secret to be owned by its build job",
+        );
+      }
       throw e;
     }
   }

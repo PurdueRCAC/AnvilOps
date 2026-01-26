@@ -10,6 +10,7 @@ import {
 } from "@kubernetes/client-node";
 import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
+import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { AppNotFoundError } from "./common/errors.ts";
 
@@ -23,7 +24,7 @@ const concurrentViewers = meter.createUpDownCounter(
   },
 );
 
-export type StatusUpdate = {};
+export type StatusUpdate = object;
 
 export async function getAppStatus(
   appId: number,
@@ -67,6 +68,7 @@ export async function getAppStatus(
         ip: pod.status.podIP,
       })),
       events: events.items.map((event) => ({
+        id: event.metadata.uid,
         reason: event.reason,
         message: event.message,
         count: event.count,
@@ -89,9 +91,16 @@ export async function getAppStatus(
 
   const ns = app.namespace;
 
-  const close = (err: any) => {
-    if (!(err instanceof AbortError) && !(err.cause instanceof AbortError)) {
-      console.error("Kubernetes watch failed: ", err);
+  const close = (err: unknown) => {
+    if (
+      !(err instanceof AbortError) &&
+      !(
+        typeof err === "object" &&
+        "cause" in err &&
+        err.cause instanceof AbortError
+      )
+    ) {
+      logger.error(err, "Kubernetes watch failed");
     }
     abortController.abort();
   };
@@ -184,14 +193,14 @@ async function watchList<T extends KubernetesListObject<KubernetesObject>>(
   watch: Watch,
   path: string,
   getInitialValue: () => Promise<T>,
-  queryParams: Record<string, any>,
-  callback: (newValue: T) => void,
-  stop: (err: any) => void,
+  queryParams: Record<string, string | number>,
+  callback: (newValue: T) => Promise<void>,
+  stop: (err: object) => void,
 ) {
   let list: T;
   try {
     list = await getInitialValue();
-    callback(list);
+    await callback(list);
     queryParams["resourceVersion"] = list.metadata.resourceVersion;
   } catch (e) {
     stop(new Error("Failed to fetch initial value for " + path, { cause: e }));
@@ -201,7 +210,7 @@ async function watchList<T extends KubernetesListObject<KubernetesObject>>(
   return await watch.watch(
     path,
     queryParams,
-    (phase, object: KubernetesObject, watch) => {
+    (phase, object: KubernetesObject) => {
       switch (phase) {
         case "ADDED": {
           list.items.push(object);
@@ -231,16 +240,17 @@ async function watchList<T extends KubernetesListObject<KubernetesObject>>(
           }
           break;
         }
+        default: {
+          break;
+        }
       }
-      try {
-        callback(structuredClone(list));
-      } catch (e) {
+      callback(structuredClone(list)).catch((e) => {
         stop(
           new Error("Failed to invoke update callback for " + path, {
             cause: e,
           }),
         );
-      }
+      });
     },
     (err) => stop(new Error("Failed to watch " + path, { cause: err })),
   );

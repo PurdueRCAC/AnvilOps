@@ -58,7 +58,11 @@ export class AppService {
             await this.validateApp(app, user);
             return null;
           } catch (e) {
-            return e.message;
+            if (e instanceof ValidationError) {
+              return e.message;
+            } else {
+              return "Unexpected error while validating input";
+            }
           }
         }),
       )

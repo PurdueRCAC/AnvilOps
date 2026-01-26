@@ -90,7 +90,7 @@ export async function updateDeployment(secret: string, newStatus: string) {
           (newStatus === "DEPLOYING" ? "Success" : "Failure"),
       );
     } catch (e) {
-      console.error("Failed to update check run: ", e);
+      logger.error(e, "Failed to update check run");
     }
   }
 
@@ -119,17 +119,22 @@ export async function updateDeployment(secret: string, newStatus: string) {
         // The update was successful. Update App with the reference to the latest successful config.
         db.app.setConfig(app.id, deployment.configId),
       ]);
-
-      await dequeueBuildJob();
     } catch (err) {
-      console.error(err);
+      logger.error(err, "Failed to apply Kubernetes resources");
       await db.deployment.setStatus(deployment.id, "ERROR");
-      await log(
+
+      log(
         deployment.id,
         "BUILD",
-        `Failed to apply Kubernetes resources: ${JSON.stringify(err?.body ?? err)}`,
+        `Failed to apply Kubernetes resources: ${JSON.stringify(err)}`,
         "stderr",
       );
+    }
+
+    try {
+      await dequeueBuildJob();
+    } catch (e) {
+      logger.error(e, "Failed to dequeue next build job");
     }
   }
 }

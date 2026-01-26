@@ -12,15 +12,15 @@ const variables = {
   /**
    * Set this to any non-null value when AnvilOps is running in a Tilt development environment
    */
-  IN_TILT: { required: false, defaultValue: null },
+  IN_TILT: { required: false, defaultValue: null as string | null },
   /**
    * The current version of AnvilOps; used in the UI
    */
-  ANVILOPS_VERSION: { required: false, defaultValue: null },
+  ANVILOPS_VERSION: { required: false, defaultValue: null as string | null },
   /**
    * The date that this AnvilOps container image was built; used in the UI
    */
-  BUILD_DATE: { required: false, defaultValue: null },
+  BUILD_DATE: { required: false, defaultValue: null as string | null },
   /**
    * The CILogon OAuth client ID
    */
@@ -129,10 +129,6 @@ const variables = {
    * A secret value used by GitHub to sign its webhook requests so that we can verify that webhook payloads aren't being spoofed
    */
   GITHUB_WEBHOOK_SECRET: { required: true },
-  /**
-   * The hostname of a Harbor instance that contains users' app container images, e.g. https://registry.anvil.rcac.purdue.edu. Used to delete old images when an app is deleted.
-   */
-  DELETE_REPO_HOST: { required: true },
   /**
    * The username of a Harbor robot account that can delete image repositories (including the `robot$<project name>+` prefix). Used to delete old images when an app is deleted.
    */
@@ -285,10 +281,10 @@ for (const [key, _params] of Object.entries(variables)) {
     if (params.required === true) {
       notFound.push(key);
     } else if (params.defaultValue !== undefined) {
-      env[key] = params.defaultValue;
+      env[key as keyof typeof variables] = params.defaultValue;
     }
   } else {
-    env[key] = value;
+    env[key as keyof typeof variables] = value;
   }
 }
 

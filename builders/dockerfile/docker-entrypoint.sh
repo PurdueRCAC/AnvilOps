@@ -23,6 +23,8 @@ run_job() {
   DOCKERFILE_DIR=$(dirname "$DOCKERFILE_PATH")
   DOCKERFILE_NAME=$(basename "$DOCKERFILE_PATH")
 
+  read -r -a secrets <<< "$BUILDKIT_SECRET_DEFS"
+
   build() {
     buildctl \
     --addr="$BUILDKITD_ADDRESS" \
@@ -33,7 +35,7 @@ run_job() {
     --frontend dockerfile.v0 \
     --local context=. \
     --local dockerfile="$DOCKERFILE_DIR" \
-    $BUILDKIT_SECRET_DEFS \
+    "${secrets[@]}" \
     --opt "build-arg:anvilops-secrets-checksum=$SECRET_CHECKSUM" \
     --opt filename="./$DOCKERFILE_NAME" \
     --import-cache type=registry,ref="$CACHE_TAG" \

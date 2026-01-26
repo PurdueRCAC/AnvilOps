@@ -13,7 +13,7 @@ type ErrorCode =
 export default function ErrorView() {
   const [search] = useSearchParams();
   return (
-    <main className="flex flex-col items-center justify-center min-h-[80vh] space-y-2">
+    <main className="flex min-h-[80vh] flex-col items-center justify-center space-y-2">
       <h1 className="text-black-4 text-4xl font-bold">
         {(() => {
           switch (search.get("type") as ErrorType | null) {

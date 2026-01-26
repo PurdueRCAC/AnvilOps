@@ -1,6 +1,6 @@
 import { AppNotFoundError, ValidationError } from "../service/common/errors.ts";
 import { listDeployments } from "../service/listDeployments.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const listDeploymentsHandler: HandlerMap["listDeployments"] = async (
@@ -20,7 +20,7 @@ export const listDeploymentsHandler: HandlerMap["listDeployments"] = async (
     return json(200, res, deployments);
   } catch (e) {
     if (e instanceof AppNotFoundError) {
-      return json(404, res, {});
+      return empty(404, res);
     } else if (e instanceof ValidationError) {
       return json(400, res, { code: 400, message: e.message });
     }

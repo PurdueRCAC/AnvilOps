@@ -1,6 +1,8 @@
 import { db } from "../../db/index.ts";
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
   type InstallationNotFoundError,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
   type RepositoryNotFoundError,
 } from "../../service/common/errors.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";

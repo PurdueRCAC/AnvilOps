@@ -58,7 +58,7 @@ build_and_push() {
     -t "$IMAGE_TAG" \
     --cache-from="type=registry,ref=$CACHE_TAG" \
     --cache-to="type=registry,ref=$CACHE_TAG,mode=max" \
-    --build-arg BUILD_DATE=$(date -uIseconds) \
+    --build-arg BUILD_DATE="$(date -uIseconds)" \
     "$BUILD_CONTEXT"
 
   IMAGE_ID=$(cat "$IIDFILE") # looks like "sha256:32975dcafd44d8c6f921d2276e2a39f42f268e8c9584d6c4d4c88f5a073b7b1d"
@@ -66,7 +66,7 @@ build_and_push() {
 
   IMAGE_REF="$IMAGE_TAG@$IMAGE_ID"
   echo "Built image: $IMAGE_REF"
-  echo "- \`$IMAGE_REF\`" >> $NOTES_FILE
+  echo "- \`$IMAGE_REF\`" >> "$NOTES_FILE"
 
   set_value "$VALUES_FILE" "$CHART_KEY" "$IMAGE_REF"
 }
@@ -94,10 +94,10 @@ copy_image() {
 
   IMAGE_REF="$DEST@$IMAGE_ID"
   set_value "$VALUES_FILE" "$KEY" "$IMAGE_REF"
-  echo "- \`$IMAGE_REF\`" >> $NOTES_FILE
+  echo "- \`$IMAGE_REF\`" >> "$NOTES_FILE"
 }
 
-RAILPACK_VERSION=$(cat "$PROJECT_ROOT/builders/railpack/Dockerfile" | grep "RAILPACK_VERSION=" | cut -d= -f 2)
+RAILPACK_VERSION=$(grep "RAILPACK_VERSION=" "$PROJECT_ROOT/builders/railpack/Dockerfile" | cut -d= -f 2)
 RAILPACK_RELEASE_SHA=$(gh api "repos/railwayapp/railpack/commits/v$RAILPACK_VERSION" --jq '.sha')
 
 get_railpack_image_tag() {
@@ -122,7 +122,7 @@ get_railpack_image_tag() {
 }
 
 build_images() {
-  echo "### Container Images" >> $NOTES_FILE
+  echo "### Container Images" >> "$NOTES_FILE"
 
   build_and_push "Dockerfile" "" ".anvilops.image" "$REGISTRY_BASE/anvilops"
   build_and_push "backend/prisma/Dockerfile" "backend" ".anvilops.dbMigrateImage" "$REGISTRY_BASE/migrate-db"
@@ -151,12 +151,12 @@ publish_chart() {
   CHART_PACKAGE_DIR=$(mktemp -d)
 
   helm package --destination "$CHART_PACKAGE_DIR" "$CHART_DIR"
-  CHART_PACKAGE_FILE="$CHART_PACKAGE_DIR/$(ls $CHART_PACKAGE_DIR)"
+  CHART_PACKAGE_FILE="$CHART_PACKAGE_DIR/$(ls "$CHART_PACKAGE_DIR")"
 
   helm push "$CHART_PACKAGE_FILE" "$HELM_ARTIFACT_TAG"
   rm -rf "$CHART_PACKAGE_DIR"
 
-  cat << EOF >> $NOTES_FILE
+  cat << EOF >> "$NOTES_FILE"
 
 ### Install with Helm
 \`\`\`sh

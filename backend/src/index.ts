@@ -1,4 +1,4 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { SpanStatusCode, trace, type Exception } from "@opentelemetry/api";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import express, { type ErrorRequestHandler } from "express";
@@ -130,7 +130,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
   const span = trace.getActiveSpan();
   if (span) {
-    span.recordException(err);
+    span.recordException(err as Exception);
     span.setStatus({ code: SpanStatusCode.ERROR });
   }
 

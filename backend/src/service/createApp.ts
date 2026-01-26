@@ -33,7 +33,7 @@ export async function createApp(appData: NewApp, userId: number) {
 
   let app: App;
 
-  let { config, commitMessage } = (
+  const { config, commitMessage } = (
     await appService.prepareMetadataForApps(organization, user, {
       type: "create",
       ...appData,
@@ -59,10 +59,11 @@ export async function createApp(appData: NewApp, userId: number) {
         appData.appGroup.name,
         false,
       );
+      break;
     }
 
     case "standalone": {
-      let groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+      const groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
       appService.validateAppGroupName(groupName);
       appGroupId = await db.appGroup.create(appData.orgId, groupName, true);
       break;
@@ -72,6 +73,8 @@ export async function createApp(appData: NewApp, userId: number) {
       appData.appGroup satisfies never; // Make sure switch is exhaustive
     }
   }
+
+  let deploymentConfig = config;
 
   try {
     app = await db.app.create({
@@ -85,7 +88,10 @@ export async function createApp(appData: NewApp, userId: number) {
 
     logger.info({ orgId: appData.orgId, appId: app.id }, "App created");
 
-    config = deploymentConfigService.populateImageTag(config, app);
+    deploymentConfig = deploymentConfigService.populateImageTag(
+      deploymentConfig,
+      app,
+    );
   } catch (err) {
     // In between validation and creating the app, the namespace was taken by another app
     if (err instanceof ConflictError && err.message === "namespace") {
@@ -99,13 +105,13 @@ export async function createApp(appData: NewApp, userId: number) {
       org: organization,
       app,
       commitMessage,
-      config,
+      config: deploymentConfig,
     });
   } catch (err) {
     const span = trace.getActiveSpan();
-    span?.recordException(err);
+    span?.recordException(err as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
-    throw new DeploymentError(err);
+    throw new DeploymentError(err as Error);
   }
   return app.id;
 }

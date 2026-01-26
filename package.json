@@ -2,7 +2,8 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
-    "prettier": "3.5.3"
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.7.2"
   },
   "scripts": {
     "prepare": "husky"

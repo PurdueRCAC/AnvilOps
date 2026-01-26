@@ -4,7 +4,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { ingestLogs } from "../service/ingestLogs.ts";
-import { json, type HandlerMap } from "../types.ts";
+import { empty, json, type HandlerMap } from "../types.ts";
 
 export const ingestLogsHandler: HandlerMap["ingestLogs"] = async (
   ctx,
@@ -32,11 +32,11 @@ export const ingestLogsHandler: HandlerMap["ingestLogs"] = async (
       logType,
       ctx.request.requestBody.lines,
     );
-    return json(200, res, {});
+    return empty(200, res);
   } catch (e) {
     if (e instanceof DeploymentNotFoundError) {
       // No deployment matches the ID and secret
-      return json(403, res, {});
+      return empty(403, res);
     } else if (e instanceof ValidationError) {
       // This request is invalid
       return json(400, res, { code: 400, message: "Invalid log type" });

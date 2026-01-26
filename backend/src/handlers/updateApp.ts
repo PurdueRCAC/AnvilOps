@@ -4,7 +4,7 @@ import {
   ValidationError,
 } from "../service/common/errors.ts";
 import { updateApp } from "../service/updateApp.ts";
-import { type HandlerMap, json } from "../types.ts";
+import { empty, type HandlerMap, json } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
 export const updateAppHandler: HandlerMap["updateApp"] = async (
@@ -15,7 +15,7 @@ export const updateAppHandler: HandlerMap["updateApp"] = async (
   const appData = ctx.request.requestBody;
   try {
     await updateApp(ctx.request.params.appId, req.user.id, appData);
-    return json(200, res, {});
+    return empty(200, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found" });

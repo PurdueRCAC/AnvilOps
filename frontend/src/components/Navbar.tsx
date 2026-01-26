@@ -17,17 +17,17 @@ export default function Navbar() {
 
   const settings = useAppConfig();
   return (
-    <div className="sticky top-0 left-0 w-full flex justify-between items-center px-8 py-2 bg-gold sm:purdue-gradient border-b gap-4 backdrop-blur-xl h-16 z-50">
+    <div className="bg-gold sm:purdue-gradient sticky top-0 left-0 z-50 flex h-16 w-full items-center justify-between gap-4 border-b px-8 py-2 backdrop-blur-xl">
       <div className="flex items-end justify-center space-x-4">
         <Link
           to={user ? "/dashboard" : "/"}
-          className="text-xl font-bold flex items-center gap-2"
+          className="flex items-center gap-2 text-xl font-bold"
         >
-          <img src={logo} className="h-10" />
+          <img src={logo} alt="AnvilOps logo" className="h-10" />
         </Link>
         <p className="text-3xl italic">{settings.clusterName}</p>
       </div>
-      <div className="flex gap-8 justify-end items-center">
+      <div className="flex items-center justify-end gap-8">
         {user && (
           <Link to="/" className="sm:text-white">
             Home
@@ -37,6 +37,7 @@ export default function Navbar() {
           href="https://docs.anvilcloud.rcac.purdue.edu"
           className="sm:text-white"
           target="_blank"
+          rel="noreferrer"
         >
           Docs
         </a>
@@ -57,7 +58,7 @@ export default function Navbar() {
                 <img
                   src={defaultPfp}
                   alt="My Account Options"
-                  className="w-12 h-12 rounded-full bg-white"
+                  className="size-12 rounded-full bg-white"
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent>

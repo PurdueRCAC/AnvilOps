@@ -5,7 +5,9 @@
     "erasableSyntaxOnly": true,
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "strict": true,
+    "strictNullChecks": false // TODO enable
   },
   "exclude": ["node_modules"]
 }

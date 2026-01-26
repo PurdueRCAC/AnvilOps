@@ -134,7 +134,7 @@ const createGitDeploymentOptions = (
 ): components["schemas"]["GitDeploymentOptions"] => {
   return {
     source: "git",
-    repositoryId: gitFields.repositoryId!,
+    repositoryId: gitFields.repositoryId,
     branch: gitFields.branch,
     rootDir: gitFields.rootDir,
     ...(gitFields.event === "push"

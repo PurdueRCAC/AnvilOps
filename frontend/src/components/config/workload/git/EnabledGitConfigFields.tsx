@@ -111,7 +111,7 @@ export const EnabledGitConfigFields = ({
     if (!branch) {
       setGitState({ branch: branches?.default ?? branches?.branches?.[0] });
     }
-  }, [branches]);
+  }, [branches, branch, gitState]);
 
   const [importDialogShown, setImportDialogShown] = useState(false);
   return (
@@ -140,7 +140,7 @@ export const EnabledGitConfigFields = ({
             Repository
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -163,7 +163,7 @@ export const EnabledGitConfigFields = ({
           }}
           value={repositoryId?.toString() ?? ""}
         >
-          <SelectTrigger className="w-full peer" id="selectRepo">
+          <SelectTrigger className="peer w-full" id="selectRepo">
             <SelectValue
               placeholder={
                 reposLoading && orgId !== undefined
@@ -211,7 +211,7 @@ export const EnabledGitConfigFields = ({
             Branch
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -256,7 +256,7 @@ export const EnabledGitConfigFields = ({
             Event
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -299,7 +299,7 @@ export const EnabledGitConfigFields = ({
               Workflow
             </Label>
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -346,14 +346,14 @@ export const EnabledGitConfigFields = ({
           </Select>
         </div>
       )}
-      <h3 className="mt-4 font-bold pb-1 border-b">Build Options</h3>
+      <h3 className="mt-4 border-b pb-1 font-bold">Build Options</h3>
       <div>
         <div className="flex items-baseline gap-2">
-          <Label htmlFor="rootDir" className="pb-1 mb-2">
+          <Label htmlFor="rootDir" className="mb-2 pb-1">
             <FolderRoot className="inline" size={16} /> Root directory
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -369,12 +369,12 @@ export const EnabledGitConfigFields = ({
           name="rootDir"
           id="rootDir"
           placeholder="./"
-          className="w-full mb-1"
+          className="mb-1 w-full"
           pattern="^\.\/.*$"
           autoComplete="off"
           required
         />
-        <p className="opacity-50 text-xs">
+        <p className="text-xs opacity-50">
           Must start with <code>./</code>
         </p>
       </div>
@@ -384,7 +384,7 @@ export const EnabledGitConfigFields = ({
             <Hammer className="inline" size={16} /> Builder
           </Label>
           <span
-            className="text-red-500 cursor-default"
+            className="cursor-default text-red-500"
             title="This field is required."
           >
             *
@@ -402,21 +402,21 @@ export const EnabledGitConfigFields = ({
         >
           <Label
             htmlFor="builder-dockerfile"
-            className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+            className="border-input focus-within:border-ring focus-within:ring-ring/50 flex items-center gap-2 rounded-lg border p-4 transition-colors outline-none focus-within:ring-[3px] hover:bg-gray-50 has-checked:bg-gray-50"
           >
             <RadioGroupItem value="dockerfile" id="builder-dockerfile" />
             Dockerfile
-            <p className="opacity-50 font-normal">
+            <p className="font-normal opacity-50">
               Builds your app using your Dockerfile.
             </p>
           </Label>
           <Label
             htmlFor="builder-railpack"
-            className="flex items-center gap-2 border border-input rounded-lg p-4 has-checked:bg-gray-50 hover:bg-gray-50 focus-within:border-ring focus-within:ring-ring/50 outline-none focus-within:ring-[3px] transition-colors"
+            className="border-input focus-within:border-ring focus-within:ring-ring/50 flex items-center gap-2 rounded-lg border p-4 transition-colors outline-none focus-within:ring-[3px] hover:bg-gray-50 has-checked:bg-gray-50"
           >
             <RadioGroupItem value="railpack" id="builder-railpack" />
             Railpack
-            <p className="opacity-50 font-normal">
+            <p className="font-normal opacity-50">
               Detects your project structure and builds your app automatically.
             </p>
           </Label>
@@ -424,10 +424,10 @@ export const EnabledGitConfigFields = ({
       </div>
       {builder === "dockerfile" ? (
         <div>
-          <Label className="pb-1 mb-2" htmlFor="dockerfilePath">
+          <Label className="mb-2 pb-1" htmlFor="dockerfilePath">
             <Container className="inline" size={16} /> Dockerfile Path
             <span
-              className="text-red-500 cursor-default"
+              className="cursor-default text-red-500"
               title="This field is required."
             >
               *
@@ -447,7 +447,7 @@ export const EnabledGitConfigFields = ({
             autoComplete="off"
             required
           />
-          <p className="opacity-50 text-xs mb-2 mt-1">
+          <p className="mt-1 mb-2 text-xs opacity-50">
             Relative to the root directory.
           </p>
         </div>

@@ -23,7 +23,14 @@ import {
 import type { CommonFormFields } from "@/lib/form.types";
 import { cn, isWorkloadConfig } from "@/lib/utils";
 import { Container, GitCommit, Loader, Rocket } from "lucide-react";
-import { useContext, useEffect, useRef, useState, type Dispatch } from "react";
+import {
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type Dispatch,
+} from "react";
 import { AppConfigDiff } from "../../../components/diff/AppConfigDiff";
 import type { App } from "../AppView";
 
@@ -37,7 +44,7 @@ const getDefaultRedeployState = () => ({
 
 export const RedeployModal = ({
   isOpen,
-  setOpen,
+  setOpen: _setOpen,
   app,
   deploymentId,
   onSubmitted,
@@ -71,7 +78,7 @@ export const RedeployModal = ({
     api.useQuery(
       "get",
       "/app/{appId}/deployments/{deploymentId}",
-      { params: { path: { appId: app.id, deploymentId: deploymentId! } } },
+      { params: { path: { appId: app.id, deploymentId: deploymentId } } },
       { enabled: isOpen && !!deploymentId },
     );
 
@@ -89,22 +96,25 @@ export const RedeployModal = ({
     }));
   };
 
+  const _setRadioValue = useEffectEvent(setRadioValue);
+
   useEffect(() => {
     if (
       !pastDeploymentLoading &&
       pastDeployment &&
       redeployState.radioValue === undefined
     ) {
-      setRadioValue("useBuild");
+      _setRadioValue("useBuild");
     }
-  }, [pastDeployment, pastDeploymentLoading, isOpen]);
+  }, [pastDeployment, pastDeploymentLoading, isOpen, redeployState.radioValue]);
 
-  useEffect(() => {
-    // Clear inputs when closing the dialog
-    if (!isOpen) {
+  const setOpen = (open: boolean) => {
+    _setOpen(open);
+    if (!open) {
+      // Clear inputs when closing the dialog
       setRedeployState(getDefaultRedeployState());
     }
-  }, [isOpen]);
+  };
 
   const { user } = useContext(UserContext);
   const selectedOrg = user?.orgs?.find((org) => org.id === app.orgId);
@@ -128,14 +138,14 @@ export const RedeployModal = ({
         className={cn(
           "duration-300",
           redeployState.configOpen &&
-            "h-fit max-h-5/6 2xl:max-h-2/3 flex flex-col overflow-auto sm:max-w-4xl",
+            `flex h-fit max-h-5/6 flex-col overflow-auto sm:max-w-4xl 2xl:max-h-2/3`,
         )}
       >
         <DialogHeader>
           <DialogTitle>Reuse This Deployment</DialogTitle>
         </DialogHeader>
         {pastDeploymentLoading || pastDeployment === undefined ? (
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
             <Loader className="animate-spin" /> Setting up...
           </div>
         ) : (
@@ -200,14 +210,15 @@ export const RedeployModal = ({
                         : "image"}{" "}
                       with your current configuration:
                     </div>
-                    <div className="mt-2 mb-2 ml-6">
+                    <div className="my-2 ml-6">
                       {pastDeployment.config.source === "git" ? (
                         <a
                           href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
                           className="flex items-start gap-2"
                           target="_blank"
+                          rel="noreferrer"
                         >
-                          <span className="text-black-2 flex items-center gap-1 -mt-1">
+                          <span className="text-black-2 -mt-1 flex items-center gap-1">
                             <GitCommit className="shrink-0" />
                             {pastDeployment.commitHash?.substring(0, 7) ??
                               "Unknown"}
@@ -220,7 +231,7 @@ export const RedeployModal = ({
                           <TooltipTrigger>
                             <p className="flex items-center gap-2">
                               <Container className="text-black-2" />{" "}
-                              <span className="max-w-96 whitespace-nowrap text-ellipsis overflow-x-clip">
+                              <span className="max-w-96 overflow-x-clip text-ellipsis whitespace-nowrap">
                                 {pastDeployment.config.imageTag}
                               </span>
                             </p>
@@ -231,7 +242,7 @@ export const RedeployModal = ({
                         </Tooltip>
                       ) : null}
                     </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
+                    <p className="text-black-3 mb-4 ml-6 text-sm">
                       AnvilOps will combine this version of your application
                       with your latest configuration, so that you can roll back
                       your application while keeping your new settings.
@@ -240,12 +251,12 @@ export const RedeployModal = ({
                   <Label className="flex-col items-start">
                     <div className="flex gap-2">
                       <RadioGroupItem value="useConfig" />
-                      Reuse this deployment's configuration
+                      Reuse this deployment&apos;s configuration
                     </div>
-                    <p className="text-black-3 ml-6 text-sm mb-4">
+                    <p className="text-black-3 mb-4 ml-6 text-sm">
                       AnvilOps will create a new deployment using this
-                      deployment's configuration as a template, plus any edits
-                      you decide to make.
+                      deployment&apos;s configuration as a template, plus any
+                      edits you decide to make.
                     </p>
                   </Label>
                 </RadioGroup>
@@ -255,7 +266,7 @@ export const RedeployModal = ({
                 </p>
                 <Button
                   variant="outline"
-                  className="w-full mb-2"
+                  className="mb-2 w-full"
                   type="button"
                   onClick={() =>
                     setRedeployState((s) => ({ ...s, configOpen: true }))
@@ -278,7 +289,7 @@ export const RedeployModal = ({
                     <strong>{redeployState.enableCD ? "on." : "off."}</strong>
                   </span>
                 </Label>
-                <p className="text-black-4 text-sm my-2">
+                <p className="text-black-4 my-2 text-sm">
                   {redeployState.enableCD ? (
                     <>
                       If this app is linked to a Git repository and a commit is
@@ -304,7 +315,7 @@ export const RedeployModal = ({
                 </p>
                 <Button
                   type="submit"
-                  className="w-full mt-4"
+                  className="mt-4 w-full"
                   disabled={isUpdatingApp}
                 >
                   {isUpdatingApp ? (
@@ -336,7 +347,7 @@ export const RedeployModal = ({
                 {(redeployState.configState.source !== "git" ||
                   selectedOrg?.gitProvider !== null) && (
                   <Button
-                    className="mt-4 float-right"
+                    className="float-right mt-4"
                     type="button"
                     onClick={() => {
                       if (form.current!.checkValidity()) {

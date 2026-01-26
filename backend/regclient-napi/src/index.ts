@@ -5,7 +5,14 @@ import { promisify } from "node:util";
 const require = createRequire(import.meta.url);
 const __dirname = new URL(".", import.meta.url).pathname;
 
-const lib = require(resolve(__dirname, "./regclient_napi.node"));
+const lib = require(resolve(__dirname, "./regclient_napi.node")) as {
+  getImageInfo: (
+    imageRef: string,
+    overrideTLSHostname: string,
+    overrideTLSState: string,
+    callback: (err: null, result: string) => void,
+  ) => void;
+};
 
 const getImageInfoPromise = promisify(lib.getImageInfo);
 
@@ -15,7 +22,7 @@ export interface ImageConfig {
     /**
      * @example {"80/tcp":{}}
      */
-    ExposedPorts: Record<string, {}>;
+    ExposedPorts: Record<string, unknown>;
     Env: Array<string>;
     Entrypoint: Array<string>;
     Cmd: Array<string>;
@@ -36,6 +43,10 @@ export interface ImageConfig {
   };
 }
 
+type NativeGetImageConfigBindingResult =
+  | { success: true; result: ImageConfig; error?: null }
+  | { success: false; result?: null; error: string };
+
 export async function getImageConfig(
   imageTag: string,
   overrideTLSHostname?: string,
@@ -46,10 +57,10 @@ export async function getImageConfig(
     overrideTLSHostname ?? "",
     overrideTLSState ?? "",
   );
-  const obj = JSON.parse(result);
+  const obj = JSON.parse(result) as NativeGetImageConfigBindingResult;
 
   if (obj.success === true) {
-    return obj.result as ImageConfig;
+    return obj.result;
   } else {
     throw new Error(obj.error);
   }

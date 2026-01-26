@@ -19,8 +19,8 @@ const configPath =
     : env.CLUSTER_CONFIG_PATH;
 
 if (configPath) {
-  clusterConfigPromise = readFile(configPath).then((file) =>
-    JSON.parse(file.toString()),
+  clusterConfigPromise = readFile(configPath).then(
+    (file) => JSON.parse(file.toString()) as ClusterConfig,
   );
 }
 
@@ -28,8 +28,8 @@ export async function getSettings() {
   const clusterConfig = await clusterConfigPromise;
 
   return {
+    appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
     version: getVersionString(),
-    appDomain: !!env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,

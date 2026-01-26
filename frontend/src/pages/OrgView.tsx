@@ -17,7 +17,7 @@ import { Check, Loader, Send, X } from "lucide-react";
 import { Suspense, useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Status, type DeploymentStatus } from "./app/AppView";
+import { Status } from "./app/AppView";
 
 export default function OrgView() {
   const { user, refetch } = useContext(UserContext);
@@ -36,8 +36,8 @@ export default function OrgView() {
   const { mutateAsync: deleteOrg } = api.useMutation("delete", "/org/{orgId}");
 
   return (
-    <main className="py-10 px-4 sm:px-8">
-      <h2 className="font-bold text-3xl mb-4">Your Organizations</h2>
+    <main className="px-4 py-10 sm:px-8">
+      <h2 className="mb-4 text-3xl font-bold">Your Organizations</h2>
       <InvitationsList />
       <div className="w-full">
         <InputConfirmDialog
@@ -46,9 +46,9 @@ export default function OrgView() {
           submitName="Submit"
           description={
             <div className="flex items-baseline gap-2">
-              <Label className="pb-1 mb-2">Organization Name</Label>
+              <Label className="mb-2 pb-1">Organization Name</Label>
               <span
-                className="text-red-500 cursor-default"
+                className="cursor-default text-red-500"
                 title="This field is required."
               >
                 *
@@ -59,7 +59,7 @@ export default function OrgView() {
         />
 
         {user?.orgs.length === 0 ? (
-          <p className="opacity-50 mt-4">
+          <p className="mt-4 opacity-50">
             You are not part of any organizations.
           </p>
         ) : (
@@ -75,7 +75,7 @@ export default function OrgView() {
                       await deleteOrg({
                         params: { path: { orgId } },
                       });
-                    } catch (e) {
+                    } catch {
                       toast.error(
                         "There was a problem deleting your organization.",
                       );
@@ -102,9 +102,9 @@ const Card = ({
   children: React.ReactNode;
 }) => {
   return (
-    <div className="w-full md:min-w-80 md:max-w-1/5 h-60 md:h-90 flex-grow">
-      <h4 className="text-md lg:text-lg mb-2 opacity-50">{title}</h4>
-      <div className="w-full h-full bg-stone-50 rounded-md shadow-stone-300 shadow-sm">
+    <div className="h-60 w-full grow md:h-90 md:max-w-1/5 md:min-w-80">
+      <h4 className="mb-2 text-base opacity-50 lg:text-lg">{title}</h4>
+      <div className="size-full rounded-md bg-stone-50 shadow-sm shadow-stone-300">
         {children}
       </div>
     </div>
@@ -123,21 +123,21 @@ const InvitationsList = () => {
   if (loading || user?.receivedInvitations?.length === 0) return;
 
   return (
-    <div className="flex flex-col gap-2 mb-4">
+    <div className="mb-4 flex flex-col gap-2">
       {user?.receivedInvitations?.map((inv) => (
-        <div className="bg-green-100 border rounded-md p-4" key={inv.id}>
+        <div className="rounded-md border bg-green-100 p-4" key={inv.id}>
           <p>
             <strong>{inv.inviter.name}</strong> has invited you to join{" "}
             <strong>{inv.org.name}</strong>.
           </p>
-          <div className="flex gap-2 mt-2 items-center">
+          <div className="mt-2 flex items-center gap-2">
             <Button
               onClick={async () => {
                 await acceptInvite({
                   params: { path: { orgId: inv.org.id, invId: inv.id } },
                 });
                 toast.success("Invitation accepted!");
-                refetchUser!({});
+                await refetchUser!({});
               }}
               disabled={acceptInvitePending}
             >
@@ -155,7 +155,7 @@ const InvitationsList = () => {
                   params: { path: { orgId: inv.org.id, invId: inv.id } },
                 });
                 toast.success("Invitation rejected!");
-                refetchUser!({});
+                void refetchUser!({});
               }}
               disabled={deleteInvitePending}
             >
@@ -207,18 +207,18 @@ const OrgSection = ({
 
   return (
     <div className="mt-8">
-      <h3 className="text-xl font-medium mb-2">{name}</h3>
-      <div className="flex flex-wrap lg:justify-start space-x-10 space-y-10 w-full">
+      <h3 className="mb-2 text-xl font-medium">{name}</h3>
+      <div className="flex w-full flex-wrap space-y-10 space-x-10 lg:justify-start">
         <Card title="Members">
-          <div className="flex flex-col h-full justify-between">
+          <div className="flex h-full flex-col justify-between">
             <div className="h-full overflow-y-auto">
               {data.members.map((m) => (
                 <div
                   key={m.id}
-                  className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors"
+                  className="flex h-14 items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200"
                 >
                   <div className="space-x-2">
-                    <span className="text-md">{m.name}</span>
+                    <span className="text-base">{m.name}</span>
                     <span className="opacity-50">
                       <a href={`mailto:${m.email}`} className="hover:underline">
                         {m.email}
@@ -248,10 +248,10 @@ const OrgSection = ({
                           toast.success(
                             `${m.name} has been removed from ${name}.`,
                           );
-                          refetch();
+                          void refetch();
                         }}
                       >
-                        <X className="text-red-500 size-5" />
+                        <X className="size-5 text-red-500" />
                       </Button>
                     ) : null}
                   </div>
@@ -260,13 +260,13 @@ const OrgSection = ({
               {data.outgoingInvitations.map((invite) => (
                 <div
                   key={invite.id}
-                  className="flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors"
+                  className="flex h-14 items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200"
                 >
-                  <p className="text-md italic opacity-50">
+                  <p className="text-base italic opacity-50">
                     {invite.invitee.name}
                   </p>
                   <div className="flex items-center justify-end gap-4">
-                    <p className="opacity-50 italic">Invitation Sent</p>
+                    <p className="italic opacity-50">Invitation Sent</p>
                     <Button
                       variant="ghost"
                       type="button"
@@ -277,26 +277,26 @@ const OrgSection = ({
                           params: { path: { orgId, invId: invite.id } },
                         });
                         toast.success("Invitation revoked!");
-                        refetch();
+                        void refetch();
                       }}
                       disabled={
                         deleteInvitePending &&
                         deleteInvVars?.params?.path?.invId === invite.id
                       }
                     >
-                      <X className="text-red-500 size-5" />
+                      <X className="size-5 text-red-500" />
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
             <form
-              className="flex gap-2 items-center p-4"
+              className="flex items-center gap-2 p-4"
               onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.currentTarget as HTMLFormElement;
                 const formData = new FormData(form);
-                const email = formData.get("email")?.toString();
+                const email = formData.get("email") as string;
                 if (!email) return;
                 try {
                   await invite({
@@ -308,7 +308,7 @@ const OrgSection = ({
                 } catch (e) {
                   console.error(e);
                 }
-                refetch();
+                void refetch();
               }}
             >
               <Input
@@ -326,7 +326,7 @@ const OrgSection = ({
           </div>
         </Card>
         <Card title="Apps">
-          <div className="overflow-y-auto h-90">
+          <div className="h-90 overflow-y-auto">
             {data.appGroups
               .reduce(
                 (appList, group) => {
@@ -338,10 +338,10 @@ const OrgSection = ({
               .map((app) => (
                 <div key={`app-${orgId}-${app.id}`}>
                   <Link to={`/app/${app.id}`}>
-                    <div className="w-full flex justify-between items-center p-2 pl-5 pr-3 h-14 border-b border-stone-300 first:rounded-t-md hover:bg-stone-200 transition-colors">
-                      <p className="text-md">{app.displayName}</p>
+                    <div className="flex h-14 w-full items-center justify-between border-b border-stone-300 p-2 pr-3 pl-5 transition-colors first:rounded-t-md hover:bg-stone-200">
+                      <p className="text-base">{app.displayName}</p>
                       <div className="w-24">
-                        <Status status={app.status as DeploymentStatus} />
+                        <Status status={app.status} />
                       </div>
                     </div>
                   </Link>
@@ -350,12 +350,12 @@ const OrgSection = ({
           </div>
         </Card>
         <Card title="Danger">
-          <div className="flex items-center justify-center p-4 size-full">
-            <div className="flex flex-col items-center justify-center gap-4 bg-stone-200/50 rounded-sm shadow-inner size-full">
+          <div className="flex size-full items-center justify-center p-4">
+            <div className="flex size-full flex-col items-center justify-center gap-4 rounded-sm bg-stone-200/50 shadow-inner">
               {permissionLevel !== "OWNER" ? (
                 <Button
                   variant="destructive"
-                  className="shadow-red-700 shadow-sm disabled:shadow-none"
+                  className="shadow-sm shadow-red-700 disabled:shadow-none"
                 >
                   Leave Organization
                 </Button>
@@ -363,7 +363,7 @@ const OrgSection = ({
                 <>
                   <Button
                     variant="outline"
-                    className="border border-red-400 text-bold text-red-600 hover:text-red-700 shadow-red-800 shadow-xs hover:shadow-sm"
+                    className="border border-red-400 text-red-600 shadow-xs shadow-red-800 hover:text-red-700 hover:shadow-sm"
                   >
                     Transfer Ownership
                   </Button>
@@ -375,7 +375,7 @@ const OrgSection = ({
                     description={
                       <>
                         <p>This action cannot be undone.</p>
-                        <ul className="*:list-disc *:ml-4 mt-2 mb-4">
+                        <ul className="mt-2 mb-4 *:ml-4 *:list-disc">
                           <li>
                             Your AnvilOps organization and all associated apps,
                             deployments, and infrastructure will be deleted.
@@ -406,14 +406,14 @@ const OrgSection = ({
 const OrgSectionFallback = () => {
   return (
     <div className="mt-8">
-      <h3 className="text-xl font-medium mb-2 text-black-3">
+      <h3 className="text-black-3 mb-2 text-xl font-medium">
         Loading organization...
       </h3>
-      <div className="flex flex-wrap lg:justify-start space-x-10 space-y-10 w-full">
+      <div className="flex w-full flex-wrap space-y-10 space-x-10 lg:justify-start">
         <Card title="Members">
           <div className="flex size-full items-center justify-center">
             <Loader
-              className="animate-spin font-light text-black-3"
+              className="text-black-3 animate-spin font-light"
               size={50}
             />
           </div>
@@ -422,7 +422,7 @@ const OrgSectionFallback = () => {
         <Card title="Apps">
           <div className="flex size-full items-center justify-center">
             <Loader
-              className="animate-spin font-light text-black-3"
+              className="text-black-3 animate-spin font-light"
               size={50}
             />
           </div>
@@ -430,7 +430,7 @@ const OrgSectionFallback = () => {
         <Card title="Danger">
           <div className="flex size-full items-center justify-center">
             <Loader
-              className="animate-spin font-light text-black-3"
+              className="text-black-3 animate-spin font-light"
               size={50}
             />
           </div>

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   AppsV1Api,
   CoreV1Api,
@@ -7,6 +8,7 @@ import {
   type V1Deployment,
 } from "@kubernetes/client-node";
 import { exit } from "node:process";
+import { setTimeout } from "node:timers/promises";
 import * as yaml from "yaml";
 
 const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
@@ -48,7 +50,9 @@ if (!rancherTokenReq.ok) {
   );
 }
 
-const tokenRes = await rancherTokenReq.json();
+const tokenRes = (await rancherTokenReq.json()) as {
+  token: string;
+};
 const token = Buffer.from(tokenRes["token"], "utf-8").toString("base64");
 
 await api.patchNamespacedSecret(
@@ -85,11 +89,17 @@ if (KUBECONFIG_SECRET_NAME) {
       throw new Error("Failed to regenerate kubeconfig: " + kcReq.statusText);
     }
 
-    const kubeConfigRes = await kcReq.json();
+    const kubeConfigRes = (await kcReq.json()) as {
+      baseType: "generateKubeConfigOutput";
+      config: string;
+      type: "generateKubeConfigOutput";
+    };
     let kubeConfig = kubeConfigRes["config"];
 
     if (USE_CLUSTER_NAME) {
-      const body = yaml.parse(kubeConfig);
+      const body = yaml.parse(kubeConfig) as object & {
+        "current-context": string;
+      };
       body["current-context"] = USE_CLUSTER_NAME;
       kubeConfig = yaml.stringify(body);
     }
@@ -145,12 +155,14 @@ let ready = false;
 const maxDelay = 5000;
 const maxRetries = 8;
 for (let i = 0; i < maxRetries; i++) {
+  // eslint-disable-next-line no-await-in-loop
   if (await isDeploymentReady(deployment)) {
     ready = true;
     break;
   }
   const delay = Math.min(500 * Math.pow(2, i), maxDelay);
-  await new Promise((resolve) => setTimeout(resolve, delay));
+  // eslint-disable-next-line no-await-in-loop
+  await setTimeout(delay);
 }
 
 if (!ready) {
