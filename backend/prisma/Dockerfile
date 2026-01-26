@@ -15,7 +15,7 @@ COPY package*.json /app/
 
 # Install Prisma using the version in the backend package.json (but don't install any other backend packages)
 RUN PRISMA_VERSION=$(jq -r .devDependencies.prisma package.json) && \
-    echo '{"dependencies":{"prisma":"'"$PRISMA_VERSION"'"}}' > /app/package.json
+    echo '{"dependencies":{"prisma":"'"$PRISMA_VERSION"'"},"overrides":{"lodash":"^4.17.23"}}' > /app/package.json
 
 RUN npm ci --ignore-scripts --omit=optional --omit=dev
 

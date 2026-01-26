@@ -22,11 +22,11 @@ export class CacheRepo {
     )?.value;
   }
 
-  async set(key: string, value: string, expiresAt: Date | undefined) {
+  async set(key: string, value: string, expiresAt: Date) {
     await this.client.cache.upsert({
       where: { key },
       create: { key, value, expiresAt },
-      update: { key, value, ...(expiresAt !== undefined ? { expiresAt } : {}) },
+      update: { key, value },
     });
   }
 }

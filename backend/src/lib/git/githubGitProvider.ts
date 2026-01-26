@@ -28,9 +28,15 @@ const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
 const installationIdSymbol = Symbol("installationId");
 
 const githubAuthCache = {
-  get: (key: string) => get(`github-auth-${key}`),
+  get: (key: string) =>
+    get(`github-auth-${key}`).catch((err) =>
+      logger.error(err, "Failed to get key from GitHub auth cache"),
+    ),
   set: (key: string, value: string) =>
-    set(`github-auth-${key}`, value, 45 * 60, false), // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+    // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+    set(`github-auth-${key}`, value, 45 * 60).catch((err) =>
+      logger.error(err, "Failed to update GitHub auth cache"),
+    ),
 };
 
 type InstallationScopedOctokit = Octokit & {

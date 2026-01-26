@@ -108,10 +108,11 @@ export const EnabledGitConfigFields = ({
   );
 
   useEffect(() => {
-    if (!branch) {
-      setGitState({ branch: branches?.default ?? branches?.branches?.[0] });
+    const newBranch = branches?.default ?? branches?.branches?.[0];
+    if (!branch && newBranch) {
+      setGitState({ branch: newBranch });
     }
-  }, [branches, branch, gitState]);
+  }, [branches, branch, setGitState]);
 
   const [importDialogShown, setImportDialogShown] = useState(false);
   return (

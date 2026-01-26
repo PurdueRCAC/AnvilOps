@@ -19,14 +19,13 @@ export async function getOrCreate(
   key: string,
   ttl: number | Date,
   mapper: () => Promise<string>,
-  updateExpiration: boolean = false,
 ): Promise<string> {
   const result = await get(key);
   if (typeof result !== "string") {
     const value = await mapper();
     try {
-      set(key, value, ttl, updateExpiration).catch((err) => {
-        throw err;
+      set(key, value, ttl).catch((err) => {
+        logger.error(err, "Failed to update value in cache");
       });
       // (We aren't `await`ing this because it should happen in the background)
     } catch (error) {
@@ -62,7 +61,6 @@ export async function set(
   key: string,
   value: string,
   ttl: Date | number,
-  updateExpiration: boolean = false,
 ): Promise<void> {
   const expiresAt =
     ttl instanceof Date ? ttl : new Date(new Date().getTime() + ttl * 1000);
@@ -73,8 +71,8 @@ export async function set(
 
   localCache.set(key, value, {
     ttl: expiresAt.getTime() - Date.now(),
-    noUpdateTTL: !updateExpiration,
+    noUpdateTTL: true,
   });
 
-  await db.cache.set(key, value, updateExpiration ? expiresAt : undefined);
+  await db.cache.set(key, value, expiresAt);
 }
