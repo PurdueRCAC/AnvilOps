@@ -22,7 +22,7 @@ Kubernetes is extremely powerful, but its large feature set makes it quite compl
 
 CI/CD stands for Continuous Integration and Continuous Delivery/Deployment. It's the name for a set of systems that enable software developers to release updates quickly by automating the build, testing, and deployment processes.
 
-AnvilOps can automatically builds your application for you. Just select one of the builders: the Dockerfile builder, for customized builds, or [Railpack](/reference/railpack), which detects the application type and automatically builds it.
+AnvilOps can automatically builds your application for you. Just select one of the builders: the Dockerfile builder, for customized builds, or [Railpack](${import.meta.env.BASE_URL}/reference/railpack), which detects the application type and automatically builds it.
 
 ![ Build options on the AnvilOps app creation form. Two builders are available: Dockerfile and Railpack.](./what-is-anvilops/builders.png)
 

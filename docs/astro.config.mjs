@@ -5,7 +5,8 @@ import starlightLinksValidator from "starlight-links-validator";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://purduercac.github.io/AnvilOps",
+  site: "https://purduercac.github.io",
+  base: "/AnvilOps",
   integrations: [
     starlight({
       plugins: [starlightLinksValidator()],

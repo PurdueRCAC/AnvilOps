@@ -43,4 +43,4 @@ Follow along at [`https://anvilops.rcac.purdue.edu`](https://anvilops.rcac.purdu
 
 6. Add any environment variables your app requires. Environment variables can be marked as sensitive. Sensitive environment variables cannot be viewed after they are set, although they can be updated.
 
-7. If your app requires storage that persists across restarts, configure volume mounts. Make sure to select an appropriate path and storage limit— these values cannot be changed later. See the [PostgreSQL database tutorial](/guides/deploying-a-database) for an example.
+7. If your app requires storage that persists across restarts, configure volume mounts. Make sure to select an appropriate path and storage limit— these values cannot be changed later. See the [PostgreSQL database tutorial](/AnvilOps/guides/deploying-a-database) for an example.

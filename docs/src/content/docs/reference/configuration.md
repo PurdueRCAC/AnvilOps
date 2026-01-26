@@ -80,7 +80,7 @@ The module to use to build your repository into a container image, from the spec
 
 Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
 
-**If you do not have a Dockerfile**, try the **Railpack builder**. It will attempt to detect the language and framework you are using to automatically build it. See the [Railpack reference](/reference/railpack) for a list of supported technologies.
+**If you do not have a Dockerfile**, try the **Railpack builder**. It will attempt to detect the language and framework you are using to automatically build it. See the [Railpack reference](/AnvilOps/reference/railpack) for a list of supported technologies.
 
 ## Public URL <span style="color: #cfb991">\*</span>
 

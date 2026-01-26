@@ -22,7 +22,7 @@ An app may be standalone, or it may belong to an app group. Within the cluster, 
 
 ## App Group
 
-[Apps](/reference/concepts#app) that belong to the same Organization can be organized into App Groups. This is useful for applications that are built as many [microservices](https://aws.amazon.com/microservices/), or many independent components that communicate to handle requests from users. For instance, a web app and a database. AnvilOps ensures that apps in the same App Group can communicate within the cluster.
+[Apps](/AnvilOps/reference/concepts#app) that belong to the same Organization can be organized into App Groups. This is useful for applications that are built as many [microservices](https://aws.amazon.com/microservices/), or many independent components that communicate to handle requests from users. For instance, a web app and a database. AnvilOps ensures that apps in the same App Group can communicate within the cluster.
 
 ## Deployment
 
