@@ -149,31 +149,33 @@ export const ConfigTab = ({
       </FormContext>
       {enableSaveButton && (
         <>
-          <Label className="mt-8 flex items-start gap-2">
-            <Checkbox
-              disabled={rebuildRequired}
-              checked={forceRebuild || rebuildRequired}
-              onCheckedChange={(checked) => {
-                setForceRebuild(!!checked);
-              }}
-            />
-            <div className="flex flex-col gap-2">
-              Rebuild my application
-              <span className="text-sm text-gray-500">
-                {rebuildRequired ? (
-                  <>
-                    A new build is required due to the settings you&apos;ve
-                    changed.
-                  </>
-                ) : (
-                  <>
-                    Build a new version of your application using this updated
-                    configuration.
-                  </>
-                )}
-              </span>
-            </div>
-          </Label>
+          {state.appType === "workload" && state.source === "git" && (
+            <Label className="mt-8 flex items-start gap-2">
+              <Checkbox
+                disabled={rebuildRequired}
+                checked={forceRebuild || rebuildRequired}
+                onCheckedChange={(checked) => {
+                  setForceRebuild(!!checked);
+                }}
+              />
+              <div className="flex flex-col gap-2">
+                Rebuild my application
+                <span className="text-sm text-gray-500">
+                  {rebuildRequired ? (
+                    <>
+                      A new build is required due to the settings you&apos;ve
+                      changed.
+                    </>
+                  ) : (
+                    <>
+                      Build a new version of your application using this updated
+                      configuration.
+                    </>
+                  )}
+                </span>
+              </div>
+            </Label>
+          )}
           <Button type="submit" className="max-w-max" disabled={updatePending}>
             {updatePending ? (
               <>
