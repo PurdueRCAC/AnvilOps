@@ -154,11 +154,8 @@ export async function updateApp(
       config: updatedConfig,
       git: {
         skipBuild:
-          !shouldBuildOnUpdate(
-            currentConfig,
-            updatedConfig,
-            currentDeployment,
-          ) && !appData.forceRebuild,
+          !appData.forceRebuild &&
+          !shouldBuildOnUpdate(currentConfig, updatedConfig, currentDeployment),
       },
     });
     // When the new image is built and deployed successfully, it will become the imageTag of the app's template deployment config so that future redeploys use it.
