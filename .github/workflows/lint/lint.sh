@@ -1,4 +1,5 @@
 #!/bin/bash
+set -uo pipefail
 
 CURRENT_DIR=$(dirname "$0")
 PROJECT_ROOT="$PWD/$CURRENT_DIR/../../../"
