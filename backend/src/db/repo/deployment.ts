@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import type {
   AppType,
   DeploymentStatus,
-  LogType,
   PermissionLevel,
 } from "../../generated/prisma/enums.ts";
 import type {
@@ -311,26 +310,6 @@ export class DeploymentRepo {
     return count === 1;
   }
 
-  async getLogs(
-    deploymentId: number,
-    cursor: number,
-    type: LogType,
-    limit: number,
-  ): Promise<Log[]> {
-    // Fetch them in reverse order so that we can take only the 500 most recent lines
-    return (
-      await this.client.log.findMany({
-        where: {
-          id: { gt: cursor },
-          deploymentId: deploymentId,
-          type: type,
-        },
-        orderBy: [{ timestamp: "desc" }, { index: "desc" }],
-        take: limit,
-      })
-    ).reverse();
-  }
-
   async insertLogs(logs: Omit<Log, "id">[]) {
     await this.client.log.createMany({
       data: logs,
@@ -341,14 +320,35 @@ export class DeploymentRepo {
       deploymentIds.add(log.deploymentId);
     }
 
-    await Promise.all(
-      [...deploymentIds].map((deploymentId) => {
+    const deploymentIdArray = [...deploymentIds];
+
+    const deploymentMessages = Promise.all(
+      deploymentIdArray.map((deploymentId) => {
         if (typeof deploymentId !== "number") {
           return Promise.resolve();
         }
         return this.publish(`deployment_${deploymentId}_logs`, "");
       }),
     );
+
+    const appMessages = this.client.app
+      .findMany({
+        where: { deployments: { some: { id: { in: deploymentIdArray } } } },
+        select: { id: true },
+      })
+      .then((ids) => [...new Set(ids.map((it) => it.id))])
+      .then((appIds) =>
+        Promise.all(
+          [...new Set(appIds)].map((appId) => {
+            if (typeof appId !== "number") {
+              return Promise.resolve();
+            }
+            return this.publish(`app_${appId}_logs`, "");
+          }),
+        ),
+      );
+
+    await Promise.all([deploymentMessages, appMessages]);
   }
 
   async unlinkRepositoryFromAllDeployments(repoId: number) {

@@ -10,16 +10,16 @@ type Deployment =
 
 type LogType = components["schemas"]["LogLine"]["type"];
 
-export const Logs = ({
-  deployment,
-  type,
-}: {
-  deployment: Pick<
+type LogsProps = {
+  deployment?: Pick<
     Deployment,
     "status" | "id" | "appId" | "updatedAt" | "podStatus"
   >;
   type: LogType;
-}) => {
+  appId?: number;
+};
+
+export const Logs = ({ deployment, type, appId }: LogsProps) => {
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
   const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
 
@@ -39,10 +39,13 @@ export const Logs = ({
     }
   }, [logs]);
 
+  const url =
+    deployment === undefined
+      ? `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}`
+      : `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}&deploymentId=${deployment.id}`;
+
   const { connecting, connected } = useEventSource(
-    new URL(
-      `${window.location.protocol}//${window.location.host}/api/app/${deployment.appId}/deployments/${deployment.id}/logs?type=${type}`,
-    ),
+    new URL(url),
     ["log", "pastLogsSent"],
     (eventName, event) => {
       if (eventName === "pastLogsSent") {
@@ -120,7 +123,8 @@ export const Logs = ({
                     {/* "w-0" above forces this column to take up as little horizontal space as possible */}
                     {new Date(log.time).toLocaleString()}
                   </td>
-                  {(deployment.podStatus?.total ?? 1) > 1 && (
+                  {(deployment === undefined ||
+                    (deployment.podStatus?.total ?? 1) > 1) && (
                     <td className="px-2">
                       <span className="opacity-70">{log.pod}</span>
                     </td>
@@ -138,7 +142,8 @@ export const Logs = ({
               <SatelliteDish /> Logs Unavailable
             </p>
             <p className="ml-8 opacity-50">
-              {["PENDING", "BUILDING"].includes(deployment.status)
+              {deployment !== undefined &&
+              ["PENDING", "BUILDING"].includes(deployment.status)
                 ? "Waiting for the build to start."
                 : null}
             </p>
@@ -149,9 +154,11 @@ export const Logs = ({
               <FileClock /> No Logs Found
             </p>
             <p className="ml-8 opacity-50">
-              {["PENDING", "BUILDING", "DEPLOYING"].includes(deployment.status)
+              {deployment !== undefined &&
+              ["PENDING", "BUILDING", "DEPLOYING"].includes(deployment.status)
                 ? "Waiting for your app to be deployed."
-                : ["COMPLETE", "STOPPED"].includes(deployment.status) &&
+                : deployment !== undefined &&
+                    ["COMPLETE", "STOPPED"].includes(deployment.status) &&
                     type === "BUILD"
                   ? "Build completed with no log output."
                   : "Logs from your app will appear here."}

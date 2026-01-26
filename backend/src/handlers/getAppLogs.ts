@@ -40,10 +40,9 @@ export const getAppLogsHandler: HandlerMap["getAppLogs"] = async (
         // Just start at the beginning
       }
     }
-
     await getAppLogs(
       ctx.request.params.appId,
-      ctx.request.params.deploymentId,
+      ctx.request.query.deploymentId ?? null,
       req.user.id,
       ctx.request.query.type,
       lastLogId,

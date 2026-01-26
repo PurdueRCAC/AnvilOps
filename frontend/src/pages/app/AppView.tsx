@@ -127,7 +127,7 @@ export default function AppView() {
           <ConfigTab app={app} tab={tab} setTab={setTab} refetch={refetch} />
         </TabsContent>
         <TabsContent value="logs">
-          <LogsTab deployment={currentDeployment} />
+          <LogsTab appId={app.id} />
         </TabsContent>
         <TabsContent value="files">
           <FilesTab app={app} />
