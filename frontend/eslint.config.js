@@ -14,7 +14,7 @@ export default defineConfig({
   files: ["**/*.{ts,tsx}"],
   ignores: ["dist"],
   languageOptions: {
-    ecmaVersion: 2020,
+    ecmaVersion: 2024,
     globals: globals.browser,
     parserOptions: {
       projectService: true,
@@ -28,6 +28,7 @@ export default defineConfig({
   rules: {
     "no-warning-comments": "warn",
     "default-case": "warn",
+    "no-control-regex": "error",
     "better-tailwindcss/enforce-consistent-line-wrapping": "off",
     "better-tailwindcss/enforce-consistent-class-order": "off",
     "@typescript-eslint/no-misused-promises": [

@@ -9,7 +9,7 @@ export default defineConfig({
   files: ["**/*.{ts,tsx}"],
   ignores: ["src/generated/**"],
   languageOptions: {
-    ecmaVersion: 2020,
+    ecmaVersion: 2024,
     globals: globals.node,
     parserOptions: {
       projectService: true,
@@ -22,6 +22,7 @@ export default defineConfig({
     "array-callback-return": "error",
     "preserve-caught-error": "warn",
     "no-await-in-loop": "warn",
+    "no-control-regex": "error",
     "no-unassigned-vars": "error",
     "no-useless-assignment": "warn",
     "no-use-before-define": ["error", { functions: false }],
