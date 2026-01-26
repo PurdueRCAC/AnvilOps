@@ -138,6 +138,7 @@ export const createStatefulSetConfig = async (
         },
         spec: {
           automountServiceAccountToken: false,
+          imagePullSecrets: [{ name: "image-pull-secret" }]
           initContainers: [
             // Set to an empty array (instead of undefined) so that disabling collectLogs in an existing app
             // removes the initContainer that copies the log-shipper binary into the app container.
