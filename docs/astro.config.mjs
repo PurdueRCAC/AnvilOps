@@ -16,7 +16,7 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.rcac.purdue.edu/RCAC-Staff/AnvilOps",
+          href: "https://github.com/PurdueRCAC/AnvilOps",
         },
       ],
       sidebar: [

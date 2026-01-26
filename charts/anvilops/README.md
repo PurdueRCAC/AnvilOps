@@ -94,10 +94,9 @@ If an option has a ⭐ beside it, you will likely have to change it to fit your 
 
 ```sh
 RELEASE_NAME=anvilops
+CHART_VERSION= # Fill this in from the most recent GitHub release
 
-git clone https://github.rcac.purdue.edu/RCAC-Staff/AnvilOps
-cd AnvilOps/charts/anvilops
-helm upgrade --install $RELEASE_NAME .
+helm upgrade --install $RELEASE_NAME --version $CHART_VERSION oci://registry.anvil.rcac.purdue.edu/anvilops/chart/anvilops
 # (`upgrade --install` will install the chart or update it if it's already installed)
 ```
 

@@ -1,4 +1,4 @@
-module github.rcac.purdue.edu/RCAC-Staff/AnvilOps/backend/regclient-napi/src
+module github.com/PurdueRCAC/AnvilOps/backend/regclient-napi/src
 
 go 1.24.4
 
