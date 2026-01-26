@@ -9,7 +9,7 @@ This tutorial will demonstrate:
 
 - How to deploy an application from a preexisting container image.
 
-Follow along at `https://anvilops.rcac.purdue.edu` or `https://anvilops.geddes.rcac.purdue.edu`.
+Follow along at [`https://anvilops.rcac.purdue.edu`](https://anvilops.rcac.purdue.edu) or [`https://anvilops.geddes.rcac.purdue.edu`](https://anvilops.geddes.rcac.purdue.edu).
 
 ### Getting started
 

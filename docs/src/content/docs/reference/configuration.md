@@ -32,6 +32,7 @@ AnvilOps connects to Rancher in order to read the projects you have been given a
 
 The number of identical copies of your application to run at a time. Replicas increase fault tolerance, as when one instance of the application fails, another can replace it. Replicas also increase availability, as traffic can be distributed between replicas of an application.
 
+Note: if your app uses Volume Mounts, each replica will get its own separate volume that can only be accessed by that replica. Data written by one replica will not be visible to other replicas.
 ## Deployment Source <span style="color: #cfb991">\*</span>
 
 AnvilOps supports deploying applications from a **Git repository** or a publicly available **OCI-compliant container image**. Applications deployed from Git repositories can be automatically rebuilt and redeployed on a specified event.
@@ -76,7 +77,7 @@ The module to use to build your repository into a container image, from the spec
 
 **If you have written a Dockerfile**, select the **Dockerfile builder**. AnvilOps will look for a Dockerfile at the specified location and use it to build and deploy a container image for your app.
 
-    Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
+Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
 
 **If you do not have a Dockerfile**, try the **Railpack builder**. It will attempt to detect the language and framework you are using to automatically build it. See the [Railpack reference](/reference/railpack) for a list of supported technologies.
 
@@ -142,7 +143,7 @@ If you request more CPU or memory than is currently available within the selecte
 
 ### CPU Cores <span style="color: #cfb991">\*</span>
 
-The amount of CPU, in millicores, to allocate to your application.
+The amount of [CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) to allocate to your application. Precision of up to 3 decimal places is allowed.
 
 ### Memory <span style="color: #cfb991">\*</span>
 

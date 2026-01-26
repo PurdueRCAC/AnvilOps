@@ -12,7 +12,7 @@ We will learn:
 
 ## 1. Create an App
 
-Navigate to the [Create App form](https://anvilops.rcac.purdue.edu/create-app).
+Navigate to the Create App form for [Anvil Composable](https://anvilops.rcac.purdue.edu/create-app) or [Geddes](https://anvilops.geddes.rcac.purdue.edu/create-app).
 
 Select an organization and a Rancher project.
 
@@ -63,12 +63,12 @@ Open the Advanced dropdown. AnvilOps will have already filled in a unique namesp
 
 ![](./deploying-a-database/advanced-options.png)
 
-## 6. Connect to the Database
+## 7. Connect to the Database
 
 Recall the internal address you created earlier.
 In this example, it's `pg-example.pg-example.svc.cluster.local`.
 
-Let's create a connection string from this hostname. We can connec to the database at:
+Let's create a connection string from this hostname. We can connect to the database at:
 
 ```
 postgresql://anvilops:password@pg-example.pg-example.svc.cluster.local:80

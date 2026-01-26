@@ -10,7 +10,7 @@ This tutorial will demonstrate:
 - How to use Railpack to build applications without a Dockerfile.
 - How to use AnvilOps' GitHub integrations for continuous deployment.
 
-Follow along at `https://anvilops.rcac.purdue.edu` or `https://anvilops.geddes.rcac.purdue.edu`.
+Follow along at [`https://anvilops.rcac.purdue.edu`](https://anvilops.rcac.purdue.edu) or [`https://anvilops.geddes.rcac.purdue.edu`](https://anvilops.geddes.purdue.edu).
 
 ### Prerequisites
 
