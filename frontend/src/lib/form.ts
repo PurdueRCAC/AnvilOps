@@ -10,7 +10,7 @@ import type {
   WorkloadUpdate,
 } from "./form.types";
 
-export const MAX_SUBDOMAIN_LENGTH = 54;
+export const MAX_SUBDOMAIN_LENGTH = 63;
 
 const createDefaultGitState = (
   git?: Partial<GitFormFields>,

@@ -355,7 +355,7 @@ export class DeploymentConfigService {
   }
 
   private async validateSubdomain(subdomain: string, existingAppId?: number) {
-    if (subdomain.length > MAX_SUBDOMAIN_LEN || !isRFC1123(subdomain)) {
+    if (!isRFC1123(subdomain)) {
       throw new ValidationError(
         "Subdomain must contain only lowercase alphanumeric characters or '-', " +
           "start and end with an alphanumeric character, " +

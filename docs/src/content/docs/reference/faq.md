@@ -39,7 +39,6 @@ sidebar:
 ### AnvilOps doesn't support the Kubernetes configurations I need for my application.
 
 - If you would like to stop managing an application with AnvilOps, open the Danger tab of the application page. From here, you may delete the application from AnvilOps, without deleting the associated deployment and other resources on the cluster.
-- **For Git deployments:** AnvilOps will delete the image repository associated with the application!
 
 ### My question isn't listed here.
 

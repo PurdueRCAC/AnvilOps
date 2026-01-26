@@ -177,7 +177,7 @@ const SubdomainDiffInput = ({
           <div className="flex gap-5 text-sm">
             <X className="text-red-500" />
             <ul className="text-black-3 list-disc">
-              <li>A subdomain must have 54 or fewer characters.</li>
+              <li>A subdomain must have 63 or fewer characters.</li>
               <li>
                 A subdomain must only contain lowercase alphanumeric characters
                 or dashes(-).

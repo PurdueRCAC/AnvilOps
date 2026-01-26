@@ -6,22 +6,7 @@ sidebar:
 
 import { Steps } from "@astrojs/starlight/components";
 
-If you would like to deploy an application on Anvil Composable, follow these instructions on `https://anvilops.rcac.purdue.edu`. If you would like to deploy on Geddes, follow these instructions on `https://anvilops.geddes.rcac.purdue.edu`.
-
-## Setting Up Your Account
-
-<Steps>
-
-1. Sign in to AnvilOps.
-   This will create an AnvilOps account for you.
-
-2. Navigate to the dashboard page.
-3. Link your GitHub organization or personal account.
-
-   This will allow you to deploy applications from GitHub repositories.
-   Make sure you grant the AnvilOps GitHub App permission to access any repositories you want to deploy!
-
-</Steps>
+If you would like to deploy an application on Anvil Composable, follow along at [`https://anvilops.rcac.purdue.edu`](https://anvilops.rcac.purdue.edu). If you would like to deploy on Geddes, follow these instructions on [`https://anvilops.geddes.rcac.purdue.edu`](https://anvilops.geddes.rcac.purdue.edu).
 
 ## Creating an App
 
@@ -39,6 +24,8 @@ If you would like to deploy an application on Anvil Composable, follow these ins
 ![](./tutorial/nginx-deploy-opts.png)
 
 Navigate to the Create App page in order to configure and launch your app. You will need to select your Project, the repository or image you would like to deploy, a subdomain, and the port number of the application.
+
+If your app is a web application, you can make it publicly accessible at an available subdomain of your choice. Otherwise, uncheck the `Make my app public` box.
 
 If you are deploying a Git repository, you will need to specify the build configuration.
 

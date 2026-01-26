@@ -12,7 +12,7 @@ We will learn:
 
 ## 1. Create an App
 
-Navigate to the [Create App form](https://anvilops.rcac.purdue.edu/create-app).
+Navigate to the Create App form for [Anvil Composable](https://anvilops.rcac.purdue.edu/create-app) or [Geddes](https://anvilops.geddes.rcac.purdue.edu/create-app).
 
 Select an organization and a Rancher project.
 
@@ -25,9 +25,7 @@ This tells AnvilOps to pull a Postgres image from Docker Hub and deploy it in th
 
 ## 3. Configure Deployment Options
 
-Set the **Public URL** subdomain to a unique name. Postgres communicates with clients over TCP, not HTTP, so it will not be publicly accessible at this URL.
-Instead, we will need to use the cluster-internal hostname below. In this screenshot, that's `anvilops-pg-example.anvilops-pg-example.svc.cluster.local`.
-**Write down this value. We will need it to connect to the database.**
+Uncheck the box labeled `Make my app public` since our database is not a web application.
 
 Set the port number to `5432` so that AnvilOps knows which port to expose outside of the Postgres container.
 
@@ -59,27 +57,33 @@ We use volume mounts to specify the paths we want to keep when the app is update
 
 Consider the file system to be ephemeral except the paths included in your volume mounts.
 
-## 6. Connect to the Database
+## 6. (Optional) Set the namespace
+
+Open the Advanced dropdown. AnvilOps will have already filled in a unique namespace for your application, which you can edit. Your application will be reachable from within the cluster at `<namespace>.<namespace>.svc.cluster.local`.
+
+![](./deploying-a-database/advanced-options.png)
+
+## 7. Connect to the Database
 
 Recall the internal address you created earlier.
-In this example, it's `anvilops-pg-example.anvilops-pg-example.svc.cluster.local`. It should follow the form `anvilops-{subdomain}.anvilops-{subdomain}.svc.cluster.local`, where `{subdomain}` is what you typed into the Public URL field.
+In this example, it's `pg-example.pg-example.svc.cluster.local`.
 
-Let's create a connection string from this hostname. We can connec to the database at:
+Let's create a connection string from this hostname. We can connect to the database at:
 
 ```
-postgresql://anvilops:password@anvilops-pg-example.anvilops-pg-example.svc.cluster.local:80
+postgresql://anvilops:password@pg-example.pg-example.svc.cluster.local:80
 ```
 
 Assuming these values:
 
-- Host: `anvilops-pg-example.anvilops-pg-example.svc.cluster.local`
+- Host: `pg-example.pg-example.svc.cluster.local`
 - Port: `80` (The port must be set to 80. AnvilOps always exposes your service at port 80 within the cluster.)
 - Username: `anvilops` (from the environment variable you set in Step 4)
 - Password: `password` (from the environment variable you set in Step 4)
 
-Any application running in the same Kubernetes cluster can now access your database with this connection string.
+Applications will access your database with this connection string. We recommend deploying an application that connects to this database through AnvilOps and adding them to the same app group. Using a network policy, AnvilOps will ensure that the two can communicate.
 
-If you want to access your database from another AnvilOps app, we recommend placing your connection string in an environment variable and marking it as sensitive.
+If you want to access your database from another AnvilOps app, we recommend placing your connection string in its environment variables and marking it as sensitive.
 
 ## Limitations
 
@@ -87,4 +91,4 @@ If you want to access your database from another AnvilOps app, we recommend plac
 
    In most cases, you can get away with scaling vertically by increasing the app's CPU and memory limits.
 
-2. AnvilOps does not expose non-HTTP services to the public. Your database will not be accessible at the "Public URL" because Postgres uses TCP to communicate with clients.
+2. AnvilOps does not expose non-HTTP services, such as Postgres, to the public.

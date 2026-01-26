@@ -32,6 +32,8 @@ AnvilOps connects to Rancher in order to read the projects you have been given a
 
 The number of identical copies of your application to run at a time. Replicas increase fault tolerance, as when one instance of the application fails, another can replace it. Replicas also increase availability, as traffic can be distributed between replicas of an application.
 
+Note: if your app uses Volume Mounts, each replica will get its own separate volume that can only be accessed by that replica. Data written by one replica will not be visible to other replicas.
+
 ## Deployment Source <span style="color: #cfb991">\*</span>
 
 AnvilOps supports deploying applications from a **Git repository** or a publicly available **OCI-compliant container image**. Applications deployed from Git repositories can be automatically rebuilt and redeployed on a specified event.
@@ -76,16 +78,22 @@ The module to use to build your repository into a container image, from the spec
 
 **If you have written a Dockerfile**, select the **Dockerfile builder**. AnvilOps will look for a Dockerfile at the specified location and use it to build and deploy a container image for your app.
 
-    Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
+Note that the Dockerfile path is relative to the root directory that you specified earlier. For example, if your root directory is `./app` and your Dockerfile is at `./app/Dockerfile`, then your Dockerfile path would just be `Dockerfile` or `./Dockerfile`.
 
 **If you do not have a Dockerfile**, try the **Railpack builder**. It will attempt to detect the language and framework you are using to automatically build it. See the [Railpack reference](/reference/railpack) for a list of supported technologies.
 
 ## Public URL <span style="color: #cfb991">\*</span>
 
-A unique subdomain. AnvilOps will then make your application publicly accessible at
+A unique subdomain. AnvilOps can make your application publicly accessible at
 
 ```
 https://<subdomain>.anvilcloud.rcac.purdue.edu
+```
+
+or
+
+```
+https://<subdomain>.geddes.rcac.purdue.edu
 ```
 
 on port 80, without any authentication. **This setting cannot be changed later.**
@@ -94,7 +102,7 @@ on port 80, without any authentication. **This setting cannot be changed later.*
 
 Set this to the port that your app runs on. Depending on your web framework, this will likely be one of these common default ports: 80, 3000, 4321, 5173, 8000, or 8080.
 
-If this setting is not set correctly, you will see a "This app is not available" page when you try to visit your app at its Public URL.
+If this is not set correctly, you will not be able to access the application at the Public URL.
 
 If you are unsure, consult the documentation of the framework or web server you are using, or check the logs of your app after it starts up.
 
@@ -136,7 +144,7 @@ If you request more CPU or memory than is currently available within the selecte
 
 ### CPU Cores <span style="color: #cfb991">\*</span>
 
-The amount of CPU, in millicores, to allocate to your application.
+The amount of [CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) to allocate to your application. Precision of up to 3 decimal places is allowed.
 
 ### Memory <span style="color: #cfb991">\*</span>
 
@@ -144,14 +152,10 @@ The amount of memory, in MiB, to allocate to your application.
 
 ## Advanced
 
-These options configure [the Kubernetes settings of the same names](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/).
+### Keep Historical Logs
 
-Note that post-start and pre-stop commands [may run more than once](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#hook-delivery-guarantees) in rare cases.
+By default, AnvilOps wraps your application in a process in a command that captures its logs and sends them to AnvilOps to be viewed from the dashboard. This behavior can be disabled later.
 
-### Post-Start Command
+### Namespace
 
-A command to run after the application has started and is ready to receive requests.
-
-### Pre-Stop Command
-
-A command to run before the application is terminated. This only applies when AnvilOps is gracefully terminating your application. If your application terminates itself, this command is not run.
+When creating an app, AnvilOps will automatically generate a namespace for your application. You can also specify the namespace. It cannot be changed later.
