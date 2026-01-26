@@ -16,7 +16,7 @@ Follow along at [`https://anvilops.rcac.purdue.edu`](https://anvilops.rcac.purdu
 
 You will need to have the AnvilOps GitHub App installed for your organization. This allows AnvilOps to deploy repositories on the cluster. In particular, for this tutorial, the GitHub App is needed for AnvilOps to clone the template repository to your account.
 
-If you do not have access to your own project on Anvil Composable, select the `anvilops_sandbox` project.
+If you do not have access to your own project on Anvil Composable, select the `anvilops_sandbox` project. This project can be used temporarily for tests and tutorials, but applications deployed to this project may be deleted at any time.
 
 ### Initial Configuration
 

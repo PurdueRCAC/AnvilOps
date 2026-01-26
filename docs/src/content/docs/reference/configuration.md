@@ -33,6 +33,7 @@ AnvilOps connects to Rancher in order to read the projects you have been given a
 The number of identical copies of your application to run at a time. Replicas increase fault tolerance, as when one instance of the application fails, another can replace it. Replicas also increase availability, as traffic can be distributed between replicas of an application.
 
 Note: if your app uses Volume Mounts, each replica will get its own separate volume that can only be accessed by that replica. Data written by one replica will not be visible to other replicas.
+
 ## Deployment Source <span style="color: #cfb991">\*</span>
 
 AnvilOps supports deploying applications from a **Git repository** or a publicly available **OCI-compliant container image**. Applications deployed from Git repositories can be automatically rebuilt and redeployed on a specified event.
@@ -101,7 +102,7 @@ on port 80, without any authentication. **This setting cannot be changed later.*
 
 Set this to the port that your app runs on. Depending on your web framework, this will likely be one of these common default ports: 80, 3000, 4321, 5173, 8000, or 8080.
 
-If this setting is not set correctly, you will see a "This app is not available" page when you try to visit your app at its Public URL.
+If this is not set correctly, you will not be able to access the application at the Public URL.
 
 If you are unsure, consult the documentation of the framework or web server you are using, or check the logs of your app after it starts up.
 
