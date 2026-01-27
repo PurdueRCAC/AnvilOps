@@ -213,7 +213,7 @@ export class DeploymentConfigService {
     return {
       appType: "workload",
       createIngress: config.createIngress,
-      subdomain: config.createIngress ? config.subdomain : undefined,
+      subdomain: config.createIngress ? config.subdomain : null,
       collectLogs: config.collectLogs,
       port: config.port,
       env: config.displayEnv,
