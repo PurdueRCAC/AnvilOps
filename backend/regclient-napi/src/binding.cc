@@ -23,10 +23,10 @@ class GetImageInfoWorker : public AsyncWorker {
     private:
         std::string imageRef;
         std::string result;
-        std::string overrideTLSHostname;
-        std::string overrideTLSState;
         std::string username;
         std::string password;
+        std::string overrideTLSHostname;
+        std::string overrideTLSState;
 };
 
 Value GetImageInfoWrapper(const CallbackInfo& info) {

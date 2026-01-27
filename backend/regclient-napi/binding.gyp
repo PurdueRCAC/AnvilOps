@@ -9,7 +9,8 @@
       ],
       "conditions": [
         ["OS=='linux'", {
-          "libraries": [ "-lpthread", "-ldl" ]
+          "libraries": [ "-lpthread", "-ldl" ],
+          "cflags": [ "-Werror" ]
         }]
       ],
       "libraries": [ "<!(pwd)/gobuild/main.a" ],
