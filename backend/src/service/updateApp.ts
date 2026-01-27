@@ -55,49 +55,53 @@ export async function updateApp(
   let updatedConfig = _config;
 
   // ---------------- App group updates ----------------
-  let appGroupId: number;
-  switch (appData.appGroup?.type) {
-    case "add-to": {
-      if (appData.appGroup.id === originalApp.appGroupId) {
-        break;
-      }
-      appGroupId = appData.appGroup.id;
-      const group = await db.appGroup.getById(appGroupId);
-      if (!group) {
-        throw new ValidationError("Invalid app group");
-      }
-      await db.app.setGroup(originalApp.id, appGroupId);
-      break;
-    }
-
-    case "create-new": {
-      appService.validateAppGroupName(appData.appGroup.name);
-      appGroupId = await db.appGroup.create(
-        originalApp.orgId,
-        appData.appGroup.name,
-        false,
-      );
-      await db.app.setGroup(originalApp.id, appGroupId);
-      break;
-    }
-
-    case "standalone": {
-      if (appData.appGroup.type === "standalone") {
-        break;
-      }
-      const groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
-      appService.validateAppGroupName(groupName);
-      appGroupId = await db.appGroup.create(originalApp.orgId, groupName, true);
-      await db.app.setGroup(originalApp.id, appGroupId);
-      break;
-    }
-
-    default: {
-      throw new ValidationError("Unexpected app group action type");
-    }
-  }
-
   if (appData.appGroup) {
+    let appGroupId: number;
+    switch (appData.appGroup?.type) {
+      case "add-to": {
+        if (appData.appGroup.id === originalApp.appGroupId) {
+          break;
+        }
+        appGroupId = appData.appGroup.id;
+        const group = await db.appGroup.getById(appGroupId);
+        if (!group) {
+          throw new ValidationError("Invalid app group");
+        }
+        await db.app.setGroup(originalApp.id, appGroupId);
+        break;
+      }
+
+      case "create-new": {
+        appService.validateAppGroupName(appData.appGroup.name);
+        appGroupId = await db.appGroup.create(
+          originalApp.orgId,
+          appData.appGroup.name,
+          false,
+        );
+        await db.app.setGroup(originalApp.id, appGroupId);
+        break;
+      }
+
+      case "standalone": {
+        if (appData.appGroup.type === "standalone") {
+          break;
+        }
+        const groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
+        appService.validateAppGroupName(groupName);
+        appGroupId = await db.appGroup.create(
+          originalApp.orgId,
+          groupName,
+          true,
+        );
+        await db.app.setGroup(originalApp.id, appGroupId);
+        break;
+      }
+
+      default: {
+        throw new ValidationError("Unexpected app group action type");
+      }
+    }
+
     logger.info(
       { orgId: organization.id, appId: originalApp.id, appGroupId: appGroupId },
       "App group updated",
