@@ -42,6 +42,7 @@ export const DeploymentView = () => {
   const defaultLogView = ["COMPLETE", "STOPPED"].includes(deployment.status)
     ? "RUNTIME"
     : "BUILD";
+
   const buildLogsOnly = [
     "PENDING",
     "QUEUED",
@@ -49,6 +50,8 @@ export const DeploymentView = () => {
     "DEPLOYING",
     "ERROR",
   ].includes(deployment.status);
+
+  const isCurrentDeployment = app.activeDeployment == deploymentId;
 
   return (
     <main className="px-8 py-10">
@@ -94,13 +97,19 @@ export const DeploymentView = () => {
           </TabsList>
         </Activity>
         <TabsContent value="BUILD">
-          <Logs appId={deployment.appId} deployment={deployment} type="BUILD" />
+          <Logs
+            appId={deployment.appId}
+            deployment={deployment}
+            type="BUILD"
+            follow={defaultLogView === "BUILD" && isCurrentDeployment}
+          />
         </TabsContent>
         <TabsContent value="RUNTIME">
           <Logs
             appId={deployment.appId}
             deployment={deployment}
             type="RUNTIME"
+            follow={defaultLogView === "RUNTIME" && isCurrentDeployment}
           />
         </TabsContent>
       </Tabs>

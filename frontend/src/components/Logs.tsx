@@ -2,7 +2,7 @@ import type { components, paths } from "@/generated/openapi";
 import { useEventSource } from "@/hooks/useEventSource";
 import clsx from "clsx";
 import { AlertTriangle, FileClock, Loader, SatelliteDish } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 
 type Deployment =
@@ -17,11 +17,13 @@ type LogsProps = {
   >;
   type: LogType;
   appId?: number;
+  follow: boolean;
 };
 
-export const Logs = ({ deployment, type, appId }: LogsProps) => {
+export const Logs = ({ deployment, type, appId, follow }: LogsProps) => {
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
   const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
+  const [done, setDone] = useState(false); // Set to true when all past logs have been sent and the viewer is up-to-date
 
   const logsBody = useRef<HTMLDivElement | null>(null);
   const lastScroll = useRef({ scrollTop: 0, hasScrolledUp: false });
@@ -44,11 +46,12 @@ export const Logs = ({ deployment, type, appId }: LogsProps) => {
       ? `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}`
       : `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}&deploymentId=${deployment.id}`;
 
-  const { connecting, connected } = useEventSource(
+  const { connecting, connected, close, reconnect } = useEventSource(
     new URL(url),
     ["log", "pastLogsSent"],
     (eventName, event) => {
       if (eventName === "pastLogsSent") {
+        setDone(true);
         if (logs.length === 0) {
           setNoLogs(true);
         }
@@ -72,25 +75,39 @@ export const Logs = ({ deployment, type, appId }: LogsProps) => {
     },
   );
 
+  useEffect(() => {
+    if (!follow && done && connected) {
+      close();
+    }
+
+    if (follow && !connected && !connecting) {
+      reconnect();
+    }
+  }, [done, follow, connected, connecting, close, reconnect]);
+
   return (
     <>
-      {connecting ? (
-        <p className="flex items-center gap-2 font-mono text-sm">
-          <Loader className="animate-spin" /> Connecting...
-        </p>
-      ) : !connected ? (
-        <p className="mb-2 flex items-center gap-2 font-mono text-sm text-amber-600">
-          <AlertTriangle /> Disconnected. New logs will not appear until the
-          connection is re-established.
-        </p>
-      ) : (
-        <p className="mb-2 flex items-center gap-2 font-mono text-sm text-blue-500">
-          <div className="relative h-5 w-4">
-            <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-pulse rounded-full bg-blue-500" />
-            <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-ping rounded-full bg-blue-500" />
-          </div>
-          Receiving logs in realtime
-        </p>
+      {follow && (
+        <>
+          {connecting ? (
+            <p className="flex items-center gap-2 font-mono text-sm">
+              <Loader className="animate-spin" /> Connecting...
+            </p>
+          ) : !connected ? (
+            <p className="mb-2 flex items-center gap-2 font-mono text-sm text-amber-600">
+              <AlertTriangle /> Disconnected. New logs will not appear until the
+              connection is re-established.
+            </p>
+          ) : (
+            <p className="mb-2 flex items-center gap-2 font-mono text-sm text-blue-500">
+              <div className="relative h-5 w-4">
+                <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-pulse rounded-full bg-blue-500" />
+                <div className="absolute top-1/2 left-1/2 size-2 -translate-1/2 animate-ping rounded-full bg-blue-500" />
+              </div>
+              Receiving logs in realtime
+            </p>
+          )}
+        </>
       )}
 
       <div
