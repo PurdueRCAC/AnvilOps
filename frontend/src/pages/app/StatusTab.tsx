@@ -117,7 +117,7 @@ export const StatusTab = ({
           <p>New pods are being created to replace old ones.</p>
         </div>
       )}
-      {events?.map((event) => <EventInfo event={event} key={event.id} />)}
+      {events?.map((event, idx) => <EventInfo event={event} key={idx} />)}
       {connecting ? null : !pods || pods.length === 0 ? (
         <div className="my-4 rounded-md bg-gray-50 p-4">
           <p className="flex items-center gap-2">

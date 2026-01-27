@@ -137,6 +137,15 @@ const variables = {
    * The password of a Harbor robot account that can delete image repositories. Used to delete old images when an app is deleted.
    */
   DELETE_REPO_PASSWORD: { required: true },
+
+  /**
+   * The username of a Harbor robot account that can pull image repositories of apps.
+   */
+  IMAGE_PULL_USERNAME: { required: true },
+  /**
+   * The password of a Harbor robot account that can pull image repositories of apps.
+   */
+  IMAGE_PULL_PASSWORD: { required: true },
   /**
    * The base URL for the Rancher v3 API, e.g. https://composable.anvil.rcac.purdue.edu/v3.
    */

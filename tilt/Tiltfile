@@ -83,7 +83,7 @@ k8s_yaml(secret_from_dict("github-app", inputs={
 # Deleting images isn't supported locally since we aren't running Harbor
 k8s_yaml(secret_from_dict("image-delete-secret", inputs={'server': '__disabled_delete_server', 'username': '__disabled_delete_username', 'password': '__disabled_delete_password'}))
 k8s_yaml(secret_yaml_registry("image-push-secret", flags_dict={'docker-server': registry_host, 'docker-username': '__disabled_push_username', 'docker-password': '__disabled_push_password'}))
-k8s_yaml(secret_yaml_registry("image-pull-secret", flags_dict={'docker-server': registry_host, 'docker-username': '__disabled_pull_username', 'docker-password': '__disabled_pull_password'}))
+k8s_yaml(secret_from_dict("image-pull-secret", inputs={'server': registry_host, 'username': '__disabled_pull_username', 'password': '__disabled_pull_password'}))
 
 # Hard-code these values so that the secret value doesn't drift from the value that Postgres used when creating the user
 k8s_yaml(secret_from_dict("postgres-credentials", inputs={'password': 'super-insecure-local-dev-password', 'field-encryption-key': '96WYSbPNEYi65gb8BRCzbf5ISIywNVV8Dm1rFCnRUFk='}))

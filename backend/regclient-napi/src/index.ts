@@ -8,6 +8,8 @@ const __dirname = new URL(".", import.meta.url).pathname;
 const lib = require(resolve(__dirname, "./regclient_napi.node")) as {
   getImageInfo: (
     imageRef: string,
+    username: string,
+    password: string,
     overrideTLSHostname: string,
     overrideTLSState: string,
     callback: (err: null, result: string) => void,
@@ -49,11 +51,15 @@ type NativeGetImageConfigBindingResult =
 
 export async function getImageConfig(
   imageTag: string,
+  username?: string,
+  password?: string,
   overrideTLSHostname?: string,
   overrideTLSState?: "enabled" | "disabled" | "insecure",
 ): Promise<ImageConfig> {
   const result = await getImageInfoPromise(
     imageTag,
+    username ?? "",
+    password ?? "",
     overrideTLSHostname ?? "",
     overrideTLSState ?? "",
   );

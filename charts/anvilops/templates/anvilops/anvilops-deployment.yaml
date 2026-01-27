@@ -191,6 +191,16 @@ spec:
                 secretKeyRef:
                   name: image-delete-secret
                   key: password
+            - name: IMAGE_PULL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: image-pull-secret
+                  key: username
+            - name: IMAGE_PULL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: image-pull-secret
+                  key: password
             {{- if .Values.anvilops.serviceAccount.useKubeconfig }}
             - name: KUBECONFIG
               value: "/opt/creds/kubeconfig"

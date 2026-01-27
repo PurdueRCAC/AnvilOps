@@ -137,6 +137,35 @@ const getEnvRecord = (envVars: PrismaJson.EnvVar[]): Record<string, string> => {
   }, {});
 };
 
+const getImagePullSecret = (namespace: string): V1Secret & K8sObject => {
+  const config = {
+    auths: {
+      [env.REGISTRY_HOSTNAME]: {
+        username: env.IMAGE_PULL_USERNAME,
+        password: env.IMAGE_PULL_PASSWORD,
+        auth: Buffer.from(
+          env.IMAGE_PULL_USERNAME + ":" + env.IMAGE_PULL_PASSWORD,
+        ).toString("base64"),
+      },
+    },
+  };
+
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: "image-pull-secret",
+      namespace,
+    },
+    type: "kubernetes.io/dockerconfigjson",
+    data: {
+      ".dockerconfigjson": Buffer.from(JSON.stringify(config)).toString(
+        "base64",
+      ),
+    },
+  };
+};
+
 const createSecretConfig = (
   secrets: Record<string, string>,
   name: string,
@@ -257,6 +286,7 @@ export const createAppConfigsFromDeployment = async ({
     // Secrets should be created first
     configs.unshift(secretConfig);
   }
+  configs.unshift(getImagePullSecret(app.namespace));
 
   const params = {
     deploymentId: deployment.id,

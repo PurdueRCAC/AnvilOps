@@ -120,8 +120,19 @@ export async function getImageConfig(reference: string): Promise<ImageConfig> {
     );
   }
 
+  let username = "";
+  let password = "";
+  if (
+    reference.startsWith(`${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}`)
+  ) {
+    username = env.IMAGE_PULL_USERNAME;
+    password = env.IMAGE_PULL_PASSWORD;
+  }
+
   return await regclient.getImageConfig(
     reference,
+    username,
+    password,
     env.REGISTRY_HOSTNAME,
     env.REGISTRY_PROTOCOL !== "http" ? "enabled" : "disabled",
   );

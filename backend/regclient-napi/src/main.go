@@ -20,11 +20,13 @@ type Result struct {
 }
 
 //export GetImageInfo
-func GetImageInfo(refIn *C.char, tlsOverrideHostnameIn *C.char, tlsOverrideStateIn *C.char) *C.char {
+func GetImageInfo(refIn *C.char, usernameIn *C.char, passwordIn *C.char, tlsOverrideHostnameIn *C.char, tlsOverrideStateIn *C.char) *C.char {
 	goRefInput := C.GoString(refIn)
+	username := C.GoString(usernameIn)
+	password := C.GoString(passwordIn)
 	tlsOverrideHostname := C.GoString(tlsOverrideHostnameIn)
 	tlsOverrideState := C.GoString(tlsOverrideStateIn)
-	result, err := getImageInfo(goRefInput, tlsOverrideHostname, tlsOverrideState)
+	result, err := getImageInfo(goRefInput, username, password, tlsOverrideHostname, tlsOverrideState)
 
 	if err != nil {
 		msg := err.Error()
@@ -44,13 +46,20 @@ func GetImageInfo(refIn *C.char, tlsOverrideHostnameIn *C.char, tlsOverrideState
 	return C.CString(string(str))
 }
 
-func getImageInfo(refInput string, tlsOverrideHostname string, tlsOverrideState string) (*blob.BOCIConfig, error) {
+func getImageInfo(refInput string, username string, password string, tlsOverrideHostname string, tlsOverrideState string) (*blob.BOCIConfig, error) {
 	// https://github.com/regclient/regclient/blob/b59559fa7f07b20fc367f158468632f26e17b3fc/cmd/regctl/image.go#L1617
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
+	r, err := ref.New(refInput)
+	if err != nil {
+		return nil, err
+	}
+
 	hosts := []config.Host{}
+
+	hasCredentials := len(username) > 0 && len(password) > 0
 
 	if len(tlsOverrideHostname) > 0 {
 		var hostTLS config.TLSConf
@@ -60,9 +69,24 @@ func getImageInfo(refInput string, tlsOverrideHostname string, tlsOverrideState 
 			return nil, err
 		}
 
-		hosts = append(hosts, config.Host{
+		host := config.Host{
 			Name: tlsOverrideHostname,
 			TLS:  hostTLS,
+		}
+
+		if hasCredentials {
+			host.User = username
+			host.Pass = password
+		}
+
+		hosts = append(hosts, host)
+	} else if hasCredentials {
+		registryHostname := r.Registry
+
+		hosts = append(hosts, config.Host{
+			Name: registryHostname,
+			User: username,
+			Pass: password,
 		})
 	}
 
@@ -72,11 +96,6 @@ func getImageInfo(refInput string, tlsOverrideHostname string, tlsOverrideState 
 	}
 
 	client := regclient.New(opts...)
-
-	r, err := ref.New(refInput)
-	if err != nil {
-		return nil, err
-	}
 
 	manifest, err := client.ImageConfig(ctx, r)
 	if err != nil {
