@@ -157,11 +157,9 @@ export async function updateApp(
       commitMessage,
       config: updatedConfig,
       git: {
-        skipBuild: !shouldBuildOnUpdate(
-          currentConfig,
-          updatedConfig,
-          currentDeployment,
-        ),
+        skipBuild:
+          !appData.forceRebuild &&
+          !shouldBuildOnUpdate(currentConfig, updatedConfig, currentDeployment),
       },
     });
     // When the new image is built and deployed successfully, it will become the imageTag of the app's template deployment config so that future redeploys use it.
@@ -178,6 +176,7 @@ export async function updateApp(
   logger.info({ orgId: organization.id, appId: app.id }, "App updated");
 }
 
+// Keep in sync with the isRebuildRequired function in frontend/src/pages/app/ConfigTab.tsx
 function shouldBuildOnUpdate(
   oldConfig: DeploymentConfig,
   newConfig: WorkloadConfigCreate | HelmConfigCreate,

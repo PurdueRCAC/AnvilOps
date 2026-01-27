@@ -2236,6 +2236,8 @@ components:
           type: boolean
         config:
           $ref: "#/components/schemas/DeploymentConfig"
+        forceRebuild:
+          type: boolean
       required:
         - config
     DeploymentConfig:
