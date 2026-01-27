@@ -323,18 +323,17 @@ export class GitHubGitProvider implements GitProvider {
 
   async getLatestCommit(
     repoId: number,
-    branch: string,
+    branchName: string,
   ): Promise<{ sha: string; message: string }> {
     const repo = await this.getRepoById(repoId);
-    const commits = await this.octokit.rest.repos.listCommits({
+    const branch = await this.octokit.rest.repos.getBranch({
       owner: repo.owner,
       repo: repo.name,
-      ref: branch,
-      per_page: 1,
+      branch: branchName,
     });
     return {
-      sha: commits.data[0].sha,
-      message: commits.data[0].commit.message,
+      sha: branch.data.commit.sha,
+      message: branch.data.commit.commit.message,
     };
   }
 
@@ -361,7 +360,9 @@ export class GitHubGitProvider implements GitProvider {
     });
 
     return {
-      defaultBranch: repo.default_branch,
+      defaultBranch: branches.data.some((b) => b.name === repo.default_branch)
+        ? repo.default_branch
+        : undefined,
       names: branches.data.map((b) => b.name),
     };
   }

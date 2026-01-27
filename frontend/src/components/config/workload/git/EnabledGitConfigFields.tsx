@@ -109,7 +109,7 @@ export const EnabledGitConfigFields = ({
 
   useEffect(() => {
     const newBranch = branches?.default ?? branches?.branches?.[0];
-    if (!branch && newBranch) {
+    if (branch !== newBranch) {
       setGitState({ branch: newBranch });
     }
   }, [branches, branch, setGitState]);

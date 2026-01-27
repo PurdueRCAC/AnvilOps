@@ -216,7 +216,7 @@ PUSH_PASSWORD=
 DELETE_USERNAME=
 DELETE_PASSWORD=
 
-kubectl create secret -n $NAMESPACE docker-registry image-pull-secret --docker-server=$HOSTNAME --docker-username=$PULL_USERNAME --docker-password=$PULL_PASSWORD
+kubectl create secret -n $NAMESPACE generic image-pull-secret --from-literal=server=$HOSTNAME --from-literal=username=$PULL_USERNAME --from-literal=password=$PULL_PASSWORD
 kubectl create secret -n $NAMESPACE docker-registry image-push-secret --docker-server=$HOSTNAME --docker-username=$PUSH_USERNAME --docker-password=$PUSH_PASSWORD
 kubectl create secret -n $NAMESPACE generic image-delete-secret --from-literal=server=$HOSTNAME --from-literal=username=$DELETE_USERNAME --from-literal=password=$DELETE_PASSWORD
 ```

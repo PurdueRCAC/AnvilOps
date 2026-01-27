@@ -46,7 +46,7 @@ export interface GitProvider {
 
   getBranches(
     repoId: number,
-  ): Promise<{ defaultBranch: string; names: string[] }>;
+  ): Promise<{ defaultBranch?: string; names: string[] }>;
 
   getAllRepos(): Promise<GitRepository[]>;
 

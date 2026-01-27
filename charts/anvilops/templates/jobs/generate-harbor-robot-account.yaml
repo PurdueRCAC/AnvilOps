@@ -253,7 +253,7 @@ spec:
           # Use the generated robot account credentials to create or recreate secrets in the cluster
 
           kubectl delete secret -n {{ .Release.Namespace }} --ignore-not-found image-pull-secret
-          kubectl create secret -n {{ .Release.Namespace }} docker-registry image-pull-secret --docker-server={{ .Values.harbor.expose.ingress.hosts.core }} --docker-username=$(cat anvilops-puller/username) --docker-password=$(cat anvilops-puller/secret)
+          kubectl create secret -n {{ .Release.Namespace }} generic image-pull-secret --from-literal=server={{ .Values.harbor.expose.ingress.hosts.core }} --from-literal=username=$(cat anvilops-puller/username) --from-literal=password=$(cat anvilops-puller/secret)
           
           kubectl delete secret -n {{ .Release.Namespace }} --ignore-not-found image-push-secret
           kubectl create secret -n {{ .Release.Namespace }} docker-registry image-push-secret --docker-server={{ .Values.harbor.expose.ingress.hosts.core }} --docker-username=$(cat anvilops-pusher/username) --docker-password=$(cat anvilops-pusher/secret)
