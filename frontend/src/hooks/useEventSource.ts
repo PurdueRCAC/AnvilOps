@@ -9,36 +9,39 @@ export const useEventSource = <T extends string>(
   const [connected, setConnected] = useState(false);
   const [reconnectCounter, setReconnectCounter] = useState(0);
   const source = useRef<EventSource | null>(null);
+  const reconnectTimeout = useRef(500);
   const shouldOpen = useRef(true);
 
-  const setupEventSource = (
-    reconnectCallback: (newEventSource: EventSource) => void,
-  ) => {
-    console.log("Creating EventSource for", url.toString());
-    const eventSource = new EventSource(url);
+  const reconnect = () => {
+    setReconnectCounter((current) => current + 1);
+  };
 
-    eventSource.onopen = () => {
+  const setupEventSource = () => {
+    console.log("Creating EventSource for", url.toString());
+
+    source.current = new EventSource(url);
+
+    source.current.onopen = () => {
       setConnected(true);
       setHasConnected(true);
+      reconnectTimeout.current = 500;
     };
-    eventSource.onerror = () => {
+    source.current.onerror = () => {
       setConnected(false);
-      eventSource.close();
+      source.current?.close();
       setTimeout(() => {
         if (!shouldOpen.current) return; // The component has unmounted; we shouldn't try to reconnect anymore
-        reconnectCallback(setupEventSource(reconnectCallback));
-      }, 500);
+        console.log("Reconnecting");
+        reconnect();
+      }, reconnectTimeout.current);
+      reconnectTimeout.current = Math.min(reconnectTimeout.current * 2, 10000);
     };
 
-    source.current = eventSource;
-
     for (const eventName of eventNames) {
-      eventSource.addEventListener(eventName, (event: MessageEvent) =>
+      source.current.addEventListener(eventName, (event: MessageEvent) =>
         onMessage(eventName, event),
       );
     }
-
-    return eventSource;
   };
 
   const setup = useEffectEvent(setupEventSource);
@@ -46,14 +49,11 @@ export const useEventSource = <T extends string>(
 
   useEffect(() => {
     shouldOpen.current = true;
-    let eventSource: EventSource;
-    eventSource = setup((newEventSource) => {
-      eventSource = newEventSource;
-    });
+    setup();
 
     return () => {
       shouldOpen.current = false;
-      eventSource.close();
+      source.current?.close();
     };
   }, [urlString, reconnectCounter]);
 
@@ -63,9 +63,6 @@ export const useEventSource = <T extends string>(
     close: () => {
       source.current?.close();
       setConnected(false);
-    },
-    reconnect: () => {
-      setReconnectCounter((current) => current + 1);
     },
   };
 };

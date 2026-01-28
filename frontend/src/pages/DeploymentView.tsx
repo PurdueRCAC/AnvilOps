@@ -15,7 +15,15 @@ export const DeploymentView = () => {
     params: { path: { appId } },
   });
 
-  const { data: deployment } = api.useSuspenseQuery(
+  const { data: latestDeployments } = api.useSuspenseQuery(
+    "get",
+    "/app/{appId}/deployments",
+    { params: { path: { appId }, query: { page: 0, length: 1 } } },
+  );
+
+  const latestDeploymentId = latestDeployments?.[0]?.id;
+
+  const { data: deployment, refetch: refetchDeployment } = api.useSuspenseQuery(
     "get",
     "/app/{appId}/deployments/{deploymentId}",
     { params: { path: { appId, deploymentId } } },
@@ -51,7 +59,7 @@ export const DeploymentView = () => {
     "ERROR",
   ].includes(deployment.status);
 
-  const isCurrentDeployment = app.activeDeployment == deploymentId;
+  const isCurrentDeployment = latestDeploymentId == deploymentId;
 
   return (
     <main className="px-8 py-10">
@@ -102,6 +110,16 @@ export const DeploymentView = () => {
             deployment={deployment}
             type="BUILD"
             follow={defaultLogView === "BUILD" && isCurrentDeployment}
+            onLogReceived={(line, pastLogsSent) => {
+              if (
+                pastLogsSent &&
+                (line.log === "Deployment succeeded" ||
+                  line.log.startsWith("Deployment status has been updated to "))
+              ) {
+                // Refetch the deployment to update its status in the UI
+                void refetchDeployment();
+              }
+            }}
           />
         </TabsContent>
         <TabsContent value="RUNTIME">

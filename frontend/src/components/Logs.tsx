@@ -18,12 +18,29 @@ type LogsProps = {
   type: LogType;
   appId?: number;
   follow: boolean;
+  onLogReceived?: (
+    line: components["schemas"]["LogLine"],
+    pastLogsSent: boolean,
+  ) => void;
 };
 
-export const Logs = ({ deployment, type, appId, follow }: LogsProps) => {
+export const Logs = ({
+  deployment,
+  type,
+  appId,
+  follow,
+  onLogReceived,
+}: LogsProps) => {
   const [logs, setLogs] = useState<components["schemas"]["LogLine"][]>([]);
   const [noLogs, setNoLogs] = useState(false); // Set to true when we know there are no logs for this deployment
-  const [done, setDone] = useState(false); // Set to true when all past logs have been sent and the viewer is up-to-date
+  const [done, _setDone] = useState(false); // Set to true when all past logs have been sent and the viewer is up-to-date
+
+  const doneRef = useRef(false); // Updated at the same time as `setDone` is called so that the closure in useEventSource can access the most up-to-date value of this variable
+
+  const setDone = (newValue: boolean) => {
+    doneRef.current = newValue;
+    _setDone(newValue);
+  };
 
   const logsBody = useRef<HTMLDivElement | null>(null);
   const lastScroll = useRef({ scrollTop: 0, hasScrolledUp: false });
@@ -46,7 +63,7 @@ export const Logs = ({ deployment, type, appId, follow }: LogsProps) => {
       ? `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}`
       : `${window.location.protocol}//${window.location.host}/api/app/${appId}/logs?type=${type}&deploymentId=${deployment.id}`;
 
-  const { connecting, connected, close, reconnect } = useEventSource(
+  const { connecting, connected, close } = useEventSource(
     new URL(url),
     ["log", "pastLogsSent"],
     (eventName, event) => {
@@ -60,6 +77,7 @@ export const Logs = ({ deployment, type, appId, follow }: LogsProps) => {
       const newLine = event.data as string;
       setLogs((lines) => {
         const parsed = JSON.parse(newLine) as components["schemas"]["LogLine"];
+        onLogReceived?.(parsed, doneRef.current);
         for (const existingLine of lines) {
           if (parsed.id && existingLine.id === parsed.id) return lines;
         }
@@ -79,11 +97,7 @@ export const Logs = ({ deployment, type, appId, follow }: LogsProps) => {
     if (!follow && done && connected) {
       close();
     }
-
-    if (follow && !connected && !connecting) {
-      reconnect();
-    }
-  }, [done, follow, connected, connecting, close, reconnect]);
+  }, [done, follow, connected, close]);
 
   return (
     <>
