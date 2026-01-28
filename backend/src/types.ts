@@ -87,7 +87,10 @@ export const empty = <
     : "Error: This status code expects a body in the OpenAPI spec. Use json() instead.",
   res: HandlerResponse<ResMap>,
 ): HandlerResponse<ResMap> => {
-  return res.status(statusCode as unknown as number).end();
+  return res
+    .status(statusCode as unknown as number)
+    .setHeader("Content-Length", 0)
+    .end();
 };
 
 export const redirect = <

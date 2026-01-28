@@ -18,5 +18,5 @@ export const deleteOrgByIDHandler: HandlerMap["deleteOrgByID"] = async (
     }
   }
 
-  return empty(200, res);
+  return empty(204, res);
 };

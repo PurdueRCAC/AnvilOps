@@ -35,13 +35,13 @@ export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
 
   try {
     await processGitHubWebhookPayload(requestType, action, JSON.parse(data));
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {
       return json(400, res, { code: 400, message: e.message });
     } else if (e instanceof AppNotFoundError) {
       // GitHub sent a webhook about a repository, but it's not linked to any apps - nothing to do here
-      return empty(200, res);
+      return empty(204, res);
     } else if (e instanceof UnknownWebhookRequestTypeError) {
       // GitHub sent a webhook payload that we don't care about
       return empty(422, res);

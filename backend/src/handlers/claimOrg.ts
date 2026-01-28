@@ -30,5 +30,5 @@ export const claimOrgHandler: HandlerMap["claimOrg"] = async (
     }
     throw e;
   }
-  return empty(200, res);
+  return empty(204, res);
 };

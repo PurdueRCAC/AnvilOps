@@ -14,7 +14,7 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
   const { secret, status } = ctx.request.requestBody;
   try {
     await updateDeployment(secret, status);
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {
       return json(404, res, { code: 400, message: e.message });
