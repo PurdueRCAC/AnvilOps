@@ -12,7 +12,7 @@ export const deleteAppHandler: HandlerMap["deleteApp"] = async (
   const appId = ctx.request.params.appId;
   try {
     await deleteApp(appId, req.user.id, ctx.request.requestBody.keepNamespace);
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found" });

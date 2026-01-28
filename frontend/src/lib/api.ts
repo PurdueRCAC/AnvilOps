@@ -54,7 +54,6 @@ const onError = (
   toast.error(
     `Something went wrong: ${error.message ?? JSON.stringify(error)}`,
   );
-  console.error(error);
 };
 
 export const queryClient = new QueryClient({

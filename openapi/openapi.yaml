@@ -254,7 +254,7 @@ paths:
                 - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-transferred"
                 - $ref: "./ghes-3.16.yaml#/components/schemas/webhook-repository-deleted"
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -386,7 +386,7 @@ paths:
       description: Deletes organization by id
       operationId: deleteOrgByID
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -433,7 +433,7 @@ paths:
                   format: int64
               required: [unclaimedInstallationId]
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -532,7 +532,7 @@ paths:
       description: Accepts an invitation
       operationId: acceptInvitation
       responses:
-        "200":
+        "204":
           description: Success (invitation accepted)
         "400":
           description: Validation failed
@@ -1096,7 +1096,7 @@ paths:
                 - orgId
                 - apps
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -1167,7 +1167,7 @@ paths:
             schema:
               $ref: "#/components/schemas/AppUpdate"
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -1214,7 +1214,7 @@ paths:
                   type: boolean
               required: [keepNamespace]
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -1262,7 +1262,7 @@ paths:
                   type: boolean
               required: [enable]
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -1690,7 +1690,7 @@ paths:
                   description: The hostname of the pod that produced the log line, which should equal the pod name
                   type: string
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed
@@ -1836,7 +1836,7 @@ paths:
                 status:
                   type: string
       responses:
-        "200":
+        "204":
           description: Success
         "400":
           description: Validation failed

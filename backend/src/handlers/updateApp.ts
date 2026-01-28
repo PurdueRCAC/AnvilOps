@@ -15,7 +15,7 @@ export const updateAppHandler: HandlerMap["updateApp"] = async (
   const appData = ctx.request.requestBody;
   try {
     await updateApp(ctx.request.params.appId, req.user.id, appData);
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found" });

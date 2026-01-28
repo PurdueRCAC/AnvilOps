@@ -32,7 +32,7 @@ export const ingestLogsHandler: HandlerMap["ingestLogs"] = async (
       logType,
       ctx.request.requestBody.lines,
     );
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof DeploymentNotFoundError) {
       // No deployment matches the ID and secret

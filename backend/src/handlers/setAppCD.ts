@@ -14,7 +14,7 @@ export const setAppCDHandler: HandlerMap["setAppCD"] = async (
       req.user.id,
       ctx.request.requestBody.enable,
     );
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {
       return json(404, res, { code: 404, message: "App not found." });

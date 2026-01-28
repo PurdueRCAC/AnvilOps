@@ -18,7 +18,7 @@ export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
 
   try {
     await createAppGroup(req.user.id, data.orgId, data.name, data.apps);
-    return empty(200, res);
+    return empty(204, res);
   } catch (e) {
     if (e instanceof AppCreateError) {
       const ex = e.cause!;
