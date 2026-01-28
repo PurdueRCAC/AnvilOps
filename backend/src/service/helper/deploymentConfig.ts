@@ -26,6 +26,7 @@ import {
   RepositoryNotFoundError,
   ValidationError,
 } from "../common/errors.ts";
+import { canCreateIngress } from "../isSubdomainAvailable.ts";
 
 type GitWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
   source: "git";
@@ -364,8 +365,16 @@ export class DeploymentConfigService {
     }
 
     const appWithSubdomain = await this.appRepo.getAppBySubdomain(subdomain);
-    if (appWithSubdomain && appWithSubdomain.id !== existingAppId) {
-      throw new ValidationError("Subdomain is in use");
+    if (appWithSubdomain) {
+      if (appWithSubdomain.id !== existingAppId) {
+        throw new ValidationError(
+          "Subdomain is in use by another AnvilOps app",
+        );
+      }
+    } else {
+      if (!(await canCreateIngress(subdomain))) {
+        throw new ValidationError("Subdomain is in use");
+      }
     }
   }
 }
