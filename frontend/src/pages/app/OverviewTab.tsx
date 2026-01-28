@@ -438,7 +438,10 @@ const RetryDeploymentPrompt = ({
           onClick={async () => {
             await updateApp({
               params: { path: { appId: app.id } },
-              body: { config: app.config },
+              body: {
+                projectId: app.projectId,
+                config: app.config,
+              },
             });
             await refetchDeployments();
           }}
