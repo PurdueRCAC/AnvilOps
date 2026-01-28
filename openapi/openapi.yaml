@@ -1600,15 +1600,9 @@ paths:
         "404":
           description: Not found
 
-  /app/{appId}/deployments/{deploymentId}/logs:
+  /app/{appId}/logs:
     parameters:
       - name: appId
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      - name: deploymentId
         in: path
         required: true
         schema:
@@ -1623,6 +1617,11 @@ paths:
           in: query
           schema:
             $ref: "#/components/schemas/LogType"
+        - name: deploymentId
+          in: query
+          schema:
+            type: integer
+            format: int64
       responses:
         "404":
           description: App not found

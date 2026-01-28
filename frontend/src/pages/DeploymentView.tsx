@@ -1,6 +1,8 @@
 import { Logs } from "@/components/Logs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { ArrowLeft, Container, GitCommit } from "lucide-react";
+import { Activity } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Status } from "./app/AppView";
 
@@ -37,6 +39,20 @@ export const DeploymentView = () => {
 
   const title = deployment?.title?.trim() ?? "Untitled deployment";
 
+  const defaultLogView = ["COMPLETE", "STOPPED"].includes(deployment.status)
+    ? "RUNTIME"
+    : "BUILD";
+
+  const buildLogsOnly = [
+    "PENDING",
+    "QUEUED",
+    "BUILDING",
+    "DEPLOYING",
+    "ERROR",
+  ].includes(deployment.status);
+
+  const isCurrentDeployment = app.activeDeployment == deploymentId;
+
   return (
     <main className="px-8 py-10">
       <Link
@@ -68,7 +84,35 @@ export const DeploymentView = () => {
         Started at {format.format(new Date(deployment.createdAt))} &middot; Last
         updated {format.format(new Date(deployment.updatedAt))}.
       </p>
-      <Logs deployment={deployment} type="BUILD" />
+      <hr className="mt-2 mb-4" />
+      <Tabs defaultValue={defaultLogView}>
+        <Activity mode={buildLogsOnly ? "hidden" : "visible"}>
+          <TabsList>
+            <TabsTrigger value="BUILD">
+              <span>Build Logs</span>
+            </TabsTrigger>
+            <TabsTrigger value="RUNTIME">
+              <span>Runtime Logs</span>
+            </TabsTrigger>
+          </TabsList>
+        </Activity>
+        <TabsContent value="BUILD">
+          <Logs
+            appId={deployment.appId}
+            deployment={deployment}
+            type="BUILD"
+            follow={defaultLogView === "BUILD" && isCurrentDeployment}
+          />
+        </TabsContent>
+        <TabsContent value="RUNTIME">
+          <Logs
+            appId={deployment.appId}
+            deployment={deployment}
+            type="RUNTIME"
+            follow={defaultLogView === "RUNTIME" && isCurrentDeployment}
+          />
+        </TabsContent>
+      </Tabs>
     </main>
   );
 };

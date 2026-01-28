@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import {
   DeploymentSource,
   type DeploymentStatus,
+  type LogType,
   type PermissionLevel,
   type WebhookEvent,
 } from "../../generated/prisma/enums.ts";
@@ -16,6 +17,7 @@ import type {
   AppCreate,
   Deployment,
   DeploymentConfig,
+  Log,
 } from "../models.ts";
 import { DeploymentRepo } from "./deployment.ts";
 
@@ -213,6 +215,30 @@ export class AppRepo {
     });
 
     return app.config.deployment;
+  }
+
+  async getLogs(
+    appId: number,
+    deploymentId: number | null,
+    cursor: number,
+    type: LogType,
+    limit: number,
+  ): Promise<Log[]> {
+    // Fetch them in reverse order so that we can take only the 500 most recent lines
+    return (
+      await this.client.log.findMany({
+        where: {
+          id: { gt: cursor },
+          type: type,
+          deployment: {
+            appId,
+            ...(deploymentId !== null ? { id: deploymentId } : {}),
+          },
+        },
+        orderBy: [{ timestamp: "desc" }, { index: "desc" }],
+        take: limit,
+      })
+    ).reverse();
   }
 
   async getDeploymentConfig(appId: number): Promise<DeploymentConfig> {

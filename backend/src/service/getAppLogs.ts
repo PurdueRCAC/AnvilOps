@@ -28,7 +28,7 @@ const k8sConcurrentViewers = meter.createUpDownCounter(
 
 export async function getAppLogs(
   appId: number,
-  deploymentId: number,
+  deploymentId: number | null,
   userId: number,
   type: LogType,
   lastLogId: number,
@@ -44,7 +44,7 @@ export async function getAppLogs(
   }
 
   // Pull logs from Postgres and send them to the client as they come in
-  if (typeof deploymentId !== "number") {
+  if (typeof deploymentId !== "number" && deploymentId !== null) {
     // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation and additional sanitization in `subscribe()`
     throw new Error("deploymentId must be a number.");
   }
@@ -56,7 +56,8 @@ export async function getAppLogs(
 
   if (collectLogs || type === "BUILD") {
     const fetchNewLogs = async () => {
-      const newLogs = await db.deployment.getLogs(
+      const newLogs = await db.app.getLogs(
+        app.id,
         deploymentId,
         lastLogId,
         type,
@@ -80,9 +81,14 @@ export async function getAppLogs(
       );
     };
 
+    const channel =
+      deploymentId === null
+        ? `app_${appId}_logs`
+        : `deployment_${deploymentId}_logs`;
+
     // When new logs come in, send them to the client
     const unsubscribe = await db.subscribe(
-      `deployment_${deploymentId}_logs`,
+      channel,
       () =>
         void fetchNewLogs().catch((err) =>
           logger.error(err, "Failed to fetch new logs"),
@@ -104,6 +110,11 @@ export async function getAppLogs(
       throw new ValidationError(
         "Application log browsing is not supported for Helm deployments",
       );
+    }
+
+    if (!deploymentId) {
+      const recentDeployment = await db.app.getMostRecentDeployment(appId);
+      deploymentId = recentDeployment.id;
     }
 
     const { CoreV1Api: core, Log: log } = await getClientsForRequest(
