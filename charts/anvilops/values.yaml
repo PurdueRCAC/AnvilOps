@@ -3,8 +3,8 @@
 
 anvilops:
   replicaCount: 1
-  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:0.3.0@sha256:0074c28bb2c4c74ea323e0f1167f9f3021c0f1a2a911974e7b91116878ff5b13
-  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:0.3.0@sha256:6054a9c4e2345f771a0bc0b9833cb5189ba4519bca632df1266791bd82047931
+  image: registry.anvil.rcac.purdue.edu/anvilops/anvilops:0.4.0@sha256:597eea5c0e93cf5b225607a2c7123bbae6b4188259665daaf67ad6ed7bca3771
+  dbMigrateImage: registry.anvil.rcac.purdue.edu/anvilops/migrate-db:0.4.0@sha256:38a47bb2e79cb5283573cad7ab4af897d12ef816f1d59fb4053c3158b8a37393
   imagePullPolicy: IfNotPresent
   env:
     baseURL: http://anvilops.minikube.local
@@ -13,14 +13,14 @@ anvilops:
     harborChartRepoName: anvilops-chart
     allowedIdps: https://idp.purdue.edu/idp/shibboleth
     loginType: shibboleth
-    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:0.3.0@sha256:9f01e349a0dd5a49a00730ed638dec381acfb6b5e2496471e1e395de1bd457cf
-    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:0.3.0@sha256:c23a64b80ea381d732642c90bf67da80d27ce97999e665b34d1bf9121c361e69
-    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.3.0@sha256:b30c26f9ef107c78b831c4127c57c36d6c572e8c007b012688455a0d915689d6
-    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:0.3.0@sha256:60199df66c63df6db4f30aaa97dadfc3be8d4cf78a56516e733b2fa87a5da394
-    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:0.3.0@sha256:35ece5c02641eee92bfd0ee386056af8fd857bc5b379393c957e5fb8e8c39350
-    railpackInternalFrontendImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:0.17.0@sha256:aa2c58772b4cb9851767647b898e537ebb06067aadc2b62f51c97acdce2a61bc
-    railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.17.0@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
-    railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.17.0@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
+    fileBrowserImage: registry.anvil.rcac.purdue.edu/anvilops/file-browser:0.4.0@sha256:00e555e016be67f5ad9951b2289b162f822156d0b5b2c05bfaad552563fe5585
+    dockerfileBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/dockerfile-builder:0.4.0@sha256:dc33128ef0686f40dabbbd3f86312d10ff8f2b265de1fa5f8d2590182f7e1d0c
+    railpackBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.4.0@sha256:f3622079f99864171ee20f37dce3afc6cad6363826e81835929fbc3c43a54481
+    helmDeployerImage: registry.anvil.rcac.purdue.edu/anvilops/helm-deployer:0.4.0@sha256:4e4ccce4d3ad33721effe58a47dc06f451cd3758b854baacf89bd21258f400e8
+    logShipperImage: registry.anvil.rcac.purdue.edu/anvilops/log-shipper:0.4.0@sha256:34e5660c95df243371f6ad4ed6a60901b9eec4eb53d66fea341d245bf605b471
+    railpackInternalFrontendImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-frontend:0.17.1@sha256:260abee6b67c17a71db43ca6d27a27036776d5b8d8da49347dc6bd8b1c85c24b
+    railpackInternalBuilderImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-builder:0.17.1@sha256:a98f18ce38aef3425eada7a95d7b85693075dd6afdc64f20ed74ce847c15cde5
+    railpackInternalRuntimeImage: registry.anvil.rcac.purdue.edu/anvilops/railpack-runtime:0.17.1@sha256:cc2f030774f3998ae3c95eea1a1c8358e7fd8d5e4ebf6597d254576179953cd9
     allowHelmDeployments: false
     otelEndpoint: ""
     otelServiceName: anvilops
@@ -93,14 +93,12 @@ anvilops:
       # allowedIngressMatchLabels:
       #   - kubernetes.io/metadata.name: kube-system
       #   - kubernetes.io/metadata.name: ingress-nginx
-
 rancher:
   enabled: false
   apiBase: ""
   refreshTokens: true
   refreshSchedule: "0 0 25 * *"
   tokenTtl: "2592000000" # 30 days
-
 postgres:
   generateCredentials: true
   image: postgres:17
