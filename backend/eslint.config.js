@@ -33,6 +33,10 @@ export default defineConfig({
     "guard-for-in": "warn",
     "no-console": "error",
     "require-await": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { ignoreRestSiblings: true },
+    ],
   },
   extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
 });
