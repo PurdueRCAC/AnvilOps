@@ -134,7 +134,7 @@ export class ImportRepoAuthenticationRequiredError extends Error {
  * If the organization is not linked to a Git provider, an {@link InstallationNotFoundError} is thrown.
  */
 export async function getGitProvider(orgId: number): Promise<GitProvider> {
-  return await GitHubGitProvider.getInstance(orgId);
+  return await GitHubGitProvider.getInstance(orgId, db.org, db.repoImportState);
 }
 
 /**

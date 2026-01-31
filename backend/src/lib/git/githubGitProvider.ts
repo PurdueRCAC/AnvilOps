@@ -1,7 +1,8 @@
 import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import type { operations } from "@octokit/openapi-types";
 import { Octokit, RequestError } from "octokit";
-import { db } from "../../db/index.ts";
+import type { OrganizationRepo } from "../../db/repo/organization.ts";
+import type { RepoImportStateRepo } from "../../db/repo/repoImportState.ts";
 import { logger } from "../../index.ts";
 import {
   InstallationNotFoundError,
@@ -43,7 +44,7 @@ type InstallationScopedOctokit = Octokit & {
   [installationIdSymbol]: number;
 };
 
-async function getOctokit(installationId: number) {
+async function getOctokit(installationId: number, orgRepo: OrganizationRepo) {
   const octokit = new Octokit({
     baseUrl: env.GITHUB_API_URL,
     authStrategy: createAppAuth,
@@ -67,7 +68,7 @@ async function getOctokit(installationId: number) {
   } catch (e) {
     if ((e as RequestError)?.status === 404) {
       // Installation not found. Remove it from its organization(s).
-      await db.org.unlinkInstallationFromAllOrgs(installationId);
+      await orgRepo.unlinkInstallationFromAllOrgs(installationId);
       throw new InstallationNotFoundError(e as Error);
     }
     throw e;
@@ -78,24 +79,42 @@ async function getOctokit(installationId: number) {
 export class GitHubGitProvider implements GitProvider {
   private octokit: Octokit;
   private installationId: number;
+  private orgRepo: OrganizationRepo;
+  private repoImportStateRepo: RepoImportStateRepo;
 
-  private constructor(octokit: Octokit, installationId: number) {
+  private constructor(
+    octokit: Octokit,
+    orgRepo: OrganizationRepo,
+    repoImportStateRepo: RepoImportStateRepo,
+    installationId: number,
+  ) {
     if (!octokit || !installationId || installationId < 0) {
       throw new ValidationError();
     }
     this.octokit = octokit;
     this.installationId = installationId;
+    this.orgRepo = orgRepo;
+    this.repoImportStateRepo = repoImportStateRepo;
   }
 
-  static async getInstance(orgId: number) {
-    const org = await db.org.getById(orgId);
+  static async getInstance(
+    orgId: number,
+    orgRepo: OrganizationRepo,
+    repoImportStateRepo: RepoImportStateRepo,
+  ) {
+    const org = await orgRepo.getById(orgId);
     if (!org.githubInstallationId) {
       throw new InstallationNotFoundError(null);
     }
 
-    const octokit = await getOctokit(org.githubInstallationId);
+    const octokit = await getOctokit(org.githubInstallationId, orgRepo);
 
-    return new GitHubGitProvider(octokit, org.githubInstallationId);
+    return new GitHubGitProvider(
+      octokit,
+      orgRepo,
+      repoImportStateRepo,
+      org.githubInstallationId,
+    );
   }
 
   async getRepoById(repoId: number): Promise<GitRepository> {
@@ -178,7 +197,7 @@ export class GitHubGitProvider implements GitProvider {
         } else {
           // If not, we need to get authorization from the user first.
 
-          const stateId = await db.repoImportState.create(
+          const stateId = await this.repoImportStateRepo.create(
             userId,
             orgId,
             newOwner,
@@ -205,7 +224,7 @@ export class GitHubGitProvider implements GitProvider {
     code: string,
     userId: number,
   ): Promise<{ repoId: number; orgId: number; repoName: string }> {
-    const state = await db.repoImportState.get(stateId, userId);
+    const state = await this.repoImportStateRepo.get(stateId, userId);
 
     logger.info(
       {
@@ -231,7 +250,7 @@ export class GitHubGitProvider implements GitProvider {
     });
 
     await this.importRepoManually(new URL(state.srcRepoURL), repo.data.id);
-    await db.repoImportState.delete(stateId);
+    await this.repoImportStateRepo.delete(stateId);
 
     return {
       repoId: repo.data.id,
