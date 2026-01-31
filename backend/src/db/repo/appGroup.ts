@@ -1,5 +1,6 @@
 import { PrismaClientKnownRequestError } from "../../generated/prisma/internal/prismaNamespace.ts";
-import { ConflictError, type PrismaClientType } from "../index.ts";
+import { ConflictError } from "../errors/index.ts";
+import type { PrismaClientType } from "../index.ts";
 import type { AppGroup } from "../models.ts";
 
 export class AppGroupRepo {

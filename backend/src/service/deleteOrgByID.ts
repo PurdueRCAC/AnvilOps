@@ -1,7 +1,7 @@
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
 import { deleteApp } from "./deleteApp.ts";
+import { OrgNotFoundError } from "./errors/index.ts";
 
 export async function deleteOrgByID(orgId: number, userId: number) {
   const org = await db.org.getById(orgId, {

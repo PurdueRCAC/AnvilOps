@@ -7,11 +7,8 @@ import {
   type PermissionLevel,
   type WebhookEvent,
 } from "../../generated/prisma/enums.ts";
-import {
-  ConflictError,
-  NotFoundError,
-  type PrismaClientType,
-} from "../index.ts";
+import { ConflictError, NotFoundError } from "../errors/index.ts";
+import { type PrismaClientType } from "../index.ts";
 import type {
   App,
   AppCreate,

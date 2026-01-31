@@ -1,7 +1,7 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import type { Organization } from "../db/models.ts";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 
 export async function createOrg(
   name: string,

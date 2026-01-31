@@ -1,4 +1,4 @@
-import { ValidationError } from "../service/common/errors.ts";
+import { ValidationError } from "../service/errors/index.ts";
 import { isSubdomainAvailable } from "../service/isSubdomainAvailable.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

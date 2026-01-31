@@ -4,7 +4,7 @@ import {
   getGitProviderByRepoImportState,
   ImportRepoAuthenticationRequiredError,
 } from "../lib/git/gitProvider.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import { OrgNotFoundError } from "./errors/index.ts";
 
 /**
  * Imports a Git repository, or returns a redirect URL if authorization is needed.

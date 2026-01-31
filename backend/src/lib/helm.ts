@@ -1,8 +1,8 @@
 import { V1Pod } from "@kubernetes/client-node";
 import { randomBytes } from "node:crypto";
 import type { App, Deployment, HelmConfig } from "../db/models.ts";
-import { logger } from "../index.ts";
-import { ValidationError } from "../service/common/errors.ts";
+import { logger } from "../logger.ts";
+import { ValidationError } from "../service/errors/index.ts";
 import {
   ensureNamespace,
   getClientForClusterUsername,

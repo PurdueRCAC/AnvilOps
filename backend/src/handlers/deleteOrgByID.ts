@@ -1,4 +1,4 @@
-import { OrgNotFoundError } from "../service/common/errors.ts";
+import { OrgNotFoundError } from "../service/errors/index.ts";
 import { deleteOrgByID } from "../service/deleteOrgByID.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

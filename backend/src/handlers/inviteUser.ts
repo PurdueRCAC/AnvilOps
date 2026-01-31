@@ -1,9 +1,9 @@
-import { ConflictError } from "../db/index.ts";
+import { ConflictError } from "../db/errors.ts";
 import {
   OrgNotFoundError,
   UserNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { inviteUser } from "../service/inviteUser.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

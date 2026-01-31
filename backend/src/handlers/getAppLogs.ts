@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import type { components } from "../generated/openapi.ts";
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
 import { getAppLogs } from "../service/getAppLogs.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

@@ -1,7 +1,7 @@
 import {
   OrgNotFoundError,
   UserNotFoundError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { removeUserFromOrg } from "../service/removeUserFromOrg.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

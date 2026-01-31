@@ -4,7 +4,7 @@ import {
   type InstallationNotFoundError,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
   type RepositoryNotFoundError,
-} from "../../service/common/errors.ts";
+} from "../../service/errors/index.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";
 
 /**

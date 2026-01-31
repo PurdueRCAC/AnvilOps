@@ -1,6 +1,6 @@
 import { db } from "../db/index.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import { OrgNotFoundError } from "./errors/index.ts";
 
 export async function listOrgRepos(orgId: number, userId: number) {
   const org = await db.org.getById(orgId, {

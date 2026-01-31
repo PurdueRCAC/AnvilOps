@@ -1,9 +1,9 @@
-import { logger } from "../index.ts";
 import { env } from "../lib/env.ts";
+import { logger } from "../logger.ts";
 import {
   OrgAlreadyLinkedError,
   OrgNotFoundError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { createGitHubAppInstallState } from "../service/githubAppInstall.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";

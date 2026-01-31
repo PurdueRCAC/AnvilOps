@@ -5,9 +5,9 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
-import { logger } from "../index.ts";
 import { getGitProviderType } from "../lib/git/gitProvider.ts";
-import { OrgAlreadyLinkedError, OrgNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { OrgAlreadyLinkedError, OrgNotFoundError } from "./errors/index.ts";
 
 export async function createGitHubAppInstallState(
   orgId: number,

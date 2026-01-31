@@ -1,8 +1,8 @@
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import {
   DeploymentNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { updateDeployment } from "../service/updateDeployment.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 

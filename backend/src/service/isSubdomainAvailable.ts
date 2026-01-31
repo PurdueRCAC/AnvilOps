@@ -4,7 +4,7 @@ import { svcK8s } from "../lib/cluster/kubernetes.ts";
 import { createIngressConfig } from "../lib/cluster/resources/ingress.ts";
 import { env } from "../lib/env.ts";
 import { isRFC1123 } from "../lib/validate.ts";
-import { ValidationError } from "./common/errors.ts";
+import { ValidationError } from "./errors/index.ts";
 
 export async function isSubdomainAvailable(subdomain: string) {
   if (!isRFC1123(subdomain)) {

@@ -1,7 +1,7 @@
 import { ApiException } from "@kubernetes/client-node";
 import { svcK8s } from "../lib/cluster/kubernetes.ts";
 import { isRFC1123 } from "../lib/validate.ts";
-import { ValidationError } from "./common/errors.ts";
+import { ValidationError } from "./errors/index.ts";
 
 export async function isNamespaceAvailable(namespace: string) {
   if (!isRFC1123(namespace)) {

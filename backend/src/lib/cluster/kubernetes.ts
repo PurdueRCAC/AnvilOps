@@ -15,7 +15,7 @@ import {
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { setTimeout } from "node:timers/promises";
 import { db } from "../../db/index.ts";
-import { logger } from "../../index.ts";
+import { logger } from "../../logger.ts";
 import { env } from "../env.ts";
 import { shouldImpersonate } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";

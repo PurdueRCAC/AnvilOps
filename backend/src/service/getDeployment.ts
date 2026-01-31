@@ -2,7 +2,7 @@ import type { V1Pod, V1PodList } from "@kubernetes/client-node";
 import { db } from "../db/index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { DeploymentNotFoundError } from "./common/errors.ts";
+import { DeploymentNotFoundError } from "./errors/index.ts";
 import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getDeployment(deploymentId: number, userId: number) {

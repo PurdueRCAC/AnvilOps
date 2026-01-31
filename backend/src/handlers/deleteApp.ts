@@ -1,6 +1,6 @@
-import { logger } from "../index.ts";
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { logger } from "../logger.ts";
 import { deleteApp } from "../service/deleteApp.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 

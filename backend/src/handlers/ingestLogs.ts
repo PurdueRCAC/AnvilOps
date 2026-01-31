@@ -2,7 +2,7 @@ import type { LogType } from "../generated/prisma/enums.ts";
 import {
   DeploymentNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { ingestLogs } from "../service/ingestLogs.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 

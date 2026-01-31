@@ -3,15 +3,15 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
-import { logger } from "../index.ts";
 import { GitHubGitProvider } from "../lib/git/githubGitProvider.ts";
+import { logger } from "../logger.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
   InstallationNotFoundError,
   OrgNotFoundError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 import { verifyState } from "./githubAppInstall.ts";
 
 type GitHubOAuthResponseResult = "done" | "approval-needed";

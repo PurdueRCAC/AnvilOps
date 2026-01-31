@@ -2,15 +2,15 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db, NotFoundError } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
-import { logger } from "../index.ts";
 import { env } from "../lib/env.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
+import { logger } from "../logger.ts";
 import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
   UserNotFoundError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 import { deploymentConfigService, deploymentService } from "./helper/index.ts";
 
 export async function processGitHubWebhookPayload(

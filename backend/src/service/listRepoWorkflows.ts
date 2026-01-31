@@ -1,7 +1,7 @@
 import { RequestError } from "octokit";
 import { db } from "../db/index.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { OrgNotFoundError, RepositoryNotFoundError } from "./common/errors.ts";
+import { OrgNotFoundError, RepositoryNotFoundError } from "./errors/index.ts";
 
 export async function listRepoWorkflows(
   orgId: number,

@@ -1,4 +1,4 @@
-import { logger } from "../../index.ts";
+import { logger } from "../../logger.ts";
 import { getOrCreate } from "../cache.ts";
 import { env } from "../env.ts";
 import { getClientForClusterUsername } from "./kubernetes.ts";

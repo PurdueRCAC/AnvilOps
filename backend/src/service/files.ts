@@ -5,7 +5,7 @@ import {
   AppNotFoundError,
   IllegalPVCAccessError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 
 export async function forwardToFileBrowser(
   userId: number,

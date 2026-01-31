@@ -1,4 +1,4 @@
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
 import { getAppByID } from "../service/getAppByID.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

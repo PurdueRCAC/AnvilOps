@@ -4,9 +4,9 @@ import stream from "node:stream";
 import { db } from "../db/index.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
-import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { AppNotFoundError, ValidationError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError, ValidationError } from "./errors/index.ts";
 
 const meter = metrics.getMeter("log_viewer");
 const dbConcurrentViewers = meter.createUpDownCounter(

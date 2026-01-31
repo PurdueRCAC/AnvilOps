@@ -1,5 +1,5 @@
 import { db } from "../db/index.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import { OrgNotFoundError } from "./errors/index.ts";
 
 export async function listOrgGroups(orgId: number, userId: number) {
   const [org, appGroups] = await Promise.all([

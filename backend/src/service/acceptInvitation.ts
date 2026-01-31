@@ -1,7 +1,7 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db, NotFoundError } from "../db/index.ts";
-import { logger } from "../index.ts";
-import { InvitationNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { InvitationNotFoundError } from "./errors/index.ts";
 
 export async function acceptInvitation(
   invitationId: number,

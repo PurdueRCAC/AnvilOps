@@ -2,7 +2,8 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../../generated/prisma/enums.ts";
-import { NotFoundError, type PrismaClientType } from "../index.ts";
+import { NotFoundError } from "../errors/index.ts";
+import type { PrismaClientType } from "../index.ts";
 import type { OrgMembership, UnassignedInstallation, User } from "../models.ts";
 
 export class UserRepo {

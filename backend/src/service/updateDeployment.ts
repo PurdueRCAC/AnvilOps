@@ -1,5 +1,4 @@
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
 import { dequeueBuildJob } from "../lib/builder.ts";
 import {
   createOrUpdateApp,
@@ -8,7 +7,8 @@ import {
 import { shouldImpersonate } from "../lib/cluster/rancher.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { DeploymentNotFoundError, ValidationError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 import { log } from "./githubWebhook.ts";
 
 export async function updateDeployment(secret: string, newStatus: string) {

@@ -3,12 +3,12 @@ import type { operations } from "@octokit/openapi-types";
 import { Octokit, RequestError } from "octokit";
 import type { OrganizationRepo } from "../../db/repo/organization.ts";
 import type { RepoImportStateRepo } from "../../db/repo/repoImportState.ts";
-import { logger } from "../../index.ts";
+import { logger } from "../../logger.ts";
 import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "../../service/common/errors.ts";
+} from "../../service/errors/index.ts";
 import { get, getOrCreate, set } from "../cache.ts";
 import { env } from "../env.ts";
 import { copyRepoManually } from "../import.ts";

@@ -1,4 +1,4 @@
-import { OrgNotFoundError } from "../service/common/errors.ts";
+import { OrgNotFoundError } from "../service/errors/index.ts";
 import {
   continueImportGitRepo,
   importGitRepo,

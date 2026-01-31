@@ -2,17 +2,17 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ConflictError, db } from "../db/index.ts";
 import type { App } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import { logger } from "../index.ts";
 import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
   getRandomTag,
 } from "../lib/cluster/resources.ts";
+import { logger } from "../logger.ts";
 import {
   DeploymentError,
   OrgNotFoundError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 import {
   appService,
   deploymentConfigService,

@@ -12,10 +12,7 @@ import {
 import { env } from "../../lib/env.ts";
 import { getGitProvider } from "../../lib/git/gitProvider.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
-import {
-  InstallationNotFoundError,
-  ValidationError,
-} from "../../service/common/errors.ts";
+import { InstallationNotFoundError, ValidationError } from "../errors/index.ts";
 import { isNamespaceAvailable } from "../isNamespaceAvailable.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
 

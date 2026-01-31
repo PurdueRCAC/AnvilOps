@@ -4,7 +4,7 @@ import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { processGitHubWebhookPayload } from "../service/githubWebhook.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 

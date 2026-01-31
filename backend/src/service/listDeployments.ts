@@ -7,7 +7,7 @@ import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 
 export async function listDeployments(
   appId: number,

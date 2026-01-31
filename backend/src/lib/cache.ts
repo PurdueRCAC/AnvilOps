@@ -1,6 +1,6 @@
 import { LRUCache } from "lru-cache";
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 
 let lastCleanup = 0;
 

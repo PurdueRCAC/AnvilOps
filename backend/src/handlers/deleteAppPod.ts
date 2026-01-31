@@ -1,4 +1,4 @@
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
 import { deleteAppPod } from "../service/deleteAppPod.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

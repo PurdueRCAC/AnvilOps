@@ -3,7 +3,7 @@ import {
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { createGitHubAuthorizationState } from "../service/githubInstallCallback.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";

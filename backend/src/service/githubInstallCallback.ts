@@ -1,10 +1,10 @@
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import {
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 import { createState, verifyState } from "./githubAppInstall.ts";
 
 export async function createGitHubAuthorizationState(

@@ -1,4 +1,4 @@
-import { InvitationNotFoundError } from "../service/common/errors.ts";
+import { InvitationNotFoundError } from "../service/errors/index.ts";
 import { revokeInvitation } from "../service/revokeInvitation.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

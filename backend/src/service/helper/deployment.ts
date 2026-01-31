@@ -14,7 +14,6 @@ import { AppRepo } from "../../db/repo/app.ts";
 import { AppGroupRepo } from "../../db/repo/appGroup.ts";
 import { DeploymentRepo } from "../../db/repo/deployment.ts";
 import { DeploymentStatus } from "../../generated/prisma/enums.ts";
-import { logger } from "../../index.ts";
 import { cancelBuildJobsForApp, createBuildJob } from "../../lib/builder.ts";
 import {
   createOrUpdateApp,
@@ -29,7 +28,8 @@ import {
   type GitProvider,
 } from "../../lib/git/gitProvider.ts";
 import { upgrade } from "../../lib/helm.ts";
-import { DeploymentError } from "../common/errors.ts";
+import { logger } from "../../logger.ts";
+import { DeploymentError } from "../errors/index.ts";
 import { log } from "../githubWebhook.ts";
 
 type GitOptions =

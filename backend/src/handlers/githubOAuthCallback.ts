@@ -5,7 +5,7 @@ import {
   GitHubOAuthStateMismatchError,
   InstallationNotFoundError,
   OrgNotFoundError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { processGitHubOAuthResponse } from "../service/githubOAuthCallback.ts";
 import {
   redirect,

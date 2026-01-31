@@ -1,6 +1,5 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
 import {
   createOrUpdateApp,
   deleteNamespace,
@@ -8,7 +7,8 @@ import {
 } from "../lib/cluster/kubernetes.ts";
 import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
 import { deleteRepo } from "../lib/registry.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError } from "./errors/index.ts";
 
 export async function deleteApp(
   appId: number,

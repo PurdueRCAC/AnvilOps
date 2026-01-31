@@ -10,9 +10,9 @@ import {
 } from "@kubernetes/client-node";
 import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError } from "./errors/index.ts";
 
 const meter = metrics.getMeter("app_status_viewer");
 const concurrentViewers = meter.createUpDownCounter(

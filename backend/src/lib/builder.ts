@@ -7,7 +7,7 @@ import { metrics, ValueType } from "@opentelemetry/api";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.ts";
 import type { App, Deployment, GitConfig, Organization } from "../db/models.ts";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { generateAutomaticEnvVars } from "./cluster/resources/statefulset.ts";

@@ -2,7 +2,7 @@ import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
 import { getChartToken, getLatestChart } from "../lib/helm.ts";
 import { getRepositoriesByProject } from "../lib/registry.ts";
-import { ValidationError } from "./common/errors.ts";
+import { ValidationError } from "./errors/index.ts";
 
 export async function listCharts() {
   if (!env.ALLOW_HELM_DEPLOYMENTS) {

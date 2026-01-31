@@ -1,4 +1,4 @@
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import { env } from "./env.ts";
 
 export async function deleteRepo(name: string) {

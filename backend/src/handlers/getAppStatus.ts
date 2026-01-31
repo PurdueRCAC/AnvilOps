@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { AppNotFoundError } from "../service/common/errors.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
 import { getAppStatus, type StatusUpdate } from "../service/getAppStatus.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

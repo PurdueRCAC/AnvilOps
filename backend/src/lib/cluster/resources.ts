@@ -15,7 +15,7 @@ import type {
   Organization,
   WorkloadConfig,
 } from "../../db/models.ts";
-import { logger } from "../../index.ts";
+import { logger } from "../../logger.ts";
 import { env } from "../env.ts";
 import { getGitProvider } from "../git/gitProvider.ts";
 import { createIngressConfig } from "./resources/ingress.ts";

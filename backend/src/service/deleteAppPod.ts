@@ -1,7 +1,7 @@
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError } from "./errors/index.ts";
 
 export async function deleteAppPod(
   appId: number,

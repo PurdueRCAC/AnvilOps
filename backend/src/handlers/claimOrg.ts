@@ -2,7 +2,7 @@ import { claimOrg } from "../service/claimOrg.ts";
 import {
   InstallationNotFoundError,
   OrgNotFoundError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 

@@ -1,5 +1,5 @@
 import { db } from "../db/index.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import { AppNotFoundError } from "./errors/index.ts";
 
 export async function setAppCD(
   appId: number,

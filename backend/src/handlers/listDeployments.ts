@@ -1,4 +1,4 @@
-import { AppNotFoundError, ValidationError } from "../service/common/errors.ts";
+import { AppNotFoundError, ValidationError } from "../service/errors/index.ts";
 import { listDeployments } from "../service/listDeployments.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

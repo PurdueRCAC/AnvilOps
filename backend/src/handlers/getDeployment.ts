@@ -1,4 +1,4 @@
-import { DeploymentNotFoundError } from "../service/common/errors.ts";
+import { DeploymentNotFoundError } from "../service/errors/index.ts";
 import { getDeployment } from "../service/getDeployment.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

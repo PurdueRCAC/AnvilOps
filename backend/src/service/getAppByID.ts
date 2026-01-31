@@ -1,11 +1,8 @@
 import { db } from "../db/index.ts";
-import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
-import {
-  AppNotFoundError,
-  InstallationNotFoundError,
-} from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError, InstallationNotFoundError } from "./errors/index.ts";
 import { deploymentConfigService } from "./helper/index.ts";
 
 export async function getAppByID(appId: number, userId: number) {

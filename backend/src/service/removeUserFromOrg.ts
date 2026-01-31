@@ -1,6 +1,6 @@
 import { db, NotFoundError } from "../db/index.ts";
-import { logger } from "../index.ts";
-import { OrgNotFoundError, UserNotFoundError } from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { OrgNotFoundError, UserNotFoundError } from "./errors/index.ts";
 
 export async function removeUserFromOrg(
   orgId: number,

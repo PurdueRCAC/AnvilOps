@@ -2,7 +2,7 @@ import { metrics, ValueType } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
-import { DeploymentNotFoundError, ValidationError } from "./common/errors.ts";
+import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 
 type LogLineInput = {
   content: string;

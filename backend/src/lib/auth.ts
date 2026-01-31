@@ -4,7 +4,7 @@ import * as client from "openid-client";
 import { db } from "../db/index.ts";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
 import { env, parseCsv } from "./env.ts";
 

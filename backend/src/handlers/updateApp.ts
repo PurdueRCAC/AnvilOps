@@ -2,7 +2,7 @@ import {
   AppNotFoundError,
   DeploymentError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { updateApp } from "../service/updateApp.ts";
 import { empty, type HandlerMap, json } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";

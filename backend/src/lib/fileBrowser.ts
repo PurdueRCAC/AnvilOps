@@ -1,7 +1,7 @@
 import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { env } from "./env.ts";
 

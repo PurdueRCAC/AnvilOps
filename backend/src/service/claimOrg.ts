@@ -1,10 +1,7 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { db, NotFoundError } from "../db/index.ts";
-import { logger } from "../index.ts";
-import {
-  InstallationNotFoundError,
-  OrgNotFoundError,
-} from "./common/errors.ts";
+import { logger } from "../logger.ts";
+import { InstallationNotFoundError, OrgNotFoundError } from "./errors/index.ts";
 
 export async function claimOrg(
   orgId: number,

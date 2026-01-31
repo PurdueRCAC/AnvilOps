@@ -2,7 +2,7 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
   RepositoryNotFoundError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { listRepoWorkflows } from "../service/listRepoWorkflows.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

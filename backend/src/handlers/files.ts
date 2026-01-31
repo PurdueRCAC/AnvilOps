@@ -5,7 +5,7 @@ import {
   AppNotFoundError,
   IllegalPVCAccessError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "../service/errors/index.ts";
 import { forwardToFileBrowser } from "../service/files.ts";
 import { unsafeGenericResponse, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";

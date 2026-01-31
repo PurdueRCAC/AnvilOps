@@ -7,17 +7,17 @@ import type {
   WorkloadConfigCreate,
 } from "../db/models.ts";
 import type { components } from "../generated/openapi.ts";
-import { logger } from "../index.ts";
 import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
   getRandomTag,
 } from "../lib/cluster/resources.ts";
+import { logger } from "../logger.ts";
 import {
   AppNotFoundError,
   DeploymentError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 import {
   appService,
   deploymentConfigService,

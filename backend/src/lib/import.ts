@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import { logger } from "../index.ts";
+import { logger } from "../logger.ts";
 import { svcK8s } from "./cluster/kubernetes.ts";
 import { env } from "./env.ts";
 import { type GitProvider } from "./git/gitProvider.ts";

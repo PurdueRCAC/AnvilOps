@@ -8,8 +8,8 @@ import type {
   WorkloadConfig,
   WorkloadConfigCreate,
 } from "../../db/models.ts";
-import { AppRepo } from "../../db/repo/app.ts";
-import { DeploymentRepo } from "../../db/repo/deployment.ts";
+import type { AppRepo } from "../../db/repo/app.ts";
+import type { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { components } from "../../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
@@ -25,7 +25,7 @@ import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "../common/errors.ts";
+} from "../errors/index.ts";
 import { canCreateIngress } from "../isSubdomainAvailable.ts";
 
 type GitWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {

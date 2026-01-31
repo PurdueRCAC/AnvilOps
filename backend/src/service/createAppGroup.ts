@@ -6,7 +6,7 @@ import {
   AppCreateError,
   OrgNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
+} from "./errors/index.ts";
 import { type NewApp } from "../service/createApp.ts";
 import {
   appService,

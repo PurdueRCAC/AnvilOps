@@ -6,7 +6,7 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
   RepositoryNotFoundError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 
 export async function getOrgByID(orgId: number, userId: number) {
   const org = await db.org.getById(orgId, { requireUser: { id: userId } });

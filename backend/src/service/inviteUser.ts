@@ -1,10 +1,11 @@
-import { ConflictError, db, NotFoundError } from "../db/index.ts";
-import { logger } from "../index.ts";
+import { ConflictError, NotFoundError } from "../db/errors/index.ts";
+import { db } from "../db/index.ts";
+import { logger } from "../logger.ts";
 import {
   OrgNotFoundError,
   UserNotFoundError,
   ValidationError,
-} from "./common/errors.ts";
+} from "./errors/index.ts";
 
 export async function inviteUser(
   inviterId: number,
