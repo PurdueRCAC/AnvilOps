@@ -1,22 +1,30 @@
 import { ApiException } from "@kubernetes/client-node";
-import { db } from "../db/index.ts";
+import type { AppRepo } from "../db/repo/app.ts";
 import { svcK8s } from "../lib/cluster/kubernetes.ts";
 import { createIngressConfig } from "../lib/cluster/resources/ingress.ts";
 import { env } from "../lib/env.ts";
 import { isRFC1123 } from "../lib/validate.ts";
 import { ValidationError } from "./errors/index.ts";
 
-export async function isSubdomainAvailable(subdomain: string) {
-  if (!isRFC1123(subdomain)) {
-    throw new ValidationError("Invalid subdomain.");
+export class IsSubdomainAvailableService {
+  private appRepo: AppRepo;
+
+  constructor(appRepo: AppRepo) {
+    this.appRepo = appRepo;
   }
 
-  const [appUsingSubdomain, ingressDryRun] = await Promise.all([
-    db.app.getAppBySubdomain(subdomain),
-    canCreateIngress(subdomain),
-  ]);
+  async isSubdomainAvailable(subdomain: string) {
+    if (!isRFC1123(subdomain)) {
+      throw new ValidationError("Invalid subdomain.");
+    }
 
-  return appUsingSubdomain === null && ingressDryRun;
+    const [appUsingSubdomain, ingressDryRun] = await Promise.all([
+      this.appRepo.getAppBySubdomain(subdomain),
+      canCreateIngress(subdomain),
+    ]);
+
+    return appUsingSubdomain === null && ingressDryRun;
+  }
 }
 
 /**

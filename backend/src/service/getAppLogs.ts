@@ -1,7 +1,8 @@
 import { ApiException, type V1PodList } from "@kubernetes/client-node";
 import { metrics, ValueType } from "@opentelemetry/api";
 import stream from "node:stream";
-import { db } from "../db/index.ts";
+import type { Notification } from "pg";
+import type { AppRepo } from "../db/repo/app.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
@@ -26,161 +27,177 @@ const k8sConcurrentViewers = meter.createUpDownCounter(
   },
 );
 
-export async function getAppLogs(
-  appId: number,
-  deploymentId: number | null,
-  userId: number,
-  type: LogType,
-  lastLogId: number,
-  abortController: AbortController,
-  callback: (log: components["schemas"]["LogLine"]) => Promise<void>,
-) {
-  const app = await db.app.getById(appId, {
-    requireUser: { id: userId },
-  });
+type SubscribeFn = (
+  channel: string,
+  callback: (msg: Notification) => void,
+) => Promise<() => Promise<void>>;
 
-  if (app === null) {
-    throw new AppNotFoundError();
+export class GetAppLogsService {
+  private appRepo: AppRepo;
+  private subscribe: SubscribeFn;
+
+  constructor(appRepo: AppRepo, subscribe: SubscribeFn) {
+    this.appRepo = appRepo;
+    this.subscribe = subscribe;
   }
 
-  // Pull logs from Postgres and send them to the client as they come in
-  if (typeof deploymentId !== "number" && deploymentId !== null) {
-    // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation and additional sanitization in `subscribe()`
-    throw new Error("deploymentId must be a number.");
-  }
-
-  // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
-  const config = await db.app.getDeploymentConfig(app.id);
-
-  const collectLogs = config.appType === "workload" && config.collectLogs;
-
-  if (collectLogs || type === "BUILD") {
-    const fetchNewLogs = async () => {
-      const newLogs = await db.app.getLogs(
-        app.id,
-        deploymentId,
-        lastLogId,
-        type,
-        500,
-      );
-      if (newLogs.length > 0) {
-        lastLogId = newLogs[0].id;
-      }
-
-      await Promise.all(
-        newLogs.map((log) =>
-          callback({
-            id: log.id,
-            type: log.type,
-            stream: log.stream,
-            log: log.content,
-            pod: log.podName,
-            time: log.timestamp.toISOString(),
-          }),
-        ),
-      );
-    };
-
-    const channel =
-      deploymentId === null
-        ? `app_${appId}_logs`
-        : `deployment_${deploymentId}_logs`;
-
-    // When new logs come in, send them to the client
-    const unsubscribe = await db.subscribe(
-      channel,
-      () =>
-        void fetchNewLogs().catch((err) =>
-          logger.error(err, "Failed to fetch new logs"),
-        ),
-    );
-    dbConcurrentViewers.add(1);
-
-    abortController.signal.addEventListener("abort", () => {
-      dbConcurrentViewers.add(-1);
-      unsubscribe().catch((err) =>
-        logger.error(err, "Failed to unsubscribe from log notifications"),
-      );
+  async getAppLogs(
+    appId: number,
+    deploymentId: number | null,
+    userId: number,
+    type: LogType,
+    lastLogId: number,
+    abortController: AbortController,
+    callback: (log: components["schemas"]["LogLine"]) => Promise<void>,
+  ) {
+    const app = await this.appRepo.getById(appId, {
+      requireUser: { id: userId },
     });
 
-    // Send all previous logs now
-    await fetchNewLogs();
-  } else {
-    if (config.appType === "helm") {
-      throw new ValidationError(
-        "Application log browsing is not supported for Helm deployments",
-      );
+    if (app === null) {
+      throw new AppNotFoundError();
     }
 
-    if (!deploymentId) {
-      const recentDeployment = await db.app.getMostRecentDeployment(appId);
-      deploymentId = recentDeployment.id;
+    // Pull logs from Postgres and send them to the client as they come in
+    if (typeof deploymentId !== "number" && deploymentId !== null) {
+      // Extra sanity check due to potential SQL injection below in `subscribe`; should never happen because of openapi-backend's request validation and additional sanitization in `subscribe()`
+      throw new Error("deploymentId must be a number.");
     }
 
-    const { CoreV1Api: core, Log: log } = await getClientsForRequest(
-      userId,
-      app.projectId,
-      ["CoreV1Api", "Log"],
-    );
-    let pods: V1PodList;
-    try {
-      pods = await core.listNamespacedPod({
-        namespace: app.namespace,
-        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
-      });
-    } catch (err) {
-      if (
-        !(err instanceof ApiException) ||
-        (err.code !== 404 && err.code !== 403)
-      ) {
-        logger.error(err, "Failed to fetch app pods list");
-      }
-      // Namespace may not be ready yet
-      pods = { apiVersion: "v1", items: [] };
-    }
+    // If the user has enabled collectLogs, we can pull them from our DB. If not, pull them from Kubernetes directly.
+    const config = await this.appRepo.getDeploymentConfig(app.id);
 
-    const promises = pods.items.map(async (pod, podIndex) => {
-      const podName = pod.metadata.name;
-      const logStream = new stream.PassThrough();
-      const logAbortController = await log.log(
-        app.namespace,
-        podName,
-        pod.spec.containers[0].name,
-        logStream,
-        { follow: true, tailLines: 500, timestamps: true },
-      );
-      k8sConcurrentViewers.add(1);
-      abortController.signal.addEventListener("abort", () => {
-        logAbortController.abort();
-        k8sConcurrentViewers.add(-1);
-      });
-      let i = 0;
-      let current = "";
-      logStream.on("data", (chunk: Buffer) => {
-        const str = chunk.toString();
-        current += str;
-        if (str.endsWith("\n") || str.endsWith("\r")) {
-          const lines = current.split("\n");
-          current = "";
-          for (const line of lines) {
-            if (line.trim().length === 0) continue;
-            const [date, ...text] = line.split(" ");
-            void callback({
-              type: "RUNTIME",
-              log: text.join(" "),
-              stream: "stdout",
-              pod: podName,
-              time: date,
-              id: podIndex * 100_000_000 + i,
-            }).catch((err) => {
-              logger.error(err, "Failed to process log callback");
-            });
-            i++;
-          }
+    const collectLogs = config.appType === "workload" && config.collectLogs;
+
+    if (collectLogs || type === "BUILD") {
+      const fetchNewLogs = async () => {
+        const newLogs = await this.appRepo.getLogs(
+          app.id,
+          deploymentId,
+          lastLogId,
+          type,
+          500,
+        );
+        if (newLogs.length > 0) {
+          lastLogId = newLogs[0].id;
         }
-      });
-    });
 
-    await Promise.all(promises);
+        await Promise.all(
+          newLogs.map((log) =>
+            callback({
+              id: log.id,
+              type: log.type,
+              stream: log.stream,
+              log: log.content,
+              pod: log.podName,
+              time: log.timestamp.toISOString(),
+            }),
+          ),
+        );
+      };
+
+      const channel =
+        deploymentId === null
+          ? `app_${appId}_logs`
+          : `deployment_${deploymentId}_logs`;
+
+      // When new logs come in, send them to the client
+      const unsubscribe = await this.subscribe(
+        channel,
+        () =>
+          void fetchNewLogs().catch((err) =>
+            logger.error(err, "Failed to fetch new logs"),
+          ),
+      );
+      dbConcurrentViewers.add(1);
+
+      abortController.signal.addEventListener("abort", () => {
+        dbConcurrentViewers.add(-1);
+        unsubscribe().catch((err) =>
+          logger.error(err, "Failed to unsubscribe from log notifications"),
+        );
+      });
+
+      // Send all previous logs now
+      await fetchNewLogs();
+    } else {
+      if (config.appType === "helm") {
+        throw new ValidationError(
+          "Application log browsing is not supported for Helm deployments",
+        );
+      }
+
+      if (!deploymentId) {
+        const recentDeployment =
+          await this.appRepo.getMostRecentDeployment(appId);
+        deploymentId = recentDeployment.id;
+      }
+
+      const { CoreV1Api: core, Log: log } = await getClientsForRequest(
+        userId,
+        app.projectId,
+        ["CoreV1Api", "Log"],
+      );
+      let pods: V1PodList;
+      try {
+        pods = await core.listNamespacedPod({
+          namespace: app.namespace,
+          labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
+        });
+      } catch (err) {
+        if (
+          !(err instanceof ApiException) ||
+          (err.code !== 404 && err.code !== 403)
+        ) {
+          logger.error(err, "Failed to fetch app pods list");
+        }
+        // Namespace may not be ready yet
+        pods = { apiVersion: "v1", items: [] };
+      }
+
+      const promises = pods.items.map(async (pod, podIndex) => {
+        const podName = pod.metadata.name;
+        const logStream = new stream.PassThrough();
+        const logAbortController = await log.log(
+          app.namespace,
+          podName,
+          pod.spec.containers[0].name,
+          logStream,
+          { follow: true, tailLines: 500, timestamps: true },
+        );
+        k8sConcurrentViewers.add(1);
+        abortController.signal.addEventListener("abort", () => {
+          logAbortController.abort();
+          k8sConcurrentViewers.add(-1);
+        });
+        let i = 0;
+        let current = "";
+        logStream.on("data", (chunk: Buffer) => {
+          const str = chunk.toString();
+          current += str;
+          if (str.endsWith("\n") || str.endsWith("\r")) {
+            const lines = current.split("\n");
+            current = "";
+            for (const line of lines) {
+              if (line.trim().length === 0) continue;
+              const [date, ...text] = line.split(" ");
+              void callback({
+                type: "RUNTIME",
+                log: text.join(" "),
+                stream: "stdout",
+                pod: podName,
+                time: date,
+                id: podIndex * 100_000_000 + i,
+              }).catch((err) => {
+                logger.error(err, "Failed to process log callback");
+              });
+              i++;
+            }
+          }
+        });
+      });
+
+      await Promise.all(promises);
+    }
   }
 }

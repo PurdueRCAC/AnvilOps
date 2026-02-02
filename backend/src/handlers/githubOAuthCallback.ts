@@ -6,7 +6,7 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
 } from "../service/errors/index.ts";
-import { processGitHubOAuthResponse } from "../service/githubOAuthCallback.ts";
+import { gitHubOAuthCallbackService } from "../service/index.ts";
 import {
   redirect,
   type HandlerMap,
@@ -26,11 +26,12 @@ import type { AuthenticatedRequest } from "./index.ts";
 export const githubOAuthCallbackHandler: HandlerMap["githubOAuthCallback"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     try {
-      const result = await processGitHubOAuthResponse(
-        ctx.request.query.state,
-        ctx.request.query.code,
-        req.user.id,
-      );
+      const result =
+        await gitHubOAuthCallbackService.processGitHubOAuthResponse(
+          ctx.request.query.state,
+          ctx.request.query.code,
+          req.user.id,
+        );
 
       if (result === "done") {
         return redirect(302, res, "/dashboard");

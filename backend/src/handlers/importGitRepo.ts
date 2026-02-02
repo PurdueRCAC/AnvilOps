@@ -1,15 +1,12 @@
 import { OrgNotFoundError } from "../service/errors/index.ts";
-import {
-  continueImportGitRepo,
-  importGitRepo,
-} from "../service/importGitRepo.ts";
+import { importGitRepoService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
 export const importGitRepoHandler: HandlerMap["importGitRepoCreateState"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     try {
-      const result = await importGitRepo(
+      const result = await importGitRepoService.importGitRepo(
         ctx.request.params.orgId,
         req.user.id,
         ctx.request.requestBody,
@@ -38,7 +35,7 @@ export const importGitRepoContinueHandler: HandlerMap["importGitRepo"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const result = await continueImportGitRepo(
+  const result = await importGitRepoService.continueImportGitRepo(
     ctx.request.requestBody.state,
     ctx.request.requestBody.code,
     req.user.id,

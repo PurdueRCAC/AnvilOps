@@ -1,11 +1,11 @@
 import { logger } from "../logger.ts";
-import { createAppGroup } from "../service/createAppGroup.ts";
 import {
   AppCreateError,
   DeploymentError,
   OrgNotFoundError,
   ValidationError,
 } from "../service/errors/index.ts";
+import { createAppGroupService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -17,7 +17,12 @@ export const createAppGroupHandler: HandlerMap["createAppGroup"] = async (
   const data = ctx.request.requestBody;
 
   try {
-    await createAppGroup(req.user.id, data.orgId, data.name, data.apps);
+    await createAppGroupService.createAppGroup(
+      req.user.id,
+      data.orgId,
+      data.name,
+      data.apps,
+    );
     return empty(204, res);
   } catch (e) {
     if (e instanceof AppCreateError) {

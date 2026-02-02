@@ -1,19 +1,30 @@
-import { db } from "../db/index.ts";
+import type { AppGroupRepo } from "../db/repo/appGroup.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { OrgNotFoundError } from "./errors/index.ts";
 
-export async function listOrgGroups(orgId: number, userId: number) {
-  const [org, appGroups] = await Promise.all([
-    db.org.getById(orgId, { requireUser: { id: userId } }),
-    db.appGroup.listForOrg(orgId),
-  ]);
+export class ListOrgGroupsService {
+  private orgRepo: OrganizationRepo;
+  private appGroupRepo: AppGroupRepo;
 
-  if (org === null) {
-    throw new OrgNotFoundError(null);
+  constructor(orgRepo: OrganizationRepo, appGroupRepo: AppGroupRepo) {
+    this.orgRepo = orgRepo;
+    this.appGroupRepo = appGroupRepo;
   }
 
-  return appGroups.map((group) => ({
-    id: group.id,
-    name: group.name,
-    isMono: group.isMono,
-  }));
+  async listOrgGroups(orgId: number, userId: number) {
+    const [org, appGroups] = await Promise.all([
+      this.orgRepo.getById(orgId, { requireUser: { id: userId } }),
+      this.appGroupRepo.listForOrg(orgId),
+    ]);
+
+    if (org === null) {
+      throw new OrgNotFoundError(null);
+    }
+
+    return appGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      isMono: group.isMono,
+    }));
+  }
 }

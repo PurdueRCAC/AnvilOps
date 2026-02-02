@@ -24,18 +24,20 @@ if (configPath) {
   );
 }
 
-export async function getSettings() {
-  const clusterConfig = await clusterConfigPromise;
+export class GetSettingsService {
+  async getSettings() {
+    const clusterConfig = await clusterConfigPromise;
 
-  return {
-    appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
-    version: getVersionString(),
-    clusterName: clusterConfig?.name,
-    faq: clusterConfig?.faq,
-    storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
-    isRancherManaged: isRancherManaged(),
-    allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
-  };
+    return {
+      appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
+      version: getVersionString(),
+      clusterName: clusterConfig?.name,
+      faq: clusterConfig?.faq,
+      storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
+      isRancherManaged: isRancherManaged(),
+      allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
+    };
+  }
 }
 
 function getVersionString() {

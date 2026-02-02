@@ -12,7 +12,7 @@ import apiHandler, { openApiSpecPath } from "./lib/api.ts";
 import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { env } from "./lib/env.ts";
 import { logger } from "./logger.ts";
-import { getSettings } from "./service/getSettings.ts";
+import { getSettingsService } from "./service/index.ts";
 
 const app = express();
 const port = process.env.PORT ?? 3000;
@@ -195,7 +195,8 @@ app.listen(port, (err) => {
   if (err !== undefined) {
     logger.error(err, "Error creating server");
   } else {
-    getSettings()
+    getSettingsService
+      .getSettings()
       .then((settings) => {
         logger.info({ port, settings: settings }, "Server listening");
       })

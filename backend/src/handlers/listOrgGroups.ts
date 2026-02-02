@@ -1,5 +1,5 @@
 import { OrgNotFoundError } from "../service/errors/index.ts";
-import { listOrgGroups } from "../service/listOrgGroups.ts";
+import { listOrgGroupsService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -11,7 +11,7 @@ export const listOrgGroupsHandler: HandlerMap["listOrgGroups"] = async (
   const orgId = ctx.request.params.orgId;
 
   try {
-    const groups = await listOrgGroups(orgId, req.user.id);
+    const groups = await listOrgGroupsService.listOrgGroups(orgId, req.user.id);
     return json(200, res, groups);
   } catch (e) {
     if (e instanceof OrgNotFoundError) {

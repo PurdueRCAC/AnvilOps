@@ -47,22 +47,30 @@ export default defineConfig({
         default: "disallow",
         rules: [
           {
+            from: "db",
+            allow: ["db/errors"],
+          },
+          {
             from: "handlers",
             allow: ["services"],
             importKind: "type",
           },
           {
             from: "handlers",
-            allow: ["services/errors", "express-utils"],
+            allow: ["services/errors", "services/index", "express-utils"],
           },
           {
             from: "services",
-            allow: ["db/errors", "lib"],
+            allow: ["db/errors", "services/errors", "lib"],
           },
           {
             from: "services",
             allow: ["db"],
             importKind: "type",
+          },
+          {
+            from: "services/index",
+            allow: ["db", "services"],
           },
           {
             from: "*",
@@ -80,29 +88,44 @@ export default defineConfig({
         ],
       },
     ],
+    "boundaries/no-private": "off",
   },
   extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
   settings: {
     "boundaries/elements": [
+      // Modules that can only access the modules which are directly related.
+      // Handlers -> Services -> DB
       { type: "services", pattern: "service/**" },
-      { type: "services/errors", pattern: "service/errors/**" },
       { type: "db", pattern: "db/**" },
-      { type: "db/errors", pattern: "db/errors/**" },
-      { type: "jobs", pattern: "jobs/**" },
       { type: "handlers", pattern: "handlers/**" },
       { type: "lib", pattern: "lib/**" },
+      // Jobs should be separate because some files have side effects that are undesirable in jobs (e.g. validating environment variables and throwing an error if they aren't present)
+      { type: "jobs", pattern: "jobs/**" },
+      // Exceptions to above:
+      // - Error classes can be accessed between layers
+      {
+        type: "services/errors",
+        pattern: "src/service/errors/index.ts",
+        mode: "full",
+      },
+      { type: "db/errors", pattern: "src/db/errors/index.ts", mode: "full" },
+      // - services/index.ts contains instances of all services with default dependencies
+      { type: "services/index", pattern: "src/service/index.ts", mode: "full" },
+      // Files that can be imported by anyone
       { type: "openapi", pattern: "src/generated/openapi.ts", mode: "full" },
-      { type: "prisma-generated", pattern: "src/generated/prisma/**" },
-      { type: "regclient-napi", pattern: "regclient-napi/**" },
-      { type: "express-utils", pattern: "src/types.ts", mode: "full" },
       { type: "logger", pattern: "src/logger.ts", mode: "full" },
-      { type: "index", pattern: "src/index.ts", mode: "full" },
+      // Files that shouldn't import any AnvilOps files
+      { type: "prisma-generated", pattern: "src/generated/prisma/**" },
       {
         type: "prisma-configs",
         pattern: ["prisma/types.d.ts", "prisma.config.ts"],
         mode: "full",
       },
-      // { type: "non-src", pattern: "!src/**", mode: "full" },
+      // Separate package; should be accessed as "regclient-napi" instead of a direct file path
+      { type: "regclient-napi", pattern: "regclient-napi/**" },
+      // Web server entrypoint
+      { type: "express-utils", pattern: "src/types.ts", mode: "full" },
+      { type: "index", pattern: "src/index.ts", mode: "full" },
     ],
   },
 });

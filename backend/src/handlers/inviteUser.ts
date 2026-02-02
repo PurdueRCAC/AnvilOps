@@ -1,10 +1,10 @@
-import { ConflictError } from "../db/errors.ts";
+import { ConflictError } from "../db/errors/index.ts";
 import {
   OrgNotFoundError,
   UserNotFoundError,
   ValidationError,
 } from "../service/errors/index.ts";
-import { inviteUser } from "../service/inviteUser.ts";
+import { inviteUserService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -14,7 +14,7 @@ export const inviteUserHandler: HandlerMap["inviteUser"] = async (
   res,
 ) => {
   try {
-    await inviteUser(
+    await inviteUserService.inviteUser(
       req.user.id,
       ctx.request.params.orgId,
       ctx.request.requestBody.email,

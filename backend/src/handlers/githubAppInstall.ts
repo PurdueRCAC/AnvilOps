@@ -4,7 +4,7 @@ import {
   OrgAlreadyLinkedError,
   OrgNotFoundError,
 } from "../service/errors/index.ts";
-import { createGitHubAppInstallState } from "../service/githubAppInstall.ts";
+import { createGitHubAppInstallStateService } from "../service/index.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -30,10 +30,11 @@ export const githubAppInstallHandler: HandlerMap["githubAppInstall"] = async (
   res,
 ) => {
   try {
-    const newState = await createGitHubAppInstallState(
-      ctx.request.params.orgId,
-      req.user.id,
-    );
+    const newState =
+      await createGitHubAppInstallStateService.createGitHubAppInstallState(
+        ctx.request.params.orgId,
+        req.user.id,
+      );
 
     return redirect(
       302,

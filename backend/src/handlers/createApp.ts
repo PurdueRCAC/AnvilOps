@@ -1,10 +1,10 @@
 import { logger } from "../logger.ts";
-import { createApp } from "../service/createApp.ts";
 import {
   DeploymentError,
   OrgNotFoundError,
   ValidationError,
 } from "../service/errors/index.ts";
+import { createAppService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
@@ -14,7 +14,10 @@ export const createAppHandler: HandlerMap["createApp"] = async (
   res,
 ) => {
   try {
-    const appId = await createApp(ctx.request.requestBody, req.user.id);
+    const appId = await createAppService.createApp(
+      ctx.request.requestBody,
+      req.user.id,
+    );
     return json(200, res, { id: appId });
   } catch (e) {
     if (e instanceof OrgNotFoundError) {

@@ -10,9 +10,9 @@ import type {
   WorkloadConfig,
   WorkloadConfigCreate,
 } from "../../db/models.ts";
-import { AppRepo } from "../../db/repo/app.ts";
-import { AppGroupRepo } from "../../db/repo/appGroup.ts";
-import { DeploymentRepo } from "../../db/repo/deployment.ts";
+import type { AppRepo } from "../../db/repo/app.ts";
+import type { AppGroupRepo } from "../../db/repo/appGroup.ts";
+import type { DeploymentRepo } from "../../db/repo/deployment.ts";
 import { DeploymentStatus } from "../../generated/prisma/enums.ts";
 import { cancelBuildJobsForApp, createBuildJob } from "../../lib/builder.ts";
 import {
@@ -43,6 +43,7 @@ export class DeploymentService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
+
   constructor(
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
@@ -208,6 +209,7 @@ export class DeploymentService {
         "queued",
       );
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         "Created GitHub check run with status Queued",
@@ -252,6 +254,7 @@ export class DeploymentService {
             "in_progress",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Updated GitHub check run to In Progress",
@@ -265,6 +268,7 @@ export class DeploymentService {
             "in_progress",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Created GitHub check run with status In Progress",
@@ -278,9 +282,15 @@ export class DeploymentService {
 
     try {
       jobId = await createBuildJob(org, app, deployment, config);
-      log(deployment.id, "BUILD", "Created build job with ID " + jobId);
+      log(
+        this.deploymentRepo,
+        deployment.id,
+        "BUILD",
+        "Created build job with ID " + jobId,
+      );
     } catch (e) {
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         "Error creating build job: " + JSON.stringify(e),
@@ -297,6 +307,7 @@ export class DeploymentService {
             "failure",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Updated GitHub check run to Completed with conclusion Failure",
@@ -331,7 +342,12 @@ export class DeploymentService {
       deployment.id,
       DeploymentStatus.DEPLOYING,
     );
-    log(deployment.id, "BUILD", "Deploying directly from OCI image...");
+    log(
+      this.deploymentRepo,
+      deployment.id,
+      "BUILD",
+      "Deploying directly from OCI image...",
+    );
     // If we're creating a deployment directly from an existing image tag, just deploy it now
     try {
       const { namespace, configs, postCreate } =
@@ -348,7 +364,7 @@ export class DeploymentService {
         shouldImpersonate(app.projectId),
       );
       await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
-      log(deployment.id, "BUILD", "Deployment succeeded");
+      log(this.deploymentRepo, deployment.id, "BUILD", "Deployment succeeded");
       await this.deploymentRepo.setStatus(
         deployment.id,
         DeploymentStatus.COMPLETE,
@@ -360,6 +376,7 @@ export class DeploymentService {
         DeploymentStatus.ERROR,
       );
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         `Failed to apply Kubernetes resources: ${JSON.stringify(e)}`,
@@ -380,7 +397,12 @@ export class DeploymentService {
     config: HelmConfig,
   ) {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
-    log(deployment.id, "BUILD", "Deploying directly from Helm chart...");
+    log(
+      this.deploymentRepo,
+      deployment.id,
+      "BUILD",
+      "Deploying directly from Helm chart...",
+    );
     try {
       await upgrade(app, deployment, config);
       await this.appRepo.setConfig(app.id, deployment.configId);
@@ -390,6 +412,7 @@ export class DeploymentService {
         DeploymentStatus.ERROR,
       );
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         `Failed to create Helm deployment job: ${JSON.stringify(e)}`,
@@ -462,6 +485,7 @@ export class DeploymentService {
               "cancelled",
             );
             log(
+              this.deploymentRepo,
               deployment.id,
               "BUILD",
               "Updated GitHub check run to Completed with conclusion Cancelled",

@@ -4,7 +4,7 @@ import {
   GitHubOAuthStateMismatchError,
   ValidationError,
 } from "../service/errors/index.ts";
-import { createGitHubAuthorizationState } from "../service/githubInstallCallback.ts";
+import { githubInstallCallbackService } from "../service/index.ts";
 import { json, redirect, type HandlerMap } from "../types.ts";
 import { githubConnectError } from "./githubOAuthCallback.ts";
 import type { AuthenticatedRequest } from "./index.ts";
@@ -20,12 +20,13 @@ import type { AuthenticatedRequest } from "./index.ts";
 export const githubInstallCallbackHandler: HandlerMap["githubInstallCallback"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     try {
-      const newState = await createGitHubAuthorizationState(
-        ctx.request.query.state,
-        ctx.request.query.installation_id,
-        ctx.request.query.setup_action,
-        req.user.id,
-      );
+      const newState =
+        await githubInstallCallbackService.createGitHubAuthorizationState(
+          ctx.request.query.state,
+          ctx.request.query.installation_id,
+          ctx.request.query.setup_action,
+          req.user.id,
+        );
 
       // Redirect back to GitHub to get a user access token
       return redirect(

@@ -3,7 +3,7 @@ import {
   DeploymentNotFoundError,
   ValidationError,
 } from "../service/errors/index.ts";
-import { updateDeployment } from "../service/updateDeployment.ts";
+import { updateDeploymentService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 
 export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
@@ -13,7 +13,7 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
 ) => {
   const { secret, status } = ctx.request.requestBody;
   try {
-    await updateDeployment(secret, status);
+    await updateDeploymentService.updateDeployment(secret, status);
     return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {

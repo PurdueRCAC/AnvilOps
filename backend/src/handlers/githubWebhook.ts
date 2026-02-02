@@ -5,7 +5,7 @@ import {
   UnknownWebhookRequestTypeError,
   ValidationError,
 } from "../service/errors/index.ts";
-import { processGitHubWebhookPayload } from "../service/githubWebhook.ts";
+import { githubWebhookService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 
 const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
@@ -34,7 +34,11 @@ export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
       : null;
 
   try {
-    await processGitHubWebhookPayload(requestType, action, JSON.parse(data));
+    await githubWebhookService.processGitHubWebhookPayload(
+      requestType,
+      action,
+      JSON.parse(data),
+    );
     return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {

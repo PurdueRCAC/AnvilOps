@@ -14,6 +14,8 @@ const templatesPromise = readFile(path, "utf8").then(
   (file) => JSON.parse(file.toString()) as Record<string, Template>,
 );
 
-export async function getTemplates() {
-  return await templatesPromise;
+export class GetTemplatesService {
+  async getTemplates() {
+    return await templatesPromise;
+  }
 }

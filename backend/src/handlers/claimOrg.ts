@@ -1,8 +1,8 @@
-import { claimOrg } from "../service/claimOrg.ts";
 import {
   InstallationNotFoundError,
   OrgNotFoundError,
 } from "../service/errors/index.ts";
+import { claimOrgService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -15,7 +15,11 @@ export const claimOrgHandler: HandlerMap["claimOrg"] = async (
     ctx.request.requestBody.unclaimedInstallationId;
   const orgId = ctx.request.params.orgId;
   try {
-    await claimOrg(orgId, unassignedInstallationId, req.user.id);
+    await claimOrgService.claimOrg(
+      orgId,
+      unassignedInstallationId,
+      req.user.id,
+    );
   } catch (e) {
     if (e instanceof InstallationNotFoundError) {
       return json(404, res, {

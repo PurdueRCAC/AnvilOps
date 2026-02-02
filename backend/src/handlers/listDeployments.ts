@@ -1,5 +1,5 @@
 import { AppNotFoundError, ValidationError } from "../service/errors/index.ts";
-import { listDeployments } from "../service/listDeployments.ts";
+import { listDeploymentsService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -11,7 +11,7 @@ export const listDeploymentsHandler: HandlerMap["listDeployments"] = async (
   const page = ctx.request.query.page ?? 0;
   const pageLength = ctx.request.query.length ?? 25;
   try {
-    const deployments = await listDeployments(
+    const deployments = await listDeploymentsService.listDeployments(
       ctx.request.params.appId,
       req.user.id,
       page,

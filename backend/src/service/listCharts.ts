@@ -4,15 +4,17 @@ import { getChartToken, getLatestChart } from "../lib/helm.ts";
 import { getRepositoriesByProject } from "../lib/registry.ts";
 import { ValidationError } from "./errors/index.ts";
 
-export async function listCharts() {
-  if (!env.ALLOW_HELM_DEPLOYMENTS) {
-    throw new ValidationError("Helm deployments are disabled");
+export class ListChartsService {
+  async listCharts() {
+    if (!env.ALLOW_HELM_DEPLOYMENTS) {
+      throw new ValidationError("Helm deployments are disabled");
+    }
+    return JSON.parse(
+      await getOrCreate("charts", 60 * 60, async () =>
+        JSON.stringify(await listChartsFromRegistry()),
+      ),
+    ) as Awaited<ReturnType<typeof listChartsFromRegistry>>;
   }
-  return JSON.parse(
-    await getOrCreate("charts", 60 * 60, async () =>
-      JSON.stringify(await listChartsFromRegistry()),
-    ),
-  ) as Awaited<ReturnType<typeof listChartsFromRegistry>>;
 }
 
 async function listChartsFromRegistry() {

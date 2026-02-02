@@ -1,4 +1,4 @@
-import { db } from "../db/index.ts";
+import type { AppRepo } from "../db/repo/app.ts";
 import { generateVolumeName } from "../lib/cluster/resources/statefulset.ts";
 import { forwardRequest } from "../lib/fileBrowser.ts";
 import {
@@ -7,42 +7,52 @@ import {
   ValidationError,
 } from "./errors/index.ts";
 
-export async function forwardToFileBrowser(
-  userId: number,
-  appId: number,
-  volumeClaimName: string,
-  path: string,
-  requestInit: RequestInit,
-) {
-  const app = await db.app.getById(appId, { requireUser: { id: userId } });
+export class FileBrowserService {
+  private appRepo: AppRepo;
 
-  if (!app) {
-    throw new AppNotFoundError();
+  constructor(appRepo: AppRepo) {
+    this.appRepo = appRepo;
   }
 
-  const config = await db.app.getDeploymentConfig(appId);
-
-  if (config.appType !== "workload") {
-    throw new ValidationError(
-      "File browsing is supported only for Git and image deployments",
-    );
-  }
-
-  if (
-    !config.mounts.some((mount) =>
-      volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
-    )
+  async forwardToFileBrowser(
+    userId: number,
+    appId: number,
+    volumeClaimName: string,
+    path: string,
+    requestInit: RequestInit,
   ) {
-    // This persistent volume doesn't belong to the application
-    throw new IllegalPVCAccessError();
+    const app = await this.appRepo.getById(appId, {
+      requireUser: { id: userId },
+    });
+
+    if (!app) {
+      throw new AppNotFoundError();
+    }
+
+    const config = await this.appRepo.getDeploymentConfig(appId);
+
+    if (config.appType !== "workload") {
+      throw new ValidationError(
+        "File browsing is supported only for Git and image deployments",
+      );
+    }
+
+    if (
+      !config.mounts.some((mount) =>
+        volumeClaimName.startsWith(generateVolumeName(mount.path) + "-"),
+      )
+    ) {
+      // This persistent volume doesn't belong to the application
+      throw new IllegalPVCAccessError();
+    }
+
+    const response = await forwardRequest(
+      app.namespace,
+      volumeClaimName,
+      path,
+      requestInit,
+    );
+
+    return response;
   }
-
-  const response = await forwardRequest(
-    app.namespace,
-    volumeClaimName,
-    path,
-    requestInit,
-  );
-
-  return response;
 }

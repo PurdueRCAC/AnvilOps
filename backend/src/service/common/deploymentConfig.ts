@@ -9,7 +9,6 @@ import type {
   WorkloadConfigCreate,
 } from "../../db/models.ts";
 import type { AppRepo } from "../../db/repo/app.ts";
-import type { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { components } from "../../generated/openapi.ts";
 import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
 import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
@@ -143,10 +142,30 @@ export class DeploymentConfigService {
     return config;
   }
 
+  private cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {
+    if (config === null) {
+      return null;
+    }
+
+    const {
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
+      getEnv: _getEnv,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
+      asGitConfig: _asGitConfig,
+      displayEnv: _displayEnv,
+      ...rest
+    } = config;
+
+    const newConfig = structuredClone(rest);
+
+    const env = config.getEnv();
+    return { ...newConfig, env };
+  }
+
   populateNewCommit(config: GitConfig, app: App, commitHash: string) {
     return this.populateImageTag(
       {
-        ...DeploymentRepo.cloneWorkloadConfig(config),
+        ...this.cloneWorkloadConfig(config),
         commitHash,
       },
       app,

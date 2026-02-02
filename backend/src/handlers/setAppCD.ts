@@ -1,5 +1,5 @@
 import { AppNotFoundError } from "../service/errors/index.ts";
-import { setAppCD } from "../service/setAppCD.ts";
+import { setAppCDService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -9,7 +9,7 @@ export const setAppCDHandler: HandlerMap["setAppCD"] = async (
   res,
 ) => {
   try {
-    await setAppCD(
+    await setAppCDService.setAppCD(
       ctx.request.params.appId,
       req.user.id,
       ctx.request.requestBody.enable,

@@ -1,4 +1,4 @@
-import { getUser } from "../service/getUser.ts";
+import { getUserService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -7,6 +7,6 @@ export const getUserHandler: HandlerMap["getUser"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
-  const user = await getUser(req.user.id);
+  const user = await getUserService.getUser(req.user.id);
   return json(200, res, user);
 };

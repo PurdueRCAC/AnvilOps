@@ -1,23 +1,43 @@
-import { db } from "../db/index.ts";
+import type { AppRepo } from "../db/repo/app.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { logger } from "../logger.ts";
-import { deleteApp } from "./deleteApp.ts";
+import { type DeleteAppService } from "./deleteApp.ts";
 import { OrgNotFoundError } from "./errors/index.ts";
 
-export async function deleteOrgByID(orgId: number, userId: number) {
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: userId, permissionLevel: "OWNER" },
-  });
+export class DeleteOrgByIDService {
+  private orgRepo: OrganizationRepo;
+  private appRepo: AppRepo;
+  private deleteAppService: DeleteAppService;
 
-  if (!org) {
-    throw new OrgNotFoundError(null);
+  constructor(
+    orgRepo: OrganizationRepo,
+    appRepo: AppRepo,
+    deleteAppService: DeleteAppService,
+  ) {
+    this.orgRepo = orgRepo;
+    this.appRepo = appRepo;
+    this.deleteAppService = deleteAppService;
   }
 
-  const apps = await db.app.listForOrg(orgId);
+  async deleteOrgByID(orgId: number, userId: number) {
+    const org = await this.orgRepo.getById(orgId, {
+      requireUser: { id: userId, permissionLevel: "OWNER" },
+    });
 
-  await Promise.all(
-    apps.map(async (app) => await deleteApp(app.id, userId, false)),
-  );
+    if (!org) {
+      throw new OrgNotFoundError(null);
+    }
 
-  await db.org.delete(orgId);
-  logger.info({ orgId, userId }, "Organization deleted");
+    const apps = await this.appRepo.listForOrg(orgId);
+
+    await Promise.all(
+      apps.map(
+        async (app) =>
+          await this.deleteAppService.deleteApp(app.id, userId, false),
+      ),
+    );
+
+    await this.orgRepo.delete(orgId);
+    logger.info({ orgId, userId }, "Organization deleted");
+  }
 }

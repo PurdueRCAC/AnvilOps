@@ -13,7 +13,7 @@ import { env } from "../../lib/env.ts";
 import { getGitProvider } from "../../lib/git/gitProvider.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { InstallationNotFoundError, ValidationError } from "../errors/index.ts";
-import { isNamespaceAvailable } from "../isNamespaceAvailable.ts";
+import type { IsNamespaceAvailableService } from "../isNamespaceAvailable.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
 
 interface CreateAppInput {
@@ -35,8 +35,14 @@ export type AppInput = CreateAppInput | UpdateAppInput;
 
 export class AppService {
   private configService: DeploymentConfigService;
-  constructor(configService: DeploymentConfigService) {
+  private isNamespaceAvailableService: IsNamespaceAvailableService;
+
+  constructor(
+    configService: DeploymentConfigService,
+    isNamespaceAvailableService: IsNamespaceAvailableService,
+  ) {
     this.configService = configService;
+    this.isNamespaceAvailableService = isNamespaceAvailableService;
   }
 
   /**
@@ -168,7 +174,11 @@ export class AppService {
       );
     }
 
-    if (!(await isNamespaceAvailable(app.namespace))) {
+    if (
+      !(await this.isNamespaceAvailableService.isNamespaceAvailable(
+        app.namespace,
+      ))
+    ) {
       throw new ValidationError("namespace is unavailable");
     }
 

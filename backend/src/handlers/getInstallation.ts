@@ -2,7 +2,7 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
 } from "../service/errors/index.ts";
-import { getInstallation } from "../service/getInstallation.ts";
+import { getInstallationService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -12,7 +12,7 @@ export const getInstallationHandler: HandlerMap["getInstallation"] = async (
   res,
 ) => {
   try {
-    const installation = await getInstallation(
+    const installation = await getInstallationService.getInstallation(
       ctx.request.params.orgId,
       req.user.id,
     );

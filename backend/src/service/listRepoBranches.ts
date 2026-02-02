@@ -1,34 +1,38 @@
 import { RequestError } from "octokit";
-import { db } from "../db/index.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { OrgNotFoundError, RepositoryNotFoundError } from "./errors/index.ts";
 
-export async function listRepoBranches(
-  orgId: number,
-  userId: number,
-  repoId: number,
-) {
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: userId },
-  });
+export class ListRepoBranchesService {
+  private orgRepo: OrganizationRepo;
 
-  if (!org) {
-    throw new OrgNotFoundError(null);
+  constructor(orgRepo: OrganizationRepo) {
+    this.orgRepo = orgRepo;
   }
 
-  try {
-    const gitProvider = await getGitProvider(org.id);
-    const branches = await gitProvider.getBranches(repoId);
+  async listRepoBranches(orgId: number, userId: number, repoId: number) {
+    const org = await this.orgRepo.getById(orgId, {
+      requireUser: { id: userId },
+    });
 
-    return {
-      default: branches.defaultBranch,
-      branches: branches.names,
-    };
-  } catch (e) {
-    if (e instanceof RequestError && e.status == 404) {
-      throw new RepositoryNotFoundError();
+    if (!org) {
+      throw new OrgNotFoundError(null);
     }
 
-    throw e;
+    try {
+      const gitProvider = await getGitProvider(org.id);
+      const branches = await gitProvider.getBranches(repoId);
+
+      return {
+        default: branches.defaultBranch,
+        branches: branches.names,
+      };
+    } catch (e) {
+      if (e instanceof RequestError && e.status == 404) {
+        throw new RepositoryNotFoundError();
+      }
+
+      throw e;
+    }
   }
 }

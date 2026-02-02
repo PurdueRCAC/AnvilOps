@@ -1,4 +1,5 @@
-import { db, NotFoundError } from "../db/index.ts";
+import { NotFoundError } from "../db/errors/index.ts";
+import { db } from "../db/index.ts";
 import { logger } from "../logger.ts";
 import { InvitationNotFoundError } from "./errors/index.ts";
 

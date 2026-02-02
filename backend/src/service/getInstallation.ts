@@ -1,23 +1,31 @@
-import { db } from "../db/index.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { OrgNotFoundError } from "./errors/index.ts";
 
-export async function getInstallation(orgId: number, userId: number) {
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: userId },
-  });
+export class GetInstallationService {
+  private orgRepo: OrganizationRepo;
 
-  if (!org) {
-    throw new OrgNotFoundError(null);
+  constructor(orgRepo: OrganizationRepo) {
+    this.orgRepo = orgRepo;
   }
 
-  const gitProvider = await getGitProvider(org.id);
-  const installation = await gitProvider.getInstallationInfo();
+  async getInstallation(orgId: number, userId: number) {
+    const org = await this.orgRepo.getById(orgId, {
+      requireUser: { id: userId },
+    });
 
-  return {
-    hasAllRepoAccess: installation.hasAllRepoAccess,
-    targetId: installation.targetId,
-    targetType: installation.targetType,
-    targetName: installation.targetName,
-  };
+    if (!org) {
+      throw new OrgNotFoundError(null);
+    }
+
+    const gitProvider = await getGitProvider(org.id);
+    const installation = await gitProvider.getInstallationInfo();
+
+    return {
+      hasAllRepoAccess: installation.hasAllRepoAccess,
+      targetId: installation.targetId,
+      targetType: installation.targetType,
+      targetName: installation.targetName,
+    };
+  }
 }

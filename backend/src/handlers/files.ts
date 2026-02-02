@@ -6,7 +6,7 @@ import {
   IllegalPVCAccessError,
   ValidationError,
 } from "../service/errors/index.ts";
-import { forwardToFileBrowser } from "../service/files.ts";
+import { fileBrowserService } from "../service/index.ts";
 import { unsafeGenericResponse, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -103,7 +103,7 @@ async function forward(
 
   let response: Response;
   try {
-    response = await forwardToFileBrowser(
+    response = await fileBrowserService.forwardToFileBrowser(
       req.user.id,
       appId,
       volumeClaimName,

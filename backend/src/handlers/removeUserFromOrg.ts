@@ -2,7 +2,7 @@ import {
   OrgNotFoundError,
   UserNotFoundError,
 } from "../service/errors/index.ts";
-import { removeUserFromOrg } from "../service/removeUserFromOrg.ts";
+import { removeUserFromOrgService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -12,7 +12,7 @@ export const removeUserFromOrgHandler: HandlerMap["removeUserFromOrg"] = async (
   res,
 ) => {
   try {
-    await removeUserFromOrg(
+    await removeUserFromOrgService.removeUserFromOrg(
       ctx.request.params.orgId,
       req.user.id,
       ctx.request.params.userId,
