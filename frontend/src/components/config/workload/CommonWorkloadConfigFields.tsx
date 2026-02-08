@@ -125,14 +125,16 @@ export const CommonWorkloadConfigFields = ({
     }
   }, [state.git.repositoryId, state.image.imageTag]);
 
-  const fixedSensitiveNames =
+  const fixedSensitiveVars =
     originalConfig?.appType === "workload"
-      ? new Set(
-          originalConfig.env
-            .filter((env) => env.isSensitive)
-            .map((env) => env.name),
-        )
-      : new Set<string>();
+      ? originalConfig.env
+          .map((env, idx) => ({ env, idx }))
+          .filter(({ env }) => env.isSensitive)
+          .reduce(
+            (obj, cur) => Object.assign(obj, { [cur.env.name]: cur.idx }),
+            {},
+          )
+      : {};
 
   return (
     <>
@@ -323,7 +325,7 @@ export const CommonWorkloadConfigFields = ({
               setValue={(updater) => {
                 setState((prev) => ({ ...prev, env: updater(prev.env) }));
               }}
-              fixedSensitiveNames={fixedSensitiveNames}
+              fixedSensitiveVars={fixedSensitiveVars}
               disabled={disabled ?? false}
             />
           </AccordionContent>

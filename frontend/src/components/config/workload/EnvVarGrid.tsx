@@ -7,40 +7,38 @@ import { Fragment, useEffect, useState } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
-// TODO: show error message on duplicate env names
 export const EnvVarGrid = ({
   value: envVars,
   setValue: setEnvironmentVariables,
-  fixedSensitiveNames,
+  fixedSensitiveVars,
   disabled = false,
 }: {
   value: EnvVars;
   setValue: (updater: (envVars: EnvVars) => EnvVars) => void;
-  fixedSensitiveNames: Set<string>;
+  fixedSensitiveVars: Record<string, number>;
   disabled: boolean;
 }) => {
   const [error, setError] = useState("");
   useEffect(() => {
-    for (const i of envVars.keys()) {
-      if (
-        envVars[i].name === "" &&
-        envVars[i].value === "" &&
-        !envVars[i].isSensitive &&
-        i < envVars.length - 1
-      ) {
-        setEnvironmentVariables((prev) => prev.toSpliced(i, 1));
-        return;
+    const names = new Set<string>();
+    const duplicates = new Set<string>();
+
+    envVars.forEach((env) => {
+      if (env.name === "") return;
+
+      if (names.has(env.name)) {
+        duplicates.add(env.name);
+      } else {
+        names.add(env.name);
       }
-    }
-    if (
-      envVars[envVars.length - 1]?.name !== "" ||
-      envVars[envVars.length - 1]?.value !== "" ||
-      envVars[envVars.length - 1]?.isSensitive
-    ) {
-      setEnvironmentVariables((prev) => [
-        ...prev,
-        { name: "", value: "", isSensitive: false },
-      ]);
+    });
+
+    if (duplicates.size !== 0) {
+      setError(
+        `Duplicate environment variable(s): ${[...duplicates.values()].join(", ")}`,
+      );
+    } else {
+      setError("");
     }
   }, [envVars, setEnvironmentVariables]);
 
@@ -57,7 +55,7 @@ export const EnvVarGrid = ({
       </span>
       <span></span>
       {envVars.map(({ name, value, isSensitive }, index) => {
-        const isFixedSensitive = fixedSensitiveNames.has(name);
+        const isFixedSensitive = fixedSensitiveVars[name] === index;
         return (
           <Fragment key={index}>
             <Input
@@ -76,21 +74,14 @@ export const EnvVarGrid = ({
               value={name}
               onChange={(e) => {
                 const value = e.currentTarget.value;
-                setEnvironmentVariables((prev) => {
-                  const newList = prev.toSpliced(index, 1, {
-                    ...prev[index],
-                    name: value,
-                  });
-                  const duplicates = getDuplicates(newList);
-                  if (duplicates.length != 0) {
-                    setError(
-                      `Duplicate environment variable(s): ${duplicates.join(", ")}`,
-                    );
-                  } else {
-                    setError("");
-                  }
-                  return newList;
-                });
+                setEnvironmentVariables((prev) =>
+                  getCorrectEnvBlanks(
+                    prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      name: value,
+                    }),
+                  ),
+                );
               }}
             />
             <span className="w-fit align-middle text-xl">=</span>
@@ -103,13 +94,14 @@ export const EnvVarGrid = ({
                 value={value ?? ""}
                 onChange={(e) => {
                   const value = e.currentTarget.value;
-                  setEnvironmentVariables((prev) => {
-                    const newList = prev.toSpliced(index, 1, {
-                      ...prev[index],
-                      value: value,
-                    });
-                    return newList;
-                  });
+                  setEnvironmentVariables((prev) =>
+                    getCorrectEnvBlanks(
+                      prev.toSpliced(index, 1, {
+                        ...prev[index],
+                        value: value,
+                      }),
+                    ),
+                  );
                 }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -123,10 +115,12 @@ export const EnvVarGrid = ({
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
                   setEnvironmentVariables((prev) =>
-                    prev.toSpliced(index, 1, {
-                      ...prev[index],
-                      isSensitive: checked === true,
-                    }),
+                    getCorrectEnvBlanks(
+                      prev.toSpliced(index, 1, {
+                        ...prev[index],
+                        isSensitive: checked === true,
+                      }),
+                    ),
                   );
                 }}
               />
@@ -136,7 +130,9 @@ export const EnvVarGrid = ({
               variant="secondary"
               type="button"
               onClick={() =>
-                setEnvironmentVariables((prev) => prev.toSpliced(index, 1))
+                setEnvironmentVariables((prev) =>
+                  index != prev.length - 1 ? prev.toSpliced(index, 1) : prev,
+                )
               }
             >
               <Trash2 />
@@ -149,17 +145,23 @@ export const EnvVarGrid = ({
   );
 };
 
-const getDuplicates = (values: EnvVars): string[] => {
-  const names = new Set();
-  const result = [];
-  for (const env of values) {
-    if (env.name === "") {
-      continue;
+export const getCorrectEnvBlanks = (envVars: EnvVars): EnvVars => {
+  const indicesToDelete = new Set<number>();
+  envVars.forEach((env, idx) => {
+    if (
+      env.name === "" &&
+      env.value === "" &&
+      !env.isSensitive &&
+      idx < envVars.length - 1
+    ) {
+      indicesToDelete.add(idx);
     }
-    if (names.has(env.name)) {
-      result.push(env.name);
-    }
-    names.add(env.name);
+  });
+  const cleanedVars = envVars.filter((_, idx) => !indicesToDelete.has(idx));
+
+  const last = cleanedVars[cleanedVars.length - 1];
+  if (last.name !== "" || last.value !== "" || last.isSensitive) {
+    cleanedVars.push({ name: "", value: "", isSensitive: false });
   }
-  return result;
+  return cleanedVars;
 };

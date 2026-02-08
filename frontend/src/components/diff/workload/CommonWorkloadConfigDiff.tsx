@@ -40,12 +40,12 @@ export const CommonWorkloadConfigDiff = ({
   const appConfig = useAppConfig();
   const baseWorkloadState = base.appType === "workload" ? base.workload : null;
 
-  const fixedSensitiveNames = new Set(
+  const fixedSensitiveVars =
     baseWorkloadState?.env
-      .filter((env) => env.isSensitive)
-      .map((env) => env.name) ?? [],
-  );
-
+      .map((env, idx) => ({ env, idx }))
+      .filter(({ env }) => env.isSensitive)
+      .reduce((obj, cur) => Object.assign(obj, { [cur.env.name]: cur.idx })) ??
+    {};
   return (
     <>
       <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
@@ -189,7 +189,7 @@ export const CommonWorkloadConfigDiff = ({
                   env: updater(prev.env),
                 }))
               }
-              fixedSensitiveNames={fixedSensitiveNames}
+              fixedSensitiveVars={fixedSensitiveVars}
             />
           </AccordionContent>
         </AccordionItem>
