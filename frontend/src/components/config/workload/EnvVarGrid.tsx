@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -18,29 +18,7 @@ export const EnvVarGrid = ({
   fixedSensitiveVars: Record<string, number>;
   disabled: boolean;
 }) => {
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const names = new Set<string>();
-    const duplicates = new Set<string>();
-
-    envVars.forEach((env) => {
-      if (env.name === "") return;
-
-      if (names.has(env.name)) {
-        duplicates.add(env.name);
-      } else {
-        names.add(env.name);
-      }
-    });
-
-    if (duplicates.size !== 0) {
-      setError(
-        `Duplicate environment variable(s): ${[...duplicates.values()].join(", ")}`,
-      );
-    } else {
-      setError("");
-    }
-  }, [envVars, setEnvironmentVariables]);
+  const error = getEnvError(envVars);
 
   return (
     <div className="grid grid-cols-[1fr_min-content_1fr_min-content_min-content] items-center gap-2">
@@ -164,4 +142,29 @@ export const getCorrectEnvBlanks = (envVars: EnvVars): EnvVars => {
     cleanedVars.push({ name: "", value: "", isSensitive: false });
   }
   return cleanedVars;
+};
+
+const getDuplicates = (values: string[]) => {
+  const unique = new Set<string>();
+  const duplicates = new Set<string>();
+
+  values.forEach((value) => {
+    if (unique.has(value)) {
+      duplicates.add(value);
+    } else {
+      unique.add(value);
+    }
+  });
+
+  return duplicates;
+};
+
+export const getEnvError = (env: EnvVars) => {
+  const duplicates = getDuplicates(env.map((ev) => ev.name).filter(Boolean));
+
+  if (duplicates.size !== 0) {
+    return `Duplicate environment variable(s): ${[...duplicates.values()].join(", ")}`;
+  }
+
+  return "";
 };

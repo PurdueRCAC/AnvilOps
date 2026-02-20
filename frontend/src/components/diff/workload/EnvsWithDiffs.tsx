@@ -1,10 +1,13 @@
-import { getCorrectEnvBlanks } from "@/components/config/workload/EnvVarGrid";
+import {
+  getCorrectEnvBlanks,
+  getEnvError,
+} from "@/components/config/workload/EnvVarGrid";
 import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -21,29 +24,7 @@ export const EnvsWithDiffs = ({
   fixedSensitiveVars: Record<string, number>;
   disabled?: boolean;
 }) => {
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const names = new Set<string>();
-    const duplicates = new Set<string>();
-
-    envVars.forEach((env) => {
-      if (env.name === "") return;
-
-      if (names.has(env.name)) {
-        duplicates.add(env.name);
-      } else {
-        names.add(env.name);
-      }
-    });
-
-    if (duplicates.size !== 0) {
-      setError(
-        `Duplicate environment variable(s): ${[...duplicates.values()].join(", ")}`,
-      );
-    } else {
-      setError("");
-    }
-  }, [envVars, setEnvironmentVariables]);
+  const error = getEnvError(envVars);
 
   const currentEnv = envVars.reduce(
     (obj, current) => {
