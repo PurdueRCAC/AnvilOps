@@ -1,9 +1,13 @@
+import {
+  getCorrectEnvBlanks,
+  getEnvError,
+} from "@/components/config/workload/EnvVarGrid";
 import HelpTooltip from "@/components/HelpTooltip";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment } from "react";
 
 type EnvVars = { name: string; value: string | null; isSensitive: boolean }[];
 
@@ -11,39 +15,16 @@ export const EnvsWithDiffs = ({
   base,
   value: envVars,
   setValue: setEnvironmentVariables,
-  fixedSensitiveNames,
+  fixedSensitiveVars,
   disabled = false,
 }: {
   base: EnvVars;
   value: EnvVars;
   setValue: (updater: (envVars: EnvVars) => EnvVars) => void;
-  fixedSensitiveNames: Set<string>;
+  fixedSensitiveVars: Record<string, number>;
   disabled?: boolean;
 }) => {
-  const [error, setError] = useState("");
-  useEffect(() => {
-    for (const i of envVars.keys()) {
-      if (
-        envVars[i].name === "" &&
-        envVars[i].value === "" &&
-        !envVars[i].isSensitive &&
-        i < envVars.length - 1
-      ) {
-        setEnvironmentVariables((prev) => prev.toSpliced(i, 1));
-        return;
-      }
-    }
-    if (
-      envVars[envVars.length - 1]?.name !== "" ||
-      envVars[envVars.length - 1]?.value !== "" ||
-      envVars[envVars.length - 1]?.isSensitive
-    ) {
-      setEnvironmentVariables((prev) => [
-        ...prev,
-        { name: "", value: "", isSensitive: false },
-      ]);
-    }
-  }, [envVars, setEnvironmentVariables]);
+  const error = getEnvError(envVars);
 
   const currentEnv = envVars.reduce(
     (obj, current) => {
@@ -75,7 +56,7 @@ export const EnvsWithDiffs = ({
       </span>
       <span></span>
       {envVars.map(({ name, value, isSensitive }, index) => {
-        const isFixedSensitive = fixedSensitiveNames.has(name);
+        const isFixedSensitive = fixedSensitiveVars[name] == index;
         return (
           <Fragment key={index}>
             <Input
@@ -94,21 +75,14 @@ export const EnvsWithDiffs = ({
               value={name}
               onChange={(e) => {
                 const value = e.currentTarget.value;
-                setEnvironmentVariables((prev) => {
-                  const newList = prev.toSpliced(index, 1, {
-                    ...prev[index],
-                    name: value,
-                  });
-                  const duplicates = getDuplicates(newList);
-                  if (duplicates.length != 0) {
-                    setError(
-                      `Duplicate environment variable(s): ${duplicates.join(", ")}`,
-                    );
-                  } else {
-                    setError("");
-                  }
-                  return newList;
-                });
+                setEnvironmentVariables((prev) =>
+                  getCorrectEnvBlanks(
+                    prev.toSpliced(index, 1, {
+                      ...prev[index],
+                      name: value,
+                    }),
+                  ),
+                );
               }}
             />
             <span className="w-fit align-middle text-xl">=</span>
@@ -121,13 +95,14 @@ export const EnvsWithDiffs = ({
                 value={value ?? ""}
                 onChange={(e) => {
                   const value = e.currentTarget.value;
-                  setEnvironmentVariables((prev) => {
-                    const newList = prev.toSpliced(index, 1, {
-                      ...prev[index],
-                      value: value,
-                    });
-                    return newList;
-                  });
+                  setEnvironmentVariables((prev) =>
+                    getCorrectEnvBlanks(
+                      prev.toSpliced(index, 1, {
+                        ...prev[index],
+                        value: value,
+                      }),
+                    ),
+                  );
                 }}
                 autoComplete="off"
                 autoCorrect="off"
@@ -140,14 +115,14 @@ export const EnvsWithDiffs = ({
                 disabled={disabled || isFixedSensitive}
                 checked={isSensitive}
                 onCheckedChange={(checked) => {
-                  setEnvironmentVariables((prev) => {
-                    const newList = prev.toSpliced(index, 1, {
-                      ...prev[index],
-                      isSensitive:
-                        checked === "indeterminate" ? false : checked,
-                    });
-                    return newList;
-                  });
+                  setEnvironmentVariables((prev) =>
+                    getCorrectEnvBlanks(
+                      prev.toSpliced(index, 1, {
+                        ...prev[index],
+                        isSensitive: checked === true,
+                      }),
+                    ),
+                  );
                 }}
               />
             </div>
@@ -157,7 +132,7 @@ export const EnvsWithDiffs = ({
               type="button"
               onClick={() => {
                 setEnvironmentVariables((prev) =>
-                  prev.filter((_, i) => i !== index),
+                  index != prev.length - 1 ? prev.toSpliced(index, 1) : prev,
                 );
               }}
             >
@@ -199,19 +174,4 @@ export const EnvsWithDiffs = ({
       )}
     </div>
   );
-};
-
-const getDuplicates = (values: EnvVars): string[] => {
-  const names = new Set();
-  const result = [];
-  for (const env of values) {
-    if (env.name === "") {
-      continue;
-    }
-    if (names.has(env.name)) {
-      result.push(env.name);
-    }
-    names.add(env.name);
-  }
-  return result;
 };
