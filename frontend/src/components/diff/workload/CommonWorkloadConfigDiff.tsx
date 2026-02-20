@@ -44,8 +44,10 @@ export const CommonWorkloadConfigDiff = ({
     baseWorkloadState?.env
       .map((env, idx) => ({ env, idx }))
       .filter(({ env }) => env.isSensitive)
-      .reduce((obj, cur) => Object.assign(obj, { [cur.env.name]: cur.idx })) ??
-    {};
+      .reduce(
+        (obj, cur) => Object.assign(obj, { [cur.env.name]: cur.idx }),
+        {},
+      ) ?? {};
   return (
     <>
       <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
