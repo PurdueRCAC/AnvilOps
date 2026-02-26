@@ -90,7 +90,9 @@ export const AppConfigFormFields = ({
             <SelectGroup>
               <SelectItem value="git">Git Repository</SelectItem>
               <SelectItem value="image">OCI Image</SelectItem>
-              {/* appConfig.allowHelmDeployments && <SelectItem value="helm">Helm Chart</SelectItem> */}
+              {appConfig.allowHelmDeployments && (
+                <SelectItem value="helm">Helm Chart</SelectItem>
+              )}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -112,15 +114,22 @@ export const AppConfigFormFields = ({
       )}
       {state.source === "helm" && (
         <HelmConfigFields
-          state={state.helm}
+          appState={state}
+          setAppState={(update) =>
+            setState((state) => ({ ...state, ...update }))
+          }
           setState={helmSetter}
           disabled={disabled}
+          originalConfig={originalConfig}
         />
       )}
       {state.appType === "workload" &&
         (state.source !== "git" || selectedOrg?.gitProvider !== null) && (
           <CommonWorkloadConfigFields
             appState={state}
+            setAppState={(update) =>
+              setState((state) => ({ ...state, ...update }))
+            }
             setState={commonWorkloadSetter}
             disabled={disabled}
             originalConfig={originalConfig}

@@ -47,9 +47,11 @@ export const DeploymentView = () => {
 
   const title = deployment?.title?.trim() ?? "Untitled deployment";
 
-  const defaultLogView = ["COMPLETE", "STOPPED"].includes(deployment.status)
-    ? "RUNTIME"
-    : "BUILD";
+  const defaultLogView =
+    deployment.config.appType === "workload" &&
+    ["COMPLETE", "STOPPED"].includes(deployment.status)
+      ? "RUNTIME"
+      : "BUILD";
 
   const buildLogsOnly = [
     "PENDING",
@@ -99,9 +101,11 @@ export const DeploymentView = () => {
             <TabsTrigger value="BUILD">
               <span>Build Logs</span>
             </TabsTrigger>
-            <TabsTrigger value="RUNTIME">
-              <span>Runtime Logs</span>
-            </TabsTrigger>
+            {deployment.config.appType === "workload" && (
+              <TabsTrigger value="RUNTIME">
+                <span>Runtime Logs</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </Activity>
         <TabsContent value="BUILD">
@@ -122,14 +126,16 @@ export const DeploymentView = () => {
             }}
           />
         </TabsContent>
-        <TabsContent value="RUNTIME">
-          <Logs
-            appId={deployment.appId}
-            deployment={deployment}
-            type="RUNTIME"
-            follow={defaultLogView === "RUNTIME" && isCurrentDeployment}
-          />
-        </TabsContent>
+        {deployment.config.appType === "workload" && (
+          <TabsContent value="RUNTIME">
+            <Logs
+              appId={deployment.appId}
+              deployment={deployment}
+              type="RUNTIME"
+              follow={defaultLogView === "RUNTIME" && isCurrentDeployment}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </main>
   );

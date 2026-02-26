@@ -47,7 +47,7 @@ export default function CreateAppView() {
       }),
   });
   if (search.has("repoName")) {
-    initialState.workload.namespace = generateNamespace(initialState);
+    initialState.namespace = generateNamespace(initialState);
   }
   const [appState, setAppState] = useState<CommonFormFields>(initialState);
 

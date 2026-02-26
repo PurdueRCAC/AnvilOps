@@ -13,6 +13,7 @@ import { shouldImpersonate } from "./cluster/rancher.ts";
 import { createNamespaceConfig } from "./cluster/resources.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { env } from "./env.ts";
+import { fetchFromRegistry } from "./registry.ts";
 
 type Chart = {
   name: string;
@@ -28,8 +29,8 @@ type ChartTagList = {
 };
 
 export const getChartToken = async () => {
-  return await fetch(
-    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
+  return await fetchFromRegistry(
+    `/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
   )
     .then((res) => {
       if (!res.ok) {
@@ -57,15 +58,12 @@ const getChart = async (
   version: string,
   token: string,
 ): Promise<Chart> => {
-  const res = await fetch(
-    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.oci.image.manifest.v1+json",
-      },
+  const res = await fetchFromRegistry(`v2/${repository}/manifests/${version}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.oci.image.manifest.v1+json",
     },
-  );
+  });
   if (!res.ok) {
     throw new Error(res.statusText);
   }
@@ -96,14 +94,11 @@ export const getLatestChart = async (
   repository: string,
   token: string,
 ): Promise<Chart | null> => {
-  const chartTagList = await fetch(
-    `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/tags/list`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const chartTagList = await fetchFromRegistry(`v2/${repository}/tags/list`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
     },
-  )
+  })
     .then((res) => {
       if (!res.ok) {
         throw new Error(res.statusText);

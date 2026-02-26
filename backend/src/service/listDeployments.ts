@@ -96,6 +96,8 @@ export async function listDeployments(
       updatedAt: deployment.updatedAt.toISOString(),
       source: deployment.source,
       imageTag: deployment.imageTag,
+      chartUrl: deployment.chartUrl,
+      chartVersion: deployment.chartVersion,
     };
   });
 }

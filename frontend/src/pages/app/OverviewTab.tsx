@@ -22,6 +22,7 @@ import {
   Loader,
   LogsIcon,
   Network,
+  ShipWheel,
   Tag,
   TriangleAlert,
   Undo2,
@@ -191,6 +192,16 @@ export const OverviewTab = ({
             </p>
             <p>{app.config.imageTag}</p>
           </>
+        ) : app.config.source === "helm" ? (
+          <>
+            <p className="flex items-center gap-2">
+              <ShipWheel className="size-4" />
+              Helm chart
+            </p>
+            <p>
+              {app.config.url}:{app.config.version}
+            </p>
+          </>
         ) : null}
         {appDomain !== null &&
           isWorkloadConfig(app.config) &&
@@ -321,7 +332,7 @@ export const OverviewTab = ({
                           {d.commitMessage}
                         </span>
                       </a>
-                    ) : (
+                    ) : d.source === "IMAGE" ? (
                       <Tooltip>
                         <TooltipTrigger>
                           <p className="flex items-center gap-2">
@@ -333,7 +344,21 @@ export const OverviewTab = ({
                         </TooltipTrigger>
                         <TooltipContent>{d.imageTag}</TooltipContent>
                       </Tooltip>
-                    )}
+                    ) : d.source === "HELM" ? (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <p className="flex items-center gap-2">
+                            <ShipWheel className="inline" size={16} />
+                            <span className="max-w-96 truncate">
+                              {d.chartUrl}:{d.chartVersion}
+                            </span>
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {d.chartUrl}:{d.chartVersion}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </td>
                   <td>
                     <Status status={d.status} />

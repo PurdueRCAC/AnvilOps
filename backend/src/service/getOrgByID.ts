@@ -76,6 +76,10 @@ export async function getOrgByID(orgId: number, userId: number) {
               ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
               : undefined,
         }),
+        ...(config.appType === "helm" && {
+          chartUrl: config.url,
+          chartVersion: config.version,
+        }),
       };
     }),
   );

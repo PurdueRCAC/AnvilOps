@@ -94,6 +94,8 @@ export interface Deployment {
 
 export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
   imageTag?: string;
+  chartUrl?: string;
+  chartVersion?: string;
   commitHash?: string;
   repositoryId?: number;
   source?: DeploymentSource;

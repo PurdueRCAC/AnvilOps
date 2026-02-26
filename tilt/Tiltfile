@@ -61,7 +61,7 @@ modified_kubeconfig = encode_yaml_stream(kubeconfig)
 k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig}))
 
 # Get the hostname of Tilt's internal registry so that we can use it for AnvilOps user images 
-registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | cut -d \":\" -f2-")).strip()
+registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | awk '{print $2}'")).strip()
 print("Using local registry from within the cluster at " + registry_host)
 
 k8s_yaml(secret_from_dict("cilogon-credentials", inputs={

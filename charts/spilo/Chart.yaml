@@ -2,7 +2,7 @@ apiVersion: v1
 name: spilo
 description: A minimal Spilo/Patroni HA Postgres deployment, adapted from https://github.com/zalando/spilo/kubernetes.
 type: application
-version: 0.1.1
+version: 0.1.2
 annotations:
   anvilops-note: |
     Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
@@ -13,30 +13,38 @@ annotations:
       {
         "name": "superuser",
         "displayName": "Superuser Password",
-        "random": true
+        "random": true,
+        "required": true
       },
       {
         "name": "replication",
         "displayName": "Replication Password",
-        "random": true
+        "random": true,
+        "required": true
       },
       {
         "name": "admin",
         "displayName": "Admin Password",
-        "random": "true"
+        "random": "true",
+        "required": true
       }
       ],
       "storage": [
       {
         "name": "className",
         "displayName": "Storage Class",
-        "default": "standard"
+        "noUpdate": true,
+        "default": "standard",
+        "required": true
       },
       {
         "name": "size",
         "displayName": "Size",
+        "noUpdate": true,
         "type": "number",
-        "unit": "Gi"
+        "unit": "Gi",
+        "default": "1",
+        "required": true
       }
       ]
     }
