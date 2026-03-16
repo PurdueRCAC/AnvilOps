@@ -62,7 +62,7 @@ Add them as environment variables:
 - `GITHUB_BASE_URL` (`base-url`): The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
 - `GITHUB_API_URL` (`api-url`): The URL of the GitHub API, including the protocol, with no trailing slash. For GitHub.com, this is `https://api.github.com`, but on GitHub Enterprise, it will likely be `https://<your GHES server>/api/v3`.
 
-### CILogon
+### OIDC
 
 Environment variables:
 
@@ -88,7 +88,7 @@ docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRE
 
 For access control, AnvilOps can integrate with the Rancher API. If you are not using Rancher, leave the following values unset.
 
-In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of the secret `rancher-config`.
+In development, set the environment variable `RANCHER_BASE_URL` to the Rancher base URL (e.g. https://composable.anvil.rcac.purdue.edu). Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of the secret `rancher-config`.
 
 If you would like to make a sandbox project available to users, set the environment variable `SANDBOX_ID` to its project ID. In production, set the the `sandbox-id` key of the `rancher-config` secret.
 
@@ -112,7 +112,7 @@ Ensure that the user associated with the kubeconfig file has permissions to view
 
 Finally, in order to link users with their Rancher accounts, AnvilOps needs additional information about how to match login information with user ids.
 
-Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE>/authConfigs` and use the `id` field for the configuration matching your selected login method. Also set the environment variable `LOGIN_CLAIM` to the CILogon OIDC claim that Rancher uses to set principalIds. See available claims at `https://www.cilogon.org/oidc`. It should represent the same value as the UID field of your Rancher authentication config.
+Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE_URL>/v3/authConfigs` and use the `id` field for the configuration matching your selected login method. Also set the environment variable `LOGIN_CLAIM` to the CILogon OIDC claim that Rancher uses to set principalIds. See available claims at `https://www.cilogon.org/oidc`. It should represent the same value as the UID field of your Rancher authentication config.
 
 ### Kubernetes API
 

@@ -5,19 +5,20 @@ import {
   KubeConfig,
   PatchStrategy,
   setHeaderOptions,
+  type Cluster,
   type V1Deployment,
 } from "@kubernetes/client-node";
+import fs from "node:fs";
 import { exit } from "node:process";
 import { setTimeout } from "node:timers/promises";
-import * as yaml from "yaml";
 
-const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
+const RANCHER_BASE_URL = process.env.RANCHER_BASE_URL;
 const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
 const RANCHER_SECRET_NAME = process.env.RANCHER_SECRET_NAME;
 const RANCHER_TOKEN_TTL = parseInt(process.env.RANCHER_TOKEN_TTL, 10);
 
-if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
-  console.log("RANCHER_API_BASE or RANCHER_TOKEN not set, skipping rotation");
+if (!RANCHER_BASE_URL || !RANCHER_TOKEN) {
+  console.log("RANCHER_BASE_URL or RANCHER_TOKEN not set, skipping rotation");
   exit(1);
 }
 
@@ -31,7 +32,7 @@ kc.loadFromDefault();
 
 const api = kc.makeApiClient(CoreV1Api);
 
-const rancherTokenReq = await fetch(`${RANCHER_API_BASE}/tokens`, {
+const rancherTokenReq = await fetch(`${RANCHER_BASE_URL}/v3/tokens`, {
   method: "POST",
   headers: {
     Authorization: `Basic ${RANCHER_TOKEN}`,
@@ -75,7 +76,7 @@ if (KUBECONFIG_SECRET_NAME) {
     console.log("CLUSTER_ID not set, skipping kubeconfig rotation");
   } else {
     const kcReq = await fetch(
-      `${RANCHER_API_BASE}/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
+      `${RANCHER_BASE_URL}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
       {
         method: "POST",
         headers: {
@@ -94,14 +95,21 @@ if (KUBECONFIG_SECRET_NAME) {
       config: string;
       type: "generateKubeConfigOutput";
     };
-    let kubeConfig = kubeConfigRes["config"];
+    const kubeConfig = kubeConfigRes["config"];
 
+    const kc = new KubeConfig();
+    kc.loadFromString(kubeConfig);
     if (USE_CLUSTER_NAME) {
-      const body = yaml.parse(kubeConfig) as object & {
-        "current-context": string;
-      };
-      body["current-context"] = USE_CLUSTER_NAME;
-      kubeConfig = yaml.stringify(body);
+      kc.setCurrentContext(USE_CLUSTER_NAME);
+    }
+
+    if (process.env.NODE_EXTRA_CA_CERTS) {
+      const rancherCA = fs.readFileSync(
+        process.env.NODE_EXTRA_CA_CERTS,
+        "utf8",
+      );
+      const cluster = kc.getCurrentCluster() as Cluster & { caData: string };
+      cluster.caData = Buffer.from(rancherCA, "utf8").toString("base64");
     }
 
     await api.patchNamespacedSecret(
@@ -110,7 +118,9 @@ if (KUBECONFIG_SECRET_NAME) {
         namespace: process.env.CURRENT_NAMESPACE,
         body: {
           data: {
-            kubeconfig: Buffer.from(kubeConfig, "utf-8").toString("base64"),
+            kubeconfig: Buffer.from(kc.exportConfig(), "utf-8").toString(
+              "base64",
+            ),
           },
         },
       },
@@ -172,7 +182,7 @@ if (!ready) {
 // Delete the previous Kubeconfig
 if (KUBECONFIG_SECRET_NAME && CLUSTER_ID) {
   const oldKubeconfigName = kc.getCurrentUser().token.split(":")[0];
-  await fetch(`${RANCHER_API_BASE}/tokens/${oldKubeconfigName}`, {
+  await fetch(`${RANCHER_BASE_URL}/v3/tokens/${oldKubeconfigName}`, {
     method: "DELETE",
     headers: {
       Authorization: `Basic ${token}`,
@@ -186,7 +196,7 @@ if (KUBECONFIG_SECRET_NAME && CLUSTER_ID) {
 const rancherTokenName = Buffer.from(RANCHER_TOKEN, "base64")
   .toString("utf-8")
   .split(":")[0];
-await fetch(`${RANCHER_API_BASE}/tokens/${rancherTokenName}`, {
+await fetch(`${RANCHER_BASE_URL}/v3/tokens/${rancherTokenName}`, {
   method: "DELETE",
   headers: {
     Authorization: `Basic ${token}`,

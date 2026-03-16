@@ -20,7 +20,7 @@ export interface User {
   email: string | null;
   name: string | null;
   clusterUsername: string;
-  ciLogonUserId: string | null;
+  oidcUserId: string | null;
   githubUserId: number | null;
 }
 

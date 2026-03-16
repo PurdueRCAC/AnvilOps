@@ -7,16 +7,16 @@ const token = env["RANCHER_TOKEN"];
 const headers = {
   Authorization: `Basic ${token}`,
 };
-const API_BASE_URL = env["RANCHER_API_BASE"];
+const BASE_URL = env["RANCHER_BASE_URL"];
 
 const SANDBOX_ID = env["SANDBOX_ID"];
 
-export const isRancherManaged = () => !!API_BASE_URL && !!token;
+export const isRancherManaged = () => !!BASE_URL && !!token;
 
 const fetchRancherResource = async <T extends { type: string }>(
   endpoint: string,
 ) => {
-  const res = await fetch(`${API_BASE_URL}/${endpoint}`, { headers });
+  const res = await fetch(`${BASE_URL}/v3/${endpoint}`, { headers });
   const json = (await res.json()) as T;
   if (json.type === "error") {
     throw new Error(JSON.stringify(json));
