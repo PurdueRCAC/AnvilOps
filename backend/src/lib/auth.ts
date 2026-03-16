@@ -1,38 +1,58 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express from "express";
 import * as client from "openid-client";
-import { db } from "../db/index.ts";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { logger } from "../index.ts";
-import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
-import { env, parseCsv } from "./env.ts";
+import { oauthCallback } from "../service/oauthCallback.ts";
+import { isRancherManaged } from "./cluster/rancher.ts";
+import { env } from "./env.ts";
+
+type CallbackErrorCode = "IDP_ERROR" | "RANCHER_ID_MISSING" | null;
+export class CallbackError extends Error {
+  public readonly code: CallbackErrorCode;
+  constructor(code: CallbackErrorCode) {
+    super();
+    this.code = code;
+  }
+}
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
-const clientID = env.CLIENT_ID;
-const clientSecret = env.CLIENT_SECRET;
-const server = new URL("https://cilogon.org/.well-known/openid-configuration");
-const redirect_uri = env.BASE_URL + "/api/oauth_callback";
 
-let config: client.Configuration;
-const getConfig = async () => {
-  if (!config) config = await client.discovery(server, clientID, clientSecret);
-  return config;
-};
-const code_challenge_method = "S256";
-const scope = "openid email profile org.cilogon.userinfo";
-const allowedIdps = parseCsv(env.ALLOWED_IDPS);
+export const usingRancherOIDC = () =>
+  isRancherManaged() && env.USE_RANCHER_OIDC == "true";
+export const usingCILogon = () => !usingRancherOIDC();
 
-const getIdentity = (claims: client.IDToken) => {
-  if (process.env._PURDUE_GEDDES) {
-    // On Purdue's Geddes cluster, Rancher is not configured to use a claim available from CILogon as a principalId.
-    // Rather, it uses the Purdue-specific UID:
-    const email = claims.email as string;
-    return email.replace("@purdue.edu", "");
+const getOIDCConfig = async () => {
+  if (usingRancherOIDC()) {
+    const server = new URL(
+      `${env.RANCHER_BASE_URL}/oidc/.well-known/openid-configuration`,
+    );
+    return {
+      scope: "openid profile",
+      oidcConfig: await client.discovery(
+        server,
+        env.CLIENT_ID,
+        env.CLIENT_SECRET,
+      ),
+    };
+  } else {
+    const server = new URL(
+      "https://cilogon.org/.well-known/openid-configuration",
+    );
+    return {
+      scope: "openid email profile org.cilogon.userinfo",
+      oidcConfig: await client.discovery(
+        server,
+        env.CLIENT_ID,
+        env.CLIENT_SECRET,
+      ),
+    };
   }
-
-  return claims[env.LOGIN_CLAIM] as string;
 };
+const { scope, oidcConfig } = await getOIDCConfig();
+const redirect_uri = env.BASE_URL + "/api/oauth_callback";
+const code_challenge_method = "S256";
 
 const router = express.Router();
 
@@ -46,18 +66,19 @@ router.get("/login", async (req, res) => {
     scope,
     code_challenge,
     code_challenge_method,
-    selected_idp: env.ALLOWED_IDPS,
-    idp_hint: env.ALLOWED_IDPS,
+    ...(usingCILogon() && {
+      selected_idp: env.ALLOWED_IDPS,
+      idp_hint: env.ALLOWED_IDPS,
+    }),
   };
 
-  const config = await getConfig();
-  if (!config.serverMetadata().supportsPKCE()) {
+  if (!oidcConfig.serverMetadata().supportsPKCE()) {
     const nonce = client.randomNonce();
     req.session.nonce = nonce;
     params.nonce = nonce;
   }
 
-  const redirectTo = client.buildAuthorizationUrl(config, params);
+  const redirectTo = client.buildAuthorizationUrl(oidcConfig, params);
   return res.redirect(redirectTo.toString());
 });
 
@@ -65,7 +86,7 @@ router.get("/oauth_callback", async (req, res) => {
   try {
     const currentUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
     const tokens = await client.authorizationCodeGrant(
-      await getConfig(),
+      oidcConfig,
       new URL(currentUrl),
       {
         pkceCodeVerifier: req.session.code_verifier,
@@ -75,52 +96,7 @@ router.get("/oauth_callback", async (req, res) => {
     );
 
     const claims = tokens.claims();
-
-    if (
-      allowedIdps &&
-      !allowedIdps.includes((claims.idp as string).toString())
-    ) {
-      return res.redirect("/error?type=login&code=IDP_ERROR");
-    }
-    const existingUser = await db.user.getByCILogonUserId(claims.sub);
-
-    if (existingUser) {
-      req.session.user = {
-        id: existingUser.id,
-        name: existingUser.name,
-        email: existingUser.email,
-      };
-      logger.info({ userId: existingUser.id }, "User logged in");
-    } else {
-      let clusterUsername: string;
-      if (isRancherManaged()) {
-        const identity = getIdentity(claims);
-        try {
-          clusterUsername = await getRancherUserID(identity);
-          if (!clusterUsername) {
-            throw new Error();
-          }
-        } catch (e) {
-          logger.error(e, "Failed to fetch user's Rancher user ID");
-          return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
-        }
-      }
-
-      const newUser = await db.user.createUserWithPersonalOrg(
-        claims.email as string,
-        claims.name as string,
-        claims.sub,
-        clusterUsername,
-      );
-
-      req.session.user = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-      };
-      logger.info(newUser, "User signed up");
-    }
-
+    req.session.user = await oauthCallback(claims);
     return res.redirect("/dashboard");
   } catch (err) {
     logger.error(err, "Error processing user login");
@@ -128,6 +104,9 @@ router.get("/oauth_callback", async (req, res) => {
     if (span) {
       span.setStatus({ code: SpanStatusCode.ERROR });
       span.recordException(err as Error);
+    }
+    if (err instanceof CallbackError && err.code) {
+      return res.redirect(`/error?type=login&code=${err.code}`);
     }
     return res.redirect("/error?type=login");
   }
@@ -137,7 +116,10 @@ router.post("/logout", (req, res, next) => {
   req.session.destroy((err) => {
     if (err) return next(err);
     res.clearCookie(SESSION_COOKIE_NAME);
-    return res.redirect("https://cilogon.org/logout/?skin=access");
+    if (usingCILogon()) {
+      return res.redirect("https://cilogon.org/logout/?skin=access");
+    }
+    return res.redirect(env.BASE_URL);
   });
 });
 

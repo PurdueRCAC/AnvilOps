@@ -131,7 +131,7 @@ export const resourceExists = async (
   }
 };
 
-const REQUIRED_LABELS = env["RANCHER_API_BASE"]
+const REQUIRED_LABELS = env["RANCHER_BASE_URL"]
   ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
   : [];
 export const ensureNamespace = async (

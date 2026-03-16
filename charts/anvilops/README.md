@@ -164,20 +164,27 @@ If you are not using the default namespace, add the `-n $NAMESPACE` argument, wh
 
 **Make sure you create your secrets in the same namespace that you install the Helm chart!**
 
-### `cilogon-credentials`
+### `oidc-credentials`
 
 #### What is this?
 
-CILogon is the sign-in provider that AnvilOps uses. Before gaining access to the dashboard, users sign in with CILogon, which gives them the option to sign in with a number of other providers, including ACCESS CI.
+AnvilOps can be configured to use one of two sign-in providers: CILogon or Rancher. Using Rancher as the sign-in provider is recommended for clusters managed by Rancher, as it is faster and simpler to set up.
 
-#### How to obtain
+When registering AnvilOps with an OIDC provider, enter "<YOUR_ANVILOPS_BASE_URL>/api/oauth_callback" for the callback URL.
 
-Follow the steps in the Client Registration section of [CILogon's OICD Guide](https://www.cilogon.org/oidc#:~:text=Client%20Registration).
+#### Rancher
+
+On versions >v2.11, Rancher can be configured as an OIDC provider. Follow the instructions on [Rancher's OIDC configuration guide](https://ranchermanager.docs.rancher.com/how-to-guides/advanced-user-guides/configure-oidc-provider) to obtain the client ID and secret.
+
+#### CILogon
+
+Before gaining access to the dashboard, users will sign in with CILogon, which gives them the option to sign in with a number of other providers, including ACCESS CI.
+To obtain the client ID and secret, follow the steps in the Client Registration section of [CILogon's OICD Guide](https://www.cilogon.org/oidc#:~:text=Client%20Registration).
 
 #### Keys
 
-- `client-id`: Your CILogon OAuth client ID
-- `client-secret`: Your CILogon OAuth client secret
+- `client-id`: Your OIDC client ID
+- `client-secret`: Your OIDC client secret
 
 ### Registry Credentials
 
