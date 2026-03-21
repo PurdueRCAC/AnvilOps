@@ -30,7 +30,7 @@ async function listChartsFromRegistry() {
   return charts.filter(Boolean).map((chart) => ({
     name: chart.name,
     note: chart.note,
-    url: `oci://${env.REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
+    url: `oci://${env.CHART_REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
     urlType: "oci",
     version: chart.version,
     valueSpec: chart.values,

@@ -104,11 +104,15 @@ parsed = decode_yaml_stream(yaml)
 for i, object in enumerate(parsed):
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
-    for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
+    env = object["spec"]["template"]["spec"]["containers"][0]["env"]
+    for variable in env:
       if variable["name"] == "REGISTRY_HOSTNAME":
         variable["value"] = registry_host
-    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
-    object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
+      if variable["name"] == "CHART_REGISTRY_HOSTNAME":
+        variable["value"] = "registry.anvil.rcac.purdue.edu"
+        
+    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)  
+    env.append({"name": "IN_TILT", "value": "true"})
     if separate_frontend_and_backend:
       # Allow live_update to edit files in containers
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["readOnlyRootFilesystem"] = False

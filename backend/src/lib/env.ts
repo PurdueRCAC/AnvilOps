@@ -162,6 +162,15 @@ const variables = {
    * The Kubernetes namespace that all AnvilOps jobs should run in, e.g. anvilops-dev
    */
   CURRENT_NAMESPACE: { required: true },
+
+  /**
+   * The protocol used to contact the chart registry over HTTP (should be "http" or "https")
+   */
+  CHART_REGISTRY_PROTOCOL: { required: false, defaultValue: "https" },
+  /**
+   * The hostname of the chart registry, e.g. registry.anvil.rcac.purdue.edu
+   */
+  CHART_REGISTRY_HOSTNAME: { required: false },
   /**
    * The name of the project in which custom AnvilOps charts are stored.
    */

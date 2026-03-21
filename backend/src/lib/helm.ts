@@ -13,9 +13,8 @@ import { shouldImpersonate } from "./cluster/rancher.ts";
 import { createNamespaceConfig } from "./cluster/resources.ts";
 import { wrapWithLogExporter } from "./cluster/resources/logs.ts";
 import { env } from "./env.ts";
-import { fetchFromRegistry } from "./registry.ts";
 
-type Chart = {
+type RegistryChart = {
   name: string;
   version: string;
   description?: string;
@@ -29,8 +28,8 @@ type ChartTagList = {
 };
 
 export const getChartToken = async () => {
-  return await fetchFromRegistry(
-    `/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
+  return await fetch(
+    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
   )
     .then((res) => {
       if (!res.ok) {
@@ -57,13 +56,16 @@ const getChart = async (
   repository: string,
   version: string,
   token: string,
-): Promise<Chart> => {
-  const res = await fetchFromRegistry(`v2/${repository}/manifests/${version}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.oci.image.manifest.v1+json",
+): Promise<RegistryChart> => {
+  const res = await fetch(
+    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.oci.image.manifest.v1+json",
+      },
     },
-  });
+  );
   if (!res.ok) {
     throw new Error(res.statusText);
   }
@@ -93,12 +95,15 @@ const getChart = async (
 export const getLatestChart = async (
   repository: string,
   token: string,
-): Promise<Chart | null> => {
-  const chartTagList = await fetchFromRegistry(`v2/${repository}/tags/list`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
+): Promise<RegistryChart | null> => {
+  const chartTagList = await fetch(
+    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/v2/${repository}/tags/list`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  })
+  )
     .then((res) => {
       if (!res.ok) {
         throw new Error(res.statusText);
@@ -132,9 +137,9 @@ export const upgrade = async (
     try {
       await ensureNamespace(api, namespace);
     } catch (err) {
-      throw new Error(`Failed to create namespace ${namespaceName}`, {
-        cause: err,
-      });
+      const e = new Error(`Failed to create namespace ${namespaceName}`);
+      (e as any).cause = err;
+      throw e;
     }
   }
 

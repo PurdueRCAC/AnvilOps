@@ -241,6 +241,12 @@ spec:
               value: {{ .Values.anvilops.env.appDomain }}
             - name: HARBOR_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborProjectName }}
+            - name: CHART_REGISTRY_HOSTNAME
+              value: {{ .Values.harbor.expose.ingress.hosts.core }}
+            {{- with .Values.anvilops.env.registryProtocol }}
+            - name: CHART_REGISTRY_PROTOCOL
+              value: {{ . }}
+            {{- end }}
             - name: CHART_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborChartRepoName }}
             - name: ALLOW_HELM_DEPLOYMENTS
