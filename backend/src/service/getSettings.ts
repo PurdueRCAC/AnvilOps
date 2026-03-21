@@ -33,6 +33,7 @@ export async function getSettings() {
     clusterName: clusterConfig?.name,
     faq: clusterConfig?.faq,
     storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
+    storageClassName: env.STORAGE_CLASS_NAME,
     isRancherManaged: isRancherManaged(),
     allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
   };

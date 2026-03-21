@@ -51,6 +51,8 @@ paths:
                         type: string
                   storageEnabled:
                     type: boolean
+                  storageClassName:
+                    type: string
                   isRancherManaged:
                     type: boolean
                   allowHelmDeployments:

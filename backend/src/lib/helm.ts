@@ -138,7 +138,7 @@ export const upgrade = async (
       await ensureNamespace(api, namespace);
     } catch (err) {
       const e = new Error(`Failed to create namespace ${namespaceName}`);
-      (e as any).cause = err;
+      e.cause = err;
       throw e;
     }
   }

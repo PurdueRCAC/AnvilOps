@@ -1,3 +1,4 @@
+import { useAppConfig } from "@/components/AppConfigProvider";
 import {
   Accordion,
   AccordionContent,
@@ -60,6 +61,7 @@ export const HelmConfigFields = ({
   const { helm: state } = appState;
   const { url, values } = state;
 
+  const settings = useAppConfig();
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
 
@@ -68,27 +70,6 @@ export const HelmConfigFields = ({
     : charts?.find((chart) => chart.url === url);
   const valueTypes = selectedChart ? Object.keys(selectedChart.valueSpec) : [];
 
-  useEffect(() => {
-    const valueSpec = selectedChart?.valueSpec;
-    if (!isExistingApp && valueSpec) {
-      let hasRandom = false;
-      const values: Record<string, Record<string, string>> = {};
-      for (const valueType of Object.keys(valueSpec)) {
-        values[valueType] = {};
-        for (const value of valueSpec[valueType] as HelmValueMeta[]) {
-          if (value.random) {
-            values[valueType][value.name] = randomString();
-            hasRandom = true;
-          }
-        }
-      }
-      if (hasRandom) {
-        setState({ values });
-        toast.success("Autofilled random values for chart.");
-      }
-    }
-  }, [selectedChart]);
-
   const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
 
   useEffect(() => {
@@ -96,6 +77,26 @@ export const HelmConfigFields = ({
       setAppState({ namespace: generateNamespace(appState) });
     }
   }, [state.url]);
+
+  const getDefaultChartValues = (
+    valueSpec: Record<string, HelmValueMeta[]>,
+  ) => {
+    const values: Record<string, Record<string, string>> = {};
+    for (const valueType of Object.keys(valueSpec)) {
+      values[valueType] = {};
+      for (const value of valueSpec[valueType]) {
+        if (value.random) {
+          values[valueType][value.name] = randomString();
+        } else if (value.default) {
+          values[valueType][value.name] = value.default;
+        } else if (valueType === "storage" && value.name === "className") {
+          values[valueType][value.name] = settings?.storageClassName ?? "";
+        }
+      }
+    }
+    return values;
+  };
+
   return (
     <>
       <div className="space-y-2">
@@ -115,14 +116,25 @@ export const HelmConfigFields = ({
           required
           name="chart"
           value={url ?? ""}
-          onValueChange={(value) => {
-            const chart = charts?.find((c) => c.url === value);
+          onValueChange={(newUrl) => {
+            if (newUrl === url) {
+              return;
+            }
+
+            const chart = charts?.find((c) => c.url === newUrl);
+            const values = chart?.valueSpec
+              ? getDefaultChartValues(
+                  chart.valueSpec as Record<string, HelmValueMeta[]>,
+                )
+              : {};
             setState({
-              url: value,
+              url: newUrl,
               urlType: "oci",
               version: chart?.version,
-              values: {},
+              values,
             });
+
+            toast.success("Autofilled default values for chart.");
           }}
           disabled={disabled}
         >

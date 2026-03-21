@@ -146,6 +146,7 @@ enum AppType {
 enum DeploymentSource {
   GIT
   IMAGE
+  HELM
 }
 
 model App {
