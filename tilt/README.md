@@ -40,18 +40,17 @@
 
 This is required to run Rancher locally.
 
-[mkcert](https://github.com/FiloSottile/mkcert) can be used to create locally-trusted certificates.
-Run the following commands:
+Set `enable_tls` to `True` in the `Tiltfile`. This will install cert-manager and generate a certificate for the Ingress domain.
 
+If you want to trust the certificate on your machine, extract it with this command:
+
+```sh
+kubectl get secret root-ca-key-pair -n cert-manager -o jsonpath='{.data.ca\.crt}' | base64 -d
 ```
-mkcert '*.127.0.0.1.nip.io'
-kubectl create secret tls ingress-cert --cert <generatedcert-file>.pem --key <generated-cert-file>-key.pem
-kubectl create secret tls root-ca-cert --cert "$(mkcert -CAROOT)/rootCA.pem" --key "$(mkcert -CAROOT)/rootCA-key.pem"
-```
 
-In `local-values.yaml`, set `withRootCaCert: true`.
+Add this certificate to your system or browser's trust store to fix "certificate signed by unknown issuer" warnings.
 
-`env.appDomain` can be set to `https://127.0.0.1.nip.io`.
+You can also set `env.appDomain` to `https://127.0.0.1.nip.io` in `local-values.yaml` to use TLS for apps deployed with AnvilOps.
 
 ## Troubleshooting
 

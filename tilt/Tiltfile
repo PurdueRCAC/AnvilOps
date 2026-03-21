@@ -3,6 +3,8 @@ load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_r
 load('ext://dotenv', 'dotenv')
 load('ext://deployment', 'deployment_create')
 load('ext://helm_remote', 'helm_remote')
+load('ext://namespace', 'namespace_create')
+load("ext://cert_manager", "deploy_cert_manager")
 dotenv(fn='../backend/.env')
 
 # Should the frontend and backend be deployed separately?
@@ -12,11 +14,20 @@ separate_frontend_and_backend = True
 # Deploy a minimal instance of the Grafana LGTM + Alloy stack to collect logs, metrics, and traces from AnvilOps
 enable_monitoring = True
 
+# Deploy cert-manager to generate a certificate for Rancher, AnvilOps, and AnvilOps apps
+enable_tls = False
+INGRESS_HOSTNAME="127.0.0.1.nip.io" # Resolves to 127.0.0.1 (localhost)
+
 # Deploy Rancher locally
 with_rancher = False
+ingress_clusterip = "10.96.33.248" # Arbitrary IP to use for the Nginx Ingress controller so that we can redirect the Rancher hostname here
 
 # Requires kubeVersion <1.35.0-0 
 RANCHER_VERSION="v2.13.2"
+RANCHER_HOSTNAME="rancher." + INGRESS_HOSTNAME
+
+if with_rancher:
+  enable_tls = True # Rancher requires a TLS cert
 
 if separate_frontend_and_backend:
   docker_build(
@@ -43,10 +54,7 @@ if separate_frontend_and_backend:
     only=["backend", "templates", "openapi"]
   )
 
-  deployment_create(
-    'anvilops-frontend',
-    ports='80:5173'
-  )
+  deployment_create('anvilops-frontend', ports='80:5173')
 else:
   docker_build(
     "anvilops/anvilops", "../",
@@ -94,6 +102,15 @@ k8s_yaml(secret_from_dict("image-pull-secret", inputs={'server': registry_host, 
 # Hard-code these values so that the secret value doesn't drift from the value that Postgres used when creating the user
 k8s_yaml(secret_from_dict("postgres-credentials", inputs={'password': 'super-insecure-local-dev-password', 'field-encryption-key': '96WYSbPNEYi65gb8BRCzbf5ISIywNVV8Dm1rFCnRUFk='}))
 
+custom_values = []
+
+if enable_monitoring:
+  custom_values.append("anvilops.env.otelEndpoint=http://lgtm:4317")
+if enable_tls:
+  custom_values.append("withRootCaCert=true")
+if with_rancher:
+  custom_values.append("rancher.enabled=true")
+
 yaml = helm(
   '../charts/anvilops',
   # The release name, equivalent to helm --name
@@ -103,12 +120,11 @@ yaml = helm(
   # The values file to substitute into the chart.
   values=['./local-values.yaml'],
   # Values to override from the command-line
-  set=['anvilops.env.otelEndpoint=http://lgtm:4317'] if enable_monitoring else []
+  set=custom_values
 )
 
 parsed = decode_yaml_stream(yaml)
 
-ingress_clusterip = "10.96.33.248"
 for i, object in enumerate(parsed):
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
@@ -118,7 +134,7 @@ for i, object in enumerate(parsed):
     
     # Alias Rancher hostname to the ingress controller ClusterIP
     hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
-    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]
+    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [RANCHER_HOSTNAME] }]
     
     # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
     object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
@@ -137,7 +153,7 @@ for i, object in enumerate(parsed):
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
   if object["kind"] == "Job":
     hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
-    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]
+    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [RANCHER_HOSTNAME] }]
 
 # Allow AnvilOps's buildkitd instance to use the built-in registry insecurely (over HTTP)
 k8s_yaml(blob("""
@@ -162,22 +178,64 @@ helm_remote(
   repo_url='https://kubernetes.github.io/ingress-nginx',
   create_namespace=True,
   set=[
-  "controller.extraArgs.default-ssl-certificate=default/ingress-cert",
-  "controller.admissionWebhooks.enabled=false",
-  "controller.service.clusterIP=%s" % ingress_clusterip
+    "controller.extraArgs.default-ssl-certificate=default/ingress-cert",
+    "controller.service.clusterIP=%s" % ingress_clusterip
   ]
+)
+
+if enable_tls:
+  # Install cert-manager and generate a certificate for *.127.0.0.1.nip.io
+  helm_remote(
+    'cert-manager',
+    namespace='cert-manager',
+    repo_url='oci://quay.io/jetstack/charts',
+    version="v1.20.0",
+    create_namespace=True,
+    set=["crds.enabled=true"]
+  )
+  k8s_yaml("cert-manager-configs.yaml")
+  k8s_yaml(blob("""
+  apiVersion: cert-manager.io/v1
+  kind: Certificate
+  metadata:
+    name: ingress-cert
+  spec:
+    secretName: ingress-cert
+    dnsNames:
+      - """ + INGRESS_HOSTNAME + """
+      - """ + RANCHER_HOSTNAME + """
+      - "*.""" + INGRESS_HOSTNAME + """"
+    issuerRef:
+      name: local-ca-issuer
+      kind: ClusterIssuer
+      group: cert-manager.io
+  """))
+
+  # This resource waits for cert-manager to be installed and ready
+  k8s_resource(
+    new_name="tls-certs",
+    objects=["local-ca-issuer:clusterissuer", "ingress-cert:certificate", "my-selfsigned-ca:certificate", "selfsigned-issuer:clusterissuer"],
+    resource_deps=["cert-manager-startupapicheck"]
   )
 
-# forwarding to 0.0.0.0:443 instead of just 443 bypasses privileged port restriction
-# https://github.com/tilt-dev/tilt/issues/1909
-k8s_resource('ingress-nginx-controller', port_forwards=('3000:80','0.0.0.0:443:443')) 
+  # Wait on this resource if an Ingress needs to be created - it'll require that cert-manager is ready and the certificate has been created
+  local_resource(
+    "ingress-ready",
+    cmd='kubectl wait --for=create secret/ingress-cert --timeout=120s',
+    resource_deps=["tls-certs", "ingress-nginx-controller", "ingress-nginx-admission-patch"]
+  )
+
+  k8s_resource("anvilops", resource_deps=["ingress-ready"])
+
+ingress_forwards = ["3000:80"]
+if enable_tls:
+  # Forwarding to 0.0.0.0:443 instead of just 443 bypasses privileged port restriction on macOS (https://github.com/tilt-dev/tilt/issues/1909)
+  ingress_forwards.append("0.0.0.0:443:443")
+k8s_resource('ingress-nginx-controller', port_forwards=ingress_forwards)
 
 if with_rancher:
-  # Rancher requires TLS, and depends on cert-manager CRDs
-  k8s_yaml('./cert-manager.crds.yaml')
-
   # Requires kubeVersion <1.35.0-0
-  # # view the rancher frontend at https://rancher.127.0.0.1.nip.io
+  # View the rancher frontend at https://rancher.127.0.0.1.nip.io
   helm_remote(
     'rancher',
     namespace='cattle-system',
@@ -185,13 +243,18 @@ if with_rancher:
     create_namespace=True,
     version=RANCHER_VERSION,
     set=[
-      'hostname=rancher.127.0.0.1.nip.io',
+      'hostname=%s' % RANCHER_HOSTNAME,
       'replicas=1',
       'ingress.ingressClassName=nginx',
       'tls=external',
       'bootstrapPassword=insecurepassword123'
     ]
   )
+
+  k8s_resource("rancher", resource_deps=["ingress-ready"])
+else:
+  # Fix creating resources when with_rancher is originally enabled and then is later disabled
+  local("kubectl delete --ignore-not-found validatingwebhookconfigurations/capi-validating-webhook-configuration validatingwebhookconfigurations/rancher.cattle.io mutatingwebhookconfigurations/capi-mutating-webhook-configuration mutatingwebhookconfigurations/rancher.cattle.io")
 
 if enable_monitoring:
   deployment_create(
