@@ -7,6 +7,7 @@ annotations:
   anvilops-note: |
     Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
     The usernames of the superuser, admin, and replication user respectively are 'postgres', 'admin', and 'standby'.
+  anvilops-watch-labels: application=spilo
   anvilops-values: |
     {
       "passwords": [

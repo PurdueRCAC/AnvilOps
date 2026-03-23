@@ -27,6 +27,16 @@ type ChartTagList = {
   tags: string[];
 };
 
+type HarborRepository = {
+  artifact_count: number;
+  creation_time: string;
+  id: number;
+  name: string;
+  project_id: number;
+  pull_count: number;
+  update_time: string;
+};
+
 export const getChartToken = async () => {
   return await fetch(
     `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
@@ -51,6 +61,18 @@ export const getChartToken = async () => {
       return res.token;
     });
 };
+
+export async function getChartRepositories() {
+  const response = await fetch(
+    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/api/v2.0/projects/${env.CHART_PROJECT_NAME}/repositories`,
+  );
+
+  if (!response.ok) {
+    throw new Error(response.statusText);
+  }
+
+  return (await response.json()) as HarborRepository[];
+}
 
 const getChart = async (
   repository: string,

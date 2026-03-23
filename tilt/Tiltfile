@@ -110,6 +110,8 @@ for i, object in enumerate(parsed):
         variable["value"] = registry_host
       if variable["name"] == "CHART_REGISTRY_HOSTNAME":
         variable["value"] = "registry.anvil.rcac.purdue.edu"
+      if variable["name"] == "CHART_REGISTRY_PROTOCOL":
+        variable["value"] = "https"
         
     # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)  
     env.append({"name": "IN_TILT", "value": "true"})

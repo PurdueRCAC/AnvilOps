@@ -1927,6 +1927,8 @@ paths:
                     valueSpec:
                       type: object
                       additionalProperties: true
+                    watchLabels:
+                      type: string
                   required: [name, note, url, urlType, version, valueSpec]
         "400":
           description: Validation failed
@@ -2370,6 +2372,8 @@ components:
         values:
           type: object
           additionalProperties: true
+        watchLabels:
+          type: string
       required: [appType, source, url, urlType, version]
 
     Mount:

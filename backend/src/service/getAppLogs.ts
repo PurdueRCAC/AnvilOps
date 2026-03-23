@@ -6,7 +6,7 @@ import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
 import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
-import { AppNotFoundError, ValidationError } from "./common/errors.ts";
+import { AppNotFoundError } from "./common/errors.ts";
 
 const meter = metrics.getMeter("log_viewer");
 const dbConcurrentViewers = meter.createUpDownCounter(
@@ -106,16 +106,16 @@ export async function getAppLogs(
     // Send all previous logs now
     await fetchNewLogs();
   } else {
-    if (config.appType === "helm") {
-      throw new ValidationError(
-        "Application log browsing is not supported for Helm deployments",
-      );
-    }
-
     if (!deploymentId) {
       const recentDeployment = await db.app.getMostRecentDeployment(appId);
       deploymentId = recentDeployment.id;
     }
+
+    // Selects any pod when undefined
+    const labelSelector =
+      config.appType === "helm"
+        ? config.watchLabels
+        : `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`;
 
     const { CoreV1Api: core, Log: log } = await getClientsForRequest(
       userId,
@@ -126,7 +126,7 @@ export async function getAppLogs(
     try {
       pods = await core.listNamespacedPod({
         namespace: app.namespace,
-        labelSelector: `anvilops.rcac.purdue.edu/deployment-id=${deploymentId}`,
+        labelSelector,
       });
     } catch (err) {
       if (

@@ -22,25 +22,3 @@ export async function deleteRepo(name: string) {
     },
   );
 }
-
-type HarborRepository = {
-  artifact_count: number;
-  creation_time: string;
-  id: number;
-  name: string;
-  project_id: number;
-  pull_count: number;
-  update_time: string;
-};
-
-export async function getRepositoriesByProject(projectName: string) {
-  const response = await fetchFromRegistry(
-    `api/v2.0/projects/${projectName}/repositories`,
-  );
-
-  if (!response.ok) {
-    throw new Error(response.statusText);
-  }
-
-  return (await response.json()) as HarborRepository[];
-}

@@ -1,7 +1,10 @@
 import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
-import { getChartToken, getLatestChart } from "../lib/helm.ts";
-import { getRepositoriesByProject } from "../lib/registry.ts";
+import {
+  getChartRepositories,
+  getChartToken,
+  getLatestChart,
+} from "../lib/helm.ts";
 import { ValidationError } from "./common/errors.ts";
 
 export async function listCharts() {
@@ -17,7 +20,7 @@ export async function listCharts() {
 
 async function listChartsFromRegistry() {
   const [repos, token] = await Promise.all([
-    getRepositoriesByProject(env.CHART_PROJECT_NAME),
+    getChartRepositories(),
     getChartToken(),
   ]);
 

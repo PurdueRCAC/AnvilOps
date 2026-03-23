@@ -188,9 +188,10 @@ export type HelmConfig = {
   version: string;
   urlType: HelmUrlType;
   values?: PrismaJson.HelmValues;
+  watchLabels?: string;
 };
 
-export type HelmConfigCreate = Omit<HelmConfig, "id">;
+export type HelmConfigCreate = HelmConfig;
 
 export interface Log {
   id: number;
