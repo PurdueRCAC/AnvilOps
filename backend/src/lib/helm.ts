@@ -37,41 +37,52 @@ type HarborRepository = {
   update_time: string;
 };
 
-export const getChartToken = async () => {
-  return await fetch(
-    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
-  )
-    .then((res) => {
-      if (!res.ok) {
-        logger.error(
-          { status: res.status },
-          "Failed to get Helm chart pull token",
-        );
-        throw new Error(res.statusText);
-      }
-      return res;
-    })
-    .then((res) => res.text())
-    .then(
-      (res) =>
-        // https://distribution.github.io/distribution/spec/auth/jwt/#getting-a-bearer-token
-        JSON.parse(res) as { token: string },
-    )
-    .then((res) => {
-      return res.token;
-    });
-};
-
-export async function getChartRepositories() {
-  const response = await fetch(
-    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/api/v2.0/projects/${env.CHART_PROJECT_NAME}/repositories`,
+const fetchJSONFromChartRegistry = async <T>(
+  path: string,
+  init?: RequestInit,
+) => {
+  const res = await fetch(
+    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/${path}`,
+    { ...init, signal: AbortSignal.timeout(5000) },
   );
-
-  if (!response.ok) {
-    throw new Error(response.statusText);
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch JSON from chart registry ${path}: ${res.status} ${res.statusText}`,
+    );
   }
 
-  return (await response.json()) as HarborRepository[];
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text) as T;
+    return json;
+  } catch (err) {
+    throw new Error(
+      `Failed to parse JSON from chart registry ${path}: ${text.slice(0, 500)}...`,
+    );
+  }
+};
+
+export const getChartToken = async (): Promise<string> => {
+  try {
+    const { token } = await fetchJSONFromChartRegistry<{ token: string }>(
+      `service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
+    );
+    return token;
+  } catch (err) {
+    logger.error(err, "Failed to get Helm chart pull token");
+    throw new Error(`Failed to get Helm chart pull token: ${err}`);
+  }
+};
+
+export async function getChartRepositories(): Promise<HarborRepository[]> {
+  try {
+    return await fetchJSONFromChartRegistry<HarborRepository[]>(
+      `api/v2.0/projects/${env.CHART_PROJECT_NAME}/repositories`,
+    );
+  } catch (err) {
+    logger.error(err, "Failed to get Helm chart repositories");
+    throw new Error(`Failed to get Helm chart repositories: ${err}`);
+  }
 }
 
 const getChart = async (
@@ -79,28 +90,36 @@ const getChart = async (
   version: string,
   token: string,
 ): Promise<RegistryChart> => {
-  const res = await fetch(
-    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
-    {
+  let annotations: Record<string, string>;
+  try {
+    const res = await fetchJSONFromChartRegistry<{
+      annotations: Record<string, string>;
+    }>(`v2/${repository}/manifests/${version}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.oci.image.manifest.v1+json",
       },
-    },
-  );
-  if (!res.ok) {
-    throw new Error(res.statusText);
+    });
+    annotations = res.annotations;
+  } catch (err) {
+    logger.error(err, "Failed to get Helm chart");
+    throw new Error(
+      `Failed to get Helm chart ${repository} ${version}: ${err}`,
+    );
   }
-  const json = (await res.json()) as { annotations: Record<string, string> };
-  const annotations = json.annotations;
-  if ("anvilops-values" in annotations) {
-    const values = JSON.parse(annotations["anvilops-values"]) as unknown;
-    if (typeof values !== "object") {
+
+  if (annotations["anvilops-values"]) {
+    let values: unknown;
+    try {
+      values = JSON.parse(annotations["anvilops-values"]);
+    } catch (err) {
       logger.warn(
-        { valuesType: typeof values },
-        "Invalid anvilops-values annotation on Helm chart: values was not an object",
+        { repository, version, annotation: annotations["anvilops-values"] },
+        `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
       );
-      return null;
+      throw new Error(
+        `Invalid anvilops-values annotation on Helm chart ${repository} ${version}: ${err}`,
+      );
     }
     return {
       name: annotations["org.opencontainers.image.title"],
@@ -118,21 +137,12 @@ export const getLatestChart = async (
   repository: string,
   token: string,
 ): Promise<RegistryChart | null> => {
-  const chartTagList = await fetch(
-    `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}/v2/${repository}/tags/list`,
+  const chartTagList = await fetchJSONFromChartRegistry<ChartTagList>(
+    `v2/${repository}/tags/list`,
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     },
-  )
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(res.statusText);
-      }
-      return res;
-    })
-    .then((res) => res.json() as Promise<ChartTagList>);
+  );
 
   return await getChart(
     chartTagList.name,
@@ -159,9 +169,7 @@ export const upgrade = async (
     try {
       await ensureNamespace(api, namespace);
     } catch (err) {
-      const e = new Error(`Failed to create namespace ${namespaceName}`);
-      e.cause = err;
-      throw e;
+      throw new Error(`Failed to create namespace ${namespaceName}: ${err}`);
     }
   }
 

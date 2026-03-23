@@ -1,3 +1,4 @@
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { logger } from "../../index.ts";
 import { getOrCreate } from "../cache.ts";
 import { env } from "../env.ts";
@@ -11,17 +12,49 @@ const API_BASE_URL = env["RANCHER_API_BASE"];
 
 const SANDBOX_ID = env["SANDBOX_ID"];
 
+const tracer = trace.getTracer("rancher-api");
+
 export const isRancherManaged = () => !!API_BASE_URL && !!token;
 
 const fetchRancherResource = async <T extends { type: string }>(
   endpoint: string,
 ) => {
-  const res = await fetch(`${API_BASE_URL}/${endpoint}`, { headers });
-  const json = (await res.json()) as T;
-  if (json.type === "error") {
-    throw new Error(JSON.stringify(json));
-  }
-  return json;
+  return await tracer.startActiveSpan("fetchRancherResource", async (span) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) {
+        throw new Error(
+          `Failed to fetch Rancher resource /${endpoint}: ${res.status} ${res.statusText}`,
+        );
+      }
+      const text = await res.text();
+      let json: unknown;
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        throw new Error(
+          `Failed to parse JSON from ${API_BASE_URL}/${endpoint}: ${text.slice(0, 500)}...`,
+        );
+      }
+
+      const content = json as T;
+      if (content.type === "error") {
+        throw new Error(JSON.stringify(content).slice(0, 500) + "...");
+      }
+
+      return content;
+    } catch (err) {
+      span.recordException(err as Error);
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
 };
 
 const getProjectById = async (id: string) => {
