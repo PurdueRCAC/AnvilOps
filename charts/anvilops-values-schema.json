@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/PurdueRCAC/AnvilOps/refs/heads/main/charts/anvilops-values-schema.json",
+  "title": "anvilops-values",
+  "description": "The schema for anvilops-values objects in Chart.yaml",
+  "type": "object",
+  "additionalProperties": {
+    "oneOf": [{ "$ref": "#/$defs/branch" }, { "$ref": "#/$defs/leaf" }]
+  },
+  "$defs": {
+    "branch": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [{ "$ref": "#/$defs/branch" }, { "$ref": "#/$defs/leaf" }]
+      }
+    },
+    "leaf": {
+      "type": "object",
+      "description": "A value for a key in the values.yaml",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "type": {
+          "enum": ["text", "number", "password"]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "random": {
+          "type": "boolean"
+        },
+        "default": {
+          "type": "string"
+        },
+        "noUpdate": {
+          "type": "boolean"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["displayName", "type", "required"]
+    }
+  }
+}

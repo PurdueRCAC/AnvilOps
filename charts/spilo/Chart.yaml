@@ -2,7 +2,7 @@ apiVersion: v1
 name: spilo
 description: A minimal Spilo/Patroni HA Postgres deployment, adapted from https://github.com/zalando/spilo/kubernetes.
 type: application
-version: 0.1.2
+version: 0.1.3
 annotations:
   anvilops-note: |
     Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
@@ -10,42 +10,47 @@ annotations:
   anvilops-watch-labels: application=spilo
   anvilops-values: |
     {
-      "passwords": [
-      {
-        "name": "superuser",
-        "displayName": "Superuser Password",
-        "random": true,
-        "required": true
-      },
-      {
-        "name": "replication",
-        "displayName": "Replication Password",
-        "random": true,
-        "required": true
-      },
-      {
-        "name": "admin",
-        "displayName": "Admin Password",
-        "random": "true",
-        "required": true
-      }
-      ],
-      "storage": [
-      {
-        "name": "className",
-        "displayName": "Storage Class",
-        "noUpdate": true,
-        "default": "standard",
-        "required": true
-      },
-      {
-        "name": "size",
-        "displayName": "Size",
-        "noUpdate": true,
+      "replicas": {
+        "displayName": "Replicas",
         "type": "number",
-        "unit": "Gi",
-        "default": "1",
+        "default": "3",
         "required": true
+      },
+      "passwords": {
+        "superuser": {
+          "displayName": "Superuser Password",
+          "type": "password",
+          "random": true,
+          "required": true
+        },
+        "replication": {
+          "displayName": "Replication Password",
+          "type": "password",
+          "random": true,
+          "required": true
+        },
+        "admin": {
+          "displayName": "Admin Password",
+          "type": "password",
+          "random": true,
+          "required": true
+        }
+      },
+      "storage": {
+        "className": {
+          "displayName": "Storage Class",
+          "type": "text",
+          "noUpdate": true,
+          "default": "standard",
+          "required": true
+        },
+        "size": {
+          "displayName": "Size",
+          "type": "number",
+          "noUpdate": true,
+          "unit": "Gi",
+          "default": "1",
+          "required": true
+        }
       }
-      ]
     }
