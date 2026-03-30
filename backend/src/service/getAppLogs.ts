@@ -5,8 +5,8 @@ import type { Notification } from "pg";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { components } from "../generated/openapi.ts";
 import type { LogType } from "../generated/prisma/enums.ts";
-import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { logger } from "../logger.ts";
+import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import { AppNotFoundError, ValidationError } from "./errors/index.ts";
 
 const meter = metrics.getMeter("log_viewer");
@@ -35,10 +35,16 @@ type SubscribeFn = (
 export class GetAppLogsService {
   private appRepo: AppRepo;
   private subscribe: SubscribeFn;
+  private kubernetesService: KubernetesClientService;
 
-  constructor(appRepo: AppRepo, subscribe: SubscribeFn) {
+  constructor(
+    appRepo: AppRepo,
+    subscribe: SubscribeFn,
+    kubernetesService: KubernetesClientService,
+  ) {
     this.appRepo = appRepo;
     this.subscribe = subscribe;
+    this.kubernetesService = kubernetesService;
   }
 
   async getAppLogs(
@@ -133,11 +139,12 @@ export class GetAppLogsService {
         deploymentId = recentDeployment.id;
       }
 
-      const { CoreV1Api: core, Log: log } = await getClientsForRequest(
-        userId,
-        app.projectId,
-        ["CoreV1Api", "Log"],
-      );
+      const { CoreV1Api: core, Log: log } =
+        await this.kubernetesService.getClientsForRequest(
+          userId,
+          app.projectId,
+          ["CoreV1Api", "Log"],
+        );
       let pods: V1PodList;
       try {
         pods = await core.listNamespacedPod({

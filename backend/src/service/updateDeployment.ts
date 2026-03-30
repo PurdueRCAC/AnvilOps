@@ -2,15 +2,15 @@ import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
-import { dequeueBuildJob } from "../lib/builder.ts";
-import {
-  createOrUpdateApp,
-  getClientForClusterUsername,
-} from "../lib/cluster/kubernetes.ts";
-import { shouldImpersonate } from "../lib/cluster/rancher.ts";
-import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { logger } from "../logger.ts";
+import type { BuilderService } from "./common/builder.ts";
+import { type KubernetesClientService } from "./common/cluster/kubernetes.ts";
+import {
+  shouldImpersonate,
+  type RancherService,
+} from "./common/cluster/rancher.ts";
+import type { ClusterResourcesService } from "./common/cluster/resources.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 import { log } from "./githubWebhook.ts";
 
@@ -19,17 +19,32 @@ export class UpdateDeploymentService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
+  private clusterResourcesService: ClusterResourcesService;
+  private rancherService: RancherService;
+  private builderService: BuilderService;
+  private kubernetesClientService: KubernetesClientService;
 
   constructor(
     orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+    clusterResourcesService: ClusterResourcesService,
+    rancherService: RancherService,
+    builderService: BuilderService,
+    kubernetesClientService: KubernetesClientService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+    this.clusterResourcesService = clusterResourcesService;
+    this.rancherService = rancherService;
+    this.builderService = builderService;
+    this.kubernetesClientService = kubernetesClientService;
   }
 
   async updateDeployment(secret: string, newStatus: string) {
@@ -101,7 +116,9 @@ export class UpdateDeploymentService {
     ) {
       try {
         // The build completed. Update the check run with the result of the build (success or failure).
-        const gitProvider = await getGitProvider(org.id);
+        const gitProvider = await this.gitProviderFactoryService.getGitProvider(
+          org.id,
+        );
 
         await gitProvider.updateCheckStatus(
           config.repositoryId,
@@ -123,7 +140,7 @@ export class UpdateDeploymentService {
 
     if (newStatus === "DEPLOYING") {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment({
+        await this.clusterResourcesService.createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
@@ -132,13 +149,19 @@ export class UpdateDeploymentService {
         });
 
       try {
-        const api = getClientForClusterUsername(
+        const api = this.kubernetesClientService.getClientForClusterUsername(
           app.clusterUsername,
           "KubernetesObjectApi",
           shouldImpersonate(app.projectId),
         );
 
-        await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
+        await this.kubernetesClientService.createOrUpdateApp(
+          api,
+          app.name,
+          namespace,
+          configs,
+          postCreate,
+        );
         log(
           this.deploymentRepo,
           deployment.id,
@@ -165,7 +188,7 @@ export class UpdateDeploymentService {
       }
 
       try {
-        await dequeueBuildJob();
+        await this.builderService.dequeueBuildJob();
       } catch (e) {
         logger.error(e, "Failed to dequeue next build job");
       }

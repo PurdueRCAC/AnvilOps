@@ -1,4 +1,5 @@
 import type { OrganizationRepo } from "../db/repo/organization.ts";
+import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import {
   GitHubOAuthAccountMismatchError,
@@ -19,7 +20,7 @@ export class GitHubInstallCallbackService {
     this.appInstallService = appInstallService;
   }
 
-  async createGitHubAuthorizationState(
+  async createGitHubAuthorizationURL(
     state: string,
     installationId: number,
     setupAction: "request" | "install" | "update",
@@ -56,7 +57,7 @@ export class GitHubInstallCallbackService {
         stateUserId,
         orgId,
       );
-      return newState;
+      return `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${newState}`;
     }
 
     // Verify the user ID hasn't changed
@@ -83,6 +84,6 @@ export class GitHubInstallCallbackService {
       orgId,
     );
 
-    return newState;
+    return `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${newState}`;
   }
 }

@@ -7,7 +7,7 @@ import {
 import type { Context } from "openapi-backend";
 import type { operations } from "./generated/openapi.ts";
 import type { AuthenticatedRequest } from "./handlers/index.ts";
-import type { ALLOWED_ANONYMOUS_ROUTES } from "./lib/auth.ts";
+import type { ALLOWED_ANONYMOUS_ROUTES } from "./server/auth.ts";
 
 export type OptionalPromise<T> = T | Promise<T>;
 type apiOperations = {

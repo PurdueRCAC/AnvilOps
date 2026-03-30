@@ -4,7 +4,10 @@ import type { InvitationRepo } from "../db/repo/invitation.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { components } from "../generated/openapi.ts";
 import { env } from "../lib/env.ts";
-import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
+import type {
+  GitProvider,
+  GitProviderFactoryService,
+} from "./common/git/gitProvider.ts";
 import {
   InstallationNotFoundError,
   OrgNotFoundError,
@@ -16,17 +19,20 @@ export class GetOrgByIDService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private invitationRepo: InvitationRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
   constructor(
     orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     invitationRepo: InvitationRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.invitationRepo = invitationRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
   async getOrgByID(orgId: number, userId: number) {
@@ -47,7 +53,7 @@ export class GetOrgByIDService {
 
     let gitProvider: GitProvider;
     try {
-      gitProvider = await getGitProvider(org.id);
+      gitProvider = await this.gitProviderFactoryService.getGitProvider(org.id);
     } catch (e) {
       if (!(e instanceof InstallationNotFoundError)) {
         throw e;

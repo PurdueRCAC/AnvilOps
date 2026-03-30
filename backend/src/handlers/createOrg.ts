@@ -1,5 +1,7 @@
-import { getGitProviderType } from "../lib/git/gitProvider.ts";
-import { createOrgService } from "../service/index.ts";
+import {
+  createOrgService,
+  gitProviderFactoryService,
+} from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -15,6 +17,6 @@ export const createOrgHandler: HandlerMap["createOrg"] = async (
     id: result.id,
     name: result.name,
     permissionLevel: "OWNER",
-    gitProvider: await getGitProviderType(result.id),
+    gitProvider: await gitProviderFactoryService.getGitProviderType(result.id),
   });
 };

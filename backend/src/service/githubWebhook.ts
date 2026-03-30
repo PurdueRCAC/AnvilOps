@@ -1,3 +1,4 @@
+import { Webhooks } from "@octokit/webhooks";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { NotFoundError } from "../db/errors/index.ts";
 import type { AppRepo } from "../db/repo/app.ts";
@@ -7,16 +8,18 @@ import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
 import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
-import { getGitProvider } from "../lib/git/gitProvider.ts";
 import { logger } from "../logger.ts";
 import type { DeploymentService } from "./common/deployment.ts";
 import type { DeploymentConfigService } from "./common/deploymentConfig.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
   UserNotFoundError,
   ValidationError,
 } from "./errors/index.ts";
+
+const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
 
 export class GitHubWebhookService {
   private orgRepo: OrganizationRepo;
@@ -25,6 +28,7 @@ export class GitHubWebhookService {
   private deploymentRepo: DeploymentRepo;
   private deploymentService: DeploymentService;
   private deploymentConfigService: DeploymentConfigService;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
   constructor(
     orgRepo: OrganizationRepo,
@@ -33,6 +37,7 @@ export class GitHubWebhookService {
     deploymentRepo: DeploymentRepo,
     deploymentService: DeploymentService,
     deploymentConfigService: DeploymentConfigService,
+    gitProviderFactoryService: GitProviderFactoryService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
@@ -40,6 +45,11 @@ export class GitHubWebhookService {
     this.deploymentRepo = deploymentRepo;
     this.deploymentService = deploymentService;
     this.deploymentConfigService = deploymentConfigService;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+  }
+
+  async verifyGitHubWebhookPayload(data: string, signature: string) {
+    return await webhooks.verify(data, signature);
   }
 
   async processGitHubWebhookPayload(
@@ -375,7 +385,8 @@ export class GitHubWebhookService {
             if (!deployment.checkRunId) {
               return;
             }
-            const gitProvider = await getGitProvider(org.id);
+            const gitProvider =
+              await this.gitProviderFactoryService.getGitProvider(org.id);
             try {
               await gitProvider.updateCheckStatus(
                 payload.repository.id,

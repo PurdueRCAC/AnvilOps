@@ -1,18 +1,24 @@
 import type { InvitationRepo } from "../db/repo/invitation.ts";
 import type { UserRepo } from "../db/repo/user.ts";
-import {
-  getProjectsForUser,
-  isRancherManaged,
-} from "../lib/cluster/rancher.ts";
-import { getGitProviderType } from "../lib/git/gitProvider.ts";
+import type { RancherService } from "./common/cluster/rancher.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 
 export class GetUserService {
   private userRepo: UserRepo;
   private invitationRepo: InvitationRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
+  private rancherService: RancherService;
 
-  constructor(userRepo: UserRepo, invitationRepo: InvitationRepo) {
+  constructor(
+    userRepo: UserRepo,
+    invitationRepo: InvitationRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+    rancherService: RancherService,
+  ) {
     this.userRepo = userRepo;
     this.invitationRepo = invitationRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+    this.rancherService = rancherService;
   }
 
   async getUser(userId: number) {
@@ -25,8 +31,8 @@ export class GetUserService {
       ]);
 
     const projects =
-      user?.clusterUsername && isRancherManaged()
-        ? await getProjectsForUser(user.clusterUsername)
+      user?.clusterUsername && this.rancherService.isRancherManaged()
+        ? await this.rancherService.getProjectsForUser(user.clusterUsername)
         : undefined;
 
     return {
@@ -38,7 +44,9 @@ export class GetUserService {
           id: item.organization.id,
           name: item.organization.name,
           permissionLevel: item.permissionLevel,
-          gitProvider: await getGitProviderType(item.organization.id),
+          gitProvider: await this.gitProviderFactoryService.getGitProviderType(
+            item.organization.id,
+          ),
         })),
       ),
       projects,

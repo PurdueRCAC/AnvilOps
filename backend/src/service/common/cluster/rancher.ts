@@ -1,7 +1,7 @@
-import { logger } from "../../logger.ts";
-import { getOrCreate } from "../cache.ts";
-import { env } from "../env.ts";
-import { getClientForClusterUsername } from "./kubernetes.ts";
+import { getOrCreate } from "../../../lib/cache.ts";
+import { env } from "../../../lib/env.ts";
+import { logger } from "../../../logger.ts";
+import type { KubernetesClientService } from "./kubernetes.ts";
 
 const token = env["RANCHER_TOKEN"];
 const headers = {
@@ -10,8 +10,6 @@ const headers = {
 const API_BASE_URL = env["RANCHER_API_BASE"];
 
 const SANDBOX_ID = env["SANDBOX_ID"];
-
-export const isRancherManaged = () => !!API_BASE_URL && !!token;
 
 const fetchRancherResource = async <T extends { type: string }>(
   endpoint: string,
@@ -33,110 +31,124 @@ const getProjectById = async (id: string) => {
   };
 };
 
-const getProjectAccessReview = async (userId: string, projectId: string) => {
-  if (!projectId) {
-    return false;
+export class RancherService {
+  private kubernetesService: KubernetesClientService;
+
+  constructor(kubernetesService: KubernetesClientService) {
+    this.kubernetesService = kubernetesService;
   }
-  if (projectId === SANDBOX_ID) {
-    return true;
+
+  isRancherManaged() {
+    return !!API_BASE_URL && !!token;
   }
-  const simpleProjectId = projectId.split(":")[1];
-  const authClient = getClientForClusterUsername(
-    userId,
-    "AuthorizationV1Api",
-    true,
-  );
-  try {
-    const review = await authClient.createSelfSubjectAccessReview({
-      body: {
-        spec: {
-          resourceAttributes: {
-            group: "management.cattle.io",
-            resource: "projects",
-            verb: "manage-namespaces",
-            name: simpleProjectId,
+
+  async getRancherUserID(eppn: string) {
+    const users = await fetchRancherResource<RancherUsersListResponse>("users");
+    const principalId = `${env.LOGIN_TYPE}_user://${eppn}`;
+    const user = users?.data?.find((user) =>
+      user.principalIds.some((id: string) => id === principalId),
+    );
+
+    return user?.id;
+  }
+
+  async getProjectsForUser(rancherId: string): Promise<
+    {
+      id: string;
+      name: string;
+      description: string;
+    }[]
+  > {
+    return JSON.parse(
+      await getOrCreate(`rancher-projects-${rancherId}`, 15, async () =>
+        JSON.stringify(await this.fetchUserProjects(rancherId)),
+      ),
+    ) as Awaited<ReturnType<typeof this.fetchUserProjects>>;
+  }
+
+  async canManageProject(userId: string, projectId: string) {
+    return (
+      (await getOrCreate(`rancher-canmanage-${userId}-${projectId}`, 15, () =>
+        this.getProjectAccessReview(userId, projectId).then((res) =>
+          res.toString(),
+        ),
+      )) === "true"
+    );
+  }
+
+  private async getProjectAccessReview(userId: string, projectId: string) {
+    if (!projectId) {
+      return false;
+    }
+    if (projectId === SANDBOX_ID) {
+      return true;
+    }
+    const simpleProjectId = projectId.split(":")[1];
+    const authClient = this.kubernetesService.getClientForClusterUsername(
+      userId,
+      "AuthorizationV1Api",
+      true,
+    );
+    try {
+      const review = await authClient.createSelfSubjectAccessReview({
+        body: {
+          spec: {
+            resourceAttributes: {
+              group: "management.cattle.io",
+              resource: "projects",
+              verb: "manage-namespaces",
+              name: simpleProjectId,
+            },
           },
         },
-      },
-    });
-    return review.status.allowed;
-  } catch (err) {
-    logger.error(err, "Failed to create SelfSubjectAccessReview");
-    return false;
+      });
+      return review.status.allowed;
+    } catch (err) {
+      logger.error(err, "Failed to create SelfSubjectAccessReview");
+      return false;
+    }
   }
-};
 
-const fetchUserProjects = async (rancherId: string) => {
-  const bindings =
-    await fetchRancherResource<RancherProjectRoleTemplateBindingsResponse>(
-      `projectRoleTemplateBindings?userId=${rancherId}`,
-    ).then((res) => res.data);
+  async fetchUserProjects(rancherId: string) {
+    const bindings =
+      await fetchRancherResource<RancherProjectRoleTemplateBindingsResponse>(
+        `projectRoleTemplateBindings?userId=${rancherId}`,
+      ).then((res) => res.data);
 
-  const projectIds = bindings
-    ? bindings.map((binding) => binding.projectId)
-    : [];
-  projectIds.push(SANDBOX_ID);
+    const projectIds = bindings
+      ? bindings.map((binding) => binding.projectId)
+      : [];
+    projectIds.push(SANDBOX_ID);
 
-  const uniqueProjectIds = [...new Set(projectIds)];
+    const uniqueProjectIds = [...new Set(projectIds)];
 
-  const canDeployIn = await Promise.all(
-    uniqueProjectIds.map((projectId) =>
-      getProjectAccessReview(rancherId, projectId),
-    ),
-  );
+    const canDeployIn = await Promise.all(
+      uniqueProjectIds.map((projectId) =>
+        this.getProjectAccessReview(rancherId, projectId),
+      ),
+    );
 
-  const allowedProjectIds = uniqueProjectIds.filter(
-    (_, idx) => canDeployIn[idx],
-  );
+    const allowedProjectIds = uniqueProjectIds.filter(
+      (_, idx) => canDeployIn[idx],
+    );
 
-  return Promise.all(
-    allowedProjectIds.map(async (projectId) => {
-      const project = await getProjectById(projectId);
-      return {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-      };
-    }),
-  );
-};
+    return Promise.all(
+      allowedProjectIds.map(async (projectId) => {
+        const project = await getProjectById(projectId);
+        return {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+        };
+      }),
+    );
+  }
+}
 
-export const getRancherUserID = async (eppn: string) => {
-  const users = await fetchRancherResource<RancherUsersListResponse>("users");
-  const principalId = `${env.LOGIN_TYPE}_user://${eppn}`;
-  const user = users?.data?.find((user) =>
-    user.principalIds.some((id: string) => id === principalId),
-  );
-
-  return user?.id;
-};
-
-export const getProjectsForUser = async (
-  rancherId: string,
-): Promise<
-  {
-    id: string;
-    name: string;
-    description: string;
-  }[]
-> => {
-  return JSON.parse(
-    await getOrCreate(`rancher-projects-${rancherId}`, 15, async () =>
-      JSON.stringify(await fetchUserProjects(rancherId)),
-    ),
-  ) as Awaited<ReturnType<typeof fetchUserProjects>>;
-};
-
-export const canManageProject = async (userId: string, projectId: string) => {
-  return (
-    (await getOrCreate(`rancher-canmanage-${userId}-${projectId}`, 15, () =>
-      getProjectAccessReview(userId, projectId).then((res) => res.toString()),
-    )) === "true"
-  );
-};
-
-export const shouldImpersonate = (projectId: string) =>
-  projectId !== SANDBOX_ID;
+// TODO move inside RancherService and remove cyclic dependency with KubernetesService
+export function shouldImpersonate(projectId: string) {
+  return projectId !== SANDBOX_ID;
+}
 
 type RancherProject = {
   actions: {

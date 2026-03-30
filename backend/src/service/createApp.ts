@@ -6,13 +6,13 @@ import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
+import { logger } from "../logger.ts";
+import type { AppService } from "./common/app.ts";
 import {
   MAX_GROUPNAME_LEN,
   RANDOM_TAG_LEN,
   getRandomTag,
-} from "../lib/cluster/resources.ts";
-import { logger } from "../logger.ts";
-import type { AppService } from "./common/app.ts";
+} from "./common/cluster/resources.ts";
 import type { DeploymentService } from "./common/deployment.ts";
 import type { DeploymentConfigService } from "./common/deploymentConfig.ts";
 import {

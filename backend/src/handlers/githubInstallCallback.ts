@@ -1,4 +1,3 @@
-import { env } from "../lib/env.ts";
 import {
   GitHubOAuthAccountMismatchError,
   GitHubOAuthStateMismatchError,
@@ -20,8 +19,8 @@ import type { AuthenticatedRequest } from "./index.ts";
 export const githubInstallCallbackHandler: HandlerMap["githubInstallCallback"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     try {
-      const newState =
-        await githubInstallCallbackService.createGitHubAuthorizationState(
+      const redirectURL =
+        await githubInstallCallbackService.createGitHubAuthorizationURL(
           ctx.request.query.state,
           ctx.request.query.installation_id,
           ctx.request.query.setup_action,
@@ -29,11 +28,7 @@ export const githubInstallCallbackHandler: HandlerMap["githubInstallCallback"] =
         );
 
       // Redirect back to GitHub to get a user access token
-      return redirect(
-        302,
-        res,
-        `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${newState}`,
-      );
+      return redirect(302, res, redirectURL);
 
       // When GitHub redirects back, we handle it in githubOAuthCallback.ts
     } catch (e) {

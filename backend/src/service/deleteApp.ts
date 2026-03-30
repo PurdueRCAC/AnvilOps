@@ -3,14 +3,10 @@ import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
-import {
-  createOrUpdateApp,
-  deleteNamespace,
-  getClientsForRequest,
-} from "../lib/cluster/kubernetes.ts";
-import { createAppConfigsFromDeployment } from "../lib/cluster/resources.ts";
-import { deleteRepo } from "../lib/registry.ts";
 import { logger } from "../logger.ts";
+import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
+import type { ClusterResourcesService } from "./common/cluster/resources.ts";
+import type { RegistryService } from "./common/registry.ts";
 import { AppNotFoundError } from "./errors/index.ts";
 
 export class DeleteAppService {
@@ -18,17 +14,26 @@ export class DeleteAppService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
+  private registryService: RegistryService;
+  private clusterResourcesService: ClusterResourcesService;
+  private kubernetesService: KubernetesClientService;
 
   constructor(
     orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
+    registryService: RegistryService,
+    clusterResourcesService: ClusterResourcesService,
+    kubernetesService: KubernetesClientService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
+    this.registryService = registryService;
+    this.clusterResourcesService = clusterResourcesService;
+    this.kubernetesService = kubernetesService;
   }
 
   async deleteApp(appId: number, userId: number, keepNamespace: boolean) {
@@ -47,13 +52,12 @@ export class DeleteAppService {
     const config = await this.deploymentRepo.getConfig(lastDeployment.id);
 
     if (!keepNamespace) {
-      const { KubernetesObjectApi: api } = await getClientsForRequest(
-        userId,
-        projectId,
-        ["KubernetesObjectApi"],
-      );
+      const { KubernetesObjectApi: api } =
+        await this.kubernetesService.getClientsForRequest(userId, projectId, [
+          "KubernetesObjectApi",
+        ]);
       try {
-        await deleteNamespace(api, namespace);
+        await this.kubernetesService.deleteNamespace(api, namespace);
       } catch (err) {
         logger.warn({ namespace }, "Failed to delete namespace");
         const span = trace.getActiveSpan();
@@ -65,7 +69,7 @@ export class DeleteAppService {
       }
 
       try {
-        if (imageRepo) await deleteRepo(imageRepo);
+        if (imageRepo) await this.registryService.deleteRepo(imageRepo);
       } catch (err) {
         logger.warn({ imageRepo }, "Failed to delete image repository");
         const span = trace.getActiveSpan();
@@ -86,7 +90,7 @@ export class DeleteAppService {
       ]);
 
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment({
+        await this.clusterResourcesService.createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
@@ -95,12 +99,19 @@ export class DeleteAppService {
           migrating: true, // Deploy without any anvilops-related labels
         });
 
-      const { KubernetesObjectApi: api } = await getClientsForRequest(
-        userId,
-        app.projectId,
-        ["KubernetesObjectApi"],
+      const { KubernetesObjectApi: api } =
+        await this.kubernetesService.getClientsForRequest(
+          userId,
+          app.projectId,
+          ["KubernetesObjectApi"],
+        );
+      await this.kubernetesService.createOrUpdateApp(
+        api,
+        app.name,
+        namespace,
+        configs,
+        postCreate,
       );
-      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
     }
 
     await this.appRepo.delete(appId);

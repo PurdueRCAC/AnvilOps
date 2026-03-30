@@ -1,4 +1,3 @@
-import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import {
   OrgAlreadyLinkedError,
@@ -30,17 +29,13 @@ export const githubAppInstallHandler: HandlerMap["githubAppInstall"] = async (
   res,
 ) => {
   try {
-    const newState =
-      await createGitHubAppInstallStateService.createGitHubAppInstallState(
+    const redirectURL =
+      await createGitHubAppInstallStateService.createGitHubAppInstallURL(
         ctx.request.params.orgId,
         req.user.id,
       );
 
-    return redirect(
-      302,
-      res,
-      `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${newState}`,
-    );
+    return redirect(302, res, redirectURL);
 
     // When GitHub redirects back, we handle it in githubInstallCallback.ts
   } catch (e) {

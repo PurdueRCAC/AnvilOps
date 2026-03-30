@@ -8,10 +8,10 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { pinoHttp } from "pino-http";
 import { db } from "./db/index.ts";
-import apiHandler, { openApiSpecPath } from "./lib/api.ts";
-import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { env } from "./lib/env.ts";
 import { logger } from "./logger.ts";
+import apiHandler, { openApiSpecPath } from "./server/api.ts";
+import apiRouter, { SESSION_COOKIE_NAME } from "./server/auth.ts";
 import { getSettingsService } from "./service/index.ts";
 
 const app = express();

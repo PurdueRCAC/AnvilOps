@@ -10,8 +10,8 @@ import {
 } from "@kubernetes/client-node";
 import { metrics, ValueType } from "@opentelemetry/api";
 import type { AppRepo } from "../db/repo/app.ts";
-import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
 import { logger } from "../logger.ts";
+import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import { AppNotFoundError } from "./errors/index.ts";
 
 const meter = metrics.getMeter("app_status_viewer");
@@ -28,6 +28,7 @@ export type StatusUpdate = object;
 
 export class GetAppStatusService {
   private appRepo: AppRepo;
+  private kubernetesClientService: KubernetesClientService;
 
   constructor(appRepo: AppRepo) {
     this.appRepo = appRepo;
@@ -122,11 +123,11 @@ export class GetAppStatusService {
         CoreV1Api: core,
         AppsV1Api: apps,
         Watch: watch,
-      } = await getClientsForRequest(userId, app.projectId, [
-        "CoreV1Api",
-        "AppsV1Api",
-        "Watch",
-      ]);
+      } = await this.kubernetesClientService.getClientsForRequest(
+        userId,
+        app.projectId,
+        ["CoreV1Api", "AppsV1Api", "Watch"],
+      );
       const podWatcher = await watchList(
         watch,
         `/api/v1/namespaces/${ns}/pods`,

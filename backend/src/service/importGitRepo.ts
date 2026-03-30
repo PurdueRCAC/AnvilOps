@@ -1,16 +1,20 @@
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import {
-  getGitProvider,
-  getGitProviderByRepoImportState,
   ImportRepoAuthenticationRequiredError,
-} from "../lib/git/gitProvider.ts";
+  type GitProviderFactoryService,
+} from "./common/git/gitProvider.ts";
 import { OrgNotFoundError } from "./errors/index.ts";
 
 export class ImportGitRepoService {
   private orgRepo: OrganizationRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
-  constructor(orgRepo: OrganizationRepo) {
+  constructor(
+    orgRepo: OrganizationRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+  ) {
     this.orgRepo = orgRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
   /**
@@ -42,7 +46,9 @@ export class ImportGitRepoService {
       throw new OrgNotFoundError(null);
     }
 
-    const gitProvider = await getGitProvider(org.id);
+    const gitProvider = await this.gitProviderFactoryService.getGitProvider(
+      org.id,
+    );
     try {
       return {
         codeNeeded: false,
@@ -77,7 +83,11 @@ export class ImportGitRepoService {
     code: string,
     userId: number,
   ): Promise<{ orgId: number; repoId: number; repoName: string }> {
-    const gitProvider = await getGitProviderByRepoImportState(stateId, userId);
+    const gitProvider =
+      await this.gitProviderFactoryService.getGitProviderByRepoImportState(
+        stateId,
+        userId,
+      );
 
     const { repoId, orgId, repoName } = await gitProvider.continueImportRepo(
       stateId,

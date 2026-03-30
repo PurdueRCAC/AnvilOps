@@ -3,7 +3,10 @@ import type { AppRepo } from "../db/repo/app.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { components } from "../generated/openapi.ts";
-import { getGitProvider, type GitProvider } from "../lib/git/gitProvider.ts";
+import type {
+  GitProvider,
+  GitProviderFactoryService,
+} from "./common/git/gitProvider.ts";
 import {
   AppNotFoundError,
   InstallationNotFoundError,
@@ -15,15 +18,18 @@ export class ListDeploymentsService {
   private orgRepo: OrganizationRepo;
   private appRepo: AppRepo;
   private deploymentRepo: DeploymentRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
   constructor(
     orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     deploymentRepo: DeploymentRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.deploymentRepo = deploymentRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
   async listDeployments(
@@ -63,7 +69,9 @@ export class ListDeploymentsService {
     let gitProvider: GitProvider;
     if (distinctRepoIDs.length > 0) {
       try {
-        gitProvider = await getGitProvider(org.id);
+        gitProvider = await this.gitProviderFactoryService.getGitProvider(
+          org.id,
+        );
       } catch (e) {
         if (!(e instanceof InstallationNotFoundError)) {
           throw e;

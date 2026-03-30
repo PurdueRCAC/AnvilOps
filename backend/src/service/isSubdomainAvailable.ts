@@ -1,16 +1,15 @@
-import { ApiException } from "@kubernetes/client-node";
 import type { AppRepo } from "../db/repo/app.ts";
-import { svcK8s } from "../lib/cluster/kubernetes.ts";
-import { createIngressConfig } from "../lib/cluster/resources/ingress.ts";
-import { env } from "../lib/env.ts";
 import { isRFC1123 } from "../lib/validate.ts";
+import { type IngressConfigService } from "./common/cluster/resources/ingress.ts";
 import { ValidationError } from "./errors/index.ts";
 
 export class IsSubdomainAvailableService {
   private appRepo: AppRepo;
+  private ingressConfigService: IngressConfigService;
 
-  constructor(appRepo: AppRepo) {
+  constructor(appRepo: AppRepo, ingressConfigService: IngressConfigService) {
     this.appRepo = appRepo;
+    this.ingressConfigService = ingressConfigService;
   }
 
   async isSubdomainAvailable(subdomain: string) {
@@ -20,40 +19,9 @@ export class IsSubdomainAvailableService {
 
     const [appUsingSubdomain, ingressDryRun] = await Promise.all([
       this.appRepo.getAppBySubdomain(subdomain),
-      canCreateIngress(subdomain),
+      this.ingressConfigService.canCreateIngress(subdomain),
     ]);
 
     return appUsingSubdomain === null && ingressDryRun;
-  }
-}
-
-/**
- * Does a dry-run of creating an Ingress with the specified subdomain.
- * @returns true if the dry-run succeeded, or false if it failed due to a request error (4xx), which indicates that the subdomain is probably taken.
- */
-export async function canCreateIngress(subdomain: string) {
-  const config = createIngressConfig({
-    createIngress: true,
-    name: "anvilops-ingress-probe",
-    namespace: env.CURRENT_NAMESPACE,
-    port: 80,
-    serviceName: "anvilops-ingress-probe",
-    subdomain: subdomain,
-    servicePort: 80,
-  });
-
-  try {
-    await svcK8s["KubernetesObjectApi"].create(
-      config,
-      undefined,
-      /* dryRun = */ "All",
-    );
-    return true;
-  } catch (err) {
-    if (err instanceof ApiException && err.code >= 400 && err.code < 500) {
-      // The dry-run failed. This is probably due to an existing Ingress using the subdomain and path that we want to reserve.
-      return false;
-    }
-    throw err;
   }
 }

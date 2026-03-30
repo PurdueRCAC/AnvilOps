@@ -4,6 +4,7 @@ import type { UserRepo } from "../db/repo/user.ts";
 import { logger } from "../logger.ts";
 import {
   OrgNotFoundError,
+  UserAlreadyInvitedError,
   UserNotFoundError,
   ValidationError,
 } from "./errors/index.ts";
@@ -39,7 +40,7 @@ export class InviteUserService {
         throw new OrgNotFoundError(null);
       }
       if (e instanceof ConflictError && e.message === "user") {
-        throw new ConflictError("user");
+        throw new UserAlreadyInvitedError();
       }
       throw e;
     }

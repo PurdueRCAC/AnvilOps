@@ -1,4 +1,4 @@
-import type { LogType } from "../generated/prisma/enums.ts";
+import type { LogType } from "../db/models.ts";
 import {
   DeploymentNotFoundError,
   ValidationError,

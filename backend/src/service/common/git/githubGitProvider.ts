@@ -1,17 +1,18 @@
 import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import type { operations } from "@octokit/openapi-types";
+import crypto from "node:crypto";
 import { Octokit, RequestError } from "octokit";
-import type { OrganizationRepo } from "../../db/repo/organization.ts";
-import type { RepoImportStateRepo } from "../../db/repo/repoImportState.ts";
-import { logger } from "../../logger.ts";
+import type { OrganizationRepo } from "../../../db/repo/organization.ts";
+import type { RepoImportStateRepo } from "../../../db/repo/repoImportState.ts";
+import { get, getOrCreate, set } from "../../../lib/cache.ts";
+import { env } from "../../../lib/env.ts";
+import { logger } from "../../../logger.ts";
 import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "../../service/errors/index.ts";
-import { get, getOrCreate, set } from "../cache.ts";
-import { env } from "../env.ts";
-import { copyRepoManually } from "../import.ts";
+} from "../../errors/index.ts";
+import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import {
   ImportRepoAuthenticationRequiredError,
   type CommitStatus,
@@ -79,12 +80,11 @@ async function getOctokit(installationId: number, orgRepo: OrganizationRepo) {
 export class GitHubGitProvider implements GitProvider {
   private octokit: Octokit;
   private installationId: number;
-  private orgRepo: OrganizationRepo;
   private repoImportStateRepo: RepoImportStateRepo;
+  private kubernetesService: KubernetesClientService;
 
   private constructor(
     octokit: Octokit,
-    orgRepo: OrganizationRepo,
     repoImportStateRepo: RepoImportStateRepo,
     installationId: number,
   ) {
@@ -93,7 +93,6 @@ export class GitHubGitProvider implements GitProvider {
     }
     this.octokit = octokit;
     this.installationId = installationId;
-    this.orgRepo = orgRepo;
     this.repoImportStateRepo = repoImportStateRepo;
   }
 
@@ -101,6 +100,7 @@ export class GitHubGitProvider implements GitProvider {
     orgId: number,
     orgRepo: OrganizationRepo,
     repoImportStateRepo: RepoImportStateRepo,
+    kubernetesService: KubernetesClientService,
   ) {
     const org = await orgRepo.getById(orgId);
     if (!org.githubInstallationId) {
@@ -111,7 +111,6 @@ export class GitHubGitProvider implements GitProvider {
 
     return new GitHubGitProvider(
       octokit,
-      orgRepo,
       repoImportStateRepo,
       org.githubInstallationId,
     );
@@ -446,7 +445,7 @@ export class GitHubGitProvider implements GitProvider {
 
     const pushURL = await this.generateCloneURL(destRepoId);
 
-    await copyRepoManually(this, cloneURL, pushURL);
+    await this.copyRepoManually(this, cloneURL, pushURL);
   }
 
   private getRepoInfoFromURL(sourceURL: URL): {
@@ -576,5 +575,115 @@ export class GitHubGitProvider implements GitProvider {
       } satisfies Parameters<typeof createOAuthUserAuth>[0],
       baseUrl: env.GITHUB_API_URL,
     });
+  }
+
+  async copyRepoManually(
+    gitProvider: GitProvider,
+    cloneURL: string,
+    pushURL: string,
+  ) {
+    const botUser = await gitProvider.getBotCommitterDetails();
+
+    const job = await this.kubernetesService.createNamespacedJob({
+      namespace: env.CURRENT_NAMESPACE,
+      body: {
+        metadata: {
+          name: `import-repo-${crypto.randomBytes(16).toString("hex")}`,
+        },
+        spec: {
+          ttlSecondsAfterFinished: 30, // Delete job 30 seconds after it completes
+          backoffLimit: 1, // Retry up to 1 time if the job exits with a non-zero status code
+          activeDeadlineSeconds: 2 * 60, // Kill after 2 minutes
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: "importer",
+                  image: "alpine/git:v2.49.0",
+                  env: [
+                    { name: "CLONE_URL", value: cloneURL },
+                    { name: "PUSH_URL", value: pushURL },
+                    { name: "USER_EMAIL", value: botUser.email },
+                    { name: "USER_NAME", value: botUser.name },
+                  ],
+                  imagePullPolicy: "Always",
+                  command: ["/bin/sh", "-c"],
+                  workingDir: "/work",
+                  args: [
+                    `
+git clone --depth=1 --shallow-submodules "$CLONE_URL" .
+rm -rf .git
+
+git init
+git branch -M main
+
+git config user.email "$USER_EMAIL"
+git config user.name "$USER_NAME"
+
+git add .
+git commit -m "Initial commit"
+
+git remote add origin "$PUSH_URL"
+git push -u origin main`,
+                  ],
+                  volumeMounts: [
+                    {
+                      mountPath: "/work",
+                      name: "work-dir",
+                    },
+                  ],
+                  resources: {
+                    requests: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                    limits: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                  },
+                  securityContext: {
+                    // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
+                    capabilities: {
+                      drop: ["ALL"],
+                    },
+                    allowPrivilegeEscalation: false,
+                  },
+                },
+              ],
+              volumes: [
+                {
+                  name: "work-dir",
+                  emptyDir: {
+                    sizeLimit: "1Gi",
+                  },
+                },
+              ],
+              restartPolicy: "Never",
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(
+      { jobNamespace: job.metadata.namespace, jobName: job.metadata.name },
+      "Created manual Git repo import job",
+    );
+    try {
+      await this.kubernetesService.awaitJobCompletion(
+        env.CURRENT_NAMESPACE,
+        job.metadata.name,
+      );
+    } catch (e) {
+      logger.warn(
+        {
+          jobNamespace: job.metadata.namespace,
+          jobName: job.metadata.name,
+        },
+        "Git repo import job failed",
+      );
+      throw e;
+    }
   }
 }

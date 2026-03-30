@@ -20,6 +20,8 @@ export class InvitationNotFoundError extends Error {
   }
 }
 
+export class UserAlreadyInvitedError extends Error {}
+
 export class DeploymentNotFoundError extends Error {}
 
 export class ValidationError extends Error {}

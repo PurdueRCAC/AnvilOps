@@ -4,8 +4,8 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
-import { GitHubGitProvider } from "../lib/git/githubGitProvider.ts";
 import { logger } from "../logger.ts";
+import { GitHubGitProvider } from "./common/git/githubGitProvider.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,

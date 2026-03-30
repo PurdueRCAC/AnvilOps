@@ -6,25 +6,34 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../generated/prisma/enums.ts";
-import { getGitProviderType } from "../lib/git/gitProvider.ts";
+import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import { OrgAlreadyLinkedError, OrgNotFoundError } from "./errors/index.ts";
 
 export class CreateGitHubAppInstallStateService {
   private orgRepo: OrganizationRepo;
   private userRepo: UserRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
-  constructor(orgRepo: OrganizationRepo, userRepo: UserRepo) {
+  constructor(
+    orgRepo: OrganizationRepo,
+    userRepo: UserRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+  ) {
     this.orgRepo = orgRepo;
     this.userRepo = userRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
-  async createGitHubAppInstallState(orgId: number, userId: number) {
+  async createGitHubAppInstallURL(orgId: number, userId: number) {
     const org = await this.orgRepo.getById(orgId, {
       requireUser: { id: userId, permissionLevel: PermissionLevel.OWNER },
     });
 
-    if ((await getGitProviderType(orgId)) !== null) {
+    if (
+      (await this.gitProviderFactoryService.getGitProviderType(orgId)) !== null
+    ) {
       throw new OrgAlreadyLinkedError();
     }
 
@@ -33,7 +42,12 @@ export class CreateGitHubAppInstallStateService {
     }
 
     logger.info({ userId, orgId }, "GitHub installation flow started (1/3)");
-    return await this.createState("CREATE_INSTALLATION", userId, orgId);
+    const newState = await this.createState(
+      "CREATE_INSTALLATION",
+      userId,
+      orgId,
+    );
+    return `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${newState}`;
   }
 
   async createState(action: GitHubOAuthAction, userId: number, orgId: number) {

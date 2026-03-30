@@ -47,8 +47,12 @@ export default defineConfig({
         default: "disallow",
         rules: [
           {
+            from: "server",
+            allow: ["services/index", "handlers", "env"],
+          },
+          {
             from: "db",
-            allow: ["db/errors"],
+            allow: ["db/errors", "env"],
           },
           {
             from: "handlers",
@@ -61,10 +65,10 @@ export default defineConfig({
           },
           {
             from: "services",
-            allow: ["db/errors", "services/errors", "lib"],
+            allow: ["db/errors", "services/errors", "lib", "env"],
           },
           {
-            from: "services",
+            from: ["lib", "handlers", "services"],
             allow: ["db"],
             importKind: "type",
           },
@@ -84,6 +88,10 @@ export default defineConfig({
           {
             from: ["db", "jobs"],
             allow: ["prisma-generated"],
+          },
+          {
+            from: "index",
+            allow: ["env", "db", "server"],
           },
         ],
       },
@@ -126,6 +134,9 @@ export default defineConfig({
       // Web server entrypoint
       { type: "express-utils", pattern: "src/types.ts", mode: "full" },
       { type: "index", pattern: "src/index.ts", mode: "full" },
+      { type: "server", pattern: "server/**" },
+      // Environment variables
+      { type: "env", pattern: "src/lib/env.ts", mode: "full" },
     ],
   },
 });

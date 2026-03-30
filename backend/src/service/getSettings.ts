@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { isRancherManaged } from "../lib/cluster/rancher.ts";
 import { env } from "../lib/env.ts";
+import { type RancherService } from "./common/cluster/rancher.ts";
 
 type ClusterConfig = {
   name?: string;
@@ -25,6 +25,12 @@ if (configPath) {
 }
 
 export class GetSettingsService {
+  private rancherService: RancherService;
+
+  constructor(rancherService: RancherService) {
+    this.rancherService = rancherService;
+  }
+
   async getSettings() {
     const clusterConfig = await clusterConfigPromise;
 
@@ -34,7 +40,7 @@ export class GetSettingsService {
       clusterName: clusterConfig?.name,
       faq: clusterConfig?.faq,
       storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
-      isRancherManaged: isRancherManaged(),
+      isRancherManaged: this.rancherService.isRancherManaged(),
       allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
     };
   }

@@ -4,9 +4,9 @@ import * as client from "openid-client";
 import { db } from "../db/index.ts";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
+import { env, parseCsv } from "../lib/env.ts";
 import { logger } from "../logger.ts";
-import { getRancherUserID, isRancherManaged } from "./cluster/rancher.ts";
-import { env, parseCsv } from "./env.ts";
+import { rancherService } from "../service/index.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
 const clientID = env.CLIENT_ID;
@@ -93,10 +93,10 @@ router.get("/oauth_callback", async (req, res) => {
       logger.info({ userId: existingUser.id }, "User logged in");
     } else {
       let clusterUsername: string;
-      if (isRancherManaged()) {
+      if (rancherService.isRancherManaged()) {
         const identity = getIdentity(claims);
         try {
-          clusterUsername = await getRancherUserID(identity);
+          clusterUsername = await rancherService.getRancherUserID(identity);
           if (!clusterUsername) {
             throw new Error();
           }

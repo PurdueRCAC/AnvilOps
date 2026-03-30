@@ -200,6 +200,8 @@ export interface Log {
   stream: "stdout" | "stderr";
 }
 
+export { LogType } from "../generated/prisma/enums.ts";
+
 export interface AppCreate {
   orgId: number;
   appGroupId: number;
