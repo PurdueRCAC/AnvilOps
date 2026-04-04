@@ -34,7 +34,7 @@ if separate_frontend_and_backend:
       sync("../backend/src", "/app/src"),
       run("touch /app/src/index.ts") # In some cases, Node doesn't detect file changes (i.e. the --watch flag doesn't work). This command seems to improve reliability of automatic restarts.
     ],
-    only=["backend", "templates", "openapi"]
+    only=["backend", "templates", "openapi", "charts"]
   )
 
   deployment_create(

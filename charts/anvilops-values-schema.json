@@ -1,28 +1,69 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/PurdueRCAC/AnvilOps/refs/heads/main/charts/anvilops-values-schema.json",
   "title": "anvilops-values",
   "description": "The schema for anvilops-values objects in Chart.yaml",
   "type": "object",
-  "additionalProperties": {
-    "oneOf": [{ "$ref": "#/$defs/branch" }, { "$ref": "#/$defs/leaf" }]
-  },
+  "$ref": "#/$defs/branch",
   "$defs": {
     "branch": {
       "type": "object",
-      "additionalProperties": {
-        "oneOf": [{ "$ref": "#/$defs/branch" }, { "$ref": "#/$defs/leaf" }]
-      }
+      "properties": {
+        "_anvilopsRender": {
+          "type": "object",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "section"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": ["type", "displayName"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "dropdown"
+                }
+              }
+            }
+          ]
+        },
+        "children": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/branch"
+              },
+              {
+                "$ref": "#/$defs/leaf"
+              }
+            ]
+          }
+        }
+      },
+      "required": ["_anvilopsRender", "children"]
     },
     "leaf": {
       "type": "object",
       "description": "A value for a key in the values.yaml",
       "properties": {
+        "_anvilopsValue": {
+          "const": true
+        },
+        "name": {
+          "type": "string"
+        },
         "displayName": {
           "type": "string"
         },
         "type": {
-          "enum": ["text", "number", "password"]
+          "enum": ["text", "number"]
         },
         "required": {
           "type": "boolean"
@@ -30,9 +71,7 @@
         "random": {
           "type": "boolean"
         },
-        "default": {
-          "type": "string"
-        },
+        "default": {},
         "noUpdate": {
           "type": "boolean"
         },
@@ -47,7 +86,7 @@
         }
       },
       "additionalProperties": false,
-      "required": ["displayName", "type", "required"]
+      "required": ["_anvilopsValue", "displayName", "type", "required"]
     }
   }
 }

@@ -18,7 +18,6 @@ import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
 import { generateNamespace } from "@/lib/form";
 import type { CommonFormFields, HelmFormFields } from "@/lib/form.types";
-import { capitalizeAndJoin } from "@/lib/utils";
 import { FormContext } from "@/pages/create-app/CreateAppView";
 import { ShipWheel } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
@@ -30,13 +29,26 @@ const randomString = () =>
     ? crypto.randomUUID().replace(/-/g, "").slice(0, 16)
     : Math.random().toString(36).slice(2, 18);
 
+export type HelmValuesBranch = {
+  _anvilopsValue: false;
+  _anvilopsRender: {
+    type: "section" | "dropdown";
+    displayName: string;
+  };
+  children: {
+    [key: string]: HelmValuesBranch | HelmValueMeta;
+  };
+};
+
 export type HelmValueMeta = {
-  name: string;
+  _anvilopsValue: true;
   displayName: string;
-  type?: string;
-  required?: boolean;
+  type: "text" | "number" | "password";
+  required: boolean;
   default?: string;
   unit?: string;
+  min?: number;
+  max?: number;
   random?: boolean;
   noUpdate: boolean;
 };
@@ -68,8 +80,6 @@ export const HelmConfigFields = ({
   const selectedChart = chartsLoading
     ? null
     : charts?.find((chart) => chart.url === url);
-  const valueTypes = selectedChart ? Object.keys(selectedChart.valueSpec) : [];
-
   const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
 
   useEffect(() => {
@@ -79,22 +89,114 @@ export const HelmConfigFields = ({
   }, [state.url]);
 
   const getDefaultChartValues = (
-    valueSpec: Record<string, HelmValueMeta[]>,
+    valueSpec: HelmValuesBranch,
+    path: string[],
   ) => {
-    const values: Record<string, Record<string, string>> = {};
-    for (const valueType of Object.keys(valueSpec)) {
-      values[valueType] = {};
-      for (const value of valueSpec[valueType]) {
-        if (value.random) {
-          values[valueType][value.name] = randomString();
-        } else if (value.default) {
-          values[valueType][value.name] = value.default;
-        } else if (valueType === "storage" && value.name === "className") {
-          values[valueType][value.name] = settings?.storageClassName ?? "";
-        }
+    const values: Record<string, any> = {};
+    const parentKey = path.join(".");
+    for (const [key, spec] of Object.entries(valueSpec.children)) {
+      const childKey = parentKey ? parentKey + "." + key : key;
+      if (!spec._anvilopsValue) {
+        Object.assign(values, getDefaultChartValues(spec, [...path, key]));
+      } else if (spec.random) {
+        values[childKey] = randomString();
+      } else if (spec.default) {
+        values[childKey] = spec.default;
+      } else if (
+        key === "storageClassName" ||
+        (key === "className" && path.slice(-1)[0] === "storage")
+      ) {
+        values[childKey] = settings?.storageClassName ?? "";
       }
     }
     return values;
+  };
+
+  const renderHelmValue = (jsonPath: string, valueSpec: HelmValueMeta) => {
+    const value = values?.[jsonPath];
+    return (
+      <div key={jsonPath} className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <Label className="pb-1" htmlFor={jsonPath}>
+            {valueSpec.displayName}
+          </Label>
+          {valueSpec.required && (
+            <span
+              className="cursor-default text-red-500"
+              title="This field is required."
+            >
+              *
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            disabled={disabled || (valueSpec.noUpdate && isExistingApp)}
+            name={jsonPath}
+            id={jsonPath}
+            placeholder={valueSpec.default}
+            className="w-full"
+            type={valueSpec.type}
+            required={valueSpec.required}
+            value={value ? value.toString() : ""}
+            onChange={(e) => {
+              const val =
+                valueSpec.type === "number"
+                  ? parseFloat(e.currentTarget.value)
+                  : e.currentTarget.value;
+              setState({
+                values: {
+                  ...values,
+                  [jsonPath]: val,
+                },
+              });
+            }}
+          />
+          {valueSpec.unit}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHelmAccordion = (
+    jsonPath: string,
+    valueSpec: HelmValuesBranch,
+  ) => {
+    if (valueSpec._anvilopsRender.type === "dropdown") {
+      return (
+        <Accordion key={jsonPath} type="single" collapsible>
+          {Object.entries(valueSpec.children).map(([key, spec]) => {
+            const childJsonPath = jsonPath ? jsonPath + "." + key : key;
+            return spec._anvilopsValue
+              ? renderHelmValue(childJsonPath, spec)
+              : renderHelmAccordion(childJsonPath, spec);
+          })}
+        </Accordion>
+      );
+    } else {
+      return (
+        <AccordionItem
+          key={jsonPath}
+          value={valueSpec._anvilopsRender.displayName}
+        >
+          <AccordionTrigger>
+            <Label className="pb-1">
+              {valueSpec._anvilopsRender.displayName}
+            </Label>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-4">
+              {Object.entries(valueSpec.children).map(([key, spec]) => {
+                const childJsonPath = jsonPath ? jsonPath + "." + key : key;
+                return spec._anvilopsValue
+                  ? renderHelmValue(childJsonPath, spec)
+                  : renderHelmAccordion(childJsonPath, spec);
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      );
+    }
   };
 
   return (
@@ -123,14 +225,13 @@ export const HelmConfigFields = ({
 
             const chart = charts?.find((c) => c.url === newUrl);
             const values = chart?.valueSpec
-              ? getDefaultChartValues(
-                  chart.valueSpec as Record<string, HelmValueMeta[]>,
-                )
+              ? getDefaultChartValues(chart.valueSpec as HelmValuesBranch, [])
               : {};
             setState({
               url: newUrl,
               urlType: "oci",
               version: chart?.version,
+              watchLabels: chart?.watchLabels,
               values,
             });
 
@@ -163,71 +264,8 @@ export const HelmConfigFields = ({
           setHasChangedNamespace={setHasChangedNamespace}
         />
       )}
-      <Accordion type="single" collapsible>
-        {selectedChart &&
-          valueTypes.map((valueType) => (
-            <AccordionItem key={valueType} value={valueType}>
-              <AccordionTrigger>
-                <Label className="pb-1">
-                  {capitalizeAndJoin(valueType.split("_"))}
-                </Label>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                  {(selectedChart.valueSpec[valueType] as HelmValueMeta[]).map(
-                    (value: HelmValueMeta) => (
-                      <div key={value.name} className="space-y-2">
-                        <div className="flex items-baseline gap-2">
-                          <Label className="pb-1" htmlFor={value.name}>
-                            {value.displayName}
-                          </Label>
-                          {value.required && (
-                            <span
-                              className="cursor-default text-red-500"
-                              title="This field is required."
-                            >
-                              *
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            disabled={
-                              disabled || (value.noUpdate && isExistingApp)
-                            }
-                            name={value.name}
-                            id={value.name}
-                            placeholder={value.default}
-                            className="w-full"
-                            type={value.type}
-                            required={value.required}
-                            value={
-                              (values?.[valueType] as Record<string, string>)?.[
-                                value.name
-                              ] ?? ""
-                            }
-                            onChange={(e) =>
-                              setState({
-                                values: {
-                                  ...values,
-                                  [valueType]: {
-                                    ...(values?.[valueType] ?? {}),
-                                    [value.name]: e.currentTarget.value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                          {value.unit}
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-      </Accordion>
+      {selectedChart &&
+        renderHelmAccordion("", selectedChart.valueSpec as HelmValuesBranch)}
     </>
   );
 };

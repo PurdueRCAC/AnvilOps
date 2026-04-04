@@ -26,7 +26,7 @@ async function listChartsFromRegistry() {
 
   const charts = await Promise.all(
     repos.map(async (repo) => {
-      return await getLatestChart(repo.name, token);
+      return await getLatestChart(repo.name, token).catch((): null => null); // A warning is printed in getChart
     }),
   );
 
@@ -36,6 +36,7 @@ async function listChartsFromRegistry() {
     url: `oci://${env.CHART_REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
     urlType: "oci",
     version: chart.version,
-    valueSpec: chart.values,
+    watchLabels: chart.watchLabels,
+    valueSpec: chart.anvilopsValues,
   }));
 }

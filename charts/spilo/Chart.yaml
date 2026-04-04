@@ -10,47 +10,70 @@ annotations:
   anvilops-watch-labels: application=spilo
   anvilops-values: |
     {
-      "replicas": {
-        "displayName": "Replicas",
-        "type": "number",
-        "default": "3",
-        "required": true
+      "_anvilopsRender": {
+        "type": "dropdown"
       },
-      "passwords": {
-        "superuser": {
-          "displayName": "Superuser Password",
-          "type": "password",
-          "random": true,
-          "required": true
-        },
-        "replication": {
-          "displayName": "Replication Password",
-          "type": "password",
-          "random": true,
-          "required": true
-        },
-        "admin": {
-          "displayName": "Admin Password",
-          "type": "password",
-          "random": true,
-          "required": true
-        }
-      },
-      "storage": {
-        "className": {
-          "displayName": "Storage Class",
-          "type": "text",
-          "noUpdate": true,
-          "default": "standard",
-          "required": true
-        },
-        "size": {
-          "displayName": "Size",
+      "children": {
+        "replicas": {
+          "_anvilopsValue": true,
+          "displayName": "Replicas",
           "type": "number",
-          "noUpdate": true,
-          "unit": "Gi",
-          "default": "1",
+          "default": 3,
           "required": true
+        },
+        "passwords": {
+          "_anvilopsRender": {
+            "type": "section",
+            "displayName": "Passwords"
+          },
+          "children": {
+            "superuser": {
+              "_anvilopsValue": true,
+              "displayName": "Superuser Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            },
+            "replication": {
+              "_anvilopsValue": true,
+              "displayName": "Replication Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            },
+            "admin": {
+              "_anvilopsValue": true,
+              "displayName": "Admin Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            }
+          }
+        },
+        "storage": {
+          "_anvilopsRender": {
+            "type": "section",
+            "displayName": "Storage"
+          },
+          "children": {
+            "className": {
+              "_anvilopsValue": true,
+              "displayName": "Storage Class",
+              "type": "text",
+              "noUpdate": true,
+              "default": "standard",
+              "required": true
+            },
+            "size": {
+              "_anvilopsValue": true,
+              "displayName": "Size",
+              "type": "number",
+              "noUpdate": true,
+              "unit": "Gi",
+              "default": 1,
+              "required": true
+            }
+          }
         }
       }
     }

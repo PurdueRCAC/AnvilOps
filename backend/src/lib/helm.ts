@@ -1,5 +1,7 @@
 import { V1Pod } from "@kubernetes/client-node";
+import { Ajv } from "ajv";
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import type { App, Deployment, HelmConfig } from "../db/models.ts";
 import { logger } from "../index.ts";
 import { ValidationError } from "../service/common/errors.ts";
@@ -19,7 +21,8 @@ type RegistryChart = {
   version: string;
   description?: string;
   note?: string;
-  values: PrismaJson.HelmValues;
+  watchLabels?: string;
+  anvilopsValues: Record<string, unknown>;
 };
 
 type ChartTagList = {
@@ -35,6 +38,24 @@ type HarborRepository = {
   project_id: number;
   pull_count: number;
   update_time: string;
+};
+
+let ajv: Ajv;
+const initAjv = () => {
+  if (!ajv) {
+    ajv = new Ajv();
+    try {
+      const schema = JSON.parse(
+        readFileSync("anvilops-values-schema.json").toString(),
+      );
+      ajv.addSchema(schema, "anvilops-values");
+    } catch (e) {
+      logger.warn(
+        { error: e },
+        "AnvilOps values validator could not be initialized",
+      );
+    }
+  }
 };
 
 const fetchJSONFromChartRegistry = async <T>(
@@ -109,13 +130,22 @@ const getChart = async (
   }
 
   if (annotations["anvilops-values"]) {
-    let values: unknown;
+    let anvilopsValues: unknown;
+    initAjv();
     try {
-      values = JSON.parse(annotations["anvilops-values"]);
+      anvilopsValues = JSON.parse(annotations["anvilops-values"]);
+      if (!ajv.validate("anvilops-values", anvilopsValues)) {
+        throw new Error(ajv.errors.toString());
+      }
     } catch (err) {
       logger.warn(
-        { repository, version, annotation: annotations["anvilops-values"] },
-        `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
+        {
+          repository,
+          version,
+          annotation: annotations["anvilops-values"],
+          error: err,
+        },
+        `Invalid anvilops-values annotation on Helm chart ${repository} ${version}: ${err}`,
       );
       throw new Error(
         `Invalid anvilops-values annotation on Helm chart ${repository} ${version}: ${err}`,
@@ -126,7 +156,8 @@ const getChart = async (
       version: annotations["org.opencontainers.image.version"],
       description: annotations["org.opencontainers.image.description"],
       note: annotations["anvilops-note"],
-      values: values as Record<string, unknown>,
+      watchLabels: annotations["anvilops-watch-labels"],
+      anvilopsValues: anvilopsValues as Record<string, unknown>,
     };
   } else {
     return null;
@@ -179,7 +210,7 @@ export const upgrade = async (
   const release = app.name;
 
   for (const [key, value] of Object.entries(values)) {
-    args.push("--set-json", `${key}=${JSON.stringify(value)}`);
+    args.push("--set", `${key}=${value}`);
   }
   switch (urlType) {
     // example: helm install mynginx https://example.com/charts/nginx-1.2.3.tgz
@@ -228,7 +259,7 @@ export const upgrade = async (
             },
             {
               name: "HELM_ARGS",
-              value: `${args.join(" ")}`,
+              value: args.join("\n"),
             },
           ],
           name: "helm",

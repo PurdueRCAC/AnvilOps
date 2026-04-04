@@ -2371,7 +2371,14 @@ components:
           type: string
         values:
           type: object
-          additionalProperties: true
+          additionalProperties:
+            anyOf:
+              - type: string
+                nullable: true
+              - type: number
+                nullable: true
+              - type: boolean
+                nullable: true
         watchLabels:
           type: string
       required: [appType, source, url, urlType, version]
