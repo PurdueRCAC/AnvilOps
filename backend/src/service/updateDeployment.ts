@@ -59,7 +59,10 @@ export async function updateDeployment(secret: string, newStatus: string) {
     "Updated deployment status via /api/deployment/update",
   );
 
-  if (config.source != "GIT") {
+  if (config.source === "HELM") {
+    if (newStatus === "COMPLETE") {
+      await db.app.setConfig(deployment.appId, deployment.configId);
+    }
     return;
   }
 

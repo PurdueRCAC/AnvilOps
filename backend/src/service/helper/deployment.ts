@@ -383,7 +383,6 @@ export class DeploymentService {
     log(deployment.id, "BUILD", "Deploying directly from Helm chart...");
     try {
       await upgrade(app, deployment, config);
-      await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
       await this.deploymentRepo.setStatus(
         deployment.id,
