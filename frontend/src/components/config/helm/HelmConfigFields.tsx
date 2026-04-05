@@ -1,11 +1,5 @@
 import { useAppConfig } from "@/components/AppConfigProvider";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
+import { HelmAccordion } from "@/components/config/helm/HelmAccordion";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -112,93 +106,6 @@ export const HelmConfigFields = ({
     return values;
   };
 
-  const renderHelmValue = (jsonPath: string, valueSpec: HelmValueMeta) => {
-    const value = values?.[jsonPath];
-    return (
-      <div key={jsonPath} className="space-y-2">
-        <div className="flex items-baseline gap-2">
-          <Label className="pb-1" htmlFor={jsonPath}>
-            {valueSpec.displayName}
-          </Label>
-          {valueSpec.required && (
-            <span
-              className="cursor-default text-red-500"
-              title="This field is required."
-            >
-              *
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            disabled={disabled || (valueSpec.noUpdate && isExistingApp)}
-            name={jsonPath}
-            id={jsonPath}
-            placeholder={valueSpec.default}
-            className="w-full"
-            type={valueSpec.type}
-            required={valueSpec.required}
-            value={value ? value.toString() : ""}
-            onChange={(e) => {
-              const val =
-                valueSpec.type === "number"
-                  ? parseFloat(e.currentTarget.value)
-                  : e.currentTarget.value;
-              setState({
-                values: {
-                  ...values,
-                  [jsonPath]: val,
-                },
-              });
-            }}
-          />
-          {valueSpec.unit}
-        </div>
-      </div>
-    );
-  };
-
-  const renderHelmAccordion = (
-    jsonPath: string,
-    valueSpec: HelmValuesBranch,
-  ) => {
-    if (valueSpec._anvilopsRender.type === "dropdown") {
-      return (
-        <Accordion key={jsonPath} type="single" collapsible>
-          {Object.entries(valueSpec.children).map(([key, spec]) => {
-            const childJsonPath = jsonPath ? jsonPath + "." + key : key;
-            return spec._anvilopsValue
-              ? renderHelmValue(childJsonPath, spec)
-              : renderHelmAccordion(childJsonPath, spec);
-          })}
-        </Accordion>
-      );
-    } else {
-      return (
-        <AccordionItem
-          key={jsonPath}
-          value={valueSpec._anvilopsRender.displayName}
-        >
-          <AccordionTrigger>
-            <Label className="pb-1">
-              {valueSpec._anvilopsRender.displayName}
-            </Label>
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-4">
-              {Object.entries(valueSpec.children).map(([key, spec]) => {
-                const childJsonPath = jsonPath ? jsonPath + "." + key : key;
-                return spec._anvilopsValue
-                  ? renderHelmValue(childJsonPath, spec)
-                  : renderHelmAccordion(childJsonPath, spec);
-              })}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      );
-    }
-  };
-
   return (
     <>
       <div className="space-y-2">
@@ -264,8 +171,16 @@ export const HelmConfigFields = ({
           setHasChangedNamespace={setHasChangedNamespace}
         />
       )}
-      {selectedChart &&
-        renderHelmAccordion("", selectedChart.valueSpec as HelmValuesBranch)}
+      {selectedChart && (
+        <HelmAccordion
+          jsonPath=""
+          values={values}
+          setState={setState}
+          disabled={disabled}
+          isExistingApp={isExistingApp}
+          valueSpec={selectedChart.valueSpec as HelmValuesBranch}
+        />
+      )}
     </>
   );
 };

@@ -275,6 +275,7 @@ const getHelmFormFieldsFromAppConfig = (
     url: config.url,
     urlType: config.urlType,
     version: config.version,
+    watchLabels: config.watchLabels,
     values: config.values,
   };
 };

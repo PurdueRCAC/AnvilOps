@@ -1,18 +1,31 @@
-import type { HelmValueMeta } from "@/components/config/helm/HelmConfigFields";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import type {
+  HelmValueMeta,
+  HelmValuesBranch,
+} from "@/components/config/helm/HelmConfigFields";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import type { CommonFormFields, HelmFormFields } from "@/lib/form.types";
-import { capitalizeAndJoin } from "@/lib/utils";
 import { ShipWheel } from "lucide-react";
 import { DiffInput } from "../DiffInput";
 import { DiffSelect } from "../DiffSelect";
+
+const getFlattenedValueSpec = (
+  jsonPath: string,
+  valueSpec: HelmValuesBranch,
+): Record<string, HelmValueMeta> => {
+  const flattened: Record<string, HelmValueMeta> = {};
+  for (const [key, spec] of Object.entries(valueSpec.children)) {
+    const childPath = jsonPath ? jsonPath + "." + key : key;
+    if (spec._anvilopsValue) {
+      flattened[childPath] = spec;
+    } else {
+      Object.assign(flattened, getFlattenedValueSpec(childPath, spec));
+    }
+  }
+  return flattened;
+};
+
 export const HelmConfigDiff = ({
   base,
   helmState,
@@ -26,10 +39,18 @@ export const HelmConfigDiff = ({
 }) => {
   const { url } = helmState;
 
-  const { data: charts } = api.useQuery("get", "/templates/charts");
-
-  const selectedChart = charts?.find((c) => c.url === helmState.url);
-  const valueTypes = selectedChart ? Object.keys(selectedChart.valueSpec) : [];
+  const { data: charts, isPending: chartsLoading } = api.useQuery(
+    "get",
+    "/templates/charts",
+  );
+  const selectedChart = !chartsLoading
+    ? charts?.find((c) => c.url === url)
+    : undefined;
+  const flatValueSpec = selectedChart
+    ? getFlattenedValueSpec("", selectedChart.valueSpec as HelmValuesBranch)
+    : {};
+  const baseValues = base.source === "helm" ? base.helm.values : {};
+  const values = helmState.values;
 
   return (
     <>
@@ -70,81 +91,44 @@ export const HelmConfigDiff = ({
         </DiffSelect>
 
         <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
-
-        <Accordion type="single" collapsible>
-          {selectedChart &&
-            valueTypes.map((valueType) => (
-              <AccordionItem key={valueType} value={valueType}>
-                <AccordionTrigger>
-                  <Label className="pb-1">
-                    {capitalizeAndJoin(valueType.split("_"))}
-                  </Label>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-2">
-                    {(
-                      selectedChart.valueSpec[valueType] as HelmValueMeta[]
-                    ).map((value: HelmValueMeta) => (
-                      <div key={value.name} className="space-y-2">
-                        <div className="flex items-baseline gap-2">
-                          <Label className="pb-1" htmlFor={value.name}>
-                            {value.displayName}
-                          </Label>
-                          {value.required && (
-                            <span
-                              className="cursor-default text-red-500"
-                              title="This field is required."
-                            >
-                              *
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DiffInput
-                            disabled={disabled || value.noUpdate}
-                            name={value.name}
-                            id={value.name}
-                            placeholder={value.default}
-                            className="w-full"
-                            type={value.type}
-                            required={value.required}
-                            left={
-                              (
-                                base.helm.values?.[valueType] as Record<
-                                  string,
-                                  string
-                                >
-                              )?.[value.name] ?? ""
-                            }
-                            right={
-                              (
-                                helmState.values?.[valueType] as Record<
-                                  string,
-                                  string
-                                >
-                              )?.[value.name] ?? ""
-                            }
-                            setRight={(result) =>
-                              setHelmState({
-                                values: {
-                                  ...helmState.values,
-                                  [valueType]: {
-                                    ...(helmState.values?.[valueType] ?? {}),
-                                    [value.name]: result,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                          {value.unit}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-        </Accordion>
+        {Object.entries(flatValueSpec).map(([jsonPath, spec]) => (
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <Label className="pb-1" htmlFor="portNumber">
+                {spec.displayName}{" "}
+                <span className="text-black-2 text-sm">({jsonPath})</span>
+              </Label>
+              {spec.required && (
+                <span
+                  className="cursor-default text-red-500"
+                  title="This field is required."
+                >
+                  *
+                </span>
+              )}
+            </div>
+            <DiffInput
+              left={baseValues?.[jsonPath]?.toString()}
+              right={values?.[jsonPath]?.toString()}
+              setRight={(value) => {
+                setHelmState({
+                  values: {
+                    ...values,
+                    [jsonPath]:
+                      spec.type === "number" ? parseFloat(value) : value,
+                  },
+                });
+              }}
+              type={spec.type}
+              unit={spec.unit}
+              id={jsonPath}
+              name={jsonPath}
+              placeholder={spec.default}
+              required={spec.required}
+              disabled={disabled || spec.noUpdate} // The app already exists, so noUpdate fields cannot be updated
+            />
+          </div>
+        ))}
       </div>
     </>
   );
