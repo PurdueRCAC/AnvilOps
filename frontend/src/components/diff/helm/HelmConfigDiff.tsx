@@ -126,6 +126,8 @@ export const HelmConfigDiff = ({
               placeholder={spec.default}
               required={spec.required}
               disabled={disabled || spec.noUpdate} // The app already exists, so noUpdate fields cannot be updated
+              min={spec.min}
+              max={spec.max}
             />
           </div>
         ))}

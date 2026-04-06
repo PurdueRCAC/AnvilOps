@@ -56,6 +56,8 @@ export const HelmValue = ({
               },
             });
           }}
+          min={valueSpec.min}
+          max={valueSpec.max}
         />
         {valueSpec.unit}
       </div>
