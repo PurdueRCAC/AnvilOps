@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Container,
   ExternalLink,
+  FolderLock,
   GitBranch,
   GitCommit,
   Link2,
@@ -247,6 +248,15 @@ export const OverviewTab = ({
               {app.namespace}.{app.namespace}
               .svc.cluster.local
             </p>
+          </>
+        )}
+        {app.config.source === "helm" && (
+          <>
+            <p className="flex items-center gap-2">
+              <FolderLock className="size-4" />
+              Namespace
+            </p>
+            <p>{app.namespace}</p>
           </>
         )}
       </div>
