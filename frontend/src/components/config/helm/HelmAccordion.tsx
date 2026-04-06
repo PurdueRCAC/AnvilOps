@@ -26,11 +26,12 @@ export const HelmAccordion = ({
 }) => {
   if (valueSpec._anvilopsRender.type === "dropdown") {
     return (
-      <Accordion key={jsonPath} type="single" collapsible>
+      <Accordion type="single" collapsible>
         {Object.entries(valueSpec.children).map(([key, spec]) => {
           const childJsonPath = jsonPath ? jsonPath + "." + key : key;
           return spec._anvilopsValue ? (
             <HelmValue
+              key={childJsonPath}
               jsonPath={childJsonPath}
               valueSpec={spec}
               values={values}
@@ -40,6 +41,7 @@ export const HelmAccordion = ({
             />
           ) : (
             <HelmAccordion
+              key={childJsonPath}
               jsonPath={childJsonPath}
               values={values}
               setState={setState}
@@ -53,10 +55,7 @@ export const HelmAccordion = ({
     );
   } else {
     return (
-      <AccordionItem
-        key={jsonPath}
-        value={valueSpec._anvilopsRender.displayName}
-      >
+      <AccordionItem value={valueSpec._anvilopsRender.displayName}>
         <AccordionTrigger>
           <Label className="pb-1">
             {valueSpec._anvilopsRender.displayName}
@@ -68,6 +67,7 @@ export const HelmAccordion = ({
               const childJsonPath = jsonPath ? jsonPath + "." + key : key;
               return spec._anvilopsValue ? (
                 <HelmValue
+                  key={childJsonPath}
                   jsonPath={childJsonPath}
                   valueSpec={spec}
                   values={values}
@@ -77,6 +77,7 @@ export const HelmAccordion = ({
                 />
               ) : (
                 <HelmAccordion
+                  key={childJsonPath}
                   jsonPath={childJsonPath}
                   values={values}
                   setState={setState}

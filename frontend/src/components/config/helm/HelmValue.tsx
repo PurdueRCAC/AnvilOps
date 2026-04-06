@@ -20,7 +20,7 @@ export const HelmValue = ({
 }) => {
   const value = values?.[jsonPath];
   return (
-    <div key={jsonPath} className="space-y-2">
+    <div className="space-y-2">
       <div className="flex items-baseline gap-2">
         <Label className="pb-1" htmlFor={jsonPath}>
           {valueSpec.displayName}{" "}
