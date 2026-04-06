@@ -23,6 +23,41 @@ const randomString = () =>
     ? crypto.randomUUID().replace(/-/g, "").slice(0, 16)
     : Math.random().toString(36).slice(2, 18);
 
+const randRange = (min: number, max: number) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+export const getDefaultChartValues = (
+  valueSpec: HelmValuesBranch,
+  path: string[],
+  storageClassName?: string,
+) => {
+  const values: Record<string, any> = {};
+  const parentKey = path.join(".");
+  for (const [key, spec] of Object.entries(valueSpec.children)) {
+    const childKey = parentKey ? parentKey + "." + key : key;
+    if (!spec._anvilopsValue) {
+      Object.assign(
+        values,
+        getDefaultChartValues(spec, [...path, key], storageClassName),
+      );
+    } else if (spec.random) {
+      values[childKey] =
+        spec.type === "number"
+          ? randRange(spec.min ?? 0, spec.max ?? 100)
+          : randomString();
+    } else if (spec.default) {
+      values[childKey] = spec.default;
+    } else if (
+      key === "storageClassName" ||
+      (key === "className" && path.slice(-1)[0] === "storage")
+    ) {
+      values[childKey] = storageClassName ?? "";
+    }
+  }
+  return values;
+};
+
 export type HelmValuesBranch = {
   _anvilopsValue: false;
   _anvilopsRender: {
@@ -37,7 +72,7 @@ export type HelmValuesBranch = {
 export type HelmValueMeta = {
   _anvilopsValue: true;
   displayName: string;
-  type: "text" | "number" | "password";
+  type: "text" | "number";
   required: boolean;
   default?: string;
   unit?: string;
@@ -67,7 +102,7 @@ export const HelmConfigFields = ({
   const { helm: state } = appState;
   const { url, values } = state;
 
-  const settings = useAppConfig();
+  const { storageClassName } = useAppConfig();
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
 
@@ -81,30 +116,6 @@ export const HelmConfigFields = ({
       setAppState({ namespace: generateNamespace(appState) });
     }
   }, [state.url]);
-
-  const getDefaultChartValues = (
-    valueSpec: HelmValuesBranch,
-    path: string[],
-  ) => {
-    const values: Record<string, any> = {};
-    const parentKey = path.join(".");
-    for (const [key, spec] of Object.entries(valueSpec.children)) {
-      const childKey = parentKey ? parentKey + "." + key : key;
-      if (!spec._anvilopsValue) {
-        Object.assign(values, getDefaultChartValues(spec, [...path, key]));
-      } else if (spec.random) {
-        values[childKey] = randomString();
-      } else if (spec.default) {
-        values[childKey] = spec.default;
-      } else if (
-        key === "storageClassName" ||
-        (key === "className" && path.slice(-1)[0] === "storage")
-      ) {
-        values[childKey] = settings?.storageClassName ?? "";
-      }
-    }
-    return values;
-  };
 
   return (
     <>
@@ -132,7 +143,11 @@ export const HelmConfigFields = ({
 
             const chart = charts?.find((c) => c.url === newUrl);
             const values = chart?.valueSpec
-              ? getDefaultChartValues(chart.valueSpec as HelmValuesBranch, [])
+              ? getDefaultChartValues(
+                  chart.valueSpec as HelmValuesBranch,
+                  [],
+                  storageClassName,
+                )
               : {};
             setState({
               url: newUrl,

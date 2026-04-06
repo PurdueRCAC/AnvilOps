@@ -23,7 +23,8 @@ export const HelmValue = ({
     <div key={jsonPath} className="space-y-2">
       <div className="flex items-baseline gap-2">
         <Label className="pb-1" htmlFor={jsonPath}>
-          {valueSpec.displayName}
+          {valueSpec.displayName}{" "}
+          <span className="text-black-2 text-sm">({jsonPath})</span>
         </Label>
         {valueSpec.required && (
           <span

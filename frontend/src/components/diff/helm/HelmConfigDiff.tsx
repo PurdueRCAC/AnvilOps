@@ -1,6 +1,8 @@
-import type {
-  HelmValueMeta,
-  HelmValuesBranch,
+import { useAppConfig } from "@/components/AppConfigProvider";
+import {
+  getDefaultChartValues,
+  type HelmValueMeta,
+  type HelmValuesBranch,
 } from "@/components/config/helm/HelmConfigFields";
 import { Label } from "@/components/ui/label";
 import { SelectContent, SelectItem } from "@/components/ui/select";
@@ -52,6 +54,7 @@ export const HelmConfigDiff = ({
   const baseValues = base.source === "helm" ? base.helm.values : {};
   const values = helmState.values;
 
+  const { storageClassName } = useAppConfig();
   return (
     <>
       <div className="space-y-2">
@@ -76,7 +79,13 @@ export const HelmConfigDiff = ({
               url: value,
               urlType: "oci",
               version: chart?.version,
-              values: {},
+              values: chart
+                ? getDefaultChartValues(
+                    chart.valueSpec as HelmValuesBranch,
+                    [],
+                    storageClassName,
+                  )
+                : {},
             });
           }}
           disabled={disabled}
