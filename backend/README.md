@@ -17,7 +17,7 @@ When a request is received, it'll go through a Handler first, which will call a 
 
 All of a Service's dependencies are defined in its constructor. The default instances of each Service are created in `src/service/index.ts`. At runtime, those instances are always used, and custom instances may be created with mock dependencies for testing.
 
-All methods in the DB and Service modules should catch exception and rethrow them with classes enumerated in the method's `@throws` clause. The `cause` parameter should still include the original error.
+All methods in the DB and Service modules should catch exceptions that reveal implementation details (e.g. Prisma errors) and rethrow them with classes enumerated in the method's `@throws` clause. The `cause` parameter should still include the original error.
 
 Import restrictions are enforced by the `eslint-plugin-boundaries` ESLint plugin.
 
