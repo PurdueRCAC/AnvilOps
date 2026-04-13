@@ -31,12 +31,18 @@ run_job() {
     # The images that Railpack uses internally are hard-coded:
     # https://github.com/railwayapp/railpack/blob/736c6a11baedf8372e2cefbb2b4f4826183fbfa4/core/plan/plan.go#L4
     # Replace these image references with our own to reduce risk of breaking changes (`latest` tag) and to remove the dependency on GitHub at runtime
-    jq --arg builder "$RAILPACK_INTERNAL_BUILDER_IMAGE" --arg runtime "$RAILPACK_INTERNAL_RUNTIME_IMAGE" \
-      'walk(
-        if type == "object" and .image == "ghcr.io/railwayapp/railpack-builder:latest" then .image = $builder
-        elif type == "object" and .image == "ghcr.io/railwayapp/railpack-runtime:latest" then .image = $runtime
-        else . end
-      )' railpack-plan.json > output.json &&
+    jq --arg builder "$RAILPACK_INTERNAL_BUILDER_IMAGE" \
+       --arg runtime "$RAILPACK_INTERNAL_RUNTIME_IMAGE" '
+        walk(
+          if type == "object" and (.image // "" | startswith("ghcr.io/railwayapp/railpack-builder")) then
+            .image = $builder
+          elif type == "object" and (.image // "" | startswith("ghcr.io/railwayapp/railpack-runtime")) then
+            .image = $runtime
+          else
+            .
+          end
+        )
+      ' railpack-plan.json > output.json &&
 
     mv output.json railpack-plan.json &&
     
