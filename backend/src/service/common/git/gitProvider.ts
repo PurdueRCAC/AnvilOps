@@ -6,6 +6,7 @@ import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
   RepositoryNotFoundError,
 } from "../../errors/index.ts";
+import type { KVCacheService } from "../cache.ts";
 import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";
 
@@ -136,15 +137,18 @@ export class GitProviderFactoryService {
   private orgRepo: OrganizationRepo;
   private repoImportStateRepo: RepoImportStateRepo;
   private kubernetesService: KubernetesClientService;
+  private cacheService: KVCacheService;
 
   constructor(
     orgRepo: OrganizationRepo,
     repoImportStateRepo: RepoImportStateRepo,
     kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
   ) {
     this.orgRepo = orgRepo;
     this.repoImportStateRepo = repoImportStateRepo;
     this.kubernetesService = kubernetesService;
+    this.cacheService = cacheService;
   }
 
   /**
@@ -158,6 +162,7 @@ export class GitProviderFactoryService {
       this.orgRepo,
       this.repoImportStateRepo,
       this.kubernetesService,
+      this.cacheService,
     );
   }
 

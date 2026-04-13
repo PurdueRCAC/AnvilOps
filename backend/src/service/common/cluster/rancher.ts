@@ -1,6 +1,6 @@
-import { getOrCreate } from "../../../lib/cache.ts";
 import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
+import { type KVCacheService } from "../cache.ts";
 import type { KubernetesClientService } from "./kubernetes.ts";
 
 const token = env["RANCHER_TOKEN"];
@@ -33,9 +33,14 @@ const getProjectById = async (id: string) => {
 
 export class RancherService {
   private kubernetesService: KubernetesClientService;
+  private cacheService: KVCacheService;
 
-  constructor(kubernetesService: KubernetesClientService) {
+  constructor(
+    kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
+  ) {
     this.kubernetesService = kubernetesService;
+    this.cacheService = cacheService;
   }
 
   isRancherManaged() {
@@ -60,18 +65,23 @@ export class RancherService {
     }[]
   > {
     return JSON.parse(
-      await getOrCreate(`rancher-projects-${rancherId}`, 15, async () =>
-        JSON.stringify(await this.fetchUserProjects(rancherId)),
+      await this.cacheService.getOrCreate(
+        `rancher-projects-${rancherId}`,
+        15,
+        async () => JSON.stringify(await this.fetchUserProjects(rancherId)),
       ),
     ) as Awaited<ReturnType<typeof this.fetchUserProjects>>;
   }
 
   async canManageProject(userId: string, projectId: string) {
     return (
-      (await getOrCreate(`rancher-canmanage-${userId}-${projectId}`, 15, () =>
-        this.getProjectAccessReview(userId, projectId).then((res) =>
-          res.toString(),
-        ),
+      (await this.cacheService.getOrCreate(
+        `rancher-canmanage-${userId}-${projectId}`,
+        15,
+        () =>
+          this.getProjectAccessReview(userId, projectId).then((res) =>
+            res.toString(),
+          ),
       )) === "true"
     );
   }

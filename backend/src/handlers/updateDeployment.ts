@@ -13,7 +13,7 @@ export const updateDeploymentHandler: HandlerMap["updateDeployment"] = async (
 ) => {
   const { secret, status } = ctx.request.requestBody;
   try {
-    await updateDeploymentService.updateDeployment(secret, status);
+    await updateDeploymentService.updateDeploymentFromSecret(secret, status);
     return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {

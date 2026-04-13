@@ -78,3 +78,15 @@ export class GitHubInstallationForbiddenError extends Error {}
  * actions or events. Should trigger a "Bad request" (4xx) HTTP error.
  */
 export class UnknownWebhookRequestTypeError extends Error {}
+
+/**
+ * Thrown when the user tries to navigate to the OAuth callback route
+ * with information from an identity provider that isn't allowed.
+ */
+export class InvalidIDPError extends Error {}
+
+/**
+ * Thrown when there's an issue querying Rancher for the user's
+ * Rancher cluster username during the login process.
+ */
+export class RancherIDNotFoundError extends Error {}

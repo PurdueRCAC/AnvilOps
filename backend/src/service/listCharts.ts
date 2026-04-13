@@ -1,5 +1,5 @@
-import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
+import { type KVCacheService } from "./common/cache.ts";
 import type { HelmService } from "./common/helm.ts";
 import type { RegistryService } from "./common/registry.ts";
 import { ValidationError } from "./errors/index.ts";
@@ -7,10 +7,16 @@ import { ValidationError } from "./errors/index.ts";
 export class ListChartsService {
   private registryService: RegistryService;
   private helmService: HelmService;
+  private cacheService: KVCacheService;
 
-  constructor(registryService: RegistryService, helmService: HelmService) {
+  constructor(
+    registryService: RegistryService,
+    helmService: HelmService,
+    cacheService: KVCacheService,
+  ) {
     this.registryService = registryService;
     this.helmService = helmService;
+    this.cacheService = cacheService;
   }
 
   async listCharts() {
@@ -18,7 +24,7 @@ export class ListChartsService {
       throw new ValidationError("Helm deployments are disabled");
     }
     return JSON.parse(
-      await getOrCreate("charts", 60 * 60, async () =>
+      await this.cacheService.getOrCreate("charts", 60 * 60, async () =>
         JSON.stringify(await this.listChartsFromRegistry()),
       ),
     ) as Awaited<ReturnType<typeof this.listChartsFromRegistry>>;

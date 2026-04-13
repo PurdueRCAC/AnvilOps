@@ -99,15 +99,8 @@ export class DeleteAppService {
           migrating: true, // Deploy without any anvilops-related labels
         });
 
-      const { KubernetesObjectApi: api } =
-        await this.kubernetesService.getClientsForRequest(
-          userId,
-          app.projectId,
-          ["KubernetesObjectApi"],
-        );
       await this.kubernetesService.createOrUpdateApp(
-        api,
-        app.name,
+        app,
         namespace,
         configs,
         postCreate,

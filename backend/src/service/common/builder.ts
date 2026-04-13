@@ -49,7 +49,7 @@ export class BuilderService {
     this.kubernetesService = kubernetesService;
   }
 
-  async createJobFromDeployment(
+  private async createJobFromDeployment(
     org: Organization,
     app: App,
     deployment: Deployment,

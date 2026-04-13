@@ -1,15 +1,10 @@
+import type { Deployment, DeploymentConfig } from "../db/models.ts";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { logger } from "../logger.ts";
-import type { BuilderService } from "./common/builder.ts";
-import { type KubernetesClientService } from "./common/cluster/kubernetes.ts";
-import {
-  shouldImpersonate,
-  type RancherService,
-} from "./common/cluster/rancher.ts";
-import type { ClusterResourcesService } from "./common/cluster/resources.ts";
+import type { DeploymentService } from "./common/deployment.ts";
 import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 import { log } from "./githubWebhook.ts";
@@ -20,10 +15,7 @@ export class UpdateDeploymentService {
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
   private gitProviderFactoryService: GitProviderFactoryService;
-  private clusterResourcesService: ClusterResourcesService;
-  private rancherService: RancherService;
-  private builderService: BuilderService;
-  private kubernetesClientService: KubernetesClientService;
+  private deploymentService: DeploymentService;
 
   constructor(
     orgRepo: OrganizationRepo,
@@ -31,23 +23,17 @@ export class UpdateDeploymentService {
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
     gitProviderFactoryService: GitProviderFactoryService,
-    clusterResourcesService: ClusterResourcesService,
-    rancherService: RancherService,
-    builderService: BuilderService,
-    kubernetesClientService: KubernetesClientService,
+    deploymentService: DeploymentService,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
     this.gitProviderFactoryService = gitProviderFactoryService;
-    this.clusterResourcesService = clusterResourcesService;
-    this.rancherService = rancherService;
-    this.builderService = builderService;
-    this.kubernetesClientService = kubernetesClientService;
+    this.deploymentService = deploymentService;
   }
 
-  async updateDeployment(secret: string, newStatus: string) {
+  async updateDeploymentFromSecret(secret: string, newStatus: string) {
     if (!secret) {
       throw new ValidationError("No deployment secret provided.");
     }
@@ -57,11 +43,10 @@ export class UpdateDeploymentService {
       throw new DeploymentNotFoundError();
     }
 
-    const config = await this.deploymentRepo.getConfig(deployment.id);
-    if (config.source === "IMAGE") {
-      throw new ValidationError("Cannot update deployment");
-    }
+    return await this.updateDeployment(deployment, newStatus);
+  }
 
+  private validateNewStatus(config: DeploymentConfig, newStatus: string) {
     switch (config.source) {
       case "GIT": {
         if (
@@ -83,6 +68,15 @@ export class UpdateDeploymentService {
         throw new ValidationError("Invalid source.");
       }
     }
+  }
+
+  async updateDeployment(deployment: Deployment, newStatus: string) {
+    const config = await this.deploymentRepo.getConfig(deployment.id);
+    if (config.source === "IMAGE") {
+      throw new ValidationError("Cannot update deployment");
+    }
+
+    this.validateNewStatus(config, newStatus);
 
     await this.deploymentRepo.setStatus(
       deployment.id,
@@ -139,59 +133,13 @@ export class UpdateDeploymentService {
     }
 
     if (newStatus === "DEPLOYING") {
-      const { namespace, configs, postCreate } =
-        await this.clusterResourcesService.createAppConfigsFromDeployment({
-          org,
-          app,
-          appGroup,
-          deployment,
-          config,
-        });
-
-      try {
-        const api = this.kubernetesClientService.getClientForClusterUsername(
-          app.clusterUsername,
-          "KubernetesObjectApi",
-          shouldImpersonate(app.projectId),
-        );
-
-        await this.kubernetesClientService.createOrUpdateApp(
-          api,
-          app.name,
-          namespace,
-          configs,
-          postCreate,
-        );
-        log(
-          this.deploymentRepo,
-          deployment.id,
-          "BUILD",
-          "Deployment succeeded",
-        );
-
-        await Promise.all([
-          this.deploymentRepo.setStatus(deployment.id, "COMPLETE"),
-          // The update was successful. Update App with the reference to the latest successful config.
-          this.appRepo.setConfig(app.id, deployment.configId),
-        ]);
-      } catch (err) {
-        logger.error(err, "Failed to apply Kubernetes resources");
-        await this.deploymentRepo.setStatus(deployment.id, "ERROR");
-
-        log(
-          this.deploymentRepo,
-          deployment.id,
-          "BUILD",
-          `Failed to apply Kubernetes resources: ${JSON.stringify(err)}`,
-          "stderr",
-        );
-      }
-
-      try {
-        await this.builderService.dequeueBuildJob();
-      } catch (e) {
-        logger.error(e, "Failed to dequeue next build job");
-      }
+      await this.deploymentService.finishDeployment(
+        org,
+        app,
+        appGroup,
+        deployment,
+        config,
+      );
     }
   }
 }

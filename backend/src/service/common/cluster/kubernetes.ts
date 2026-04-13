@@ -15,6 +15,7 @@ import {
 } from "@kubernetes/client-node";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { setTimeout } from "node:timers/promises";
+import type { App } from "../../../db/models.ts";
 import type { UserRepo } from "../../../db/repo/user.ts";
 import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
@@ -207,8 +208,7 @@ export class KubernetesClientService {
   }
 
   async createOrUpdateApp(
-    api: KubernetesObjectApi,
-    name: string,
+    app: App,
     namespace: V1Namespace & K8sObject,
     configs: K8sObject[],
     postCreate?: (api: KubernetesObjectApi) => Promise<unknown>,
@@ -217,6 +217,12 @@ export class KubernetesClientService {
       .getTracer("kubernetes-api")
       .startActiveSpan("createOrUpdateApp", async (span) => {
         try {
+          const api = this.getClientForClusterUsername(
+            app.clusterUsername,
+            "KubernetesObjectApi",
+            shouldImpersonate(app.projectId),
+          );
+
           if (await this.resourceExists(api, namespace)) {
             await api.patch(namespace);
           } else {
@@ -294,7 +300,7 @@ export class KubernetesClientService {
   readNamespace = svcK8s["CoreV1Api"].readNamespace.bind(svcK8s["CoreV1Api"]);
 
   async dryRunCreate(object: KubernetesObject) {
-    return svcK8s["KubernetesObjectApi"].create(
+    return await svcK8s["KubernetesObjectApi"].create(
       object,
       undefined,
       /* dryRun = */ "All",

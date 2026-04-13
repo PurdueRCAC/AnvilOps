@@ -48,7 +48,7 @@ export default defineConfig({
         rules: [
           {
             from: "server",
-            allow: ["services/index", "handlers", "env"],
+            allow: ["services/index", "services/errors", "handlers", "env"],
           },
           {
             from: "db",
@@ -62,6 +62,11 @@ export default defineConfig({
           {
             from: "handlers",
             allow: ["services/errors", "services/index", "express-utils"],
+          },
+          {
+            from: "express-utils",
+            allow: ["server", "handlers"],
+            importKind: "type",
           },
           {
             from: "services",
@@ -91,7 +96,7 @@ export default defineConfig({
           },
           {
             from: "index",
-            allow: ["env", "db", "server"],
+            allow: ["env", "db", "server", "services/index"],
           },
         ],
       },
@@ -127,6 +132,11 @@ export default defineConfig({
       {
         type: "prisma-configs",
         pattern: ["prisma/types.d.ts", "prisma.config.ts"],
+        mode: "full",
+      },
+      {
+        type: "otel-instrumentation",
+        pattern: "src/instrumentation.ts",
         mode: "full",
       },
       // Separate package; should be accessed as "regclient-napi" instead of a direct file path

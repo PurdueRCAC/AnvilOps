@@ -13,14 +13,12 @@ import type {
 import type { AppRepo } from "../../db/repo/app.ts";
 import type { AppGroupRepo } from "../../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../../db/repo/deployment.ts";
-import { DeploymentStatus } from "../../generated/prisma/enums.ts";
 import { env } from "../../lib/env.ts";
 import { logger } from "../../logger.ts";
 import { DeploymentError } from "../errors/index.ts";
 import { log } from "../githubWebhook.ts";
 import type { BuilderService } from "./builder.ts";
 import type { KubernetesClientService } from "./cluster/kubernetes.ts";
-import { RancherService, shouldImpersonate } from "./cluster/rancher.ts";
 import type { ClusterResourcesService } from "./cluster/resources.ts";
 import type {
   CommitStatus,
@@ -42,7 +40,6 @@ export class DeploymentService {
   private deploymentRepo: DeploymentRepo;
   private helmService: HelmService;
   private gitProviderFactoryService: GitProviderFactoryService;
-  private rancherService: RancherService;
   private builderService: BuilderService;
   private clusterResourcesService: ClusterResourcesService;
   private kubernetesClientService: KubernetesClientService;
@@ -53,7 +50,6 @@ export class DeploymentService {
     deploymentRepo: DeploymentRepo,
     helmService: HelmService,
     gitProviderFactoryService: GitProviderFactoryService,
-    rancherService: RancherService,
     builderService: BuilderService,
     clusterResourcesService: ClusterResourcesService,
     kubernetesClientService: KubernetesClientService,
@@ -63,7 +59,6 @@ export class DeploymentService {
     this.deploymentRepo = deploymentRepo;
     this.helmService = helmService;
     this.gitProviderFactoryService = gitProviderFactoryService;
-    this.rancherService = rancherService;
     this.builderService = builderService;
     this.clusterResourcesService = clusterResourcesService;
     this.kubernetesClientService = kubernetesClientService;
@@ -358,10 +353,7 @@ export class DeploymentService {
     config: WorkloadConfig;
   }) {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
-    await this.deploymentRepo.setStatus(
-      deployment.id,
-      DeploymentStatus.DEPLOYING,
-    );
+    await this.deploymentRepo.setStatus(deployment.id, "DEPLOYING");
     log(
       this.deploymentRepo,
       deployment.id,
@@ -369,6 +361,19 @@ export class DeploymentService {
       "Deploying directly from OCI image...",
     );
     // If we're creating a deployment directly from an existing image tag, just deploy it now
+    await this.finishDeployment(org, app, appGroup, deployment, config);
+  }
+
+  /**
+   * Generates Kuernetes configs from the AnvilOps deployment object, applies them to the cluster, and updates the deployment's status to Complete.
+   */
+  async finishDeployment(
+    org: Organization,
+    app: App,
+    appGroup: AppGroup,
+    deployment: Deployment,
+    config: WorkloadConfig,
+  ) {
     try {
       const { namespace, configs, postCreate } =
         await this.clusterResourcesService.createAppConfigsFromDeployment({
@@ -378,29 +383,19 @@ export class DeploymentService {
           deployment,
           config,
         });
-      const api = this.kubernetesClientService.getClientForClusterUsername(
-        app.clusterUsername,
-        "KubernetesObjectApi",
-        shouldImpersonate(app.projectId),
-      );
       await this.kubernetesClientService.createOrUpdateApp(
-        api,
-        app.name,
+        app,
         namespace,
         configs,
         postCreate,
       );
       log(this.deploymentRepo, deployment.id, "BUILD", "Deployment succeeded");
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.COMPLETE,
-      );
-      await this.appRepo.setConfig(app.id, deployment.configId);
+      await Promise.all([
+        this.deploymentRepo.setStatus(deployment.id, "COMPLETE"),
+        this.appRepo.setConfig(app.id, deployment.configId),
+      ]);
     } catch (e) {
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.ERROR,
-      );
+      await this.deploymentRepo.setStatus(deployment.id, "ERROR");
       log(
         this.deploymentRepo,
         deployment.id,
@@ -433,10 +428,7 @@ export class DeploymentService {
       await this.helmService.upgrade(app, deployment, config);
       await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.ERROR,
-      );
+      await this.deploymentRepo.setStatus(deployment.id, "ERROR");
       log(
         this.deploymentRepo,
         deployment.id,
@@ -483,12 +475,11 @@ export class DeploymentService {
   ) {
     await this.kubernetesClientService.cancelBuildJobsForApp(app.id);
 
-    const statuses = Object.keys(DeploymentStatus) as DeploymentStatus[];
-    const deployments = await this.appRepo.getDeploymentsWithStatus(
+    const deployments = await this.appRepo.getDeploymentsWhereStatusNotIn(
       app.id,
       cancelComplete
-        ? statuses.filter((it) => it != "ERROR")
-        : statuses.filter((it) => it != "ERROR" && it != "COMPLETE"),
+        ? ["CANCELLED", "ERROR"]
+        : ["CANCELLED", "ERROR", "COMPLETE"],
     );
 
     let gitProvider: GitProvider;

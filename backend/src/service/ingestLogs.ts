@@ -1,7 +1,6 @@
 import { metrics, ValueType } from "@opentelemetry/api";
+import type { LogType } from "../db/models.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
-import type { LogType } from "../generated/prisma/enums.ts";
-import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
 import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 
 type LogLineInput = {
@@ -55,7 +54,7 @@ export class IngestLogsService {
           index: i,
           podName: podName,
           stream: line.stream,
-        } satisfies LogUncheckedCreateInput;
+        };
       })
       .filter((it) => it !== null);
 

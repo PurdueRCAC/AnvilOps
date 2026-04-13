@@ -1,44 +1,29 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express from "express";
-import * as client from "openid-client";
-import { db } from "../db/index.ts";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
-import { env, parseCsv } from "../lib/env.ts";
+import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
-import { rancherService } from "../service/index.ts";
+import {
+  InvalidIDPError,
+  RancherIDNotFoundError,
+} from "../service/errors/index.ts";
+import { authService } from "../service/index.ts";
 
 export const SESSION_COOKIE_NAME = "anvilops_session";
-const clientID = env.CLIENT_ID;
-const clientSecret = env.CLIENT_SECRET;
-const server = new URL("https://cilogon.org/.well-known/openid-configuration");
-const redirect_uri = env.BASE_URL + "/api/oauth_callback";
-
-let config: client.Configuration;
-const getConfig = async () => {
-  if (!config) config = await client.discovery(server, clientID, clientSecret);
-  return config;
-};
-const code_challenge_method = "S256";
-const scope = "openid email profile org.cilogon.userinfo";
-const allowedIdps = parseCsv(env.ALLOWED_IDPS);
-
-const getIdentity = (claims: client.IDToken) => {
-  if (process.env._PURDUE_GEDDES) {
-    // On Purdue's Geddes cluster, Rancher is not configured to use a claim available from CILogon as a principalId.
-    // Rather, it uses the Purdue-specific UID:
-    const email = claims.email as string;
-    return email.replace("@purdue.edu", "");
-  }
-
-  return claims[env.LOGIN_CLAIM] as string;
-};
 
 const router = express.Router();
 
 router.get("/login", async (req, res) => {
-  const code_verifier = client.randomPKCECodeVerifier();
-  const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
+  const {
+    code_verifier,
+    redirect_uri,
+    scope,
+    code_challenge,
+    code_challenge_method,
+    nonce,
+    redirect_to,
+  } = await authService.handleLogin();
   req.session.code_verifier = code_verifier;
 
   const params: Record<string, string> = {
@@ -50,79 +35,35 @@ router.get("/login", async (req, res) => {
     idp_hint: env.ALLOWED_IDPS,
   };
 
-  const config = await getConfig();
-  if (!config.serverMetadata().supportsPKCE()) {
-    const nonce = client.randomNonce();
+  if (nonce) {
     req.session.nonce = nonce;
     params.nonce = nonce;
   }
 
-  const redirectTo = client.buildAuthorizationUrl(config, params);
-  return res.redirect(redirectTo.toString());
+  return res.redirect(redirect_to);
 });
 
 router.get("/oauth_callback", async (req, res) => {
   try {
     const currentUrl = req.protocol + "://" + req.get("host") + req.originalUrl;
-    const tokens = await client.authorizationCodeGrant(
-      await getConfig(),
-      new URL(currentUrl),
-      {
-        pkceCodeVerifier: req.session.code_verifier,
-        expectedNonce: req.session.nonce,
-        idTokenExpected: true,
-      },
+    const user = await authService.handleOAuthCallback(
+      currentUrl,
+      req.session.code_verifier,
+      req.session.nonce,
     );
 
-    const claims = tokens.claims();
-
-    if (
-      allowedIdps &&
-      !allowedIdps.includes((claims.idp as string).toString())
-    ) {
-      return res.redirect("/error?type=login&code=IDP_ERROR");
-    }
-    const existingUser = await db.user.getByCILogonUserId(claims.sub);
-
-    if (existingUser) {
-      req.session.user = {
-        id: existingUser.id,
-        name: existingUser.name,
-        email: existingUser.email,
-      };
-      logger.info({ userId: existingUser.id }, "User logged in");
-    } else {
-      let clusterUsername: string;
-      if (rancherService.isRancherManaged()) {
-        const identity = getIdentity(claims);
-        try {
-          clusterUsername = await rancherService.getRancherUserID(identity);
-          if (!clusterUsername) {
-            throw new Error();
-          }
-        } catch (e) {
-          logger.error(e, "Failed to fetch user's Rancher user ID");
-          return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
-        }
-      }
-
-      const newUser = await db.user.createUserWithPersonalOrg(
-        claims.email as string,
-        claims.name as string,
-        claims.sub,
-        clusterUsername,
-      );
-
-      req.session.user = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-      };
-      logger.info(newUser, "User signed up");
-    }
-
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    };
     return res.redirect("/dashboard");
   } catch (err) {
+    if (err instanceof InvalidIDPError) {
+      return res.redirect("/error?type=login&code=IDP_ERROR");
+    } else if (err instanceof RancherIDNotFoundError) {
+      return res.redirect("/error?type=login&code=RANCHER_ID_MISSING");
+    }
     logger.error(err, "Error processing user login");
     const span = trace.getActiveSpan();
     if (span) {

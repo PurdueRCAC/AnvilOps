@@ -4,7 +4,6 @@ import crypto from "node:crypto";
 import { Octokit, RequestError } from "octokit";
 import type { OrganizationRepo } from "../../../db/repo/organization.ts";
 import type { RepoImportStateRepo } from "../../../db/repo/repoImportState.ts";
-import { get, getOrCreate, set } from "../../../lib/cache.ts";
 import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
 import {
@@ -12,6 +11,7 @@ import {
   RepositoryNotFoundError,
   ValidationError,
 } from "../../errors/index.ts";
+import type { KVCacheService } from "../cache.ts";
 import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import {
   ImportRepoAuthenticationRequiredError,
@@ -29,63 +29,22 @@ const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
 
 const installationIdSymbol = Symbol("installationId");
 
-const githubAuthCache = {
-  get: (key: string) =>
-    get(`github-auth-${key}`).catch((err) =>
-      logger.error(err, "Failed to get key from GitHub auth cache"),
-    ),
-  set: (key: string, value: string) =>
-    // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
-    set(`github-auth-${key}`, value, 45 * 60).catch((err) =>
-      logger.error(err, "Failed to update GitHub auth cache"),
-    ),
-};
-
 type InstallationScopedOctokit = Octokit & {
   [installationIdSymbol]: number;
 };
-
-async function getOctokit(installationId: number, orgRepo: OrganizationRepo) {
-  const octokit = new Octokit({
-    baseUrl: env.GITHUB_API_URL,
-    authStrategy: createAppAuth,
-    auth: {
-      privateKey,
-      appId: env.GITHUB_APP_ID,
-      cache: githubAuthCache,
-      installationId,
-    },
-  });
-
-  const scopedOctokit: InstallationScopedOctokit = {
-    ...octokit,
-    [installationIdSymbol]: installationId,
-  };
-
-  scopedOctokit[installationIdSymbol] = installationId;
-  try {
-    // Run the authorization step right now so that we can rethrow if the installation wasn't found
-    await scopedOctokit.auth({ type: "installation" });
-  } catch (e) {
-    if ((e as RequestError)?.status === 404) {
-      // Installation not found. Remove it from its organization(s).
-      await orgRepo.unlinkInstallationFromAllOrgs(installationId);
-      throw new InstallationNotFoundError(e as Error);
-    }
-    throw e;
-  }
-  return scopedOctokit;
-}
 
 export class GitHubGitProvider implements GitProvider {
   private octokit: Octokit;
   private installationId: number;
   private repoImportStateRepo: RepoImportStateRepo;
   private kubernetesService: KubernetesClientService;
+  private cacheService: KVCacheService;
 
   private constructor(
     octokit: Octokit,
     repoImportStateRepo: RepoImportStateRepo,
+    kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
     installationId: number,
   ) {
     if (!octokit || !installationId || installationId < 0) {
@@ -94,6 +53,60 @@ export class GitHubGitProvider implements GitProvider {
     this.octokit = octokit;
     this.installationId = installationId;
     this.repoImportStateRepo = repoImportStateRepo;
+    this.kubernetesService = kubernetesService;
+    this.cacheService = cacheService;
+  }
+
+  private static async getOctokit(
+    cacheService: KVCacheService,
+    installationId: number,
+    orgRepo: OrganizationRepo,
+  ) {
+    const githubAuthCache = {
+      get: (key: string) =>
+        cacheService
+          .get(`github-auth-${key}`)
+          .catch((err) =>
+            logger.error(err, "Failed to get key from GitHub auth cache"),
+          ),
+      set: (key: string, value: string) =>
+        // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+        cacheService
+          .set(`github-auth-${key}`, value, 45 * 60)
+          .catch((err) =>
+            logger.error(err, "Failed to update GitHub auth cache"),
+          ),
+    };
+
+    const octokit = new Octokit({
+      baseUrl: env.GITHUB_API_URL,
+      authStrategy: createAppAuth,
+      auth: {
+        privateKey,
+        appId: env.GITHUB_APP_ID,
+        cache: githubAuthCache,
+        installationId,
+      },
+    });
+
+    const scopedOctokit: InstallationScopedOctokit = {
+      ...octokit,
+      [installationIdSymbol]: installationId,
+    };
+
+    scopedOctokit[installationIdSymbol] = installationId;
+    try {
+      // Run the authorization step right now so that we can rethrow if the installation wasn't found
+      await scopedOctokit.auth({ type: "installation" });
+    } catch (e) {
+      if ((e as RequestError)?.status === 404) {
+        // Installation not found. Remove it from its organization(s).
+        await orgRepo.unlinkInstallationFromAllOrgs(installationId);
+        throw new InstallationNotFoundError(e as Error);
+      }
+      throw e;
+    }
+    return scopedOctokit;
   }
 
   static async getInstance(
@@ -101,17 +114,24 @@ export class GitHubGitProvider implements GitProvider {
     orgRepo: OrganizationRepo,
     repoImportStateRepo: RepoImportStateRepo,
     kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
   ) {
     const org = await orgRepo.getById(orgId);
     if (!org.githubInstallationId) {
       throw new InstallationNotFoundError(null);
     }
 
-    const octokit = await getOctokit(org.githubInstallationId, orgRepo);
+    const octokit = await GitHubGitProvider.getOctokit(
+      cacheService,
+      org.githubInstallationId,
+      orgRepo,
+    );
 
     return new GitHubGitProvider(
       octokit,
       repoImportStateRepo,
+      kubernetesService,
+      cacheService,
       org.githubInstallationId,
     );
   }
@@ -515,7 +535,7 @@ export class GitHubGitProvider implements GitProvider {
     type Repo = Awaited<ReturnType<typeof this.octokit.rest.repos.get>>["data"];
 
     return JSON.parse(
-      await getOrCreate(
+      await this.cacheService.getOrCreate(
         `github-repo-${this.installationId}-${repoId}`,
         30,
         async () => {

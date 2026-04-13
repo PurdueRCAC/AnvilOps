@@ -1,9 +1,6 @@
+import type { GitHubOAuthAction } from "../db/models.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
-import {
-  PermissionLevel,
-  type GitHubOAuthAction,
-} from "../generated/prisma/enums.ts";
 import { logger } from "../logger.ts";
 import { GitHubGitProvider } from "./common/git/githubGitProvider.ts";
 import {
@@ -56,7 +53,7 @@ export class GitHubOAuthCallbackService {
     // Verify that the user has access to the installation
     if (action === "VERIFY_INSTALLATION_ACCESS") {
       const org = await this.orgRepo.getById(orgId, {
-        requireUser: { id: userId, permissionLevel: PermissionLevel.OWNER },
+        requireUser: { id: userId, permissionLevel: "OWNER" },
       });
 
       if (!org) {

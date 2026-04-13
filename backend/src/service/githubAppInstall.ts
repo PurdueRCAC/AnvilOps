@@ -1,11 +1,7 @@
 import { randomBytes } from "node:crypto";
-import type { GitHubOAuthState } from "../db/models.ts";
+import type { GitHubOAuthAction, GitHubOAuthState } from "../db/models.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
-import {
-  PermissionLevel,
-  type GitHubOAuthAction,
-} from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
@@ -28,7 +24,7 @@ export class CreateGitHubAppInstallStateService {
 
   async createGitHubAppInstallURL(orgId: number, userId: number) {
     const org = await this.orgRepo.getById(orgId, {
-      requireUser: { id: userId, permissionLevel: PermissionLevel.OWNER },
+      requireUser: { id: userId, permissionLevel: "OWNER" },
     });
 
     if (

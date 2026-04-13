@@ -1,8 +1,10 @@
 import { db } from "../db/index.ts";
 import { AcceptInvitationService } from "./acceptInvitation.ts";
+import { AuthService } from "./auth.ts";
 import { ClaimOrgService } from "./claimOrg.ts";
 import { AppService } from "./common/app.ts";
 import { BuilderService } from "./common/builder.ts";
+import { KVCacheService } from "./common/cache.ts";
 import { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import { RancherService } from "./common/cluster/rancher.ts";
 import { ClusterResourcesService } from "./common/cluster/resources.ts";
@@ -52,6 +54,8 @@ import { SetAppCDService } from "./setAppCD.ts";
 import { UpdateAppService } from "./updateApp.ts";
 import { UpdateDeploymentService } from "./updateDeployment.ts";
 
+export const cacheService = new KVCacheService(db.cache);
+
 export const kubernetesClientService = new KubernetesClientService(db.user);
 
 export const registryService = new RegistryService();
@@ -60,13 +64,19 @@ export const gitProviderFactoryService = new GitProviderFactoryService(
   db.org,
   db.repoImportState,
   kubernetesClientService,
+  cacheService,
 );
 
 export const ingressConfigService = new IngressConfigService(
   kubernetesClientService,
 );
 
-export const rancherService = new RancherService(kubernetesClientService);
+export const rancherService = new RancherService(
+  kubernetesClientService,
+  cacheService,
+);
+
+export const authService = new AuthService(db.user, rancherService);
 
 export const serviceConfigService = new ServiceConfigService();
 
@@ -125,7 +135,6 @@ export const deploymentService = new DeploymentService(
   db.deployment,
   helmService,
   gitProviderFactoryService,
-  rancherService,
   builderService,
   clusterResourcesService,
   kubernetesClientService,
@@ -282,6 +291,7 @@ export const isSubdomainAvailableService = new IsSubdomainAvailableService(
 export const listChartsService = new ListChartsService(
   registryService,
   helmService,
+  cacheService,
 );
 
 export const listDeploymentsService = new ListDeploymentsService(
@@ -335,8 +345,5 @@ export const updateDeploymentService = new UpdateDeploymentService(
   db.appGroup,
   db.deployment,
   gitProviderFactoryService,
-  clusterResourcesService,
-  rancherService,
-  builderService,
-  kubernetesClientService,
+  deploymentService,
 );

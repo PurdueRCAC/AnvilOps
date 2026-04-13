@@ -1,12 +1,12 @@
 import { Webhooks } from "@octokit/webhooks";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { NotFoundError } from "../db/errors/index.ts";
+import type { LogStream, LogType } from "../db/models.ts";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
-import { type LogStream, type LogType } from "../generated/prisma/enums.ts";
 import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { DeploymentService } from "./common/deployment.ts";
