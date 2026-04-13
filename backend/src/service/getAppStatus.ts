@@ -30,8 +30,12 @@ export class GetAppStatusService {
   private appRepo: AppRepo;
   private kubernetesClientService: KubernetesClientService;
 
-  constructor(appRepo: AppRepo) {
+  constructor(
+    appRepo: AppRepo,
+    kubernetesClientService: KubernetesClientService,
+  ) {
     this.appRepo = appRepo;
+    this.kubernetesClientService = kubernetesClientService;
   }
 
   async getAppStatus(

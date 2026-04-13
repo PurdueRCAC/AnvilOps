@@ -78,7 +78,7 @@ export class AuthService {
       code_challenge_method: "S256",
       scope,
       redirect_uri: env.BASE_URL + "/api/oauth_callback",
-      nonce,
+      ...(nonce && { nonce }),
       ...(this.usingCILogon() && {
         selected_idp: env.ALLOWED_IDPS,
         idp_hint: env.ALLOWED_IDPS,

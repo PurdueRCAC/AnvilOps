@@ -211,7 +211,10 @@ export const getAppLogsService = new GetAppLogsService(
   kubernetesClientService,
 );
 
-export const getAppStatusService = new GetAppStatusService(db.app);
+export const getAppStatusService = new GetAppStatusService(
+  db.app,
+  kubernetesClientService,
+);
 
 export const getDeploymentService = new GetDeploymentService(
   db.org,
