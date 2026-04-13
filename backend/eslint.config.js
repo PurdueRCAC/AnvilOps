@@ -98,6 +98,10 @@ export default defineConfig({
             from: "index",
             allow: ["env", "db", "server", "services/index"],
           },
+          {
+            from: "test",
+            allow: "*",
+          },
         ],
       },
     ],
@@ -147,6 +151,8 @@ export default defineConfig({
       { type: "server", pattern: "server/**" },
       // Environment variables
       { type: "env", pattern: "src/lib/env.ts", mode: "full" },
+      // Vitest test files
+      { type: "test", pattern: "test/**" },
     ],
   },
 });
