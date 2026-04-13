@@ -2,7 +2,6 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express from "express";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
-import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import {
   InvalidIDPError,
@@ -15,29 +14,11 @@ export const SESSION_COOKIE_NAME = "anvilops_session";
 const router = express.Router();
 
 router.get("/login", async (req, res) => {
-  const {
-    code_verifier,
-    redirect_uri,
-    scope,
-    code_challenge,
-    code_challenge_method,
-    nonce,
-    redirect_to,
-  } = await authService.handleLogin();
+  const { code_verifier, nonce, redirect_to } = await authService.handleLogin();
   req.session.code_verifier = code_verifier;
-
-  const params: Record<string, string> = {
-    redirect_uri,
-    scope,
-    code_challenge,
-    code_challenge_method,
-    selected_idp: env.ALLOWED_IDPS,
-    idp_hint: env.ALLOWED_IDPS,
-  };
 
   if (nonce) {
     req.session.nonce = nonce;
-    params.nonce = nonce;
   }
 
   return res.redirect(redirect_to);
@@ -78,7 +59,7 @@ router.post("/logout", (req, res, next) => {
   req.session.destroy((err) => {
     if (err) return next(err);
     res.clearCookie(SESSION_COOKIE_NAME);
-    return res.redirect("https://cilogon.org/logout/?skin=access");
+    return res.redirect(authService.getLogoutURL());
   });
 });
 

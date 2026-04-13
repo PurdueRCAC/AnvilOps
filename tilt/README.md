@@ -36,6 +36,23 @@
 
 4. After waiting a few minutes, you should be able to access AnvilOps at http://localhost:3000 in your browser.
 
+## (Optional) Setting up TLS
+
+This is required to run Rancher locally.
+
+[mkcert](https://github.com/FiloSottile/mkcert) can be used to create locally-trusted certificates.
+Run the following commands:
+
+```
+mkcert '*.127.0.0.1.nip.io'
+kubectl create secret tls ingress-cert --cert <generatedcert-file>.pem --key <generated-cert-file>-key.pem
+kubectl create secret tls root-ca-cert --cert "$(mkcert -CAROOT)/rootCA.pem" --key "$(mkcert -CAROOT)/rootCA-key.pem"
+```
+
+In `local-values.yaml`, set `withRootCaCert: true`.
+
+`env.appDomain` can be set to `https://127.0.0.1.nip.io`.
+
 ## Troubleshooting
 
 ### Database authentication errors

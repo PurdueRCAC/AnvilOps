@@ -145,7 +145,7 @@ export class KubernetesClientService {
     }
   }
 
-  private static REQUIRED_LABELS = env["RANCHER_API_BASE"]
+  private static REQUIRED_LABELS = env["RANCHER_BASE_URL"]
     ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
     : [];
 

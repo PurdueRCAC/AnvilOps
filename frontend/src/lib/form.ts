@@ -29,7 +29,7 @@ const createDefaultWorkloadState = (
 ): WorkloadFormFields => ({
   port: "",
   replicas: "1",
-  env: [],
+  env: [{ name: "", value: "", isSensitive: false }],
   mounts: [],
   subdomain: "",
   createIngress: true,
@@ -238,7 +238,7 @@ const getWorkloadFormFieldsFromAppConfig = (
   return {
     port: config.port.toString(),
     replicas: config.replicas.toString(),
-    env: config.env,
+    env: [...config.env, { name: "", value: "", isSensitive: false }],
     mounts: config.mounts,
     subdomain: config.subdomain ?? "",
     createIngress: config.createIngress,

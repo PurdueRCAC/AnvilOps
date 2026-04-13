@@ -113,12 +113,13 @@ export const OverviewTab = ({
     }
   }, [workflows, app.config.source]);
 
+  const firstDeploymentStatus = deployments?.[0]?.status;
   useEffect(() => {
     // When the first deployment's status changes to Complete, refetch the app to update the "current" deployment
-    if (deployments?.[0]?.status === "COMPLETE") {
+    if (firstDeploymentStatus === "COMPLETE") {
       refetchApp();
     }
-  }, [deployments?.[0]?.status]);
+  }, [firstDeploymentStatus]);
 
   let deployTrigger = null;
   if (app.config.source === "git") {
