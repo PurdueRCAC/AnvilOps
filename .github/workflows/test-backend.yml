@@ -2,9 +2,9 @@ name: Test (backend)
 on:
   push:
     branches: [main]
-    paths: [backend]
+    paths: ["backend/**"]
   pull_request:
-    paths: [backend]
+    paths: ["backend/**"]
 
 jobs:
   lint:
