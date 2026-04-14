@@ -2,7 +2,9 @@ name: Test (backend)
 on:
   push:
     branches: [main]
+    paths: [backend]
   pull_request:
+    paths: [backend]
 
 jobs:
   lint:
@@ -16,12 +18,15 @@ jobs:
         with:
           node-version: 24
           cache: "npm"
-          cache-dependency-path: |
-            backend/package.json
+          cache-dependency-path: backend/package.json
 
       - name: Install NPM packages
         working-directory: backend
         run: npm ci
+
+      - name: Run code generators
+        working-directory: backend
+        run: DATABASE_URL=placeholder npx prisma generate
 
       - name: Test
         working-directory: backend
