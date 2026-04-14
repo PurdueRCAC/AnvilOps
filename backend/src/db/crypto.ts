@@ -1,16 +1,14 @@
 import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
-import { env } from "../lib/env.ts";
 
-const masterKey = Buffer.from(env.FIELD_ENCRYPTION_KEY, "base64");
 const separator = "|";
 
-const unwrapKey = (wrapped: string): Buffer => {
+const unwrapKey = (masterKey: string, wrapped: string): Buffer => {
   const iv = Buffer.alloc(8, 0xa6); // Recommended default initial value
   const decipher = createDecipheriv("aes256-wrap", masterKey, iv);
   return Buffer.concat([decipher.update(wrapped, "base64"), decipher.final()]);
 };
 
-const wrapKey = (key: Buffer): string => {
+const wrapKey = (masterKey: string, key: Buffer): string => {
   const iv = Buffer.alloc(8, 0xa6);
   const cipher = createCipheriv("aes256-wrap", masterKey, iv);
   return cipher.update(key, undefined, "base64") + cipher.final("base64");
@@ -41,20 +39,28 @@ const genKey = (): Buffer => {
   return crypto.randomBytes(32);
 };
 
-export const encryptEnv = (plaintext: PrismaJson.EnvVar[], key: string) => {
-  const unwrapped = unwrapKey(key);
+export const encryptEnv = (
+  masterKey: string,
+  plaintext: PrismaJson.EnvVar[],
+  key: string,
+) => {
+  const unwrapped = unwrapKey(masterKey, key);
   return plaintext.map((envVar) => ({
     ...envVar,
     value: encrypt(envVar.value, unwrapped),
   }));
 };
 
-export const decryptEnv = (ciphertext: PrismaJson.EnvVar[], key: string) => {
-  const unwrapped = unwrapKey(key);
+export const decryptEnv = (
+  masterKey: string,
+  ciphertext: PrismaJson.EnvVar[],
+  key: string,
+) => {
+  const unwrapped = unwrapKey(masterKey, key);
   return ciphertext.map((envVar) => ({
     ...envVar,
     value: decrypt(envVar.value, unwrapped),
   }));
 };
 
-export const generateKey = () => wrapKey(genKey());
+export const generateKey = (masterKey: string) => wrapKey(masterKey, genKey());

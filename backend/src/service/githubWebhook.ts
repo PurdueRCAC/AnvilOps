@@ -7,7 +7,6 @@ import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
-import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { DeploymentService } from "./common/deployment.ts";
 import type { DeploymentConfigService } from "./common/deploymentConfig.ts";
@@ -19,8 +18,6 @@ import {
   ValidationError,
 } from "./errors/index.ts";
 
-const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
-
 export class GitHubWebhookService {
   private orgRepo: OrganizationRepo;
   private appRepo: AppRepo;
@@ -29,6 +26,8 @@ export class GitHubWebhookService {
   private deploymentService: DeploymentService;
   private deploymentConfigService: DeploymentConfigService;
   private gitProviderFactoryService: GitProviderFactoryService;
+  private webhooks: Webhooks;
+  private githubAppId: string;
 
   constructor(
     orgRepo: OrganizationRepo,
@@ -38,6 +37,8 @@ export class GitHubWebhookService {
     deploymentService: DeploymentService,
     deploymentConfigService: DeploymentConfigService,
     gitProviderFactoryService: GitProviderFactoryService,
+    githubAppId: string,
+    githubWebhookSecret: string,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
@@ -46,10 +47,12 @@ export class GitHubWebhookService {
     this.deploymentService = deploymentService;
     this.deploymentConfigService = deploymentConfigService;
     this.gitProviderFactoryService = gitProviderFactoryService;
+    this.githubAppId = githubAppId;
+    this.webhooks = new Webhooks({ secret: githubWebhookSecret });
   }
 
   async verifyGitHubWebhookPayload(data: string, signature: string) {
-    return await webhooks.verify(data, signature);
+    return await this.webhooks.verify(data, signature);
   }
 
   async processGitHubWebhookPayload(
@@ -179,7 +182,7 @@ export class GitHubWebhookService {
       return;
     }
 
-    if (payload.installation.app_id.toString() !== env.GITHUB_APP_ID) {
+    if (payload.installation.app_id.toString() !== this.githubAppId) {
       // Sanity check
       throw new ValidationError("Invalid GitHub app ID");
     }

@@ -1,7 +1,7 @@
-import { describe, expect } from "vitest";
+import { expect, test } from "vitest";
 import { createDB } from "./util/db.ts";
 
-describe("database initializes properly", async () => {
+test("database initializes properly", async () => {
   const db = await createDB();
   expect(db).toBeDefined();
 });

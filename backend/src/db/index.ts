@@ -4,7 +4,6 @@ import connectPgSimple from "connect-pg-simple";
 import session from "express-session";
 import { Pool, type Notification } from "pg";
 import { PrismaClient } from "../generated/prisma/client.ts";
-import { env } from "../lib/env.ts";
 import { AppRepo } from "./repo/app.ts";
 import { AppGroupRepo } from "./repo/appGroup.ts";
 import { CacheRepo } from "./repo/cache.ts";
@@ -56,13 +55,17 @@ export class PrismaDatabase extends Database {
   user: UserRepo;
   sessionStore: session.Store;
 
-  constructor(client: PrismaClientType) {
+  constructor(client: PrismaClientType, masterKey: string) {
     super();
     this.client = client;
-    this.app = new AppRepo(this.client);
+    this.app = new AppRepo(this.client, this.deployment);
     this.appGroup = new AppGroupRepo(this.client);
     this.cache = new CacheRepo(this.client);
-    this.deployment = new DeploymentRepo(this.client, this.publish.bind(this));
+    this.deployment = new DeploymentRepo(
+      this.client,
+      this.publish.bind(this),
+      masterKey,
+    );
     this.invitation = new InvitationRepo(this.client);
     this.org = new OrganizationRepo(this.client);
     this.repoImportState = new RepoImportStateRepo(this.client);
@@ -82,11 +85,21 @@ export class PrismaDatabase extends Database {
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
-class PgDatabase extends PrismaDatabase {
+export class PgDatabase extends PrismaDatabase {
   private pool: Pool;
 
-  constructor(client: PrismaClientType, connectionString: string) {
-    super(client);
+  constructor(connectionString: string, masterKey: string) {
+    const prismaPostgresAdapter = new PrismaPg({ connectionString });
+
+    const client = new PrismaClient({
+      adapter: prismaPostgresAdapter,
+      omit: {
+        deployment: {
+          secret: true,
+        },
+      },
+    });
+    super(client, masterKey);
     this.pool = new Pool({
       connectionString,
       connectionTimeoutMillis: 5000,
@@ -142,22 +155,3 @@ class PgDatabase extends PrismaDatabase {
     await this.pool.query("SELECT pg_notify($1, $2);", [channel, payload]);
   }
 }
-
-const DATABASE_URL =
-  env.DATABASE_URL ??
-  `postgresql://${env.POSTGRES_USER}:${env.POSTGRES_PASSWORD}@${env.POSTGRES_HOSTNAME}/${env.POSTGRES_DB}`;
-
-const prismaPostgresAdapter = new PrismaPg({
-  connectionString: DATABASE_URL,
-});
-
-const client = new PrismaClient({
-  adapter: prismaPostgresAdapter,
-  omit: {
-    deployment: {
-      secret: true,
-    },
-  },
-});
-
-export const db: Database = new PgDatabase(client, DATABASE_URL);

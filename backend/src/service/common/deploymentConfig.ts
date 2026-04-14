@@ -11,7 +11,6 @@ import type {
 } from "../../db/models.ts";
 import type { AppRepo } from "../../db/repo/app.ts";
 import type { components } from "../../generated/openapi.ts";
-import { env } from "../../lib/env.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import {
   InstallationNotFoundError,
@@ -42,6 +41,9 @@ export class DeploymentConfigService {
   private registryService: RegistryService;
   private ingressConfigService: IngressConfigService;
   private statefulSetConfigService: StatefulSetConfigService;
+  private appDomain: string;
+  private registryHostname: string;
+  private harborProjectName: string;
 
   constructor(
     appRepo: AppRepo,
@@ -49,12 +51,18 @@ export class DeploymentConfigService {
     registryService: RegistryService,
     ingressConfigService: IngressConfigService,
     statefulSetConfigService: StatefulSetConfigService,
+    appDomain: string,
+    registryHostname: string,
+    harborProjectName: string,
   ) {
     this.appRepo = appRepo;
     this.gitProviderFactoryService = gitProviderFactoryService;
     this.registryService = registryService;
     this.ingressConfigService = ingressConfigService;
     this.statefulSetConfigService = statefulSetConfigService;
+    this.appDomain = appDomain;
+    this.registryHostname = registryHostname;
+    this.harborProjectName = harborProjectName;
   }
 
   async prepareDeploymentMetadata(
@@ -152,7 +160,7 @@ export class DeploymentConfigService {
     if (config.source === "GIT") {
       return {
         ...config,
-        imageTag: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:${config.commitHash}`,
+        imageTag: `${this.registryHostname}/${this.harborProjectName}/${app.imageRepo}:${config.commitHash}`,
       } satisfies WorkloadConfigCreate;
     }
 
@@ -289,7 +297,7 @@ export class DeploymentConfigService {
     config: WorkloadConfig,
     app: App,
   ): Promise<{ name: string; value: string }[]> {
-    const appDomain = URL.parse(env.APP_DOMAIN);
+    const appDomain = URL.parse(this.appDomain);
     const list = [
       {
         name: "PORT",

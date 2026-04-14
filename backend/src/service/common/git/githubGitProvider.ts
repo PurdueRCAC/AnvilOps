@@ -1,10 +1,8 @@
-import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
+import { createAppAuth } from "@octokit/auth-app";
 import type { operations } from "@octokit/openapi-types";
-import crypto from "node:crypto";
 import { Octokit, RequestError } from "octokit";
 import type { OrganizationRepo } from "../../../db/repo/organization.ts";
 import type { RepoImportStateRepo } from "../../../db/repo/repoImportState.ts";
-import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
 import {
   InstallationNotFoundError,
@@ -20,12 +18,9 @@ import {
   type GitProvider,
   type GitRepository,
 } from "./gitProvider.ts";
+import type { GitHubUserService } from "./githubUser.ts";
 
 class FastImportUnsupportedError extends Error {}
-
-const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
-  "utf-8",
-);
 
 const installationIdSymbol = Symbol("installationId");
 
@@ -39,6 +34,12 @@ export class GitHubGitProvider implements GitProvider {
   private repoImportStateRepo: RepoImportStateRepo;
   private kubernetesService: KubernetesClientService;
   private cacheService: KVCacheService;
+  private baseURL: string;
+  private githubApiURL: string;
+  private githubBaseURL: string;
+  private githubClientId: string;
+  private githubAppName: string;
+  private githubUserService: GitHubUserService;
 
   private constructor(
     octokit: Octokit,
@@ -46,6 +47,12 @@ export class GitHubGitProvider implements GitProvider {
     kubernetesService: KubernetesClientService,
     cacheService: KVCacheService,
     installationId: number,
+    baseURL: string,
+    githubApiURL: string,
+    githubBaseURL: string,
+    githubClientId: string,
+    githubAppName: string,
+    githubUserService: GitHubUserService,
   ) {
     if (!octokit || !installationId || installationId < 0) {
       throw new ValidationError();
@@ -55,12 +62,21 @@ export class GitHubGitProvider implements GitProvider {
     this.repoImportStateRepo = repoImportStateRepo;
     this.kubernetesService = kubernetesService;
     this.cacheService = cacheService;
+    this.baseURL = baseURL;
+    this.githubApiURL = githubApiURL;
+    this.githubBaseURL = githubBaseURL;
+    this.githubClientId = githubClientId;
+    this.githubAppName = githubAppName;
+    this.githubUserService = githubUserService;
   }
 
   private static async getOctokit(
     cacheService: KVCacheService,
     installationId: number,
     orgRepo: OrganizationRepo,
+    apiURL: string,
+    privateKey: string,
+    appId: string,
   ) {
     const githubAuthCache = {
       get: (key: string) =>
@@ -79,11 +95,11 @@ export class GitHubGitProvider implements GitProvider {
     };
 
     const octokit = new Octokit({
-      baseUrl: env.GITHUB_API_URL,
+      baseUrl: apiURL,
       authStrategy: createAppAuth,
       auth: {
         privateKey,
-        appId: env.GITHUB_APP_ID,
+        appId,
         cache: githubAuthCache,
         installationId,
       },
@@ -115,6 +131,14 @@ export class GitHubGitProvider implements GitProvider {
     repoImportStateRepo: RepoImportStateRepo,
     kubernetesService: KubernetesClientService,
     cacheService: KVCacheService,
+    githubUserService: GitHubUserService,
+    githubPrivateKey: string,
+    baseURL: string,
+    githubApiURL: string,
+    githubBaseURL: string,
+    githubAppId: string,
+    githubClientId: string,
+    githubAppName: string,
   ) {
     const org = await orgRepo.getById(orgId);
     if (!org.githubInstallationId) {
@@ -125,6 +149,9 @@ export class GitHubGitProvider implements GitProvider {
       cacheService,
       org.githubInstallationId,
       orgRepo,
+      githubApiURL,
+      githubPrivateKey,
+      githubAppId,
     );
 
     return new GitHubGitProvider(
@@ -133,6 +160,12 @@ export class GitHubGitProvider implements GitProvider {
       kubernetesService,
       cacheService,
       org.githubInstallationId,
+      baseURL,
+      githubApiURL,
+      githubBaseURL,
+      githubClientId,
+      githubAppName,
+      githubUserService,
     );
   }
 
@@ -225,11 +258,11 @@ export class GitHubGitProvider implements GitProvider {
             sourceURL.toString(),
           );
 
-          const redirectURL = new URL(env.BASE_URL);
+          const redirectURL = new URL(this.baseURL);
           redirectURL.pathname = "/import-repo"; // this URL is on the frontend; see frontend/src/pages/ImportRepoView.tsx
 
           throw new ImportRepoAuthenticationRequiredError(
-            `${env.GITHUB_BASE_URL}/login/oauth/authorize?client_id=${env.GITHUB_CLIENT_ID}&state=${stateId}&redirect_uri=${encodeURIComponent(redirectURL.toString())}`,
+            `${this.githubBaseURL}/login/oauth/authorize?client_id=${this.githubClientId}&state=${stateId}&redirect_uri=${encodeURIComponent(redirectURL.toString())}`,
           );
         }
       } else {
@@ -261,12 +294,12 @@ export class GitHubGitProvider implements GitProvider {
       throw new ValidationError("State not found");
     }
 
-    const repo = await GitHubGitProvider.getUserOctokit(
-      code,
-    ).rest.repos.createForAuthenticatedUser({
-      name: state.destRepoName,
-      private: state.makePrivate,
-    });
+    const repo = await this.githubUserService
+      .getUserOctokit(code)
+      .rest.repos.createForAuthenticatedUser({
+        name: state.destRepoName,
+        private: state.makePrivate,
+      });
 
     await this.importRepoManually(new URL(state.srcRepoURL), repo.data.id);
     await this.repoImportStateRepo.delete(stateId);
@@ -280,7 +313,7 @@ export class GitHubGitProvider implements GitProvider {
 
   async getBotCommitterDetails(): Promise<{ name: string; email: string }> {
     const bot = await this.octokit.rest.users.getByUsername({
-      username: `${env.GITHUB_APP_NAME}[bot]`, // e.g. "anvilops[bot]"
+      username: `${this.githubAppName}[bot]`, // e.g. "anvilops[bot]"
     });
     return {
       name: bot.data.login,
@@ -454,7 +487,7 @@ export class GitHubGitProvider implements GitProvider {
 
   private async importRepoManually(sourceURL: URL, destRepoId: number) {
     let cloneURL: string;
-    if (sourceURL.host === new URL(env.GITHUB_API_URL).host) {
+    if (sourceURL.host === new URL(this.githubApiURL).host) {
       // The source is on the same GitHub instance, so use our credentials to clone the repo just in case it's private
       const { owner, repoName } = this.getRepoInfoFromURL(sourceURL);
       const repo = await this.getRepoByName(owner, repoName);
@@ -465,14 +498,14 @@ export class GitHubGitProvider implements GitProvider {
 
     const pushURL = await this.generateCloneURL(destRepoId);
 
-    await this.copyRepoManually(this, cloneURL, pushURL);
+    await this.kubernetesService.copyRepoManually(this, cloneURL, pushURL);
   }
 
   private getRepoInfoFromURL(sourceURL: URL): {
     owner: string;
     repoName: string;
   } {
-    if (sourceURL.host !== new URL(env.GITHUB_API_URL).host) {
+    if (sourceURL.host !== new URL(this.githubApiURL).host) {
       throw new ValidationError("GitHub server hostname mismatch");
     }
 
@@ -492,7 +525,7 @@ export class GitHubGitProvider implements GitProvider {
     newRepoName: string,
     makePrivate: boolean,
   ): Promise<number> {
-    const destServer = new URL(env.GITHUB_API_URL);
+    const destServer = new URL(this.githubApiURL);
     if (sourceURL.host !== destServer.host) {
       // Repositories are on different Git servers - we can't use GitHub's template feature
       throw new FastImportUnsupportedError();
@@ -558,152 +591,5 @@ export class GitHubGitProvider implements GitProvider {
         },
       ),
     ) as Repo;
-  }
-
-  static async getUserFromOAuthCode(code: string) {
-    const user =
-      await GitHubGitProvider.getUserOctokit(
-        code,
-      ).rest.users.getAuthenticated();
-
-    return { id: user.data.id, login: user.data.login };
-  }
-
-  static async userCanAccessInstallation(
-    code: string,
-    installationId: number,
-  ): Promise<boolean> {
-    const octokit = GitHubGitProvider.getUserOctokit(code);
-    const installations = (
-      await octokit.rest.apps.listInstallationsForAuthenticatedUser()
-    ).data.installations;
-    for (const install of installations) {
-      if (install.id === installationId) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static getUserOctokit(code: string) {
-    return new Octokit({
-      authStrategy: createOAuthUserAuth,
-      auth: {
-        clientId: env.GITHUB_CLIENT_ID,
-        clientSecret: env.GITHUB_CLIENT_SECRET,
-        code: code,
-      } satisfies Parameters<typeof createOAuthUserAuth>[0],
-      baseUrl: env.GITHUB_API_URL,
-    });
-  }
-
-  async copyRepoManually(
-    gitProvider: GitProvider,
-    cloneURL: string,
-    pushURL: string,
-  ) {
-    const botUser = await gitProvider.getBotCommitterDetails();
-
-    const job = await this.kubernetesService.createNamespacedJob({
-      namespace: env.CURRENT_NAMESPACE,
-      body: {
-        metadata: {
-          name: `import-repo-${crypto.randomBytes(16).toString("hex")}`,
-        },
-        spec: {
-          ttlSecondsAfterFinished: 30, // Delete job 30 seconds after it completes
-          backoffLimit: 1, // Retry up to 1 time if the job exits with a non-zero status code
-          activeDeadlineSeconds: 2 * 60, // Kill after 2 minutes
-          template: {
-            spec: {
-              containers: [
-                {
-                  name: "importer",
-                  image: "alpine/git:v2.49.0",
-                  env: [
-                    { name: "CLONE_URL", value: cloneURL },
-                    { name: "PUSH_URL", value: pushURL },
-                    { name: "USER_EMAIL", value: botUser.email },
-                    { name: "USER_NAME", value: botUser.name },
-                  ],
-                  imagePullPolicy: "Always",
-                  command: ["/bin/sh", "-c"],
-                  workingDir: "/work",
-                  args: [
-                    `
-git clone --depth=1 --shallow-submodules "$CLONE_URL" .
-rm -rf .git
-
-git init
-git branch -M main
-
-git config user.email "$USER_EMAIL"
-git config user.name "$USER_NAME"
-
-git add .
-git commit -m "Initial commit"
-
-git remote add origin "$PUSH_URL"
-git push -u origin main`,
-                  ],
-                  volumeMounts: [
-                    {
-                      mountPath: "/work",
-                      name: "work-dir",
-                    },
-                  ],
-                  resources: {
-                    requests: {
-                      cpu: "500m",
-                      memory: "512Mi",
-                    },
-                    limits: {
-                      cpu: "500m",
-                      memory: "512Mi",
-                    },
-                  },
-                  securityContext: {
-                    // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
-                    capabilities: {
-                      drop: ["ALL"],
-                    },
-                    allowPrivilegeEscalation: false,
-                  },
-                },
-              ],
-              volumes: [
-                {
-                  name: "work-dir",
-                  emptyDir: {
-                    sizeLimit: "1Gi",
-                  },
-                },
-              ],
-              restartPolicy: "Never",
-            },
-          },
-        },
-      },
-    });
-
-    logger.info(
-      { jobNamespace: job.metadata.namespace, jobName: job.metadata.name },
-      "Created manual Git repo import job",
-    );
-    try {
-      await this.kubernetesService.awaitJobCompletion(
-        env.CURRENT_NAMESPACE,
-        job.metadata.name,
-      );
-    } catch (e) {
-      logger.warn(
-        {
-          jobNamespace: job.metadata.namespace,
-          jobName: job.metadata.name,
-        },
-        "Git repo import job failed",
-      );
-      throw e;
-    }
   }
 }

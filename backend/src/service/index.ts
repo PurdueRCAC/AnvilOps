@@ -1,4 +1,5 @@
-import { db } from "../db/index.ts";
+import { PgDatabase, type Database } from "../db/index.ts";
+import { env, parseCsv } from "../lib/env.ts";
 import { AcceptInvitationService } from "./acceptInvitation.ts";
 import { AuthService } from "./auth.ts";
 import { ClaimOrgService } from "./claimOrg.ts";
@@ -7,6 +8,7 @@ import { BuilderService } from "./common/builder.ts";
 import { KVCacheService } from "./common/cache.ts";
 import { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import { RancherService } from "./common/cluster/rancher.ts";
+import { RancherAccessService } from "./common/cluster/rancherAccess.ts";
 import { ClusterResourcesService } from "./common/cluster/resources.ts";
 import { IngressConfigService } from "./common/cluster/resources/ingress.ts";
 import { LogCollectionService } from "./common/cluster/resources/logs.ts";
@@ -14,6 +16,7 @@ import { ServiceConfigService } from "./common/cluster/resources/service.ts";
 import { StatefulSetConfigService } from "./common/cluster/resources/statefulset.ts";
 import { DeploymentService } from "./common/deployment.ts";
 import { DeploymentConfigService } from "./common/deploymentConfig.ts";
+import { GitHubUserService } from "./common/git/githubUser.ts";
 import { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import { HelmService } from "./common/helm.ts";
 import { RegistryService } from "./common/registry.ts";
@@ -54,36 +57,97 @@ import { SetAppCDService } from "./setAppCD.ts";
 import { UpdateAppService } from "./updateApp.ts";
 import { UpdateDeploymentService } from "./updateDeployment.ts";
 
+export const db: Database = new PgDatabase(
+  env.DATABASE_URL ??
+    `postgresql://${env.POSTGRES_USER}:${env.POSTGRES_PASSWORD}@${env.POSTGRES_HOSTNAME}/${env.POSTGRES_DB}`,
+  env.FIELD_ENCRYPTION_KEY,
+);
+
 export const cacheService = new KVCacheService(db.cache);
 
-export const kubernetesClientService = new KubernetesClientService(db.user);
+export const rancherService = new RancherService(
+  env.RANCHER_TOKEN,
+  env.RANCHER_BASE_URL,
+  env.LOGIN_TYPE,
+  env.SANDBOX_ID,
+);
 
-export const registryService = new RegistryService();
+export const kubernetesClientService = new KubernetesClientService(
+  db.user,
+  rancherService,
+  env.CURRENT_NAMESPACE,
+);
+
+export const rancherAccessService = new RancherAccessService(
+  kubernetesClientService,
+  rancherService,
+  cacheService,
+  env.SANDBOX_ID,
+);
+
+export const registryService = new RegistryService(
+  env.REGISTRY_HOSTNAME,
+  env.REGISTRY_PROTOCOL,
+  env.IMAGE_PULL_USERNAME,
+  env.IMAGE_PULL_PASSWORD,
+  env.DELETE_REPO_USERNAME,
+  env.DELETE_REPO_PASSWORD,
+  env.HARBOR_PROJECT_NAME,
+  !!env.IN_TILT,
+);
+
+export const githubUserService = new GitHubUserService(
+  env.GITHUB_API_URL,
+  env.GITHUB_CLIENT_ID,
+  env.GITHUB_CLIENT_SECRET,
+);
 
 export const gitProviderFactoryService = new GitProviderFactoryService(
   db.org,
   db.repoImportState,
   kubernetesClientService,
   cacheService,
+  githubUserService,
+  Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString("utf-8"),
+  env.BASE_URL,
+  env.GITHUB_API_URL,
+  env.GITHUB_BASE_URL,
+  env.GITHUB_APP_ID,
+  env.GITHUB_CLIENT_ID,
+  env.GITHUB_APP_NAME,
 );
 
 export const ingressConfigService = new IngressConfigService(
   kubernetesClientService,
+  env.APP_DOMAIN,
+  env.INGRESS_CLASS_NAME,
+  env.CURRENT_NAMESPACE,
 );
 
-export const rancherService = new RancherService(
-  kubernetesClientService,
-  cacheService,
+export const authService = new AuthService(
+  db.user,
+  rancherService,
+  env.USE_RANCHER_OIDC === "true",
+  env.BASE_URL,
+  env.RANCHER_BASE_URL,
+  parseCsv(env.ALLOWED_IDPS) ?? [],
+  env.CLIENT_ID,
+  env.CLIENT_SECRET,
+  env.LOGIN_CLAIM,
 );
-
-export const authService = new AuthService(db.user, rancherService);
 
 export const serviceConfigService = new ServiceConfigService();
 
-export const logCollectionService = new LogCollectionService(registryService);
+export const logCollectionService = new LogCollectionService(
+  registryService,
+  env.LOG_SHIPPER_IMAGE,
+  env.CLUSTER_INTERNAL_BASE_URL,
+);
 
 export const statefulSetConfigService = new StatefulSetConfigService(
   logCollectionService,
+  env.STORAGE_CLASS_NAME,
+  env.STORAGE_ACCESS_MODES.split(","),
 );
 
 export const deploymentConfigService = new DeploymentConfigService(
@@ -92,6 +156,9 @@ export const deploymentConfigService = new DeploymentConfigService(
   registryService,
   ingressConfigService,
   statefulSetConfigService,
+  env.APP_DOMAIN,
+  env.REGISTRY_HOSTNAME,
+  env.HARBOR_PROJECT_NAME,
 );
 
 export const clusterResourcesService = new ClusterResourcesService(
@@ -100,6 +167,13 @@ export const clusterResourcesService = new ClusterResourcesService(
   ingressConfigService,
   statefulSetConfigService,
   deploymentConfigService,
+  !!env.CREATE_INGRESS_NETPOL,
+  JSON.parse(env.ALLOW_INGRESS_FROM) as {
+    [key: string]: string;
+  }[],
+  env.REGISTRY_HOSTNAME,
+  env.IMAGE_PULL_USERNAME,
+  env.IMAGE_PULL_PASSWORD,
 );
 
 export const isNamespaceAvailableService = new IsNamespaceAvailableService(
@@ -111,6 +185,8 @@ export const appService = new AppService(
   isNamespaceAvailableService,
   gitProviderFactoryService,
   rancherService,
+  rancherAccessService,
+  !!env.ALLOW_HELM_DEPLOYMENTS,
 );
 
 export const builderService = new BuilderService(
@@ -121,12 +197,27 @@ export const builderService = new BuilderService(
   logCollectionService,
   deploymentConfigService,
   kubernetesClientService,
+  env.CURRENT_NAMESPACE,
+  env.DOCKERFILE_BUILDER_IMAGE,
+  env.RAILPACK_BUILDER_IMAGE,
+  env.REGISTRY_HOSTNAME,
+  env.HARBOR_PROJECT_NAME,
+  env.CLUSTER_INTERNAL_BASE_URL,
+  env.BUILDKITD_ADDRESS,
+  env.RAILPACK_INTERNAL_FRONTEND_IMAGE,
+  env.RAILPACK_INTERNAL_BUILDER_IMAGE,
+  env.RAILPACK_INTERNAL_RUNTIME_IMAGE,
 );
 
 export const helmService = new HelmService(
-  rancherService,
   logCollectionService,
   kubernetesClientService,
+  rancherService,
+  `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}`,
+  env.CHART_PROJECT_NAME,
+  env.CURRENT_NAMESPACE,
+  env.HELM_DEPLOYER_IMAGE,
+  env.CLUSTER_INTERNAL_BASE_URL,
 );
 
 export const deploymentService = new DeploymentService(
@@ -138,6 +229,7 @@ export const deploymentService = new DeploymentService(
   builderService,
   clusterResourcesService,
   kubernetesClientService,
+  env.BASE_URL,
 );
 
 export const acceptInvitationService = new AcceptInvitationService(
@@ -193,6 +285,7 @@ export const fileBrowserService = new FileBrowserService(
   db.app,
   statefulSetConfigService,
   kubernetesClientService,
+  env.FILE_BROWSER_IMAGE,
 );
 
 export const getAppByIDService = new GetAppByIDService(
@@ -236,17 +329,34 @@ export const getOrgByIDService = new GetOrgByIDService(
   db.appGroup,
   db.invitation,
   gitProviderFactoryService,
+  env.APP_DOMAIN,
 );
 
-export const getSettingsService = new GetSettingsService(rancherService);
+export const getSettingsService = new GetSettingsService(
+  rancherService,
+  env["NODE_ENV"] === "development"
+    ? "./cluster.local.json"
+    : env.CLUSTER_CONFIG_PATH,
+  env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
+  env.STORAGE_CLASS_NAME,
+  env.ALLOW_HELM_DEPLOYMENTS === "true",
+  env.ANVILOPS_VERSION,
+  env.BUILD_DATE,
+  !!env.IN_TILT,
+);
 
-export const getTemplatesService = new GetTemplatesService();
+export const getTemplatesService = new GetTemplatesService(
+  env.NODE_ENV === "development"
+    ? "../templates/templates.json"
+    : "./templates.json",
+);
 
 export const getUserService = new GetUserService(
   db.user,
   db.invitation,
   gitProviderFactoryService,
   rancherService,
+  rancherAccessService,
 );
 
 export const createGitHubAppInstallStateService =
@@ -254,17 +364,22 @@ export const createGitHubAppInstallStateService =
     db.org,
     db.user,
     gitProviderFactoryService,
+    env.GITHUB_BASE_URL,
+    env.GITHUB_APP_NAME,
   );
 
 export const githubInstallCallbackService = new GitHubInstallCallbackService(
   db.org,
   createGitHubAppInstallStateService,
+  env.GITHUB_BASE_URL,
+  env.GITHUB_CLIENT_ID,
 );
 
 export const gitHubOAuthCallbackService = new GitHubOAuthCallbackService(
   db.org,
   db.user,
   createGitHubAppInstallStateService,
+  githubUserService,
 );
 
 export const githubWebhookService = new GitHubWebhookService(
@@ -275,6 +390,8 @@ export const githubWebhookService = new GitHubWebhookService(
   deploymentService,
   deploymentConfigService,
   gitProviderFactoryService,
+  env.GITHUB_APP_ID,
+  env.GITHUB_WEBHOOK_SECRET,
 );
 
 export const importGitRepoService = new ImportGitRepoService(
@@ -295,6 +412,9 @@ export const listChartsService = new ListChartsService(
   registryService,
   helmService,
   cacheService,
+  !!env.ALLOW_HELM_DEPLOYMENTS,
+  env.REGISTRY_HOSTNAME,
+  env.CHART_PROJECT_NAME,
 );
 
 export const listDeploymentsService = new ListDeploymentsService(

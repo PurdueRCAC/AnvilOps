@@ -9,6 +9,7 @@ import type {
 import type { KVCacheService } from "../cache.ts";
 import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";
+import { GitHubUserService } from "./githubUser.ts";
 
 /**
  * Contains all the methods needed to interact with a Git provider like GitHub or GitLab.
@@ -138,17 +139,41 @@ export class GitProviderFactoryService {
   private repoImportStateRepo: RepoImportStateRepo;
   private kubernetesService: KubernetesClientService;
   private cacheService: KVCacheService;
+  private githubUserService: GitHubUserService;
+  private githubPrivateKey: string;
+  private baseURL: string;
+  private githubApiURL: string;
+  private githubBaseURL: string;
+  private githubAppId: string;
+  private githubClientId: string;
+  private githubAppName: string;
 
   constructor(
     orgRepo: OrganizationRepo,
     repoImportStateRepo: RepoImportStateRepo,
     kubernetesService: KubernetesClientService,
     cacheService: KVCacheService,
+    githubUserService: GitHubUserService,
+    githubPrivateKey: string,
+    baseURL: string,
+    githubApiURL: string,
+    githubBaseURL: string,
+    githubAppId: string,
+    githubClientId: string,
+    githubAppName: string,
   ) {
     this.orgRepo = orgRepo;
     this.repoImportStateRepo = repoImportStateRepo;
     this.kubernetesService = kubernetesService;
     this.cacheService = cacheService;
+    this.githubUserService = githubUserService;
+    this.githubPrivateKey = githubPrivateKey;
+    this.baseURL = baseURL;
+    this.githubApiURL = githubApiURL;
+    this.githubBaseURL = githubBaseURL;
+    this.githubAppId = githubAppId;
+    this.githubClientId = githubClientId;
+    this.githubAppName = githubAppName;
   }
 
   /**
@@ -163,6 +188,14 @@ export class GitProviderFactoryService {
       this.repoImportStateRepo,
       this.kubernetesService,
       this.cacheService,
+      this.githubUserService,
+      this.githubPrivateKey,
+      this.baseURL,
+      this.githubApiURL,
+      this.githubBaseURL,
+      this.githubAppId,
+      this.githubClientId,
+      this.githubAppName,
     );
   }
 

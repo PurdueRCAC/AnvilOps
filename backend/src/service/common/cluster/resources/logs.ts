@@ -1,12 +1,19 @@
 import type { V1PodTemplateSpec } from "@kubernetes/client-node";
-import { env } from "../../../../lib/env.ts";
 import type { RegistryService } from "../../registry.ts";
 
 export class LogCollectionService {
   private registryService: RegistryService;
+  private logShipperImage: string;
+  private internalBaseURL: string;
 
-  constructor(registryService: RegistryService) {
+  constructor(
+    registryService: RegistryService,
+    logShipperImage: string,
+    internalBaseURL: string,
+  ) {
     this.registryService = registryService;
+    this.logShipperImage = logShipperImage;
+    this.internalBaseURL = internalBaseURL;
   }
 
   async wrapWithLogExporter<T extends V1PodTemplateSpec>(
@@ -37,7 +44,7 @@ export class LogCollectionService {
     }
     clone.spec.initContainers.push({
       name: "copy-log-shipper-binary",
-      image: env.LOG_SHIPPER_IMAGE,
+      image: this.logShipperImage,
       imagePullPolicy: "Always",
       args: ["/mnt/log-shipper-volume"],
       volumeMounts: [
@@ -95,7 +102,7 @@ export class LogCollectionService {
       container.env.push(
         {
           name: "_PRIVATE_ANVILOPS_LOG_ENDPOINT",
-          value: `${env.CLUSTER_INTERNAL_BASE_URL}/api/logs/ingest`,
+          value: `${this.internalBaseURL}/api/logs/ingest`,
         },
         {
           name: "_PRIVATE_ANVILOPS_LOG_TOKEN",

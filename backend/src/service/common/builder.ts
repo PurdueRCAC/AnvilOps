@@ -13,7 +13,6 @@ import type {
 import type { AppRepo } from "../../db/repo/app.ts";
 import type { DeploymentRepo } from "../../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../../db/repo/organization.ts";
-import { env } from "../../lib/env.ts";
 import { logger } from "../../logger.ts";
 import { type KubernetesClientService } from "./cluster/kubernetes.ts";
 import type { LogCollectionService } from "./cluster/resources/logs.ts";
@@ -30,6 +29,16 @@ export class BuilderService {
   private logCollectionService: LogCollectionService;
   private deploymentConfigService: DeploymentConfigService;
   private kubernetesService: KubernetesClientService;
+  private namespace: string;
+  private dockerfileBuilderImage: string;
+  private railpackBuilderImage: string;
+  private registryHostname: string;
+  private harborProjectName: string;
+  private internalBaseURL: string;
+  private buildkitdAddress: string;
+  private railpackInternalFrontendImage: string;
+  private railpackInternalBuilderImage: string;
+  private railpackInternalRuntimeImage: string;
 
   constructor(
     orgRepo: OrganizationRepo,
@@ -39,6 +48,16 @@ export class BuilderService {
     logCollectionService: LogCollectionService,
     deploymentConfigService: DeploymentConfigService,
     kubernetesService: KubernetesClientService,
+    namespace: string,
+    dockerfileBuilderImage: string,
+    railpackBuilderImage: string,
+    registryHostname: string,
+    harborProjectName: string,
+    internalBaseURL: string,
+    buildkitdAddress: string,
+    railpackInternalFrontendImage: string,
+    railpackInternalBuilderImage: string,
+    railpackInternalRuntimeImage: string,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
@@ -47,6 +66,16 @@ export class BuilderService {
     this.logCollectionService = logCollectionService;
     this.deploymentConfigService = deploymentConfigService;
     this.kubernetesService = kubernetesService;
+    this.namespace = namespace;
+    this.dockerfileBuilderImage = dockerfileBuilderImage;
+    this.railpackBuilderImage = railpackBuilderImage;
+    this.registryHostname = registryHostname;
+    this.harborProjectName = harborProjectName;
+    this.internalBaseURL = internalBaseURL;
+    this.buildkitdAddress = buildkitdAddress;
+    this.railpackInternalFrontendImage = railpackInternalFrontendImage;
+    this.railpackInternalBuilderImage = railpackInternalBuilderImage;
+    this.railpackInternalRuntimeImage = railpackInternalRuntimeImage;
   }
 
   private async createJobFromDeployment(
@@ -86,7 +115,7 @@ export class BuilderService {
         map[name] = value;
       }
       await this.kubernetesService.createNamespacedSecret({
-        namespace: env.CURRENT_NAMESPACE,
+        namespace: this.namespace,
         body: {
           apiVersion: "v1",
           kind: "Secret",
@@ -114,24 +143,24 @@ export class BuilderService {
             name: "builder",
             image:
               config.builder === "dockerfile"
-                ? env.DOCKERFILE_BUILDER_IMAGE
-                : env.RAILPACK_BUILDER_IMAGE,
+                ? this.dockerfileBuilderImage
+                : this.railpackBuilderImage,
             env: [
               { name: "CLONE_URL", value: cloneURL },
               { name: "REF", value: config.commitHash },
               { name: "IMAGE_TAG", value: config.imageTag },
               {
                 name: "CACHE_TAG",
-                value: `${env.REGISTRY_HOSTNAME}/${env.HARBOR_PROJECT_NAME}/${app.imageRepo}:build-cache`,
+                value: `${this.registryHostname}/${this.harborProjectName}/${app.imageRepo}:build-cache`,
               },
               { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
               {
                 name: "DEPLOYMENT_API_URL",
-                value: `${env.CLUSTER_INTERNAL_BASE_URL}/api`,
+                value: `${this.internalBaseURL}/api`,
               },
               {
                 name: "BUILDKITD_ADDRESS",
-                value: env.BUILDKITD_ADDRESS,
+                value: this.buildkitdAddress,
               },
               { name: "DOCKER_CONFIG", value: "/creds" },
               { name: "ROOT_DIRECTORY", value: config.rootDir },
@@ -168,15 +197,15 @@ export class BuilderService {
                     },
                     {
                       name: "RAILPACK_INTERNAL_FRONTEND_IMAGE",
-                      value: env.RAILPACK_INTERNAL_FRONTEND_IMAGE,
+                      value: this.railpackInternalFrontendImage,
                     },
                     {
                       name: "RAILPACK_INTERNAL_BUILDER_IMAGE",
-                      value: env.RAILPACK_INTERNAL_BUILDER_IMAGE,
+                      value: this.railpackInternalBuilderImage,
                     },
                     {
                       name: "RAILPACK_INTERNAL_RUNTIME_IMAGE",
-                      value: env.RAILPACK_INTERNAL_RUNTIME_IMAGE,
+                      value: this.railpackInternalRuntimeImage,
                     },
                   ]
                 : []),
@@ -272,7 +301,7 @@ export class BuilderService {
     };
 
     const job = await this.kubernetesService.createNamespacedJob({
-      namespace: env.CURRENT_NAMESPACE,
+      namespace: this.namespace,
       body: {
         metadata: {
           name: jobName,
@@ -300,7 +329,7 @@ export class BuilderService {
         await this.kubernetesService.patchNamespacedSecret(
           {
             name: secretName,
-            namespace: env.CURRENT_NAMESPACE,
+            namespace: this.namespace,
             body: {
               metadata: {
                 ownerReferences: [
@@ -327,7 +356,7 @@ export class BuilderService {
           // Remove it manually now and throw an error.
           await this.kubernetesService.deleteNamespacedSecret({
             name: secretName,
-            namespace: env.CURRENT_NAMESPACE,
+            namespace: this.namespace,
           });
         } catch (err) {
           logger.error(

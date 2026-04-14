@@ -20,9 +20,11 @@ import { DeploymentRepo } from "./deployment.ts";
 
 export class AppRepo {
   private client: PrismaClientType;
+  private deploymentRepo: DeploymentRepo;
 
-  constructor(client: PrismaClientType) {
+  constructor(client: PrismaClientType, deploymentRepo: DeploymentRepo) {
     this.client = client;
+    this.deploymentRepo = deploymentRepo;
   }
 
   async getById(
@@ -251,7 +253,7 @@ export class AppRepo {
       },
     });
 
-    return DeploymentRepo.preprocessConfig(app.config);
+    return this.deploymentRepo.preprocessConfig(app.config);
   }
 
   async setConfig(appId: number, configId: number) {
@@ -290,7 +292,7 @@ export class AppRepo {
 
     return deployments.map((deployment) => ({
       ...deployment,
-      config: DeploymentRepo.preprocessConfig(deployment.config),
+      config: this.deploymentRepo.preprocessConfig(deployment.config),
     }));
   }
 

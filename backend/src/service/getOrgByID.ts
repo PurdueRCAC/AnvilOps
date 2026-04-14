@@ -3,7 +3,6 @@ import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { InvitationRepo } from "../db/repo/invitation.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { components } from "../generated/openapi.ts";
-import { env } from "../lib/env.ts";
 import type {
   GitProvider,
   GitProviderFactoryService,
@@ -20,6 +19,7 @@ export class GetOrgByIDService {
   private appGroupRepo: AppGroupRepo;
   private invitationRepo: InvitationRepo;
   private gitProviderFactoryService: GitProviderFactoryService;
+  private appDomain: string;
 
   constructor(
     orgRepo: OrganizationRepo,
@@ -27,12 +27,14 @@ export class GetOrgByIDService {
     appGroupRepo: AppGroupRepo,
     invitationRepo: InvitationRepo,
     gitProviderFactoryService: GitProviderFactoryService,
+    appDomain: string,
   ) {
     this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.invitationRepo = invitationRepo;
     this.gitProviderFactoryService = gitProviderFactoryService;
+    this.appDomain = appDomain;
   }
 
   async getOrgByID(orgId: number, userId: number) {
@@ -85,7 +87,7 @@ export class GetOrgByIDService {
           }
         }
 
-        const appDomain = URL.parse(env.APP_DOMAIN);
+        const appDomain = URL.parse(this.appDomain);
 
         return {
           id: app.id,
@@ -100,7 +102,7 @@ export class GetOrgByIDService {
             commitHash: config.commitHash,
             link:
               selectedDeployment?.status === "COMPLETE" &&
-              env.APP_DOMAIN &&
+              this.appDomain &&
               config.createIngress
                 ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
                 : undefined,

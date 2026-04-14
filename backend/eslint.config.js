@@ -52,7 +52,7 @@ export default defineConfig({
           },
           {
             from: "db",
-            allow: ["db/errors", "env"],
+            allow: ["db/errors"],
           },
           {
             from: "handlers",
@@ -70,7 +70,7 @@ export default defineConfig({
           },
           {
             from: "services",
-            allow: ["db/errors", "services/errors", "lib", "env"],
+            allow: ["db/errors", "services/errors", "lib"],
           },
           {
             from: ["lib", "handlers", "services"],
@@ -79,7 +79,7 @@ export default defineConfig({
           },
           {
             from: "services/index",
-            allow: ["db", "services"],
+            allow: ["db", "services", "env"],
           },
           {
             from: "*",

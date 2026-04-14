@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 import type { GitHubOAuthAction, GitHubOAuthState } from "../db/models.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
-import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 import { OrgAlreadyLinkedError, OrgNotFoundError } from "./errors/index.ts";
@@ -11,15 +10,21 @@ export class CreateGitHubAppInstallStateService {
   private orgRepo: OrganizationRepo;
   private userRepo: UserRepo;
   private gitProviderFactoryService: GitProviderFactoryService;
+  private githubBaseURL: string;
+  private githubAppName: string;
 
   constructor(
     orgRepo: OrganizationRepo,
     userRepo: UserRepo,
     gitProviderFactoryService: GitProviderFactoryService,
+    githubBaseURL: string,
+    githubAppName: string,
   ) {
     this.orgRepo = orgRepo;
     this.userRepo = userRepo;
     this.gitProviderFactoryService = gitProviderFactoryService;
+    this.githubBaseURL = githubBaseURL;
+    this.githubAppName = githubAppName;
   }
 
   async createGitHubAppInstallURL(orgId: number, userId: number) {
@@ -43,7 +48,7 @@ export class CreateGitHubAppInstallStateService {
       userId,
       orgId,
     );
-    return `${env.GITHUB_BASE_URL}/github-apps/${env.GITHUB_APP_NAME}/installations/new?state=${newState}`;
+    return `${this.githubBaseURL}/github-apps/${this.githubAppName}/installations/new?state=${newState}`;
   }
 
   async createState(action: GitHubOAuthAction, userId: number, orgId: number) {

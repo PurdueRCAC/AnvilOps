@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { randomBytes } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { Notification } from "pg";
@@ -16,7 +17,7 @@ class PgliteDatabase extends PrismaDatabase {
   constructor(client: PGlite) {
     const adapter = new PrismaPGlite(client);
     const db = new PrismaClient({ adapter }) satisfies PrismaClientType;
-    super(db);
+    super(db, randomBytes(32).toString("base64"));
     this.pglite = client;
   }
 
@@ -42,18 +43,24 @@ export async function createDB(): Promise<Database> {
   // https://makerkit.dev/blog/tutorials/unit-testing-prisma-vitest
   const client = new PGlite();
 
-  const migrationsDir = join(import.meta.dirname, "..", "prisma", "migrations");
+  const migrationsDir = join(
+    import.meta.dirname,
+    "..",
+    "..",
+    "prisma",
+    "migrations",
+  );
   const entries = await readdir(migrationsDir);
 
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (!(await stat(join(migrationsDir, entry))).isDirectory) return;
+  for (const entry of entries) {
+    /* eslint-disable no-await-in-loop */
+    if (!(await stat(join(migrationsDir, entry))).isDirectory()) continue;
 
-      const migration = join(migrationsDir, entry, "migration.sql");
-      const sql = await readFile(migration, "utf-8");
-      await client.exec(sql);
-    }),
-  );
+    const migration = join(migrationsDir, entry, "migration.sql");
+    const sql = await readFile(migration, "utf-8");
+    await client.exec(sql);
+    /* eslint-enable no-await-in-loop */
+  }
 
   return new PgliteDatabase(client);
 }
