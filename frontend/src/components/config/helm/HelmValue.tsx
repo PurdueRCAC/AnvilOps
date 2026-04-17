@@ -19,6 +19,12 @@ export const HelmValue = ({
   isExistingApp?: boolean;
 }) => {
   const value = values?.[jsonPath];
+  const displayValue =
+    value === undefined || value === null
+      ? ""
+      : typeof value === "number" && !Number.isFinite(value)
+        ? ""
+        : String(value);
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
@@ -44,18 +50,25 @@ export const HelmValue = ({
           className="w-full"
           type={valueSpec.type}
           required={valueSpec.required}
-          value={value ? value.toString() : ""}
+          value={displayValue}
           onChange={(e) => {
-            const val =
-              valueSpec.type === "number"
-                ? parseFloat(e.currentTarget.value)
-                : e.currentTarget.value;
-            setState({
-              values: {
-                ...values,
-                [jsonPath]: val,
-              },
-            });
+            const raw = e.currentTarget.value;
+            const next = { ...values };
+            if (valueSpec.type === "number") {
+              if (raw.trim() === "") {
+                delete next[jsonPath];
+              } else {
+                const n = parseFloat(raw);
+                if (Number.isFinite(n)) {
+                  next[jsonPath] = n;
+                } else {
+                  delete next[jsonPath];
+                }
+              }
+            } else {
+              next[jsonPath] = raw;
+            }
+            setState({ values: next });
           }}
           min={valueSpec.min}
           max={valueSpec.max}

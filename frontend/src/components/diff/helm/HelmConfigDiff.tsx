@@ -86,6 +86,7 @@ export const HelmConfigDiff = ({
                     storageClassName,
                   )
                 : {},
+              watchLabels: chart?.watchLabels,
             });
           }}
           disabled={disabled}
@@ -101,7 +102,7 @@ export const HelmConfigDiff = ({
 
         <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
         {Object.entries(flatValueSpec).map(([jsonPath, spec]) => (
-          <div className="space-y-2">
+          <div key={jsonPath} className="space-y-2">
             <div className="flex items-baseline gap-2">
               <Label className="pb-1" htmlFor="portNumber">
                 {spec.displayName}{" "}
@@ -120,13 +121,22 @@ export const HelmConfigDiff = ({
               left={baseValues?.[jsonPath]?.toString()}
               right={values?.[jsonPath]?.toString()}
               setRight={(value) => {
-                setHelmState({
-                  values: {
-                    ...values,
-                    [jsonPath]:
-                      spec.type === "number" ? parseFloat(value) : value,
-                  },
-                });
+                const next = { ...values };
+                if (spec.type === "number") {
+                  if (value.trim() === "") {
+                    delete next[jsonPath];
+                  } else {
+                    const n = parseFloat(value);
+                    if (Number.isFinite(n)) {
+                      next[jsonPath] = n;
+                    } else {
+                      delete next[jsonPath];
+                    }
+                  }
+                } else {
+                  next[jsonPath] = value;
+                }
+                setHelmState({ values: next });
               }}
               type={spec.type}
               unit={spec.unit}

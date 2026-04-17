@@ -2689,6 +2689,8 @@ components:
               deploymentId:
                 type: number
                 format: int64
+                nullable: true
+                description: Present when the pod carries the AnvilOps deployment-id label.
               node:
                 type: string
               podScheduled:

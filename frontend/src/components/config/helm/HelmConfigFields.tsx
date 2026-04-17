@@ -24,6 +24,9 @@ const randomString = () =>
     : Math.random().toString(36).slice(2, 18);
 
 const randRange = (min: number, max: number) => {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return 0;
+  }
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 

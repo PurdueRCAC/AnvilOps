@@ -8,7 +8,7 @@ import {
   type V1StatefulSet,
   type Watch,
 } from "@kubernetes/client-node";
-import { metrics, ValueType } from "@opentelemetry/api";
+import { ValueType, metrics } from "@opentelemetry/api";
 import { db } from "../db/index.ts";
 import { logger } from "../index.ts";
 import { getClientsForRequest } from "../lib/cluster/kubernetes.ts";
@@ -47,26 +47,31 @@ export async function getAppStatus(
   const update = async () => {
     if (!pods) return;
     const newStatus = {
-      pods: pods.items.map((pod) => ({
-        id: pod.metadata?.uid,
-        name: pod.metadata?.name,
-        createdAt: pod.metadata?.creationTimestamp,
-        startedAt: pod.status?.startTime,
-        deploymentId: parseInt(
-          pod.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
-        ),
-        node: pod.spec?.nodeName,
-        podScheduled:
-          getCondition(pod?.status?.conditions, "PodScheduled")?.status ===
-          "True",
-        podReady:
-          getCondition(pod?.status?.conditions, "Ready")?.status === "True",
-        image: pod.status?.containerStatuses?.[0]?.image,
-        containerReady: pod.status?.containerStatuses?.[0]?.ready,
-        containerState: pod.status?.containerStatuses?.[0]?.state,
-        lastState: pod.status?.containerStatuses?.[0].lastState,
-        ip: pod.status.podIP,
-      })),
+      pods: pods.items.map((pod) => {
+        const rawDeploymentId = parseInt(
+          pod.metadata?.labels?.["anvilops.rcac.purdue.edu/deployment-id"],
+        );
+        return {
+          id: pod.metadata?.uid,
+          name: pod.metadata?.name,
+          createdAt: pod.metadata?.creationTimestamp,
+          startedAt: pod.status?.startTime,
+          ...(Number.isFinite(rawDeploymentId)
+            ? { deploymentId: rawDeploymentId }
+            : {}),
+          node: pod.spec?.nodeName,
+          podScheduled:
+            getCondition(pod?.status?.conditions, "PodScheduled")?.status ===
+            "True",
+          podReady:
+            getCondition(pod?.status?.conditions, "Ready")?.status === "True",
+          image: pod.status?.containerStatuses?.[0]?.image,
+          containerReady: pod.status?.containerStatuses?.[0]?.ready,
+          containerState: pod.status?.containerStatuses?.[0]?.state,
+          lastState: pod.status?.containerStatuses?.[0].lastState,
+          ip: pod.status.podIP,
+        };
+      }),
       events: events?.items.map((event) => ({
         id: event.metadata.uid,
         reason: event.reason,
