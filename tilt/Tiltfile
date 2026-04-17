@@ -44,7 +44,7 @@ if separate_frontend_and_backend:
 else:
   docker_build(
     "anvilops/anvilops", "../",
-    only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
+    only=["frontend", "backend", "swagger-ui", "templates", "openapi", "charts"]
   )
 docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/Dockerfile", only=["package.json", "package-lock.json", "prisma", "prisma.config.ts"])
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)

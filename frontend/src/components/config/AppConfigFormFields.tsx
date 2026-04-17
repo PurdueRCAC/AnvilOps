@@ -17,7 +17,7 @@ import {
 } from "@/lib/form";
 import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
 import { Cable } from "lucide-react";
-import { useContext } from "react";
+import { useContext, type Dispatch, type SetStateAction } from "react";
 import { ProjectConfig } from "./ProjectConfig";
 import { HelmConfigFields } from "./helm/HelmConfigFields";
 import { CommonWorkloadConfigFields } from "./workload/CommonWorkloadConfigFields";
@@ -30,12 +30,16 @@ export const AppConfigFormFields = ({
   setState,
   disabled,
   originalConfig,
+  templateChartSelection,
+  setTemplateChartSelection,
 }: {
   groupState: GroupFormFields;
   state: CommonFormFields;
   setState: (updater: (prev: CommonFormFields) => CommonFormFields) => void;
   disabled?: boolean;
   originalConfig?: components["schemas"]["DeploymentConfig"];
+  templateChartSelection?: Set<string>;
+  setTemplateChartSelection?: Dispatch<SetStateAction<Set<string>>>;
 }) => {
   const appConfig = useAppConfig();
 
@@ -133,6 +137,8 @@ export const AppConfigFormFields = ({
             setState={commonWorkloadSetter}
             disabled={disabled}
             originalConfig={originalConfig}
+            templateChartSelection={templateChartSelection}
+            setTemplateChartSelection={setTemplateChartSelection}
           />
         )}
     </>

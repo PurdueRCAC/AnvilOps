@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { generateNamespace, MAX_SUBDOMAIN_LENGTH } from "@/lib/form";
+import { MAX_SUBDOMAIN_LENGTH, generateNamespace } from "@/lib/form";
 import type { CommonFormFields, WorkloadUpdate } from "@/lib/form.types";
 import { useDebouncedValue } from "@/lib/utils";
 import { FormContext, NameStatus } from "@/pages/create-app/CreateAppView";
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import { Namespace } from "../Namespace";
+import { TemplateConfig } from "../TemplateConfig";
 import { EnvVarGrid } from "./EnvVarGrid";
 import { MountsGrid } from "./MountsGrid";
 
@@ -37,12 +38,18 @@ export const CommonWorkloadConfigFields = ({
   setState,
   disabled,
   originalConfig,
+  templateChartSelection,
+  setTemplateChartSelection,
 }: {
   appState: CommonFormFields;
   setAppState: (update: Partial<CommonFormFields>) => void;
   setState: (update: WorkloadUpdate) => void;
   disabled?: boolean;
   originalConfig?: components["schemas"]["DeploymentConfig"];
+  templateChartSelection?: Set<string>;
+  setTemplateChartSelection?: (
+    setter: (templateChartSelection: Set<string>) => Set<string>,
+  ) => void;
 }) => {
   const appConfig = useAppConfig();
   const appDomain = URL.parse(appConfig?.appDomain ?? "");
@@ -104,6 +111,12 @@ export const CommonWorkloadConfigFields = ({
       : {};
 
   const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
+  const [localTemplateChartSelection, setLocalTemplateChartSelection] =
+    useState(() => new Set<string>());
+  const selectedTemplateChartUrls =
+    templateChartSelection ?? localTemplateChartSelection;
+  const setSelectedTemplateChartUrls =
+    setTemplateChartSelection ?? setLocalTemplateChartSelection;
 
   useEffect(() => {
     if (!hasChangedNamespace) {
@@ -311,7 +324,7 @@ export const CommonWorkloadConfigFields = ({
                 <Database className="inline" size={16} /> Volume Mounts
               </Label>
             </AccordionTrigger>
-            <AccordionContent className="px-4">
+            <AccordionContent className="space-y-4 px-4">
               {!!isExistingApp && (
                 <p className="col-span-full text-amber-600">
                   Volume mounts cannot be edited after an app has been created.
@@ -379,6 +392,18 @@ export const CommonWorkloadConfigFields = ({
                 setState={setAppState}
                 setHasChangedNamespace={setHasChangedNamespace}
               />
+            )}
+
+            {context === "CreateApp" && (
+              <>
+                <div>
+                  <TemplateConfig
+                    state={appState}
+                    selected={selectedTemplateChartUrls}
+                    setSelected={setSelectedTemplateChartUrls}
+                  />
+                </div>
+              </>
             )}
           </AccordionContent>
         </AccordionItem>

@@ -168,6 +168,7 @@ export const HelmConfigFields = ({
             {charts?.map((chart) => (
               <SelectItem key={chart.name} value={chart.url}>
                 {chart.name}
+                <span className="text-black-3">{chart.url}</span>
               </SelectItem>
             ))}
           </SelectContent>

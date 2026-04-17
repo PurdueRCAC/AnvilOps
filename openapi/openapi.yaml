@@ -1916,6 +1916,8 @@ paths:
                   properties:
                     name:
                       type: string
+                    description:
+                      type: string
                     note:
                       type: string
                     url:
@@ -1929,7 +1931,8 @@ paths:
                       additionalProperties: true
                     watchLabels:
                       type: string
-                  required: [name, note, url, urlType, version, valueSpec]
+                  required:
+                    [name, description, note, url, urlType, version, valueSpec]
         "400":
           description: Validation failed
           content:

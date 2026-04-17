@@ -326,3 +326,12 @@ export const makeFunctionalWorkloadSetter = (
     }));
   };
 };
+
+export function getFromSessionStorage<T>(name: string) {
+  const data = sessionStorage.getItem(name);
+  if (data == null) {
+    throw new Error(`Failed to read ${name} from session storage`);
+  }
+  sessionStorage.removeItem(name);
+  return JSON.parse(data) as T;
+}
