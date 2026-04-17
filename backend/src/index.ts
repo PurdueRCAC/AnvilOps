@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import express, { type ErrorRequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import session from "express-session";
+import helmet from "helmet";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import pino from "pino";
@@ -37,6 +38,9 @@ app.use(
     },
   }),
 );
+
+// Sets several security-related HTTP headers
+app.use(helmet());
 
 app.use(cookieParser());
 
