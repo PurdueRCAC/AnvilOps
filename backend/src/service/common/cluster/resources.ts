@@ -15,7 +15,6 @@ import type {
   Organization,
   WorkloadConfig,
 } from "../../../db/models.ts";
-import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
 import type { DeploymentConfigService } from "../deploymentConfig.ts";
 import type { GitProviderFactoryService } from "../git/gitProvider.ts";
@@ -63,33 +62,17 @@ export interface K8sObject {
   [key: string]: unknown;
 }
 
-let allowedIngressPeers: V1NetworkPolicyPeer[] | null;
-function getAllowedIngressPeers(): V1NetworkPolicyPeer[] | null {
-  if (!env.CREATE_INGRESS_NETPOL || !env.ALLOW_INGRESS_FROM) {
-    return null;
-  }
-
-  if (!allowedIngressPeers) {
-    const allowedLabels = JSON.parse(env.ALLOW_INGRESS_FROM) as {
-      [key: string]: string;
-    }[];
-    allowedIngressPeers = allowedLabels.map((labels) => ({
-      namespaceSelector: {
-        matchLabels: labels,
-      },
-      podSelector: {},
-    }));
-  }
-
-  return allowedIngressPeers;
-}
-
 export class ClusterResourcesService {
   private gitProviderFactoryService: GitProviderFactoryService;
   private serviceConfigService: ServiceConfigService;
   private ingressConfigService: IngressConfigService;
   private statefulSetConfigService: StatefulSetConfigService;
   private deploymentConfigService: DeploymentConfigService;
+  private createIngressNetworkPolicies: boolean;
+  private allowedIngressPeers: V1NetworkPolicyPeer[] | null = null;
+  private registryHostname: string;
+  private imagePullUsername: string;
+  private imagePullPassword: string;
 
   constructor(
     gitProviderFactoryService: GitProviderFactoryService,
@@ -97,12 +80,30 @@ export class ClusterResourcesService {
     ingressConfigService: IngressConfigService,
     statefulSetConfigService: StatefulSetConfigService,
     deploymentConfigService: DeploymentConfigService,
+    createIngressNetworkPolicies: boolean,
+    allowedLabels: Record<string, string>[],
+    registryHostname: string,
+    imagePullUsername: string,
+    imagePullPassword: string,
   ) {
     this.gitProviderFactoryService = gitProviderFactoryService;
     this.serviceConfigService = serviceConfigService;
     this.ingressConfigService = ingressConfigService;
     this.statefulSetConfigService = statefulSetConfigService;
     this.deploymentConfigService = deploymentConfigService;
+    this.createIngressNetworkPolicies = createIngressNetworkPolicies;
+    this.registryHostname = registryHostname;
+    this.imagePullUsername = imagePullUsername;
+    this.imagePullPassword = imagePullPassword;
+
+    if (createIngressNetworkPolicies && allowedLabels) {
+      this.allowedIngressPeers = allowedLabels.map((labels) => ({
+        namespaceSelector: {
+          matchLabels: labels,
+        },
+        podSelector: {},
+      }));
+    }
   }
 
   async createAppConfigsFromDeployment({
@@ -137,9 +138,9 @@ export class ClusterResourcesService {
       config,
       app,
     );
-    const secretData = getEnvRecord(config.getEnv());
+    const secretData = this.getEnvRecord(config.getEnv());
     if (secretData !== null) {
-      const secretConfig = createSecretConfig(
+      const secretConfig = this.createSecretConfig(
         secretData,
         secretName,
         app.namespace,
@@ -148,7 +149,7 @@ export class ClusterResourcesService {
       // Secrets should be created first
       configs.unshift(secretConfig);
     }
-    configs.unshift(getImagePullSecret(app.namespace));
+    configs.unshift(this.getImagePullSecret(app.namespace));
 
     const params = {
       deploymentId: deployment.id,
@@ -206,7 +207,7 @@ export class ClusterResourcesService {
         applyLabels(config, deletedLabels);
       }
     } else {
-      const netpol = createIngressNetPol({
+      const netpol = this.createIngressNetPol({
         name: params.name,
         namespace: params.namespace,
         groupLabels,
@@ -227,7 +228,7 @@ export class ClusterResourcesService {
       const outdatedResources: KubernetesObject[] = [];
 
       if (migrating) {
-        if (env.CREATE_INGRESS_NETPOL) {
+        if (this.createIngressNetworkPolicies) {
           // When migrating, AnvilOps-specific labels are removed, so grouping network policies will not work.
           // Delete all network policies that are managed by AnvilOps.
           const netpols = await api
@@ -334,6 +335,114 @@ export class ClusterResourcesService {
 
     return envVars;
   }
+
+  getEnvRecord(envVars: PrismaJson.EnvVar[]): Record<string, string> {
+    if (envVars.length == 0) return null;
+    return envVars.reduce((data, env) => {
+      return Object.assign(data, { [env.name]: env.value });
+    }, {});
+  }
+
+  getImagePullSecret(namespace: string): V1Secret & K8sObject {
+    const config = {
+      auths: {
+        [this.registryHostname]: {
+          username: this.imagePullUsername,
+          password: this.imagePullPassword,
+          auth: Buffer.from(
+            this.imagePullUsername + ":" + this.imagePullPassword,
+          ).toString("base64"),
+        },
+      },
+    };
+
+    return {
+      apiVersion: "v1",
+      kind: "Secret",
+      metadata: {
+        name: "image-pull-secret",
+        namespace,
+      },
+      type: "kubernetes.io/dockerconfigjson",
+      data: {
+        ".dockerconfigjson": Buffer.from(JSON.stringify(config)).toString(
+          "base64",
+        ),
+      },
+    };
+  }
+
+  createSecretConfig(
+    secrets: Record<string, string>,
+    name: string,
+    namespace: string,
+  ): V1Secret & K8sObject {
+    return {
+      apiVersion: "v1",
+      kind: "Secret",
+      metadata: {
+        name,
+        namespace,
+      },
+      stringData: secrets,
+    };
+  }
+
+  createIngressNetPol({
+    name,
+    namespace,
+    groupLabels,
+  }: {
+    name: string;
+    namespace: string;
+    groupLabels: { [key: string]: string };
+  }): V1NetworkPolicy & K8sObject {
+    if (!this.createIngressNetworkPolicies || !this.allowedIngressPeers) {
+      return null;
+    }
+
+    return {
+      apiVersion: "networking.k8s.io/v1",
+      kind: "NetworkPolicy",
+      metadata: {
+        name,
+        namespace,
+      },
+      spec: {
+        podSelector: {
+          matchLabels: groupLabels,
+        },
+        policyTypes: ["Ingress"],
+        ingress: [
+          {
+            _from: [
+              ...this.allowedIngressPeers,
+              {
+                namespaceSelector: {
+                  matchLabels: groupLabels, // Allow ingress from pods in namespaces of this group
+                },
+                podSelector: {},
+              },
+            ],
+          },
+        ],
+      },
+    } satisfies V1NetworkPolicy;
+  }
+}
+
+function applyLabels(config: K8sObject, labels: { [key: string]: string }) {
+  config.metadata.labels = { ...config.metadata.labels, ...labels };
+  if (config.spec?.template) {
+    const meta = config.spec.template.metadata;
+    if (!meta) {
+      config.spec.template.metadata = {
+        labels: labels,
+      };
+    } else {
+      meta.labels = { ...meta.labels, ...labels };
+    }
+  }
 }
 
 export function createNamespaceConfig(
@@ -350,119 +459,4 @@ export function createNamespaceConfig(
       },
     },
   };
-}
-
-function getEnvRecord(envVars: PrismaJson.EnvVar[]): Record<string, string> {
-  if (envVars.length == 0) return null;
-  return envVars.reduce((data, env) => {
-    return Object.assign(data, { [env.name]: env.value });
-  }, {});
-}
-
-function getImagePullSecret(namespace: string): V1Secret & K8sObject {
-  const config = {
-    auths: {
-      [env.REGISTRY_HOSTNAME]: {
-        username: env.IMAGE_PULL_USERNAME,
-        password: env.IMAGE_PULL_PASSWORD,
-        auth: Buffer.from(
-          env.IMAGE_PULL_USERNAME + ":" + env.IMAGE_PULL_PASSWORD,
-        ).toString("base64"),
-      },
-    },
-  };
-
-  return {
-    apiVersion: "v1",
-    kind: "Secret",
-    metadata: {
-      name: "image-pull-secret",
-      namespace,
-    },
-    type: "kubernetes.io/dockerconfigjson",
-    data: {
-      ".dockerconfigjson": Buffer.from(JSON.stringify(config)).toString(
-        "base64",
-      ),
-    },
-  };
-}
-
-function createSecretConfig(
-  secrets: Record<string, string>,
-  name: string,
-  namespace: string,
-): V1Secret & K8sObject {
-  return {
-    apiVersion: "v1",
-    kind: "Secret",
-    metadata: {
-      name,
-      namespace,
-    },
-    stringData: secrets,
-  };
-}
-
-function createIngressNetPol({
-  name,
-  namespace,
-  groupLabels,
-}: {
-  name: string;
-  namespace: string;
-  groupLabels: { [key: string]: string };
-}): V1NetworkPolicy & K8sObject {
-  if (!env.CREATE_INGRESS_NETPOL) {
-    return null;
-  }
-
-  if (!env.ALLOW_INGRESS_FROM) {
-    logger.warn(
-      "ALLOW_INGRESS_FROM is not set, skipping network policy creation",
-    );
-    return null;
-  }
-
-  return {
-    apiVersion: "networking.k8s.io/v1",
-    kind: "NetworkPolicy",
-    metadata: {
-      name,
-      namespace,
-    },
-    spec: {
-      podSelector: {
-        matchLabels: groupLabels,
-      },
-      policyTypes: ["Ingress"],
-      ingress: [
-        {
-          _from: [
-            ...getAllowedIngressPeers(),
-            {
-              namespaceSelector: {
-                matchLabels: groupLabels, // Allow ingress from pods in namespaces of this group
-              },
-              podSelector: {},
-            },
-          ],
-        },
-      ],
-    },
-  } satisfies V1NetworkPolicy;
-}
-
-function applyLabels(config: K8sObject, labels: { [key: string]: string }) {
-  config.metadata.labels = { ...config.metadata.labels, ...labels };
-  if (config.spec?.template) {
-    const meta = config.spec.template.metadata;
-    if (!meta) {
-      config.spec.template.metadata = {
-        labels: labels,
-      };
-    } else {
-      meta.labels = { ...meta.labels, ...labels };
-    }
-  }
 }

@@ -1,5 +1,4 @@
 import { ApiException, type V1Ingress } from "@kubernetes/client-node";
-import { env } from "../../../../lib/env.ts";
 import type { KubernetesClientService } from "../kubernetes.ts";
 import type { K8sObject } from "../resources.ts";
 
@@ -15,21 +14,32 @@ interface IngressInterface {
 
 export class IngressConfigService {
   private kubernetesService: KubernetesClientService;
+  private appDomain: string;
+  private ingressClassName: string;
+  private namespace: string;
 
-  constructor(kubernetesService: KubernetesClientService) {
+  constructor(
+    kubernetesService: KubernetesClientService,
+    appDomain: string,
+    ingressClassName: string,
+    namespace: string,
+  ) {
     this.kubernetesService = kubernetesService;
+    this.appDomain = appDomain;
+    this.ingressClassName = ingressClassName;
+    this.namespace = namespace;
   }
 
   createIngressConfig(app: IngressInterface): (V1Ingress & K8sObject) | null {
     if (
       !app.createIngress ||
-      !env.APP_DOMAIN ||
-      URL.parse(env.APP_DOMAIN) === null
+      !this.appDomain ||
+      URL.parse(this.appDomain) === null
     ) {
       return null;
     }
 
-    const appDomain = new URL(env.APP_DOMAIN);
+    const appDomain = new URL(this.appDomain);
     const hostname = app.subdomain + "." + appDomain.hostname;
 
     return {
@@ -40,7 +50,7 @@ export class IngressConfigService {
         namespace: app.namespace,
       },
       spec: {
-        ingressClassName: env.INGRESS_CLASS_NAME,
+        ingressClassName: this.ingressClassName,
         rules: [
           {
             host: hostname,
@@ -74,7 +84,7 @@ export class IngressConfigService {
     const config = this.createIngressConfig({
       createIngress: true,
       name: "anvilops-ingress-probe",
-      namespace: env.CURRENT_NAMESPACE,
+      namespace: this.namespace,
       port: 80,
       serviceName: "anvilops-ingress-probe",
       subdomain: subdomain,

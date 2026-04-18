@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { env } from "../lib/env.ts";
 import { type RancherService } from "./common/cluster/rancher.ts";
 
 type ClusterConfig = {
@@ -11,49 +10,64 @@ type ClusterConfig = {
   };
 };
 
-let clusterConfigPromise: Promise<ClusterConfig> | null = null;
-
-const configPath =
-  env["NODE_ENV"] === "development"
-    ? "./cluster.local.json"
-    : env.CLUSTER_CONFIG_PATH;
-
-if (configPath) {
-  clusterConfigPromise = readFile(configPath).then(
-    (file) => JSON.parse(file.toString()) as ClusterConfig,
-  );
-}
-
 export class GetSettingsService {
   private rancherService: RancherService;
+  private clusterConfigPromise: Promise<ClusterConfig> | null = null;
+  private appDomain: string;
+  private storageClassName: string;
+  private allowHelmDeployments: boolean;
+  private version: string;
+  private buildDate: string;
+  private inTilt: boolean;
 
-  constructor(rancherService: RancherService) {
+  constructor(
+    rancherService: RancherService,
+    configPath: string,
+    appDomain: string,
+    storageClassName: string,
+    allowHelmDeployments: boolean,
+    version: string,
+    buildDate: string,
+    inTilt: boolean,
+  ) {
     this.rancherService = rancherService;
+    this.appDomain = appDomain;
+    this.storageClassName = storageClassName;
+    this.allowHelmDeployments = allowHelmDeployments;
+    this.version = version;
+    this.buildDate = buildDate;
+    this.inTilt = inTilt;
+
+    if (configPath) {
+      this.clusterConfigPromise = readFile(configPath).then(
+        (file) => JSON.parse(file.toString()) as ClusterConfig,
+      );
+    }
   }
 
   async getSettings() {
-    const clusterConfig = await clusterConfigPromise;
+    const clusterConfig = await this.clusterConfigPromise;
 
     return {
-      appDomain: env.INGRESS_CLASS_NAME ? env.APP_DOMAIN : undefined,
-      version: getVersionString(),
+      appDomain: this.appDomain,
+      version: this.getVersionString(),
       clusterName: clusterConfig?.name,
       faq: clusterConfig?.faq,
-      storageEnabled: env.STORAGE_CLASS_NAME !== undefined,
+      storageEnabled: this.storageClassName !== undefined,
       isRancherManaged: this.rancherService.isRancherManaged(),
-      allowHelmDeployments: env.ALLOW_HELM_DEPLOYMENTS === "true",
+      allowHelmDeployments: this.allowHelmDeployments,
     };
   }
-}
 
-function getVersionString() {
-  let version = env.ANVILOPS_VERSION;
-  if (env.BUILD_DATE) {
-    version += " (" + new Date(env.BUILD_DATE).toLocaleDateString() + ")";
-  }
+  getVersionString() {
+    let version = this.version;
+    if (this.buildDate) {
+      version += " (" + new Date(this.buildDate).toLocaleDateString() + ")";
+    }
 
-  if (env.IN_TILT) {
-    version += " (dev)";
+    if (this.inTilt) {
+      version += " (dev)";
+    }
+    return version;
   }
-  return version;
 }

@@ -1,6 +1,5 @@
 import type { V1EnvVar, V1StatefulSet } from "@kubernetes/client-node";
 import crypto from "node:crypto";
-import { env } from "../../../../lib/env.ts";
 import type { K8sObject } from "../resources.ts";
 import type { LogCollectionService } from "./logs.ts";
 
@@ -24,9 +23,17 @@ interface DeploymentParams {
 
 export class StatefulSetConfigService {
   private logShipperWrapperService: LogCollectionService;
+  private storageClassName: string;
+  private storageAccessModes: string[];
 
-  constructor(logShipperWrapperService: LogCollectionService) {
+  constructor(
+    logShipperWrapperService: LogCollectionService,
+    storageClassName: string,
+    storageAccessModes: string[],
+  ) {
     this.logShipperWrapperService = logShipperWrapperService;
+    this.storageClassName = storageClassName;
+    this.storageAccessModes = storageAccessModes;
   }
 
   async createStatefulSetConfig(
@@ -89,8 +96,8 @@ export class StatefulSetConfigService {
         volumeClaimTemplates: params.mounts.map((mount) => ({
           metadata: { name: this.generateVolumeName(mount.path) },
           spec: {
-            accessModes: env.STORAGE_ACCESS_MODES.split(","),
-            storageClassName: env.STORAGE_CLASS_NAME,
+            accessModes: this.storageAccessModes,
+            storageClassName: this.storageClassName,
             resources: { requests: { storage: `${mount.amountInMiB}Mi` } },
           },
         })),

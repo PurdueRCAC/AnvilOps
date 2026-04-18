@@ -7,6 +7,7 @@
     "Prisma.prisma",
     "redhat.vscode-yaml",
     "dbaeumer.vscode-eslint",
-    "timonwong.shellcheck"
+    "timonwong.shellcheck",
+    "vitest.explorer"
   ]
 }

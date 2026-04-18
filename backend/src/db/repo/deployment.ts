@@ -28,13 +28,16 @@ type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
 export class DeploymentRepo {
   private client: PrismaClientType;
   private publish: (topic: string, payload: string) => Promise<void>;
+  private masterKey: string;
 
   constructor(
     client: PrismaClientType,
     publish: (topic: string, payload: string) => Promise<void>,
+    masterKey: string,
   ) {
     this.client = client;
     this.publish = publish;
+    this.masterKey = masterKey;
   }
 
   async getById(
@@ -108,7 +111,7 @@ export class DeploymentRepo {
             ...(appType === "workload"
               ? {
                   workloadConfig: {
-                    create: DeploymentRepo.encryptEnv(configClone),
+                    create: this.encryptEnv(configClone),
                   },
                 }
               : {
@@ -190,19 +193,19 @@ export class DeploymentRepo {
       },
     });
 
-    return DeploymentRepo.preprocessConfig(deployment.config);
+    return this.preprocessConfig(deployment.config);
   }
 
-  private static encryptEnv(
+  private encryptEnv(
     config: PrismaWorkloadConfigCreate,
   ): WorkloadConfigCreateInput {
     const copy = structuredClone(config) as WorkloadConfigCreateInput;
-    copy.envKey = generateKey();
-    copy.env = encryptEnv(copy.env, copy.envKey);
+    copy.envKey = generateKey(this.masterKey);
+    copy.env = encryptEnv(this.masterKey, copy.env, copy.envKey);
     return copy;
   }
 
-  static preprocessConfig(config: {
+  preprocessConfig(config: {
     appType: AppType;
     workloadConfig?: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">;
     helmConfig?: Omit<PrismaHelmConfig, "id" | "deploymentConfigId">;
@@ -213,7 +216,7 @@ export class DeploymentRepo {
 
     let obj: WorkloadConfig | HelmConfig;
     if (config.appType === "workload") {
-      obj = DeploymentRepo.preprocessWorkloadConfig(config.workloadConfig);
+      obj = this.preprocessWorkloadConfig(config.workloadConfig);
     } else if (config.appType === "helm") {
       obj = {
         ...config.helmConfig,
@@ -248,7 +251,7 @@ export class DeploymentRepo {
     return wrapped;
   }
 
-  private static preprocessWorkloadConfig(
+  private preprocessWorkloadConfig(
     config: Omit<PrismaWorkloadConfig, "id" | "deploymentConfigId">,
   ): WorkloadConfig {
     if (config === null) {
@@ -260,7 +263,7 @@ export class DeploymentRepo {
     delete config.envKey;
     delete config.env;
 
-    const decrypted = decryptEnv(env, key);
+    const decrypted = decryptEnv(this.masterKey, env, key);
 
     const obj = {
       ...config,

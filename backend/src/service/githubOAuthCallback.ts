@@ -2,7 +2,7 @@ import type { GitHubOAuthAction } from "../db/models.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import { logger } from "../logger.ts";
-import { GitHubGitProvider } from "./common/git/githubGitProvider.ts";
+import type { GitHubUserService } from "./common/git/githubUser.ts";
 import {
   GitHubInstallationForbiddenError,
   GitHubOAuthAccountMismatchError,
@@ -18,15 +18,18 @@ export class GitHubOAuthCallbackService {
   private orgRepo: OrganizationRepo;
   private userRepo: UserRepo;
   private appInstallService: CreateGitHubAppInstallStateService;
+  private githubUserService: GitHubUserService;
 
   constructor(
     orgRepo: OrganizationRepo,
     userRepo: UserRepo,
     appInstallService: CreateGitHubAppInstallStateService,
+    githubUserService: GitHubUserService,
   ) {
     this.orgRepo = orgRepo;
     this.userRepo = userRepo;
     this.appInstallService = appInstallService;
+    this.githubUserService = githubUserService;
   }
 
   async processGitHubOAuthResponse(
@@ -64,7 +67,7 @@ export class GitHubOAuthCallbackService {
         throw new InstallationNotFoundError(null);
       }
 
-      const canAccess = await GitHubGitProvider.userCanAccessInstallation(
+      const canAccess = await this.githubUserService.userCanAccessInstallation(
         code,
         org.newInstallationId,
       );
@@ -86,7 +89,7 @@ export class GitHubOAuthCallbackService {
       return "done";
     } else if (state === "GET_UID_FOR_LATER_INSTALLATION") {
       const { id: githubUserId, login: userLogin } =
-        await GitHubGitProvider.getUserFromOAuthCode(code);
+        await this.githubUserService.getUserFromOAuthCode(code);
 
       await this.userRepo.setGitHubUserId(userId, githubUserId);
 

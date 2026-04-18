@@ -1,11 +1,10 @@
 import { V1Pod } from "@kubernetes/client-node";
 import { randomBytes } from "node:crypto";
 import type { App, Deployment, HelmConfig } from "../../db/models.ts";
-import { env } from "../../lib/env.ts";
 import { logger } from "../../logger.ts";
 import { ValidationError } from "../errors/index.ts";
 import type { KubernetesClientService } from "./cluster/kubernetes.ts";
-import { shouldImpersonate, type RancherService } from "./cluster/rancher.ts";
+import type { RancherService } from "./cluster/rancher.ts";
 import { createNamespaceConfig } from "./cluster/resources.ts";
 import type { LogCollectionService } from "./cluster/resources/logs.ts";
 
@@ -23,23 +22,38 @@ type ChartTagList = {
 };
 
 export class HelmService {
-  private rancherService: RancherService;
   private logCollectionSerice: LogCollectionService;
   private kubernetesService: KubernetesClientService;
+  private rancherService: RancherService;
+  private registryBaseURL: string;
+  private chartsProjectName: string;
+  private namespace: string;
+  private helmDeployerImageTag: string;
+  private internalBaseURL: string;
 
   constructor(
-    rancherService: RancherService,
     logCollectionSerice: LogCollectionService,
     kubernetesService: KubernetesClientService,
+    rancherService: RancherService,
+    registryBaseURL: string,
+    chartsProjectName: string,
+    namespace: string,
+    helmDeployerImageTag: string,
+    internalBaseURL: string,
   ) {
     this.logCollectionSerice = logCollectionSerice;
-    this.rancherService = rancherService;
     this.kubernetesService = kubernetesService;
+    this.rancherService = rancherService;
+    this.registryBaseURL = registryBaseURL;
+    this.chartsProjectName = chartsProjectName;
+    this.namespace = namespace;
+    this.helmDeployerImageTag = helmDeployerImageTag;
+    this.internalBaseURL = internalBaseURL;
   }
 
   async getChartToken() {
     return await fetch(
-      `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/service/token?service=harbor-registry&scope=repository:${env.CHART_PROJECT_NAME}/charts:pull`,
+      `${this.registryBaseURL}/v2/service/token?service=harbor-registry&scope=repository:${this.chartsProjectName}/charts:pull`,
     )
       .then((res) => {
         if (!res.ok) {
@@ -68,7 +82,7 @@ export class HelmService {
     token: string,
   ): Promise<Chart> {
     const res = await fetch(
-      `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/manifests/${version}`,
+      `${this.registryBaseURL}/v2/${repository}/manifests/${version}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -107,7 +121,7 @@ export class HelmService {
     token: string,
   ): Promise<Chart | null> {
     const chartTagList = await fetch(
-      `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}/v2/${repository}/tags/list`,
+      `${this.registryBaseURL}/v2/${repository}/tags/list`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -136,7 +150,7 @@ export class HelmService {
     const api = this.kubernetesService.getClientForClusterUsername(
       app.clusterUsername,
       "KubernetesObjectApi",
-      shouldImpersonate(app.projectId),
+      this.rancherService.shouldImpersonate(app.projectId),
     );
     const namespace = createNamespaceConfig(namespaceName, app.projectId);
     if (!(await this.kubernetesService.resourceExists(api, namespace))) {
@@ -190,7 +204,7 @@ export class HelmService {
               { name: "DEPLOYMENT_API_SECRET", value: deployment.secret },
               {
                 name: "DEPLOYMENT_API_URL",
-                value: `${env.CLUSTER_INTERNAL_BASE_URL}/api`,
+                value: `${this.internalBaseURL}/api`,
               },
               {
                 name: "KUBECONFIG",
@@ -198,7 +212,7 @@ export class HelmService {
               },
               {
                 name: "HELM_KUBEASUSER",
-                value: shouldImpersonate(app.projectId)
+                value: this.rancherService.shouldImpersonate(app.projectId)
                   ? app.clusterUsername
                   : "",
               },
@@ -208,7 +222,7 @@ export class HelmService {
               },
             ],
             name: "helm",
-            image: env.HELM_DEPLOYER_IMAGE,
+            image: this.helmDeployerImageTag,
             volumeMounts: [
               {
                 name: "kubeconfig",
@@ -259,7 +273,7 @@ export class HelmService {
     const jobName = `helm-upgrade-${release}-${label}`;
     try {
       await this.kubernetesService.createNamespacedJob({
-        namespace: env.CURRENT_NAMESPACE,
+        namespace: this.namespace,
         body: {
           metadata: {
             name: jobName,

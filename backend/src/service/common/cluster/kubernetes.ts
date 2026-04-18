@@ -14,12 +14,13 @@ import {
   type V1Namespace,
 } from "@kubernetes/client-node";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { App } from "../../../db/models.ts";
 import type { UserRepo } from "../../../db/repo/user.ts";
-import { env } from "../../../lib/env.ts";
 import { logger } from "../../../logger.ts";
-import { shouldImpersonate } from "./rancher.ts";
+import type { GitProvider } from "../git/gitProvider.ts";
+import type { RancherService } from "./rancher.ts";
 import type { K8sObject } from "./resources.ts";
 
 const tracer = trace.getTracer("kubernetes-api");
@@ -59,9 +60,17 @@ Object.freeze(svcK8s);
 
 export class KubernetesClientService {
   private userRepo: UserRepo;
+  private rancherService: RancherService;
+  private namespace: string;
 
-  constructor(userRepo: UserRepo) {
+  constructor(
+    userRepo: UserRepo,
+    rancherService: RancherService,
+    namespace: string,
+  ) {
     this.userRepo = userRepo;
+    this.rancherService = rancherService;
+    this.namespace = namespace;
   }
 
   getClientForClusterUsername<T extends APIClassName>(
@@ -99,7 +108,7 @@ export class KubernetesClientService {
             }
           });
 
-          const impersonate = shouldImpersonate(projectId);
+          const impersonate = this.rancherService.shouldImpersonate(projectId);
           const clusterUsername = !impersonate
             ? null
             : await this.userRepo
@@ -145,22 +154,26 @@ export class KubernetesClientService {
     }
   }
 
-  private static REQUIRED_LABELS = env["RANCHER_BASE_URL"]
-    ? ["field.cattle.io/projectId", "lifecycle.cattle.io/create.namespace-auth"]
-    : [];
-
   async ensureNamespace(
     api: KubernetesObjectApi,
     namespace: V1Namespace & K8sObject,
   ) {
     await api.create(namespace);
+
+    const requiredLabels = this.rancherService.isRancherManaged()
+      ? [
+          "field.cattle.io/projectId",
+          "lifecycle.cattle.io/create.namespace-auth",
+        ]
+      : [];
+
     for (let i = 0; i < 20; i++) {
       try {
         // eslint-disable-next-line no-await-in-loop
         const res: V1Namespace = await api.read(namespace);
         if (
           res.status.phase === "Active" &&
-          KubernetesClientService.REQUIRED_LABELS.every((label) =>
+          requiredLabels.every((label) =>
             Object.prototype.hasOwnProperty.call(
               res.metadata.annotations,
               label,
@@ -220,7 +233,7 @@ export class KubernetesClientService {
           const api = this.getClientForClusterUsername(
             app.clusterUsername,
             "KubernetesObjectApi",
-            shouldImpersonate(app.projectId),
+            this.rancherService.shouldImpersonate(app.projectId),
           );
 
           if (await this.resourceExists(api, namespace)) {
@@ -264,7 +277,7 @@ export class KubernetesClientService {
 
   async cancelBuildJobsForApp(appId: number) {
     await svcK8s["BatchV1Api"].deleteCollectionNamespacedJob({
-      namespace: env.CURRENT_NAMESPACE,
+      namespace: this.namespace,
       labelSelector: `anvilops.rcac.purdue.edu/app-id=${appId.toString()}`,
       propagationPolicy: "Background", // Delete dependent resources (pods and secrets) in the background. Without this option, they would not be deleted at all.
     });
@@ -273,7 +286,7 @@ export class KubernetesClientService {
   async countActiveBuildJobs() {
     const jobs = await svcK8s["BatchV1Api"].listNamespacedJob({
       // TODO filter for a certain label that indicates that this Job is a build job
-      namespace: env.CURRENT_NAMESPACE,
+      namespace: this.namespace,
     });
 
     return jobs.items.filter((job) => job.status?.active).length;
@@ -329,5 +342,112 @@ export class KubernetesClientService {
       await setTimeout(frequencyMs);
     }
     return false;
+  }
+
+  async copyRepoManually(
+    gitProvider: GitProvider,
+    cloneURL: string,
+    pushURL: string,
+  ) {
+    const botUser = await gitProvider.getBotCommitterDetails();
+
+    const job = await this.createNamespacedJob({
+      namespace: this.namespace,
+      body: {
+        metadata: {
+          name: `import-repo-${randomBytes(16).toString("hex")}`,
+        },
+        spec: {
+          ttlSecondsAfterFinished: 30, // Delete job 30 seconds after it completes
+          backoffLimit: 1, // Retry up to 1 time if the job exits with a non-zero status code
+          activeDeadlineSeconds: 2 * 60, // Kill after 2 minutes
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: "importer",
+                  image: "alpine/git:v2.49.0",
+                  env: [
+                    { name: "CLONE_URL", value: cloneURL },
+                    { name: "PUSH_URL", value: pushURL },
+                    { name: "USER_EMAIL", value: botUser.email },
+                    { name: "USER_NAME", value: botUser.name },
+                  ],
+                  imagePullPolicy: "Always",
+                  command: ["/bin/sh", "-c"],
+                  workingDir: "/work",
+                  args: [
+                    `
+git clone --depth=1 --shallow-submodules "$CLONE_URL" .
+rm -rf .git
+
+git init
+git branch -M main
+
+git config user.email "$USER_EMAIL"
+git config user.name "$USER_NAME"
+
+git add .
+git commit -m "Initial commit"
+
+git remote add origin "$PUSH_URL"
+git push -u origin main`,
+                  ],
+                  volumeMounts: [
+                    {
+                      mountPath: "/work",
+                      name: "work-dir",
+                    },
+                  ],
+                  resources: {
+                    requests: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                    limits: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                  },
+                  securityContext: {
+                    // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
+                    capabilities: {
+                      drop: ["ALL"],
+                    },
+                    allowPrivilegeEscalation: false,
+                  },
+                },
+              ],
+              volumes: [
+                {
+                  name: "work-dir",
+                  emptyDir: {
+                    sizeLimit: "1Gi",
+                  },
+                },
+              ],
+              restartPolicy: "Never",
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(
+      { jobNamespace: job.metadata.namespace, jobName: job.metadata.name },
+      "Created manual Git repo import job",
+    );
+    try {
+      await this.awaitJobCompletion(this.namespace, job.metadata.name);
+    } catch (e) {
+      logger.warn(
+        {
+          jobNamespace: job.metadata.namespace,
+          jobName: job.metadata.name,
+        },
+        "Git repo import job failed",
+      );
+      throw e;
+    }
   }
 }

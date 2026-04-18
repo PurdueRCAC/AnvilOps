@@ -52,7 +52,7 @@ export default defineConfig({
           },
           {
             from: "db",
-            allow: ["db/errors", "env"],
+            allow: ["db/errors"],
           },
           {
             from: "handlers",
@@ -70,7 +70,7 @@ export default defineConfig({
           },
           {
             from: "services",
-            allow: ["db/errors", "services/errors", "lib", "env"],
+            allow: ["db/errors", "services/errors", "lib"],
           },
           {
             from: ["lib", "handlers", "services"],
@@ -79,7 +79,7 @@ export default defineConfig({
           },
           {
             from: "services/index",
-            allow: ["db", "services"],
+            allow: ["db", "services", "env"],
           },
           {
             from: "*",
@@ -97,6 +97,10 @@ export default defineConfig({
           {
             from: "index",
             allow: ["env", "db", "server", "services/index"],
+          },
+          {
+            from: "test",
+            allow: "*",
           },
         ],
       },
@@ -147,6 +151,8 @@ export default defineConfig({
       { type: "server", pattern: "server/**" },
       // Environment variables
       { type: "env", pattern: "src/lib/env.ts", mode: "full" },
+      // Vitest test files
+      { type: "test", pattern: "test/**" },
     ],
   },
 });

@@ -13,7 +13,6 @@ import type {
 import type { AppRepo } from "../../db/repo/app.ts";
 import type { AppGroupRepo } from "../../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../../db/repo/deployment.ts";
-import { env } from "../../lib/env.ts";
 import { logger } from "../../logger.ts";
 import { DeploymentError } from "../errors/index.ts";
 import { log } from "../githubWebhook.ts";
@@ -43,6 +42,7 @@ export class DeploymentService {
   private builderService: BuilderService;
   private clusterResourcesService: ClusterResourcesService;
   private kubernetesClientService: KubernetesClientService;
+  private baseURL: string;
 
   constructor(
     appRepo: AppRepo,
@@ -53,6 +53,7 @@ export class DeploymentService {
     builderService: BuilderService,
     clusterResourcesService: ClusterResourcesService,
     kubernetesClientService: KubernetesClientService,
+    baseURL: string,
   ) {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
@@ -62,6 +63,7 @@ export class DeploymentService {
     this.builderService = builderService;
     this.clusterResourcesService = clusterResourcesService;
     this.kubernetesClientService = kubernetesClientService;
+    this.baseURL = baseURL;
   }
 
   /**
@@ -451,7 +453,7 @@ export class DeploymentService {
       repoId,
       config.commitHash,
       status,
-      `${env.BASE_URL}/app/${deployment.appId}/deployment/${deployment.id}`,
+      `${this.baseURL}/app/${deployment.appId}/deployment/${deployment.id}`,
     );
   }
 

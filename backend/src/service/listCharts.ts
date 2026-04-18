@@ -1,4 +1,3 @@
-import { env } from "../lib/env.ts";
 import { type KVCacheService } from "./common/cache.ts";
 import type { HelmService } from "./common/helm.ts";
 import type { RegistryService } from "./common/registry.ts";
@@ -8,19 +7,28 @@ export class ListChartsService {
   private registryService: RegistryService;
   private helmService: HelmService;
   private cacheService: KVCacheService;
+  private helmDeploymentsEnabled: boolean;
+  private registryHostname: string;
+  private chartProjectName: string;
 
   constructor(
     registryService: RegistryService,
     helmService: HelmService,
     cacheService: KVCacheService,
+    helmDeploymentsEnabled: boolean,
+    registryHostname: string,
+    chartProjectName: string,
   ) {
     this.registryService = registryService;
     this.helmService = helmService;
     this.cacheService = cacheService;
+    this.helmDeploymentsEnabled = helmDeploymentsEnabled;
+    this.registryHostname = registryHostname;
+    this.chartProjectName = chartProjectName;
   }
 
   async listCharts() {
-    if (!env.ALLOW_HELM_DEPLOYMENTS) {
+    if (!this.helmDeploymentsEnabled) {
       throw new ValidationError("Helm deployments are disabled");
     }
     return JSON.parse(
@@ -32,7 +40,7 @@ export class ListChartsService {
 
   async listChartsFromRegistry() {
     const [repos, token] = await Promise.all([
-      this.registryService.getRepositoriesByProject(env.CHART_PROJECT_NAME),
+      this.registryService.getRepositoriesByProject(this.chartProjectName),
       this.helmService.getChartToken(),
     ]);
 
@@ -45,7 +53,7 @@ export class ListChartsService {
     return charts.filter(Boolean).map((chart) => ({
       name: chart.name,
       note: chart.note,
-      url: `oci://${env.REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
+      url: `oci://${this.registryHostname}/${this.chartProjectName}/${chart.name}`,
       urlType: "oci",
       version: chart.version,
       valueSpec: chart.values,

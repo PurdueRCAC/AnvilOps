@@ -1,10 +1,10 @@
 import type { Organization, User } from "../../db/models.ts";
 import type { components } from "../../generated/openapi.ts";
-import { env } from "../../lib/env.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import { InstallationNotFoundError, ValidationError } from "../errors/index.ts";
 import type { IsNamespaceAvailableService } from "../isNamespaceAvailable.ts";
 import type { RancherService } from "./cluster/rancher.ts";
+import type { RancherAccessService } from "./cluster/rancherAccess.ts";
 import {
   MAX_GROUPNAME_LEN,
   MAX_NAMESPACE_LEN,
@@ -35,17 +35,23 @@ export class AppService {
   private isNamespaceAvailableService: IsNamespaceAvailableService;
   private gitProviderFactoryService: GitProviderFactoryService;
   private rancherService: RancherService;
+  private rancherAccessService: RancherAccessService;
+  private allowHelmDeployments: boolean;
 
   constructor(
     configService: DeploymentConfigService,
     isNamespaceAvailableService: IsNamespaceAvailableService,
     gitProviderFactoryService: GitProviderFactoryService,
     rancherService: RancherService,
+    rancherAccessService: RancherAccessService,
+    allowHelmDeployments: boolean,
   ) {
     this.configService = configService;
     this.isNamespaceAvailableService = isNamespaceAvailableService;
     this.gitProviderFactoryService = gitProviderFactoryService;
     this.rancherService = rancherService;
+    this.rancherAccessService = rancherAccessService;
+    this.allowHelmDeployments = allowHelmDeployments;
   }
 
   /**
@@ -144,7 +150,7 @@ export class AppService {
       }
 
       if (
-        !(await this.rancherService.canManageProject(
+        !(await this.rancherAccessService.canManageProject(
           user.clusterUsername,
           app.projectId,
         ))
@@ -159,7 +165,7 @@ export class AppService {
         app.type === "update" ? app.existingAppId : undefined,
       );
     } else if (app.config.appType === "helm") {
-      if (!env.ALLOW_HELM_DEPLOYMENTS) {
+      if (!this.allowHelmDeployments) {
         throw new ValidationError("Helm deployments are disabled");
       }
     }

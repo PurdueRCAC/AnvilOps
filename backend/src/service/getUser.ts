@@ -1,6 +1,7 @@
 import type { InvitationRepo } from "../db/repo/invitation.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { RancherService } from "./common/cluster/rancher.ts";
+import type { RancherAccessService } from "./common/cluster/rancherAccess.ts";
 import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
 
 export class GetUserService {
@@ -8,17 +9,20 @@ export class GetUserService {
   private invitationRepo: InvitationRepo;
   private gitProviderFactoryService: GitProviderFactoryService;
   private rancherService: RancherService;
+  private rancherAccessService: RancherAccessService;
 
   constructor(
     userRepo: UserRepo,
     invitationRepo: InvitationRepo,
     gitProviderFactoryService: GitProviderFactoryService,
     rancherService: RancherService,
+    rancherAccessService: RancherAccessService,
   ) {
     this.userRepo = userRepo;
     this.invitationRepo = invitationRepo;
     this.gitProviderFactoryService = gitProviderFactoryService;
     this.rancherService = rancherService;
+    this.rancherAccessService = rancherAccessService;
   }
 
   async getUser(userId: number) {
@@ -32,7 +36,9 @@ export class GetUserService {
 
     const projects =
       user?.clusterUsername && this.rancherService.isRancherManaged()
-        ? await this.rancherService.getProjectsForUser(user.clusterUsername)
+        ? await this.rancherAccessService.getProjectsForUser(
+            user.clusterUsername,
+          )
         : undefined;
 
     return {

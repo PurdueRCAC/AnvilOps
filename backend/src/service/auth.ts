@@ -1,6 +1,5 @@
 import * as client from "openid-client";
 import type { UserRepo } from "../db/repo/user.ts";
-import { env, parseCsv } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { RancherService } from "./common/cluster/rancher.ts";
 import { InvalidIDPError, RancherIDNotFoundError } from "./errors/index.ts";
@@ -10,39 +9,59 @@ export class AuthService {
   private rancherService: RancherService;
   private config: Promise<{ oidcConfig: client.Configuration; scope: string }>;
 
-  constructor(userRepo: UserRepo, rancherService: RancherService) {
+  private usingRancherOIDC: boolean;
+  private baseURL: string;
+  private rancherBaseURL: string;
+  private ciLogonAllowedIdps: string[];
+  private clientId: string;
+  private clientSecret: string;
+  private loginClaim: string;
+
+  constructor(
+    userRepo: UserRepo,
+    rancherService: RancherService,
+    useRancherOIDC: boolean,
+    baseURL: string,
+    rancherBaseURL: string,
+    ciLogonAllowedIdps: string[],
+    clientId: string,
+    clientSecret: string,
+    loginClaim: string,
+  ) {
     this.userRepo = userRepo;
     this.rancherService = rancherService;
     this.config = this.getOIDCConfig();
-  }
-
-  usingRancherOIDC() {
-    return (
-      this.rancherService.isRancherManaged() && env.USE_RANCHER_OIDC == "true"
-    );
+    this.usingRancherOIDC =
+      this.rancherService.isRancherManaged() && useRancherOIDC;
+    this.baseURL = baseURL;
+    this.rancherBaseURL = rancherBaseURL;
+    this.ciLogonAllowedIdps = ciLogonAllowedIdps;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.loginClaim = loginClaim;
   }
 
   usingCILogon() {
-    return !this.usingRancherOIDC();
+    return !this.usingRancherOIDC;
   }
 
   getLogoutURL() {
     return this.usingCILogon()
       ? "https://cilogon.org/logout/?skin=access"
-      : env.BASE_URL;
+      : this.baseURL;
   }
 
   async getOIDCConfig() {
-    if (this.usingRancherOIDC()) {
+    if (this.usingRancherOIDC) {
       const server = new URL(
-        `${env.RANCHER_BASE_URL}/oidc/.well-known/openid-configuration`,
+        `${this.rancherBaseURL}/oidc/.well-known/openid-configuration`,
       );
       return {
         scope: "openid profile",
         oidcConfig: await client.discovery(
           server,
-          env.CLIENT_ID,
-          env.CLIENT_SECRET,
+          this.clientId,
+          this.clientSecret,
         ),
       };
     } else {
@@ -53,8 +72,8 @@ export class AuthService {
         scope: "openid email profile org.cilogon.userinfo",
         oidcConfig: await client.discovery(
           server,
-          env.CLIENT_ID,
-          env.CLIENT_SECRET,
+          this.clientId,
+          this.clientSecret,
         ),
       };
     }
@@ -77,19 +96,17 @@ export class AuthService {
       code_challenge,
       code_challenge_method: "S256",
       scope,
-      redirect_uri: env.BASE_URL + "/api/oauth_callback",
+      redirect_uri: this.baseURL + "/api/oauth_callback",
       ...(nonce && { nonce }),
       ...(this.usingCILogon() && {
-        selected_idp: env.ALLOWED_IDPS,
-        idp_hint: env.ALLOWED_IDPS,
+        selected_idp: this.ciLogonAllowedIdps[0],
+        idp_hint: this.ciLogonAllowedIdps[0],
       }),
     };
 
     const redirect_to = client.buildAuthorizationUrl(oidcConfig, params);
     return { redirect_to: redirect_to.toString(), nonce, code_verifier };
   }
-
-  private ciLogonAllowedIdps = parseCsv(env.ALLOWED_IDPS) ?? [];
 
   async handleOAuthCallback(
     currentUrl: string,
@@ -136,7 +153,7 @@ export class AuthService {
   }
 
   async getClusterUsername(claims: client.IDToken) {
-    if (this.usingRancherOIDC()) {
+    if (this.usingRancherOIDC) {
       return claims.sub;
     }
 
@@ -160,6 +177,6 @@ export class AuthService {
       const email = claims.email as string | undefined;
       return email?.replace("@purdue.edu", "");
     }
-    return claims[env.LOGIN_CLAIM] as string;
+    return claims[this.loginClaim] as string;
   }
 }

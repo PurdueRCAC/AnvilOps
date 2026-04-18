@@ -8,7 +8,8 @@
     "prisma:generate": "prisma generate",
     "dev": "node --env-file=.env --experimental-strip-types --watch src/index.ts",
     "lint": "tsc --noEmit && eslint .",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test": "vitest"
   },
   "author": "",
   "license": "UNLICENSED",
@@ -46,19 +47,23 @@
     "regclient-napi": "file:./regclient-napi"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.4.1",
     "@eslint/js": "^9.39.2",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/cookie-parser": "^1.4.10",
+    "@types/emscripten": "^1.41.5",
     "@types/express": "^5.0.5",
     "@types/express-session": "^1.18.2",
     "@types/morgan": "^1.9.10",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.2",
     "eslint-plugin-boundaries": "^6.0.2",
+    "pglite-prisma-adapter": "^0.7.2",
     "prisma": "^7.3.0",
     "prisma-json-types-generator": "^4.0.0-beta.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.0"
+    "typescript-eslint": "^8.53.0",
+    "vitest": "^4.1.4"
   },
   "overrides": {
     "@hono/node-server": "^1.19.10",

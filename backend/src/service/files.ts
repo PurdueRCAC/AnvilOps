@@ -2,7 +2,6 @@ import type { ApiException, V1Job } from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { AppRepo } from "../db/repo/app.ts";
-import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import type { StatefulSetConfigService } from "./common/cluster/resources/statefulset.ts";
@@ -16,15 +15,18 @@ export class FileBrowserService {
   private appRepo: AppRepo;
   private statefulSetConfigService: StatefulSetConfigService;
   private kubernetesService: KubernetesClientService;
+  private fileBrowserImage: string;
 
   constructor(
     appRepo: AppRepo,
     statefulSetConfigService: StatefulSetConfigService,
     kubernetesService: KubernetesClientService,
+    fileBrowserImage: string,
   ) {
     this.appRepo = appRepo;
     this.statefulSetConfigService = statefulSetConfigService;
     this.kubernetesService = kubernetesService;
+    this.fileBrowserImage = fileBrowserImage;
   }
 
   async forwardToFileBrowser(
@@ -139,7 +141,7 @@ export class FileBrowserService {
                 containers: [
                   {
                     name: "file-browser",
-                    image: env.FILE_BROWSER_IMAGE,
+                    image: this.fileBrowserImage,
                     imagePullPolicy: "Always",
                     volumeMounts: [
                       {
