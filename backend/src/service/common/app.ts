@@ -1,23 +1,17 @@
 import type { Organization, User } from "../../db/models.ts";
 import type { components } from "../../generated/openapi.ts";
-import {
-  canManageProject,
-  isRancherManaged,
-} from "../../lib/cluster/rancher.ts";
+import { env } from "../../lib/env.ts";
+import { isRFC1123 } from "../../lib/validate.ts";
+import { InstallationNotFoundError, ValidationError } from "../errors/index.ts";
+import type { IsNamespaceAvailableService } from "../isNamespaceAvailable.ts";
+import type { RancherService } from "./cluster/rancher.ts";
 import {
   MAX_GROUPNAME_LEN,
   MAX_NAMESPACE_LEN,
   MAX_STS_NAME_LEN,
-} from "../../lib/cluster/resources.ts";
-import { env } from "../../lib/env.ts";
-import { getGitProvider } from "../../lib/git/gitProvider.ts";
-import { isRFC1123 } from "../../lib/validate.ts";
-import {
-  InstallationNotFoundError,
-  ValidationError,
-} from "../../service/common/errors.ts";
-import { isNamespaceAvailable } from "../isNamespaceAvailable.ts";
+} from "./cluster/resources.ts";
 import { DeploymentConfigService } from "./deploymentConfig.ts";
+import type { GitProviderFactoryService } from "./git/gitProvider.ts";
 
 interface CreateAppInput {
   type: "create";
@@ -38,8 +32,20 @@ export type AppInput = CreateAppInput | UpdateAppInput;
 
 export class AppService {
   private configService: DeploymentConfigService;
-  constructor(configService: DeploymentConfigService) {
+  private isNamespaceAvailableService: IsNamespaceAvailableService;
+  private gitProviderFactoryService: GitProviderFactoryService;
+  private rancherService: RancherService;
+
+  constructor(
+    configService: DeploymentConfigService,
+    isNamespaceAvailableService: IsNamespaceAvailableService,
+    gitProviderFactoryService: GitProviderFactoryService,
+    rancherService: RancherService,
+  ) {
     this.configService = configService;
+    this.isNamespaceAvailableService = isNamespaceAvailableService;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+    this.rancherService = rancherService;
   }
 
   /**
@@ -73,7 +79,7 @@ export class AppService {
 
     if (apps.some((app) => app.config.source === "git")) {
       try {
-        await getGitProvider(organization.id);
+        await this.gitProviderFactoryService.getGitProvider(organization.id);
       } catch (err) {
         if (err instanceof InstallationNotFoundError) {
           throw new ValidationError(
@@ -132,12 +138,17 @@ export class AppService {
     app: AppInput,
     user: { clusterUsername: string },
   ) {
-    if (isRancherManaged()) {
+    if (this.rancherService.isRancherManaged()) {
       if (!app.projectId) {
         throw new ValidationError("Project ID is required");
       }
 
-      if (!(await canManageProject(user.clusterUsername, app.projectId))) {
+      if (
+        !(await this.rancherService.canManageProject(
+          user.clusterUsername,
+          app.projectId,
+        ))
+      ) {
         throw new ValidationError("Project not found");
       }
     }
@@ -171,7 +182,11 @@ export class AppService {
       );
     }
 
-    if (!(await isNamespaceAvailable(app.namespace))) {
+    if (
+      !(await this.isNamespaceAvailableService.isNamespaceAvailable(
+        app.namespace,
+      ))
+    ) {
       throw new ValidationError("namespace is unavailable");
     }
 

@@ -1,38 +1,54 @@
-import { getOrCreate } from "../lib/cache.ts";
 import { env } from "../lib/env.ts";
-import { getChartToken, getLatestChart } from "../lib/helm.ts";
-import { getRepositoriesByProject } from "../lib/registry.ts";
-import { ValidationError } from "./common/errors.ts";
+import { type KVCacheService } from "./common/cache.ts";
+import type { HelmService } from "./common/helm.ts";
+import type { RegistryService } from "./common/registry.ts";
+import { ValidationError } from "./errors/index.ts";
 
-export async function listCharts() {
-  if (!env.ALLOW_HELM_DEPLOYMENTS) {
-    throw new ValidationError("Helm deployments are disabled");
+export class ListChartsService {
+  private registryService: RegistryService;
+  private helmService: HelmService;
+  private cacheService: KVCacheService;
+
+  constructor(
+    registryService: RegistryService,
+    helmService: HelmService,
+    cacheService: KVCacheService,
+  ) {
+    this.registryService = registryService;
+    this.helmService = helmService;
+    this.cacheService = cacheService;
   }
-  return JSON.parse(
-    await getOrCreate("charts", 60 * 60, async () =>
-      JSON.stringify(await listChartsFromRegistry()),
-    ),
-  ) as Awaited<ReturnType<typeof listChartsFromRegistry>>;
-}
 
-async function listChartsFromRegistry() {
-  const [repos, token] = await Promise.all([
-    getRepositoriesByProject(env.CHART_PROJECT_NAME),
-    getChartToken(),
-  ]);
+  async listCharts() {
+    if (!env.ALLOW_HELM_DEPLOYMENTS) {
+      throw new ValidationError("Helm deployments are disabled");
+    }
+    return JSON.parse(
+      await this.cacheService.getOrCreate("charts", 60 * 60, async () =>
+        JSON.stringify(await this.listChartsFromRegistry()),
+      ),
+    ) as Awaited<ReturnType<typeof this.listChartsFromRegistry>>;
+  }
 
-  const charts = await Promise.all(
-    repos.map(async (repo) => {
-      return await getLatestChart(repo.name, token);
-    }),
-  );
+  async listChartsFromRegistry() {
+    const [repos, token] = await Promise.all([
+      this.registryService.getRepositoriesByProject(env.CHART_PROJECT_NAME),
+      this.helmService.getChartToken(),
+    ]);
 
-  return charts.filter(Boolean).map((chart) => ({
-    name: chart.name,
-    note: chart.note,
-    url: `oci://${env.REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
-    urlType: "oci",
-    version: chart.version,
-    valueSpec: chart.values,
-  }));
+    const charts = await Promise.all(
+      repos.map(async (repo) => {
+        return await this.helmService.getLatestChart(repo.name, token);
+      }),
+    );
+
+    return charts.filter(Boolean).map((chart) => ({
+      name: chart.name,
+      note: chart.note,
+      url: `oci://${env.REGISTRY_HOSTNAME}/${env.CHART_PROJECT_NAME}/${chart.name}`,
+      urlType: "oci",
+      version: chart.version,
+      valueSpec: chart.values,
+    }));
+  }
 }

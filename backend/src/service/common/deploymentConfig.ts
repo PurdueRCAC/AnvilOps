@@ -1,5 +1,6 @@
 import type {
   App,
+  Deployment,
   DeploymentConfig,
   GitConfig,
   GitConfigCreate,
@@ -8,25 +9,24 @@ import type {
   WorkloadConfig,
   WorkloadConfigCreate,
 } from "../../db/models.ts";
-import { AppRepo } from "../../db/repo/app.ts";
-import { DeploymentRepo } from "../../db/repo/deployment.ts";
+import type { AppRepo } from "../../db/repo/app.ts";
 import type { components } from "../../generated/openapi.ts";
-import { MAX_SUBDOMAIN_LEN } from "../../lib/cluster/resources.ts";
-import { getImageConfig } from "../../lib/cluster/resources/logs.ts";
-import { generateVolumeName } from "../../lib/cluster/resources/statefulset.ts";
 import { env } from "../../lib/env.ts";
-import {
-  getGitProvider,
-  type GitProvider,
-  type GitRepository,
-} from "../../lib/git/gitProvider.ts";
 import { isRFC1123 } from "../../lib/validate.ts";
 import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "../common/errors.ts";
-import { canCreateIngress } from "../isSubdomainAvailable.ts";
+} from "../errors/index.ts";
+import { MAX_SUBDOMAIN_LEN } from "./cluster/resources.ts";
+import type { IngressConfigService } from "./cluster/resources/ingress.ts";
+import type { StatefulSetConfigService } from "./cluster/resources/statefulset.ts";
+import type {
+  GitProvider,
+  GitProviderFactoryService,
+  GitRepository,
+} from "./git/gitProvider.ts";
+import type { RegistryService } from "./registry.ts";
 
 type GitWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
   source: "git";
@@ -38,9 +38,23 @@ type ImageWorkloadConfig = components["schemas"]["WorkloadConfigOptions"] & {
 
 export class DeploymentConfigService {
   private appRepo: AppRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
+  private registryService: RegistryService;
+  private ingressConfigService: IngressConfigService;
+  private statefulSetConfigService: StatefulSetConfigService;
 
-  constructor(appRepo: AppRepo) {
+  constructor(
+    appRepo: AppRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+    registryService: RegistryService,
+    ingressConfigService: IngressConfigService,
+    statefulSetConfigService: StatefulSetConfigService,
+  ) {
     this.appRepo = appRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+    this.registryService = registryService;
+    this.ingressConfigService = ingressConfigService;
+    this.statefulSetConfigService = statefulSetConfigService;
   }
 
   async prepareDeploymentMetadata(
@@ -55,7 +69,9 @@ export class DeploymentConfigService {
         let gitProvider: GitProvider, repo: GitRepository;
 
         try {
-          gitProvider = await getGitProvider(organization.id);
+          gitProvider = await this.gitProviderFactoryService.getGitProvider(
+            organization.id,
+          );
         } catch (err) {
           if (err instanceof InstallationNotFoundError) {
             throw new ValidationError(
@@ -143,10 +159,30 @@ export class DeploymentConfigService {
     return config;
   }
 
+  private cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {
+    if (config === null) {
+      return null;
+    }
+
+    const {
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
+      getEnv: _getEnv,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
+      asGitConfig: _asGitConfig,
+      displayEnv: _displayEnv,
+      ...rest
+    } = config;
+
+    const newConfig = structuredClone(rest);
+
+    const env = config.getEnv();
+    return { ...newConfig, env };
+  }
+
   populateNewCommit(config: GitConfig, app: App, commitHash: string) {
     return this.populateImageTag(
       {
-        ...DeploymentRepo.cloneWorkloadConfig(config),
+        ...this.cloneWorkloadConfig(config),
         commitHash,
       },
       app,
@@ -224,7 +260,9 @@ export class DeploymentConfigService {
       mounts: config.mounts.map((mount) => ({
         amountInMiB: mount.amountInMiB,
         path: mount.path,
-        volumeClaimName: generateVolumeName(mount.path),
+        volumeClaimName: this.statefulSetConfigService.generateVolumeName(
+          mount.path,
+        ),
       })),
       ...(config.source === "GIT"
         ? {
@@ -243,6 +281,86 @@ export class DeploymentConfigService {
             imageTag: config.imageTag,
           }),
     };
+  }
+
+  async generateAutomaticEnvVars(
+    gitProvider: GitProvider | null,
+    deployment: Deployment,
+    config: WorkloadConfig,
+    app: App,
+  ): Promise<{ name: string; value: string }[]> {
+    const appDomain = URL.parse(env.APP_DOMAIN);
+    const list = [
+      {
+        name: "PORT",
+        value: config.port.toString(),
+        isSensitive: false,
+      },
+      {
+        name: "ANVILOPS_CLUSTER_HOSTNAME",
+        value: `${app.namespace}.${app.namespace}.svc.cluster.local`,
+      },
+      {
+        name: "ANVILOPS_APP_NAME",
+        value: app.displayName,
+      },
+      {
+        name: "ANVILOPS_SUBDOMAIN",
+        value: config.subdomain,
+      },
+      {
+        name: "ANVILOPS_APP_ID",
+        value: app.id.toString(),
+      },
+      {
+        name: "ANVILOPS_DEPLOYMENT_ID",
+        value: deployment.id.toString(),
+      },
+      {
+        name: "ANVILOPS_DEPLOYMENT_SOURCE",
+        value: config.source,
+      },
+      {
+        name: "ANVILOPS_IMAGE_TAG",
+        value: config.imageTag,
+      },
+    ];
+
+    if (gitProvider && config.source === "GIT") {
+      const repo = await gitProvider.getRepoById(config.repositoryId);
+      list.push({
+        name: "ANVILOPS_REPOSITORY_ID",
+        value: config.repositoryId.toString(),
+      });
+      list.push({ name: "ANVILOPS_REPOSITORY_OWNER", value: repo.owner });
+      list.push({ name: "ANVILOPS_REPOSITORY_NAME", value: repo.name });
+      list.push({
+        name: "ANVILOPS_REPOSITORY_SLUG",
+        value: `${repo.owner}/${repo.name}`,
+      });
+      list.push({
+        name: "ANVILOPS_COMMIT_HASH",
+        value: config.commitHash,
+      });
+      list.push({
+        name: "ANVILOPS_COMMIT_MESSAGE",
+        value: deployment.commitMessage,
+      });
+    }
+
+    if (appDomain !== null && config.createIngress) {
+      const hostname = `${config.subdomain}.${appDomain.host}`;
+      list.push({
+        name: "ANVILOPS_HOSTNAME",
+        value: hostname,
+      });
+      list.push({
+        name: "ANVILOPS_URL",
+        value: new URL(`${appDomain.protocol}//${hostname}`).toString(),
+      });
+    }
+
+    return list;
   }
 
   async validateCommonWorkloadConfig(
@@ -347,7 +465,7 @@ export class DeploymentConfigService {
   private async validateImageReference(reference: string) {
     try {
       // Look up the image in its registry to make sure it exists
-      await getImageConfig(reference);
+      await this.registryService.getImageConfig(reference);
     } catch (err) {
       throw new ValidationError("Image could not be found in its registry.", {
         cause: err,
@@ -372,7 +490,7 @@ export class DeploymentConfigService {
         );
       }
     } else {
-      if (!(await canCreateIngress(subdomain))) {
+      if (!(await this.ingressConfigService.canCreateIngress(subdomain))) {
         throw new ValidationError("Subdomain is in use");
       }
     }

@@ -7,11 +7,8 @@ import {
   type PermissionLevel,
   type WebhookEvent,
 } from "../../generated/prisma/enums.ts";
-import {
-  ConflictError,
-  NotFoundError,
-  type PrismaClientType,
-} from "../index.ts";
+import { ConflictError, NotFoundError } from "../errors/index.ts";
+import { type PrismaClientType } from "../index.ts";
 import type {
   App,
   AppCreate,
@@ -270,12 +267,15 @@ export class AppRepo {
     await this.client.app.update({ where: { id: appId }, data: { enableCD } });
   }
 
-  async getDeploymentsWithStatus(appId: number, statuses: DeploymentStatus[]) {
+  async getDeploymentsWhereStatusNotIn(
+    appId: number,
+    statuses: DeploymentStatus[],
+  ) {
     const deployments = await this.client.deployment.findMany({
       where: {
         appId: appId,
         status: {
-          in: statuses,
+          notIn: statuses,
         },
       },
       include: {

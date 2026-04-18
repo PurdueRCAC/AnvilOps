@@ -2,8 +2,8 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
   RepositoryNotFoundError,
-} from "../service/common/errors.ts";
-import { listRepoWorkflows } from "../service/listRepoWorkflows.ts";
+} from "../service/errors/index.ts";
+import { listRepoWorkflowsService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -13,7 +13,7 @@ export const listRepoWorkflowsHandler: HandlerMap["listRepoWorkflows"] = async (
   res,
 ) => {
   try {
-    const workflows = await listRepoWorkflows(
+    const workflows = await listRepoWorkflowsService.listRepoWorkflows(
       ctx.request.params.orgId,
       req.user.id,
       ctx.request.params.repoId,

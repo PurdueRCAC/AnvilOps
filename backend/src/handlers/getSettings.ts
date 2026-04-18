@@ -1,4 +1,4 @@
-import { getSettings } from "../service/getSettings.ts";
+import { getSettingsService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const getSettingsHandler: HandlerMap["getSettings"] = async (
@@ -6,5 +6,5 @@ export const getSettingsHandler: HandlerMap["getSettings"] = async (
   req,
   res,
 ) => {
-  return json(200, res, await getSettings());
+  return json(200, res, await getSettingsService.getSettings());
 };

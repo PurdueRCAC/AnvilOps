@@ -1,14 +1,10 @@
-import { Webhooks } from "@octokit/webhooks";
-import { env } from "../lib/env.ts";
 import {
   AppNotFoundError,
   UnknownWebhookRequestTypeError,
   ValidationError,
-} from "../service/common/errors.ts";
-import { processGitHubWebhookPayload } from "../service/githubWebhook.ts";
+} from "../service/errors/index.ts";
+import { githubWebhookService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
-
-const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET });
 
 export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
   ctx,
@@ -22,7 +18,10 @@ export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
     return empty(401, res);
   }
 
-  const isValid = await webhooks.verify(data, signature);
+  const isValid = await githubWebhookService.verifyGitHubWebhookPayload(
+    data,
+    signature,
+  );
   if (!isValid) {
     return empty(403, res);
   }
@@ -34,7 +33,11 @@ export const githubWebhookHandler: HandlerMap["githubWebhook"] = async (
       : null;
 
   try {
-    await processGitHubWebhookPayload(requestType, action, JSON.parse(data));
+    await githubWebhookService.processGitHubWebhookPayload(
+      requestType,
+      action,
+      JSON.parse(data),
+    );
     return empty(204, res);
   } catch (e) {
     if (e instanceof ValidationError) {

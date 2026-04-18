@@ -10,27 +10,22 @@ import type {
   WorkloadConfig,
   WorkloadConfigCreate,
 } from "../../db/models.ts";
-import { AppRepo } from "../../db/repo/app.ts";
-import { AppGroupRepo } from "../../db/repo/appGroup.ts";
-import { DeploymentRepo } from "../../db/repo/deployment.ts";
-import { DeploymentStatus } from "../../generated/prisma/enums.ts";
-import { logger } from "../../index.ts";
-import { cancelBuildJobsForApp, createBuildJob } from "../../lib/builder.ts";
-import {
-  createOrUpdateApp,
-  getClientForClusterUsername,
-} from "../../lib/cluster/kubernetes.ts";
-import { shouldImpersonate } from "../../lib/cluster/rancher.ts";
-import { createAppConfigsFromDeployment } from "../../lib/cluster/resources.ts";
+import type { AppRepo } from "../../db/repo/app.ts";
+import type { AppGroupRepo } from "../../db/repo/appGroup.ts";
+import type { DeploymentRepo } from "../../db/repo/deployment.ts";
 import { env } from "../../lib/env.ts";
-import {
-  getGitProvider,
-  type CommitStatus,
-  type GitProvider,
-} from "../../lib/git/gitProvider.ts";
-import { upgrade } from "../../lib/helm.ts";
-import { DeploymentError } from "../common/errors.ts";
+import { logger } from "../../logger.ts";
+import { DeploymentError } from "../errors/index.ts";
 import { log } from "../githubWebhook.ts";
+import type { BuilderService } from "./builder.ts";
+import type { KubernetesClientService } from "./cluster/kubernetes.ts";
+import type { ClusterResourcesService } from "./cluster/resources.ts";
+import type {
+  CommitStatus,
+  GitProvider,
+  GitProviderFactoryService,
+} from "./git/gitProvider.ts";
+import type { HelmService } from "./helm.ts";
 
 type GitOptions =
   | { skipBuild: boolean; checkRun?: undefined }
@@ -43,14 +38,30 @@ export class DeploymentService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
+  private helmService: HelmService;
+  private gitProviderFactoryService: GitProviderFactoryService;
+  private builderService: BuilderService;
+  private clusterResourcesService: ClusterResourcesService;
+  private kubernetesClientService: KubernetesClientService;
+
   constructor(
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
+    helmService: HelmService,
+    gitProviderFactoryService: GitProviderFactoryService,
+    builderService: BuilderService,
+    clusterResourcesService: ClusterResourcesService,
+    kubernetesClientService: KubernetesClientService,
   ) {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
+    this.helmService = helmService;
+    this.gitProviderFactoryService = gitProviderFactoryService;
+    this.builderService = builderService;
+    this.clusterResourcesService = clusterResourcesService;
+    this.kubernetesClientService = kubernetesClientService;
   }
 
   /**
@@ -201,13 +212,14 @@ export class DeploymentService {
   }) {
     try {
       const checkRunId = await this.createCheckRun(
-        await getGitProvider(org.id),
+        await this.gitProviderFactoryService.getGitProvider(org.id),
         deployment,
         config,
         config.repositoryId,
         "queued",
       );
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         "Created GitHub check run with status Queued",
@@ -242,7 +254,7 @@ export class DeploymentService {
     let gitProvider: GitProvider;
     let checkRunId: number | undefined;
     if (createOrUpdateCheckRun) {
-      gitProvider = await getGitProvider(org.id);
+      gitProvider = await this.gitProviderFactoryService.getGitProvider(org.id);
       try {
         if (deployment.checkRunId) {
           await this.updateCheckRun(
@@ -252,6 +264,7 @@ export class DeploymentService {
             "in_progress",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Updated GitHub check run to In Progress",
@@ -265,6 +278,7 @@ export class DeploymentService {
             "in_progress",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Created GitHub check run with status In Progress",
@@ -277,10 +291,21 @@ export class DeploymentService {
     }
 
     try {
-      jobId = await createBuildJob(org, app, deployment, config);
-      log(deployment.id, "BUILD", "Created build job with ID " + jobId);
+      jobId = await this.builderService.createBuildJob(
+        org,
+        app,
+        deployment,
+        config,
+      );
+      log(
+        this.deploymentRepo,
+        deployment.id,
+        "BUILD",
+        "Created build job with ID " + jobId,
+      );
     } catch (e) {
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         "Error creating build job: " + JSON.stringify(e),
@@ -297,6 +322,7 @@ export class DeploymentService {
             "failure",
           );
           log(
+            this.deploymentRepo,
             deployment.id,
             "BUILD",
             "Updated GitHub check run to Completed with conclusion Failure",
@@ -327,39 +353,51 @@ export class DeploymentService {
     config: WorkloadConfig;
   }) {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
-    await this.deploymentRepo.setStatus(
+    await this.deploymentRepo.setStatus(deployment.id, "DEPLOYING");
+    log(
+      this.deploymentRepo,
       deployment.id,
-      DeploymentStatus.DEPLOYING,
+      "BUILD",
+      "Deploying directly from OCI image...",
     );
-    log(deployment.id, "BUILD", "Deploying directly from OCI image...");
     // If we're creating a deployment directly from an existing image tag, just deploy it now
+    await this.finishDeployment(org, app, appGroup, deployment, config);
+  }
+
+  /**
+   * Generates Kuernetes configs from the AnvilOps deployment object, applies them to the cluster, and updates the deployment's status to Complete.
+   */
+  async finishDeployment(
+    org: Organization,
+    app: App,
+    appGroup: AppGroup,
+    deployment: Deployment,
+    config: WorkloadConfig,
+  ) {
     try {
       const { namespace, configs, postCreate } =
-        await createAppConfigsFromDeployment({
+        await this.clusterResourcesService.createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
           deployment,
           config,
         });
-      const api = getClientForClusterUsername(
-        app.clusterUsername,
-        "KubernetesObjectApi",
-        shouldImpersonate(app.projectId),
+      await this.kubernetesClientService.createOrUpdateApp(
+        app,
+        namespace,
+        configs,
+        postCreate,
       );
-      await createOrUpdateApp(api, app.name, namespace, configs, postCreate);
-      log(deployment.id, "BUILD", "Deployment succeeded");
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.COMPLETE,
-      );
-      await this.appRepo.setConfig(app.id, deployment.configId);
+      log(this.deploymentRepo, deployment.id, "BUILD", "Deployment succeeded");
+      await Promise.all([
+        this.deploymentRepo.setStatus(deployment.id, "COMPLETE"),
+        this.appRepo.setConfig(app.id, deployment.configId),
+      ]);
     } catch (e) {
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.ERROR,
-      );
+      await this.deploymentRepo.setStatus(deployment.id, "ERROR");
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         `Failed to apply Kubernetes resources: ${JSON.stringify(e)}`,
@@ -380,16 +418,19 @@ export class DeploymentService {
     config: HelmConfig,
   ) {
     await this.cancelAllOtherDeployments(org, app, deployment.id, true);
-    log(deployment.id, "BUILD", "Deploying directly from Helm chart...");
+    log(
+      this.deploymentRepo,
+      deployment.id,
+      "BUILD",
+      "Deploying directly from Helm chart...",
+    );
     try {
-      await upgrade(app, deployment, config);
+      await this.helmService.upgrade(app, deployment, config);
       await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
-      await this.deploymentRepo.setStatus(
-        deployment.id,
-        DeploymentStatus.ERROR,
-      );
+      await this.deploymentRepo.setStatus(deployment.id, "ERROR");
       log(
+        this.deploymentRepo,
         deployment.id,
         "BUILD",
         `Failed to create Helm deployment job: ${JSON.stringify(e)}`,
@@ -432,14 +473,13 @@ export class DeploymentService {
     deploymentId: number,
     cancelComplete = false,
   ) {
-    await cancelBuildJobsForApp(app.id);
+    await this.kubernetesClientService.cancelBuildJobsForApp(app.id);
 
-    const statuses = Object.keys(DeploymentStatus) as DeploymentStatus[];
-    const deployments = await this.appRepo.getDeploymentsWithStatus(
+    const deployments = await this.appRepo.getDeploymentsWhereStatusNotIn(
       app.id,
       cancelComplete
-        ? statuses.filter((it) => it != "ERROR")
-        : statuses.filter((it) => it != "ERROR" && it != "COMPLETE"),
+        ? ["CANCELLED", "ERROR"]
+        : ["CANCELLED", "ERROR", "COMPLETE"],
     );
 
     let gitProvider: GitProvider;
@@ -451,7 +491,9 @@ export class DeploymentService {
         if (deployment.checkRunId) {
           // Should have a check run that is either queued or in_progress
           if (!gitProvider) {
-            gitProvider = await getGitProvider(org.id);
+            gitProvider = await this.gitProviderFactoryService.getGitProvider(
+              org.id,
+            );
           }
           const config = deployment.config.asGitConfig();
           try {
@@ -462,6 +504,7 @@ export class DeploymentService {
               "cancelled",
             );
             log(
+              this.deploymentRepo,
               deployment.id,
               "BUILD",
               "Updated GitHub check run to Completed with conclusion Cancelled",

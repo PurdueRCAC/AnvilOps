@@ -283,26 +283,6 @@ export class DeploymentRepo {
     return obj;
   }
 
-  static cloneWorkloadConfig(config: WorkloadConfig): WorkloadConfigCreate {
-    if (config === null) {
-      return null;
-    }
-
-    const {
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
-      getEnv: _getEnv,
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- This function is unused
-      asGitConfig: _asGitConfig,
-      displayEnv: _displayEnv,
-      ...rest
-    } = config;
-
-    const newConfig = structuredClone(rest);
-
-    const env = config.getEnv();
-    return { ...newConfig, env };
-  }
-
   async checkLogIngestSecret(deploymentId: number, logIngestSecret: string) {
     const count = await this.client.app.count({
       where: {

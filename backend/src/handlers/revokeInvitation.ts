@@ -1,5 +1,5 @@
-import { InvitationNotFoundError } from "../service/common/errors.ts";
-import { revokeInvitation } from "../service/revokeInvitation.ts";
+import { InvitationNotFoundError } from "../service/errors/index.ts";
+import { revokeInvitationService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -9,7 +9,7 @@ export const revokeInvitationHandler: HandlerMap["revokeInvitation"] = async (
   res,
 ) => {
   try {
-    await revokeInvitation(
+    await revokeInvitationService.revokeInvitation(
       ctx.request.params.orgId,
       req.user.id,
       ctx.request.params.invId,

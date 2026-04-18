@@ -14,9 +14,6 @@ import { OrganizationRepo } from "./repo/organization.ts";
 import { RepoImportStateRepo } from "./repo/repoImportState.ts";
 import { UserRepo } from "./repo/user.ts";
 
-export class NotFoundError extends Error {}
-export class ConflictError extends Error {}
-
 export type PrismaClientType = PrismaClient<
   never,
   {

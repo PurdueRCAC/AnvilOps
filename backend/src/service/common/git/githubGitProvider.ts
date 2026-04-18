@@ -1,16 +1,18 @@
 import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import type { operations } from "@octokit/openapi-types";
+import crypto from "node:crypto";
 import { Octokit, RequestError } from "octokit";
-import { db } from "../../db/index.ts";
-import { logger } from "../../index.ts";
+import type { OrganizationRepo } from "../../../db/repo/organization.ts";
+import type { RepoImportStateRepo } from "../../../db/repo/repoImportState.ts";
+import { env } from "../../../lib/env.ts";
+import { logger } from "../../../logger.ts";
 import {
   InstallationNotFoundError,
   RepositoryNotFoundError,
   ValidationError,
-} from "../../service/common/errors.ts";
-import { get, getOrCreate, set } from "../cache.ts";
-import { env } from "../env.ts";
-import { copyRepoManually } from "../import.ts";
+} from "../../errors/index.ts";
+import type { KVCacheService } from "../cache.ts";
+import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import {
   ImportRepoAuthenticationRequiredError,
   type CommitStatus,
@@ -27,75 +29,111 @@ const privateKey = Buffer.from(env.GITHUB_PRIVATE_KEY, "base64").toString(
 
 const installationIdSymbol = Symbol("installationId");
 
-const githubAuthCache = {
-  get: (key: string) =>
-    get(`github-auth-${key}`).catch((err) =>
-      logger.error(err, "Failed to get key from GitHub auth cache"),
-    ),
-  set: (key: string, value: string) =>
-    // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
-    set(`github-auth-${key}`, value, 45 * 60).catch((err) =>
-      logger.error(err, "Failed to update GitHub auth cache"),
-    ),
-};
-
 type InstallationScopedOctokit = Octokit & {
   [installationIdSymbol]: number;
 };
 
-async function getOctokit(installationId: number) {
-  const octokit = new Octokit({
-    baseUrl: env.GITHUB_API_URL,
-    authStrategy: createAppAuth,
-    auth: {
-      privateKey,
-      appId: env.GITHUB_APP_ID,
-      cache: githubAuthCache,
-      installationId,
-    },
-  });
-
-  const scopedOctokit: InstallationScopedOctokit = {
-    ...octokit,
-    [installationIdSymbol]: installationId,
-  };
-
-  scopedOctokit[installationIdSymbol] = installationId;
-  try {
-    // Run the authorization step right now so that we can rethrow if the installation wasn't found
-    await scopedOctokit.auth({ type: "installation" });
-  } catch (e) {
-    if ((e as RequestError)?.status === 404) {
-      // Installation not found. Remove it from its organization(s).
-      await db.org.unlinkInstallationFromAllOrgs(installationId);
-      throw new InstallationNotFoundError(e as Error);
-    }
-    throw e;
-  }
-  return scopedOctokit;
-}
-
 export class GitHubGitProvider implements GitProvider {
   private octokit: Octokit;
   private installationId: number;
+  private repoImportStateRepo: RepoImportStateRepo;
+  private kubernetesService: KubernetesClientService;
+  private cacheService: KVCacheService;
 
-  private constructor(octokit: Octokit, installationId: number) {
+  private constructor(
+    octokit: Octokit,
+    repoImportStateRepo: RepoImportStateRepo,
+    kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
+    installationId: number,
+  ) {
     if (!octokit || !installationId || installationId < 0) {
       throw new ValidationError();
     }
     this.octokit = octokit;
     this.installationId = installationId;
+    this.repoImportStateRepo = repoImportStateRepo;
+    this.kubernetesService = kubernetesService;
+    this.cacheService = cacheService;
   }
 
-  static async getInstance(orgId: number) {
-    const org = await db.org.getById(orgId);
+  private static async getOctokit(
+    cacheService: KVCacheService,
+    installationId: number,
+    orgRepo: OrganizationRepo,
+  ) {
+    const githubAuthCache = {
+      get: (key: string) =>
+        cacheService
+          .get(`github-auth-${key}`)
+          .catch((err) =>
+            logger.error(err, "Failed to get key from GitHub auth cache"),
+          ),
+      set: (key: string, value: string) =>
+        // Cache authorization tokens for 45 minutes (they expire after 60 minutes)
+        cacheService
+          .set(`github-auth-${key}`, value, 45 * 60)
+          .catch((err) =>
+            logger.error(err, "Failed to update GitHub auth cache"),
+          ),
+    };
+
+    const octokit = new Octokit({
+      baseUrl: env.GITHUB_API_URL,
+      authStrategy: createAppAuth,
+      auth: {
+        privateKey,
+        appId: env.GITHUB_APP_ID,
+        cache: githubAuthCache,
+        installationId,
+      },
+    });
+
+    const scopedOctokit: InstallationScopedOctokit = {
+      ...octokit,
+      [installationIdSymbol]: installationId,
+    };
+
+    scopedOctokit[installationIdSymbol] = installationId;
+    try {
+      // Run the authorization step right now so that we can rethrow if the installation wasn't found
+      await scopedOctokit.auth({ type: "installation" });
+    } catch (e) {
+      if ((e as RequestError)?.status === 404) {
+        // Installation not found. Remove it from its organization(s).
+        await orgRepo.unlinkInstallationFromAllOrgs(installationId);
+        throw new InstallationNotFoundError(e as Error);
+      }
+      throw e;
+    }
+    return scopedOctokit;
+  }
+
+  static async getInstance(
+    orgId: number,
+    orgRepo: OrganizationRepo,
+    repoImportStateRepo: RepoImportStateRepo,
+    kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
+  ) {
+    const org = await orgRepo.getById(orgId);
     if (!org.githubInstallationId) {
       throw new InstallationNotFoundError(null);
     }
 
-    const octokit = await getOctokit(org.githubInstallationId);
+    const octokit = await GitHubGitProvider.getOctokit(
+      cacheService,
+      org.githubInstallationId,
+      orgRepo,
+    );
 
-    return new GitHubGitProvider(octokit, org.githubInstallationId);
+    return new GitHubGitProvider(
+      octokit,
+      repoImportStateRepo,
+      kubernetesService,
+      cacheService,
+      org.githubInstallationId,
+    );
   }
 
   async getRepoById(repoId: number): Promise<GitRepository> {
@@ -178,7 +216,7 @@ export class GitHubGitProvider implements GitProvider {
         } else {
           // If not, we need to get authorization from the user first.
 
-          const stateId = await db.repoImportState.create(
+          const stateId = await this.repoImportStateRepo.create(
             userId,
             orgId,
             newOwner,
@@ -205,7 +243,7 @@ export class GitHubGitProvider implements GitProvider {
     code: string,
     userId: number,
   ): Promise<{ repoId: number; orgId: number; repoName: string }> {
-    const state = await db.repoImportState.get(stateId, userId);
+    const state = await this.repoImportStateRepo.get(stateId, userId);
 
     logger.info(
       {
@@ -231,7 +269,7 @@ export class GitHubGitProvider implements GitProvider {
     });
 
     await this.importRepoManually(new URL(state.srcRepoURL), repo.data.id);
-    await db.repoImportState.delete(stateId);
+    await this.repoImportStateRepo.delete(stateId);
 
     return {
       repoId: repo.data.id,
@@ -427,7 +465,7 @@ export class GitHubGitProvider implements GitProvider {
 
     const pushURL = await this.generateCloneURL(destRepoId);
 
-    await copyRepoManually(this, cloneURL, pushURL);
+    await this.copyRepoManually(this, cloneURL, pushURL);
   }
 
   private getRepoInfoFromURL(sourceURL: URL): {
@@ -497,7 +535,7 @@ export class GitHubGitProvider implements GitProvider {
     type Repo = Awaited<ReturnType<typeof this.octokit.rest.repos.get>>["data"];
 
     return JSON.parse(
-      await getOrCreate(
+      await this.cacheService.getOrCreate(
         `github-repo-${this.installationId}-${repoId}`,
         30,
         async () => {
@@ -557,5 +595,115 @@ export class GitHubGitProvider implements GitProvider {
       } satisfies Parameters<typeof createOAuthUserAuth>[0],
       baseUrl: env.GITHUB_API_URL,
     });
+  }
+
+  async copyRepoManually(
+    gitProvider: GitProvider,
+    cloneURL: string,
+    pushURL: string,
+  ) {
+    const botUser = await gitProvider.getBotCommitterDetails();
+
+    const job = await this.kubernetesService.createNamespacedJob({
+      namespace: env.CURRENT_NAMESPACE,
+      body: {
+        metadata: {
+          name: `import-repo-${crypto.randomBytes(16).toString("hex")}`,
+        },
+        spec: {
+          ttlSecondsAfterFinished: 30, // Delete job 30 seconds after it completes
+          backoffLimit: 1, // Retry up to 1 time if the job exits with a non-zero status code
+          activeDeadlineSeconds: 2 * 60, // Kill after 2 minutes
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: "importer",
+                  image: "alpine/git:v2.49.0",
+                  env: [
+                    { name: "CLONE_URL", value: cloneURL },
+                    { name: "PUSH_URL", value: pushURL },
+                    { name: "USER_EMAIL", value: botUser.email },
+                    { name: "USER_NAME", value: botUser.name },
+                  ],
+                  imagePullPolicy: "Always",
+                  command: ["/bin/sh", "-c"],
+                  workingDir: "/work",
+                  args: [
+                    `
+git clone --depth=1 --shallow-submodules "$CLONE_URL" .
+rm -rf .git
+
+git init
+git branch -M main
+
+git config user.email "$USER_EMAIL"
+git config user.name "$USER_NAME"
+
+git add .
+git commit -m "Initial commit"
+
+git remote add origin "$PUSH_URL"
+git push -u origin main`,
+                  ],
+                  volumeMounts: [
+                    {
+                      mountPath: "/work",
+                      name: "work-dir",
+                    },
+                  ],
+                  resources: {
+                    requests: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                    limits: {
+                      cpu: "500m",
+                      memory: "512Mi",
+                    },
+                  },
+                  securityContext: {
+                    // TODO: Use a custom image that specifies a user. Then, add a securityContext that runs as that non-root user and enables readOnlyRootFileSystem.
+                    capabilities: {
+                      drop: ["ALL"],
+                    },
+                    allowPrivilegeEscalation: false,
+                  },
+                },
+              ],
+              volumes: [
+                {
+                  name: "work-dir",
+                  emptyDir: {
+                    sizeLimit: "1Gi",
+                  },
+                },
+              ],
+              restartPolicy: "Never",
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(
+      { jobNamespace: job.metadata.namespace, jobName: job.metadata.name },
+      "Created manual Git repo import job",
+    );
+    try {
+      await this.kubernetesService.awaitJobCompletion(
+        env.CURRENT_NAMESPACE,
+        job.metadata.name,
+      );
+    } catch (e) {
+      logger.warn(
+        {
+          jobNamespace: job.metadata.namespace,
+          jobName: job.metadata.name,
+        },
+        "Git repo import job failed",
+      );
+      throw e;
+    }
   }
 }

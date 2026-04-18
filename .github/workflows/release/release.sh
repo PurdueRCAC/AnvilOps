@@ -98,28 +98,6 @@ copy_image() {
 }
 
 RAILPACK_VERSION=$(grep "RAILPACK_VERSION=" "$PROJECT_ROOT/builders/railpack/Dockerfile" | cut -d= -f 2)
-RAILPACK_RELEASE_SHA=$(gh api "repos/railwayapp/railpack/commits/v$RAILPACK_VERSION" --jq '.sha')
-
-get_railpack_image_tag() {
-  # Railpack container images are only published when their respective Dockerfiles and GH Actions workflows are updated, and they're only tagged with their current commit hashes.
-  # If we want to get the fully-qualified (i.e. non-`latest`) image tag given a version number, we need to search for the most recently-published container image before the creation date of the release.
-  
-  CANDIDATES=()
-  for FILE in "$@"; do
-      # Fetch the single most recent commit for this file relative to the Release SHA
-      COMMIT_DATA=$(gh api "repos/railwayapp/railpack/commits?path=$FILE&sha=$RAILPACK_RELEASE_SHA&per_page=1" \
-          --jq '.[0] | {sha: .sha, date: .commit.committer.date}')
-      
-      if [ "$COMMIT_DATA" != "null" ]; then
-          CANDIDATES+=("$COMMIT_DATA")
-      fi
-  done
-
-  # Sort candidates by date and pick the last (most recent) one
-  SHA=$(printf '%s\n' "${CANDIDATES[@]}" | jq -s -r 'sort_by(.date) | last | .sha')
-
-  echo "sha-$SHA"
-}
 
 build_images() {
   echo "### Container Images" >> "$NOTES_FILE"
@@ -140,8 +118,8 @@ copy_railpack_images() {
   RAILPACK_INTERNAL_RUNTIME_IMAGE="$REGISTRY_BASE/railpack-runtime:$RAILPACK_VERSION"
 
   copy_image ".anvilops.env.railpackInternalFrontendImage" "ghcr.io/railwayapp/railpack-frontend:v$RAILPACK_VERSION" "$RAILPACK_INTERNAL_FRONTEND_IMAGE"
-  copy_image ".anvilops.env.railpackInternalBuilderImage" "ghcr.io/railwayapp/railpack-builder:$(get_railpack_image_tag "images/debian/build/Dockerfile" ".github/workflows/publish-builder.yml")" "$RAILPACK_INTERNAL_BUILDER_IMAGE"
-  copy_image ".anvilops.env.railpackInternalRuntimeImage" "ghcr.io/railwayapp/railpack-runtime:$(get_railpack_image_tag "images/debian/runtime/Dockerfile" ".github/workflows/publish-runtime.yml")" "$RAILPACK_INTERNAL_RUNTIME_IMAGE"
+  copy_image ".anvilops.env.railpackInternalBuilderImage" "ghcr.io/railwayapp/railpack-builder:$RAILPACK_VERSION" "$RAILPACK_INTERNAL_BUILDER_IMAGE"
+  copy_image ".anvilops.env.railpackInternalRuntimeImage" "ghcr.io/railwayapp/railpack-runtime:$RAILPACK_VERSION" "$RAILPACK_INTERNAL_RUNTIME_IMAGE"
 }
 
 publish_chart() {

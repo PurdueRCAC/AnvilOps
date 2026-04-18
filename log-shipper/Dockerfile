@@ -1,5 +1,5 @@
 # This Dockerfile builds a container that copies the log-shipper binary into a destination specified in a command-line argument.
-# See the wrapWithLogExporter function in backend/src/lib/cluster/resources/logs.ts for more details on how this is used.
+# See the wrapWithLogExporter function in backend/src/service/common/cluster/resources/logs.ts for more details on how this is used.
 
 FROM golang:1.25.5-alpine AS build
 

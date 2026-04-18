@@ -1,8 +1,7 @@
 import { metrics, ValueType } from "@opentelemetry/api";
-import { db } from "../db/index.ts";
-import type { LogType } from "../generated/prisma/enums.ts";
-import type { LogUncheckedCreateInput } from "../generated/prisma/models.ts";
-import { DeploymentNotFoundError, ValidationError } from "./common/errors.ts";
+import type { LogType } from "../db/models.ts";
+import type { DeploymentRepo } from "../db/repo/deployment.ts";
+import { DeploymentNotFoundError, ValidationError } from "./errors/index.ts";
 
 type LogLineInput = {
   content: string;
@@ -16,39 +15,50 @@ const counter = meter.createCounter("anvilops_log_lines_ingested", {
   valueType: ValueType.INT,
 });
 
-export async function ingestLogs(
-  deploymentId: number,
-  token: string,
-  podName: string,
-  logType: LogType,
-  lines: LogLineInput[],
-) {
-  // Authorize the request
-  const result = await db.deployment.checkLogIngestSecret(deploymentId, token);
-  if (!result) {
-    throw new DeploymentNotFoundError();
+export class IngestLogsService {
+  private deploymentRepo: DeploymentRepo;
+
+  constructor(deploymentRepo: DeploymentRepo) {
+    this.deploymentRepo = deploymentRepo;
   }
 
-  // Append the logs to the DB
-  if (!logType) {
-    // Should never happen
-    throw new ValidationError("Missing log type.");
+  async ingestLogs(
+    deploymentId: number,
+    token: string,
+    podName: string,
+    logType: LogType,
+    lines: LogLineInput[],
+  ) {
+    // Authorize the request
+    const result = await this.deploymentRepo.checkLogIngestSecret(
+      deploymentId,
+      token,
+    );
+    if (!result) {
+      throw new DeploymentNotFoundError();
+    }
+
+    // Append the logs to the DB
+    if (!logType) {
+      // Should never happen
+      throw new ValidationError("Missing log type.");
+    }
+
+    const logLines = lines
+      .map((line, i) => {
+        return {
+          content: line.content,
+          deploymentId: deploymentId,
+          type: logType,
+          timestamp: new Date(line.timestamp),
+          index: i,
+          podName: podName,
+          stream: line.stream,
+        };
+      })
+      .filter((it) => it !== null);
+
+    await this.deploymentRepo.insertLogs(logLines);
+    counter.add(logLines.length);
   }
-
-  const logLines = lines
-    .map((line, i) => {
-      return {
-        content: line.content,
-        deploymentId: deploymentId,
-        type: logType,
-        timestamp: new Date(line.timestamp),
-        index: i,
-        podName: podName,
-        stream: line.stream,
-      } satisfies LogUncheckedCreateInput;
-    })
-    .filter((it) => it !== null);
-
-  await db.deployment.insertLogs(logLines);
-  counter.add(logLines.length);
 }

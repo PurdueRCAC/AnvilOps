@@ -1,6 +1,7 @@
 import { once } from "node:events";
-import { AppNotFoundError } from "../service/common/errors.ts";
-import { getAppStatus, type StatusUpdate } from "../service/getAppStatus.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
+import type { StatusUpdate } from "../service/getAppStatus.ts";
+import { getAppStatusService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -34,7 +35,7 @@ export const getAppStatusHandler: HandlerMap["getAppStatus"] = async (
   res.flushHeaders();
 
   try {
-    await getAppStatus(
+    await getAppStatusService.getAppStatus(
       ctx.request.params.appId,
       req.user.id,
       abortController,

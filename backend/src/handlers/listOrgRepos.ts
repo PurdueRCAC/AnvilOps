@@ -1,8 +1,8 @@
 import {
   InstallationNotFoundError,
   OrgNotFoundError,
-} from "../service/common/errors.ts";
-import { listOrgRepos } from "../service/listOrgRepos.ts";
+} from "../service/errors/index.ts";
+import { listOrgReposService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -12,7 +12,10 @@ export const listOrgReposHandler: HandlerMap["listOrgRepos"] = async (
   res,
 ) => {
   try {
-    const data = await listOrgRepos(ctx.request.params.orgId, req.user.id);
+    const data = await listOrgReposService.listOrgRepos(
+      ctx.request.params.orgId,
+      req.user.id,
+    );
     return json(200, res, data);
   } catch (e) {
     if (e instanceof OrgNotFoundError) {
