@@ -2,13 +2,13 @@ import crypto, { createCipheriv, createDecipheriv } from "node:crypto";
 
 const separator = "|";
 
-const unwrapKey = (masterKey: string, wrapped: string): Buffer => {
+const unwrapKey = (masterKey: Buffer, wrapped: string): Buffer => {
   const iv = Buffer.alloc(8, 0xa6); // Recommended default initial value
   const decipher = createDecipheriv("aes256-wrap", masterKey, iv);
   return Buffer.concat([decipher.update(wrapped, "base64"), decipher.final()]);
 };
 
-const wrapKey = (masterKey: string, key: Buffer): string => {
+const wrapKey = (masterKey: Buffer, key: Buffer): string => {
   const iv = Buffer.alloc(8, 0xa6);
   const cipher = createCipheriv("aes256-wrap", masterKey, iv);
   return cipher.update(key, undefined, "base64") + cipher.final("base64");
@@ -40,7 +40,7 @@ const genKey = (): Buffer => {
 };
 
 export const encryptEnv = (
-  masterKey: string,
+  masterKey: Buffer,
   plaintext: PrismaJson.EnvVar[],
   key: string,
 ) => {
@@ -52,7 +52,7 @@ export const encryptEnv = (
 };
 
 export const decryptEnv = (
-  masterKey: string,
+  masterKey: Buffer,
   ciphertext: PrismaJson.EnvVar[],
   key: string,
 ) => {
@@ -63,4 +63,4 @@ export const decryptEnv = (
   }));
 };
 
-export const generateKey = (masterKey: string) => wrapKey(masterKey, genKey());
+export const generateKey = (masterKey: Buffer) => wrapKey(masterKey, genKey());
