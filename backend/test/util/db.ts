@@ -17,7 +17,7 @@ class PgliteDatabase extends PrismaDatabase {
   constructor(client: PGlite) {
     const adapter = new PrismaPGlite(client);
     const db = new PrismaClient({ adapter }) satisfies PrismaClientType;
-    super(db, randomBytes(32).toString("base64"));
+    super(db, randomBytes(32));
     this.pglite = client;
   }
 

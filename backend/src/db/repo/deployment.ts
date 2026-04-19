@@ -28,12 +28,12 @@ type PrismaWorkloadConfigCreate = Omit<WorkloadConfigCreate, "appType">;
 export class DeploymentRepo {
   private client: PrismaClientType;
   private publish: (topic: string, payload: string) => Promise<void>;
-  private masterKey: string;
+  private masterKey: Buffer;
 
   constructor(
     client: PrismaClientType,
     publish: (topic: string, payload: string) => Promise<void>,
-    masterKey: string,
+    masterKey: Buffer,
   ) {
     this.client = client;
     this.publish = publish;

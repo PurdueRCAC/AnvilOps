@@ -30,7 +30,6 @@ export class AuthService {
   ) {
     this.userRepo = userRepo;
     this.rancherService = rancherService;
-    this.config = this.getOIDCConfig();
     this.usingRancherOIDC =
       this.rancherService.isRancherManaged() && useRancherOIDC;
     this.baseURL = baseURL;
@@ -39,6 +38,7 @@ export class AuthService {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.loginClaim = loginClaim;
+    this.config = this.getOIDCConfig();
   }
 
   usingCILogon() {

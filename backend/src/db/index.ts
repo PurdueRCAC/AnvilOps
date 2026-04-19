@@ -55,10 +55,9 @@ export class PrismaDatabase extends Database {
   user: UserRepo;
   sessionStore: session.Store;
 
-  constructor(client: PrismaClientType, masterKey: string) {
+  constructor(client: PrismaClientType, masterKey: Buffer) {
     super();
     this.client = client;
-    this.app = new AppRepo(this.client, this.deployment);
     this.appGroup = new AppGroupRepo(this.client);
     this.cache = new CacheRepo(this.client);
     this.deployment = new DeploymentRepo(
@@ -66,6 +65,7 @@ export class PrismaDatabase extends Database {
       this.publish.bind(this),
       masterKey,
     );
+    this.app = new AppRepo(this.client, this.deployment);
     this.invitation = new InvitationRepo(this.client);
     this.org = new OrganizationRepo(this.client);
     this.repoImportState = new RepoImportStateRepo(this.client);
@@ -88,7 +88,7 @@ export class PrismaDatabase extends Database {
 export class PgDatabase extends PrismaDatabase {
   private pool: Pool;
 
-  constructor(connectionString: string, masterKey: string) {
+  constructor(connectionString: string, masterKey: Buffer) {
     const prismaPostgresAdapter = new PrismaPg({ connectionString });
 
     const client = new PrismaClient({

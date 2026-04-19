@@ -60,7 +60,7 @@ import { UpdateDeploymentService } from "./updateDeployment.ts";
 export const db: Database = new PgDatabase(
   env.DATABASE_URL ??
     `postgresql://${env.POSTGRES_USER}:${env.POSTGRES_PASSWORD}@${env.POSTGRES_HOSTNAME}/${env.POSTGRES_DB}`,
-  env.FIELD_ENCRYPTION_KEY,
+  Buffer.from(env.FIELD_ENCRYPTION_KEY, "base64"),
 );
 
 export const cacheService = new KVCacheService(db.cache);
