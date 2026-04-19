@@ -1,7 +1,7 @@
 import { once } from "node:events";
 import type { components } from "../generated/openapi.ts";
-import { AppNotFoundError } from "../service/common/errors.ts";
-import { getAppLogs } from "../service/getAppLogs.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
+import { getAppLogsService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -40,7 +40,7 @@ export const getAppLogsHandler: HandlerMap["getAppLogs"] = async (
         // Just start at the beginning
       }
     }
-    await getAppLogs(
+    await getAppLogsService.getAppLogs(
       ctx.request.params.appId,
       ctx.request.query.deploymentId ?? null,
       req.user.id,

@@ -3,7 +3,8 @@ import {
   PermissionLevel,
   type UnassignedInstallation,
 } from "../../generated/prisma/client.ts";
-import { NotFoundError, type PrismaClientType } from "../index.ts";
+import { NotFoundError } from "../errors/index.ts";
+import type { PrismaClientType } from "../index.ts";
 import type { Organization, OrgMembership } from "../models.ts";
 
 export class OrganizationRepo {

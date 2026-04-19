@@ -1,6 +1,6 @@
-import { logger } from "../index.ts";
-import { ValidationError } from "../service/common/errors.ts";
-import { listCharts } from "../service/listCharts.ts";
+import { logger } from "../logger.ts";
+import { ValidationError } from "../service/errors/index.ts";
+import { listChartsService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 export const listChartsHandler: HandlerMap["listCharts"] = async (
   ctx,
@@ -8,7 +8,7 @@ export const listChartsHandler: HandlerMap["listCharts"] = async (
   res,
 ) => {
   try {
-    return json(200, res, await listCharts());
+    return json(200, res, await listChartsService.listCharts());
   } catch (e) {
     if (e instanceof ValidationError) {
       return json(400, res, {

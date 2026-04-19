@@ -1975,6 +1975,7 @@ components:
         email:
           type: string
           format: email
+          nullable: true
         name:
           type: string
         orgs:

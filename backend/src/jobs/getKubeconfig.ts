@@ -4,21 +4,22 @@ import {
   KubeConfig,
   PatchStrategy,
   setHeaderOptions,
+  type Cluster,
 } from "@kubernetes/client-node";
+import fs from "node:fs";
 import { exit } from "node:process";
-import yaml from "yaml";
 
 const KUBECONFIG_SECRET_NAME = process.env.KUBECONFIG_SECRET_NAME;
 const CLUSTER_ID = process.env.CLUSTER_ID;
 const USE_CLUSTER_NAME = process.env.USE_CLUSTER_NAME;
 
-const RANCHER_API_BASE = process.env.RANCHER_API_BASE;
+const RANCHER_BASE_URL = process.env.RANCHER_BASE_URL;
 const RANCHER_TOKEN = process.env.RANCHER_TOKEN;
 const CURRENT_NAMESPACE = process.env.CURRENT_NAMESPACE;
 
-if (!RANCHER_API_BASE || !RANCHER_TOKEN) {
+if (!RANCHER_BASE_URL || !RANCHER_TOKEN) {
   console.log(
-    "RANCHER_API_BASE or RANCHER_TOKEN not set, cannot get kubeconfig",
+    "RANCHER_BASE_URL or RANCHER_TOKEN not set, cannot get kubeconfig",
   );
   exit(1);
 }
@@ -29,7 +30,7 @@ if (!CLUSTER_ID) {
 }
 
 const kcReq = await fetch(
-  `${RANCHER_API_BASE}/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
+  `${RANCHER_BASE_URL}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig`,
   {
     method: "POST",
     headers: {
@@ -48,26 +49,28 @@ const kubeConfigRes = (await kcReq.json()) as {
   config: string;
   type: "generateKubeConfigOutput";
 };
-let kubeConfig = kubeConfigRes.config;
-
-if (USE_CLUSTER_NAME) {
-  const body = yaml.parse(kubeConfig) as object & { "current-context": string };
-  body["current-context"] = USE_CLUSTER_NAME;
-  kubeConfig = yaml.stringify(body);
-}
-
+const kubeConfig = kubeConfigRes.config;
 const kc = new KubeConfig();
 kc.loadFromString(kubeConfig);
 
-const api = kc.makeApiClient(CoreV1Api);
+if (USE_CLUSTER_NAME) {
+  kc.setCurrentContext(USE_CLUSTER_NAME);
+}
 
+if (process.env.NODE_EXTRA_CA_CERTS) {
+  const rancherCA = fs.readFileSync(process.env.NODE_EXTRA_CA_CERTS, "utf8");
+  const cluster = kc.getCurrentCluster() as Cluster & { caData: string };
+  cluster.caData = Buffer.from(rancherCA, "utf8").toString("base64");
+}
+
+const api = kc.makeApiClient(CoreV1Api);
 await api.patchNamespacedSecret(
   {
     name: KUBECONFIG_SECRET_NAME,
     namespace: CURRENT_NAMESPACE,
     body: {
       data: {
-        kubeconfig: Buffer.from(kubeConfig, "utf-8").toString("base64"),
+        kubeconfig: Buffer.from(kc.exportConfig(), "utf-8").toString("base64"),
       },
     },
   },

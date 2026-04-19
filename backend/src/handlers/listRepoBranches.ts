@@ -2,8 +2,8 @@ import {
   InstallationNotFoundError,
   OrgNotFoundError,
   RepositoryNotFoundError,
-} from "../service/common/errors.ts";
-import { listRepoBranches } from "../service/listRepoBranches.ts";
+} from "../service/errors/index.ts";
+import { listRepoBranchesService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -13,7 +13,7 @@ export const listRepoBranchesHandler: HandlerMap["listRepoBranches"] = async (
   res,
 ) => {
   try {
-    const branches = await listRepoBranches(
+    const branches = await listRepoBranchesService.listRepoBranches(
       ctx.request.params.orgId,
       req.user.id,
       ctx.request.params.repoId,

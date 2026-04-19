@@ -7,18 +7,15 @@ import session from "express-session";
 import helmet from "helmet";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import pino from "pino";
 import { pinoHttp } from "pino-http";
-import { db } from "./db/index.ts";
-import apiHandler, { openApiSpecPath } from "./lib/api.ts";
-import apiRouter, { SESSION_COOKIE_NAME } from "./lib/auth.ts";
 import { env } from "./lib/env.ts";
-import { getSettings } from "./service/getSettings.ts";
+import { logger } from "./logger.ts";
+import apiHandler, { openApiSpecPath } from "./server/api.ts";
+import apiRouter, { SESSION_COOKIE_NAME } from "./server/auth.ts";
+import { db, getSettingsService } from "./service/index.ts";
 
 const app = express();
 const port = process.env.PORT ?? 3000;
-
-export const logger = pino();
 
 app.use((req, res, next) => {
   const traceId = trace.getActiveSpan()?.spanContext()?.traceId;
@@ -201,7 +198,8 @@ app.listen(port, (err) => {
   if (err !== undefined) {
     logger.error(err, "Error creating server");
   } else {
-    getSettings()
+    getSettingsService
+      .getSettings()
       .then((settings) => {
         logger.info({ port, settings: settings }, "Server listening");
       })

@@ -1,22 +1,37 @@
-import { db } from "../db/index.ts";
-import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { OrgNotFoundError } from "./common/errors.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
+import { OrgNotFoundError } from "./errors/index.ts";
 
-export async function listOrgRepos(orgId: number, userId: number) {
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: userId },
-  });
+export class ListOrgReposService {
+  private orgRepo: OrganizationRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
-  if (!org) {
-    throw new OrgNotFoundError(null);
+  constructor(
+    orgRepo: OrganizationRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+  ) {
+    this.orgRepo = orgRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
-  const gitProvider = await getGitProvider(org.id);
-  const repos = await gitProvider.getAllRepos();
+  async listOrgRepos(orgId: number, userId: number) {
+    const org = await this.orgRepo.getById(orgId, {
+      requireUser: { id: userId },
+    });
 
-  return repos.map((repo) => ({
-    id: repo.id,
-    owner: repo.owner,
-    name: repo.name,
-  }));
+    if (!org) {
+      throw new OrgNotFoundError(null);
+    }
+
+    const gitProvider = await this.gitProviderFactoryService.getGitProvider(
+      org.id,
+    );
+    const repos = await gitProvider.getAllRepos();
+
+    return repos.map((repo) => ({
+      id: repo.id,
+      owner: repo.owner,
+      name: repo.name,
+    }));
+  }
 }

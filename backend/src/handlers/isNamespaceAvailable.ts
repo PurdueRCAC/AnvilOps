@@ -1,11 +1,13 @@
-import { ValidationError } from "../service/common/errors.ts";
-import { isNamespaceAvailable } from "../service/isNamespaceAvailable.ts";
+import { ValidationError } from "../service/errors/index.ts";
+import { isNamespaceAvailableService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 
 export const isNamespaceAvailableHandler: HandlerMap["isNamespaceAvailable"] =
   async (ctx, req, res) => {
     try {
-      const available = await isNamespaceAvailable(ctx.request.query.namespace);
+      const available = await isNamespaceAvailableService.isNamespaceAvailable(
+        ctx.request.query.namespace,
+      );
       return json(200, res, { available });
     } catch (e) {
       if (e instanceof ValidationError) {

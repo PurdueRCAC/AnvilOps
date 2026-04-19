@@ -22,15 +22,15 @@ const variables = {
    */
   BUILD_DATE: { required: false, defaultValue: null as string | null },
   /**
-   * The CILogon OAuth client ID
+   * The OIDC client ID
    */
   CLIENT_ID: { required: true },
   /**
-   * The CILogon OAuth client secret
+   * The OIDC client secret
    */
   CLIENT_SECRET: { required: true },
   /**
-   * A comma-separated list of CILogon identity provider identifiers(EntityIDs) to allow when users sign in to AnvilOps, e.g. https://access-ci.org/idp,https://idp.purdue.edu/idp/shibboleth
+   * A comma-separated list of CILogon identity provider identifiers(EntityIDs) to allow when users sign in to AnvilOps using CILogon, e.g. https://access-ci.org/idp,https://idp.purdue.edu/idp/shibboleth
    */
   ALLOWED_IDPS: { required: false },
   /**
@@ -147,9 +147,13 @@ const variables = {
    */
   IMAGE_PULL_PASSWORD: { required: true },
   /**
-   * The base URL for the Rancher v3 API, e.g. https://composable.anvil.rcac.purdue.edu/v3.
+   * The base URL for Rancher, e.g. https://composable.anvil.rcac.purdue.edu.
    */
-  RANCHER_API_BASE: { required: false },
+  RANCHER_BASE_URL: { required: false },
+  /**
+   * Whether to use Rancher OIDC for authentication. Has no effect if RANCHER_BASE_URL is not set.
+   */
+  USE_RANCHER_OIDC: { required: false },
   /**
    * Unscoped token for making calls to the Rancher v3 API.
    */
@@ -162,7 +166,6 @@ const variables = {
    * The Kubernetes namespace that all AnvilOps jobs should run in, e.g. anvilops-dev
    */
   CURRENT_NAMESPACE: { required: true },
-
   /**
    * The protocol used to contact the chart registry over HTTP (should be "http" or "https")
    */

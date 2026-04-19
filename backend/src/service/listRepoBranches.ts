@@ -1,34 +1,45 @@
 import { RequestError } from "octokit";
-import { db } from "../db/index.ts";
-import { getGitProvider } from "../lib/git/gitProvider.ts";
-import { OrgNotFoundError, RepositoryNotFoundError } from "./common/errors.ts";
+import type { OrganizationRepo } from "../db/repo/organization.ts";
+import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
+import { OrgNotFoundError, RepositoryNotFoundError } from "./errors/index.ts";
 
-export async function listRepoBranches(
-  orgId: number,
-  userId: number,
-  repoId: number,
-) {
-  const org = await db.org.getById(orgId, {
-    requireUser: { id: userId },
-  });
+export class ListRepoBranchesService {
+  private orgRepo: OrganizationRepo;
+  private gitProviderFactoryService: GitProviderFactoryService;
 
-  if (!org) {
-    throw new OrgNotFoundError(null);
+  constructor(
+    orgRepo: OrganizationRepo,
+    gitProviderFactoryService: GitProviderFactoryService,
+  ) {
+    this.orgRepo = orgRepo;
+    this.gitProviderFactoryService = gitProviderFactoryService;
   }
 
-  try {
-    const gitProvider = await getGitProvider(org.id);
-    const branches = await gitProvider.getBranches(repoId);
+  async listRepoBranches(orgId: number, userId: number, repoId: number) {
+    const org = await this.orgRepo.getById(orgId, {
+      requireUser: { id: userId },
+    });
 
-    return {
-      default: branches.defaultBranch,
-      branches: branches.names,
-    };
-  } catch (e) {
-    if (e instanceof RequestError && e.status == 404) {
-      throw new RepositoryNotFoundError();
+    if (!org) {
+      throw new OrgNotFoundError(null);
     }
 
-    throw e;
+    try {
+      const gitProvider = await this.gitProviderFactoryService.getGitProvider(
+        org.id,
+      );
+      const branches = await gitProvider.getBranches(repoId);
+
+      return {
+        default: branches.defaultBranch,
+        branches: branches.names,
+      };
+    } catch (e) {
+      if (e instanceof RequestError && e.status == 404) {
+        throw new RepositoryNotFoundError();
+      }
+
+      throw e;
+    }
   }
 }

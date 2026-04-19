@@ -1,18 +1,22 @@
-import { db } from "../db/index.ts";
-import { AppNotFoundError } from "./common/errors.ts";
+import type { AppRepo } from "../db/repo/app.ts";
+import { AppNotFoundError } from "./errors/index.ts";
 
-export async function setAppCD(
-  appId: number,
-  userId: number,
-  cdEnabled: boolean,
-) {
-  const app = await db.app.getById(appId, {
-    requireUser: { id: userId },
-  });
+export class SetAppCDService {
+  private appRepo: AppRepo;
 
-  if (!app) {
-    throw new AppNotFoundError();
+  constructor(appRepo: AppRepo) {
+    this.appRepo = appRepo;
   }
 
-  await db.app.setEnableCD(appId, cdEnabled);
+  async setAppCD(appId: number, userId: number, cdEnabled: boolean) {
+    const app = await this.appRepo.getById(appId, {
+      requireUser: { id: userId },
+    });
+
+    if (!app) {
+      throw new AppNotFoundError();
+    }
+
+    await this.appRepo.setEnableCD(appId, cdEnabled);
+  }
 }

@@ -1,11 +1,15 @@
-import { db } from "../../db/index.ts";
-import {
+import type { OrganizationRepo } from "../../../db/repo/organization.ts";
+import type { RepoImportStateRepo } from "../../../db/repo/repoImportState.ts";
+import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
-  type InstallationNotFoundError,
+  InstallationNotFoundError,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in JSDoc comment
-  type RepositoryNotFoundError,
-} from "../../service/common/errors.ts";
+  RepositoryNotFoundError,
+} from "../../errors/index.ts";
+import type { KVCacheService } from "../cache.ts";
+import type { KubernetesClientService } from "../cluster/kubernetes.ts";
 import { GitHubGitProvider } from "./githubGitProvider.ts";
+import { GitHubUserService } from "./githubUser.ts";
 
 /**
  * Contains all the methods needed to interact with a Git provider like GitHub or GitLab.
@@ -114,6 +118,8 @@ export type CommitStatus =
   | "failure"
   | "cancelled";
 
+type GitProviderType = "github" | null;
+
 /**
  * Thrown when a repository can be imported, but the user needs to perform some authentication or authorization step first.
  * The user will be redirected to the provided URL. When the external service redirects back to AnvilOps, continueImportRepo
@@ -128,42 +134,95 @@ export class ImportRepoAuthenticationRequiredError extends Error {
   }
 }
 
-/**
- * Returns a GitProvider based on the organization that it's linked to.
- *
- * If the organization is not linked to a Git provider, an {@link InstallationNotFoundError} is thrown.
- */
-export async function getGitProvider(orgId: number): Promise<GitProvider> {
-  return await GitHubGitProvider.getInstance(orgId);
-}
+export class GitProviderFactoryService {
+  private orgRepo: OrganizationRepo;
+  private repoImportStateRepo: RepoImportStateRepo;
+  private kubernetesService: KubernetesClientService;
+  private cacheService: KVCacheService;
+  private githubUserService: GitHubUserService;
+  private githubPrivateKey: string;
+  private baseURL: string;
+  private githubApiURL: string;
+  private githubBaseURL: string;
+  private githubAppId: string;
+  private githubClientId: string;
+  private githubAppName: string;
 
-/**
- * Returns a GitProvider based on the contents of a repository import state ID.
- */
-export async function getGitProviderByRepoImportState(
-  stateId: string,
-  userId: number,
-): Promise<GitProvider> {
-  // In the future, if multiple Git providers are added, repository imports may be handled differently
-  // by different providers, which may require separate database tables depending on the information
-  // that needs to be stored by each provider. In that case, this method should be updated to check all
-  // the different sources of import state IDs and return a provider of the appropriate type.
-
-  const state = await db.repoImportState.get(stateId, userId);
-  return await getGitProvider(state.orgId);
-}
-
-type GitProviderType = "github" | null;
-
-/**
- * Returns the type of Git provider that is connected to this organization, or null if the organization is not connected to Git.
- */
-export async function getGitProviderType(
-  orgId: number,
-): Promise<GitProviderType> {
-  const org = await db.org.getById(orgId);
-  if (org.githubInstallationId) {
-    return "github";
+  constructor(
+    orgRepo: OrganizationRepo,
+    repoImportStateRepo: RepoImportStateRepo,
+    kubernetesService: KubernetesClientService,
+    cacheService: KVCacheService,
+    githubUserService: GitHubUserService,
+    githubPrivateKey: string,
+    baseURL: string,
+    githubApiURL: string,
+    githubBaseURL: string,
+    githubAppId: string,
+    githubClientId: string,
+    githubAppName: string,
+  ) {
+    this.orgRepo = orgRepo;
+    this.repoImportStateRepo = repoImportStateRepo;
+    this.kubernetesService = kubernetesService;
+    this.cacheService = cacheService;
+    this.githubUserService = githubUserService;
+    this.githubPrivateKey = githubPrivateKey;
+    this.baseURL = baseURL;
+    this.githubApiURL = githubApiURL;
+    this.githubBaseURL = githubBaseURL;
+    this.githubAppId = githubAppId;
+    this.githubClientId = githubClientId;
+    this.githubAppName = githubAppName;
   }
-  return null;
+
+  /**
+   * Returns a GitProvider based on the organization that it's linked to.
+   *
+   * If the organization is not linked to a Git provider, an {@link InstallationNotFoundError} is thrown.
+   */
+  async getGitProvider(orgId: number): Promise<GitProvider> {
+    return await GitHubGitProvider.getInstance(
+      orgId,
+      this.orgRepo,
+      this.repoImportStateRepo,
+      this.kubernetesService,
+      this.cacheService,
+      this.githubUserService,
+      this.githubPrivateKey,
+      this.baseURL,
+      this.githubApiURL,
+      this.githubBaseURL,
+      this.githubAppId,
+      this.githubClientId,
+      this.githubAppName,
+    );
+  }
+
+  /**
+   * Returns a GitProvider based on the contents of a repository import state ID.
+   */
+  async getGitProviderByRepoImportState(
+    stateId: string,
+    userId: number,
+  ): Promise<GitProvider> {
+    // In the future, if multiple Git providers are added, repository imports may be handled differently
+    // by different providers, which may require separate database tables depending on the information
+    // that needs to be stored by each provider. In that case, this method should be updated to check all
+    // the different sources of import state IDs and return a provider of the appropriate type.
+
+    const state = await this.repoImportStateRepo.get(stateId, userId);
+    return await this.getGitProvider(state.orgId);
+  }
+
+  /**
+   * Returns the type of Git provider that is connected to this organization, or null if the organization is not connected to Git.
+   */
+  async getGitProviderType(orgId: number): Promise<GitProviderType> {
+    const org = await this.orgRepo.getById(orgId);
+    if (org.githubInstallationId) {
+      return "github";
+    }
+    return null;
+  }
 }

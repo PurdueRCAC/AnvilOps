@@ -2,7 +2,7 @@ load('ext://restart_process', 'docker_build_with_restart')
 load('ext://secret', 'secret_create_generic', 'secret_from_dict', 'secret_yaml_registry')
 load('ext://dotenv', 'dotenv')
 load('ext://deployment', 'deployment_create')
-load('ext://helm_remote', 'helm_remote')
+load('ext://helm_resource', 'helm_resource', 'helm_repo')
 dotenv(fn='../backend/.env')
 
 # Should the frontend and backend be deployed separately?
@@ -11,6 +11,15 @@ separate_frontend_and_backend = True
 
 # Deploy a minimal instance of the Grafana LGTM + Alloy stack to collect logs, metrics, and traces from AnvilOps
 enable_monitoring = True
+
+# Deploy Rancher locally
+with_rancher = False
+
+# Requires kubeVersion <1.35.0-0 
+RANCHER_VERSION="v2.13.2"
+
+# Increase timeout because ingress-nginx can take longer than 30s to install
+update_settings(k8s_upsert_timeout_secs=60)
 
 if separate_frontend_and_backend:
   docker_build(
@@ -64,7 +73,7 @@ k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig
 registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | awk '{print $2}'")).strip()
 print("Using local registry from within the cluster at " + registry_host)
 
-k8s_yaml(secret_from_dict("cilogon-credentials", inputs={
+k8s_yaml(secret_from_dict("oidc-credentials", inputs={
   'client-id': os.getenv('CLIENT_ID'),
   'client-secret': os.getenv('CLIENT_SECRET')
 }))
@@ -101,6 +110,8 @@ yaml = helm(
 )
 
 parsed = decode_yaml_stream(yaml)
+
+ingress_clusterip = "10.96.33.248"
 for i, object in enumerate(parsed):
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
@@ -113,8 +124,12 @@ for i, object in enumerate(parsed):
       if variable["name"] == "CHART_REGISTRY_PROTOCOL":
         variable["value"] = "https"
         
-    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)  
-    env.append({"name": "IN_TILT", "value": "true"})
+    # Alias Rancher hostname to the ingress controller ClusterIP
+    hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
+    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]
+    
+    # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
+    object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
     if separate_frontend_and_backend:
       # Allow live_update to edit files in containers
       object["spec"]["template"]["spec"]["containers"][0]["securityContext"]["readOnlyRootFilesystem"] = False
@@ -128,6 +143,9 @@ for i, object in enumerate(parsed):
   # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
   if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
+  if object["kind"] == "Job":
+    hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
+    object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]
 
 # Allow AnvilOps's buildkitd instance to use the built-in registry insecurely (over HTTP)
 k8s_yaml(blob("""
@@ -145,9 +163,42 @@ k8s_yaml(encode_yaml_stream(parsed))
 
 k8s_resource(workload='anvilops-postgres', port_forwards=[5432])
 
-# Install the Nginx ingress controller and forward localhost:3000 to it
-helm_remote('ingress-nginx', namespace='ingress-nginx', repo_url='https://kubernetes.github.io/ingress-nginx', create_namespace=True)
-k8s_resource('ingress-nginx-controller', port_forwards='3000:80')
+if with_rancher:
+  # Requires kubeVersion <1.35.0-0
+  # # view the rancher frontend at https://rancher.127.0.0.1.nip.io
+  helm_repo('rancher_repo', 'https://releases.rancher.com/server-charts/latest')
+  helm_resource(
+    'rancher',
+    'rancher_repo/rancher',
+    namespace='cattle-system',
+    flags=[
+      '--version=%s' % RANCHER_VERSION,
+      '--set=hostname=rancher.127.0.0.1.nip.io',
+      '--set=replicas=1',
+      '--set=ingress.ingressClassName=nginx',
+      '--set=tls=external',
+      '--set=bootstrapPassword=insecurepassword123',
+      '--create-namespace'
+    ],
+    resource_deps=['rancher_repo']
+  )
+
+# Install the Nginx ingress controller and forward localhost:3000, localhost:443
+# forwarding to 0.0.0.0:443 instead of just 443 bypasses privileged port restriction on MacOS
+# https://github.com/tilt-dev/tilt/issues/1909
+helm_repo('ingress-nginx_repo', 'https://kubernetes.github.io/ingress-nginx')
+helm_resource(
+  'ingress-nginx',
+  'ingress-nginx_repo/ingress-nginx',
+  namespace='ingress-nginx',
+  flags=[
+    '--create-namespace',
+    '--set=controller.extraArgs.default-ssl-certificate=default/ingress-cert',
+    '--set=controller.service.clusterIP=%s' % ingress_clusterip
+  ],
+  resource_deps=['ingress-nginx_repo'],
+  port_forwards=('3000:80','0.0.0.0:443:443')
+)
 
 if enable_monitoring:
   deployment_create(

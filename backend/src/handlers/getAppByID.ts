@@ -1,5 +1,5 @@
-import { AppNotFoundError } from "../service/common/errors.ts";
-import { getAppByID } from "../service/getAppByID.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
+import { getAppByIDService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -9,7 +9,10 @@ export const getAppByIDHandler: HandlerMap["getAppByID"] = async (
   res,
 ) => {
   try {
-    const info = await getAppByID(ctx.request.params.appId, req.user.id);
+    const info = await getAppByIDService.getAppByID(
+      ctx.request.params.appId,
+      req.user.id,
+    );
     return json(200, res, info);
   } catch (e) {
     if (e instanceof AppNotFoundError) {

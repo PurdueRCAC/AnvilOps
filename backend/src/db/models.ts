@@ -4,8 +4,17 @@ import type {
   GitHubOAuthAction,
   HelmUrlType,
   ImageBuilder,
+  LogStream,
+  LogType,
   PermissionLevel,
   WebhookEvent,
+} from "../generated/prisma/enums.ts";
+
+export {
+  DeploymentStatus,
+  GitHubOAuthAction,
+  LogStream,
+  LogType,
 } from "../generated/prisma/enums.ts";
 
 export interface Organization {
@@ -20,7 +29,7 @@ export interface User {
   email: string | null;
   name: string | null;
   clusterUsername: string;
-  ciLogonUserId: string | null;
+  oidcUserId: string | null;
   githubUserId: number | null;
 }
 
@@ -195,12 +204,12 @@ export type HelmConfigCreate = HelmConfig;
 
 export interface Log {
   id: number;
-  type: "BUILD" | "RUNTIME";
+  type: LogType;
   deploymentId: number;
   timestamp: Date;
   content: string;
   podName: string;
-  stream: "stdout" | "stderr";
+  stream: LogStream;
 }
 
 export interface AppCreate {

@@ -2,7 +2,8 @@ import {
   PermissionLevel,
   type GitHubOAuthAction,
 } from "../../generated/prisma/enums.ts";
-import { NotFoundError, type PrismaClientType } from "../index.ts";
+import { NotFoundError } from "../errors/index.ts";
+import type { PrismaClientType } from "../index.ts";
 import type { OrgMembership, UnassignedInstallation, User } from "../models.ts";
 
 export class UserRepo {
@@ -22,30 +23,30 @@ export class UserRepo {
     });
   }
 
-  async getByCILogonUserId(ciLogonUserId: string): Promise<User | null> {
+  async getByOIDCUserId(oidcUserId: string): Promise<User | null> {
     return await this.client.user.findUnique({
-      where: { ciLogonUserId },
+      where: { oidcUserId },
     });
   }
 
   async createUserWithPersonalOrg(
     email: string,
     name: string,
-    ciLogonUserId: string,
+    oidcUserId: string,
     clusterUsername: string,
   ): Promise<User> {
     return await this.client.user.create({
       data: {
-        email: email.toLowerCase(),
+        email: email?.toLowerCase(),
         name,
-        ciLogonUserId,
+        oidcUserId,
         clusterUsername,
         orgs: {
           create: {
             permissionLevel: PermissionLevel.OWNER,
             organization: {
               create: {
-                name: `${name || email || ciLogonUserId}'s Apps`,
+                name: `${name || email || oidcUserId}'s Apps`,
               },
             },
           },

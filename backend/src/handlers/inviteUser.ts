@@ -1,10 +1,10 @@
-import { ConflictError } from "../db/index.ts";
 import {
   OrgNotFoundError,
+  UserAlreadyInvitedError,
   UserNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
-import { inviteUser } from "../service/inviteUser.ts";
+} from "../service/errors/index.ts";
+import { inviteUserService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -14,7 +14,7 @@ export const inviteUserHandler: HandlerMap["inviteUser"] = async (
   res,
 ) => {
   try {
-    await inviteUser(
+    await inviteUserService.inviteUser(
       req.user.id,
       ctx.request.params.orgId,
       ctx.request.requestBody.email,
@@ -34,7 +34,7 @@ export const inviteUserHandler: HandlerMap["inviteUser"] = async (
       });
     } else if (e instanceof OrgNotFoundError) {
       return json(404, res, { code: 404, message: "Organization not found." });
-    } else if (e instanceof ConflictError) {
+    } else if (e instanceof UserAlreadyInvitedError) {
       return json(400, res, {
         code: 400,
         message: "That user has already been invited to this organization.",

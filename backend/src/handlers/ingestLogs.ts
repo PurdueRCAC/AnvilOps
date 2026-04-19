@@ -1,9 +1,9 @@
-import type { LogType } from "../generated/prisma/enums.ts";
+import type { LogType } from "../db/models.ts";
 import {
   DeploymentNotFoundError,
   ValidationError,
-} from "../service/common/errors.ts";
-import { ingestLogs } from "../service/ingestLogs.ts";
+} from "../service/errors/index.ts";
+import { ingestLogsService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 
 export const ingestLogsHandler: HandlerMap["ingestLogs"] = async (
@@ -25,7 +25,7 @@ export const ingestLogsHandler: HandlerMap["ingestLogs"] = async (
   ];
 
   try {
-    await ingestLogs(
+    await ingestLogsService.ingestLogs(
       ctx.request.requestBody.deploymentId,
       token,
       ctx.request.requestBody.hostname,

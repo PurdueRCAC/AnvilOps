@@ -16,7 +16,7 @@ type UserContextType = {
         QueryObserverResult<
           {
             id: number;
-            email: string;
+            email: string | null;
             name: string;
             orgs: components["schemas"]["UserOrg"][];
           },

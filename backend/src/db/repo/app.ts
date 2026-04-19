@@ -7,11 +7,8 @@ import {
   type PermissionLevel,
   type WebhookEvent,
 } from "../../generated/prisma/enums.ts";
-import {
-  ConflictError,
-  NotFoundError,
-  type PrismaClientType,
-} from "../index.ts";
+import { ConflictError, NotFoundError } from "../errors/index.ts";
+import { type PrismaClientType } from "../index.ts";
 import type {
   App,
   AppCreate,
@@ -23,9 +20,11 @@ import { DeploymentRepo } from "./deployment.ts";
 
 export class AppRepo {
   private client: PrismaClientType;
+  private deploymentRepo: DeploymentRepo;
 
-  constructor(client: PrismaClientType) {
+  constructor(client: PrismaClientType, deploymentRepo: DeploymentRepo) {
     this.client = client;
+    this.deploymentRepo = deploymentRepo;
   }
 
   async getById(
@@ -254,7 +253,7 @@ export class AppRepo {
       },
     });
 
-    return DeploymentRepo.preprocessConfig(app.config);
+    return this.deploymentRepo.preprocessConfig(app.config);
   }
 
   async setConfig(appId: number, configId: number) {
@@ -270,12 +269,15 @@ export class AppRepo {
     await this.client.app.update({ where: { id: appId }, data: { enableCD } });
   }
 
-  async getDeploymentsWithStatus(appId: number, statuses: DeploymentStatus[]) {
+  async getDeploymentsWhereStatusNotIn(
+    appId: number,
+    statuses: DeploymentStatus[],
+  ) {
     const deployments = await this.client.deployment.findMany({
       where: {
         appId: appId,
         status: {
-          in: statuses,
+          notIn: statuses,
         },
       },
       include: {
@@ -290,7 +292,7 @@ export class AppRepo {
 
     return deployments.map((deployment) => ({
       ...deployment,
-      config: DeploymentRepo.preprocessConfig(deployment.config),
+      config: this.deploymentRepo.preprocessConfig(deployment.config),
     }));
   }
 

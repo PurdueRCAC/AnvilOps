@@ -71,7 +71,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
-            {{- if (lookup "v1" "Secret" .Release.Namespace "root-ca-cert") }}
+            {{- if .Values.withRootCaCert }}
             - name: NODE_EXTRA_CA_CERTS
               value: /etc/ssl/certs/anvilops-tls.crt
             {{- end }}
@@ -93,12 +93,12 @@ spec:
             - name: CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: cilogon-credentials
+                  name: oidc-credentials
                   key: client-id
             - name: CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: cilogon-credentials
+                  name: oidc-credentials
                   key: client-secret
             {{- with .Values.anvilops.env.allowedIdps }}
             - name: ALLOWED_IDPS
@@ -160,10 +160,12 @@ spec:
                   name: github-app
                   key: client-secret
             {{- if .Values.rancher.enabled }}
-            {{- with .Values.rancher.apiBase }}
-            - name: RANCHER_API_BASE
+            {{- with .Values.rancher.baseURL }}
+            - name: RANCHER_BASE_URL
               value: {{ . | quote }}
             {{- end }}
+            - name: USE_RANCHER_OIDC
+              value: {{ .Values.rancher.useRancherOIDC | quote }}
             - name: RANCHER_TOKEN
               valueFrom:
                 secretKeyRef:

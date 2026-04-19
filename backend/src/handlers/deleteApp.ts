@@ -1,6 +1,6 @@
-import { logger } from "../index.ts";
-import { AppNotFoundError } from "../service/common/errors.ts";
-import { deleteApp } from "../service/deleteApp.ts";
+import { logger } from "../logger.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
+import { deleteAppService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
@@ -11,7 +11,11 @@ export const deleteAppHandler: HandlerMap["deleteApp"] = async (
 ) => {
   const appId = ctx.request.params.appId;
   try {
-    await deleteApp(appId, req.user.id, ctx.request.requestBody.keepNamespace);
+    await deleteAppService.deleteApp(
+      appId,
+      req.user.id,
+      ctx.request.requestBody.keepNamespace,
+    );
     return empty(204, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {

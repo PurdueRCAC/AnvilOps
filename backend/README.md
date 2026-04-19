@@ -2,6 +2,34 @@
 
 When AnvilOps is built as a Docker image, this Node.js app serves the static files in the `frontend` directory.
 
+## Project Structure
+
+The backend is divided into a few major components:
+
+| Path           | Purpose                 | Allowed Imports | Notes                                                                                                                                                                      |
+| -------------- | ----------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/db`       | Database access         |                 |                                                                                                                                                                            |
+| `src/handlers` | API route handlers      | `src/service`   | Handlers should only contain the logic required to map an HTTP request to a Service function call and back to an HTTP response. They shouldn't contain any business logic. |
+| `src/service`  | Business logic          | `src/db`        | Services should explicitly list all their dependencies (repositories and other services) in their constructor so that they can be swapped out when necessary for testing.  |
+| `src/jobs`     | Scripts run as cronjobs |                 | Jobs shouldn't import any AnvilOps code directly since some files have side effects (e.g. quitting if environment variables are invalid) that are unexpected in cron jobs. |
+
+When a request is received, it'll go through a Handler first, which will call a function on its corresponding Service, which may execute database operations in the Database module or call other Services.
+
+All of a Service's dependencies are defined in its constructor. The default instances of each Service are created in `src/service/index.ts`. At runtime, those instances are always used, and custom instances may be created with mock dependencies for testing.
+
+All methods in the DB and Service modules should catch exceptions that reveal implementation details (e.g. Prisma errors) and rethrow them with classes enumerated in the method's `@throws` clause. The `cause` parameter should still include the original error.
+
+Import restrictions are enforced by the `eslint-plugin-boundaries` ESLint plugin.
+
+### Adding a new API Handler
+
+1. Add a new entry to `paths` in the OpenAPI spec.
+2. Run `npm run generate` in the `openapi` directory.
+3. Create a new file in `service/` named after the operationId in the OpenAPI spec. This file should contain a class with one function, both named after the operationId. The class's constructor should receive the service's dependencies (repositories and other services) and store them as private instance variables so that the function can use them. This file shouldn't contain any HTTP implementation details like requests, responses, or status codes.
+4. Create a new instance of the class you created in Step 4 in `src/service/index.ts`, plugging in default dependencies from the `db` and `service` modules.
+5. Create a new file in `handlers/` named after the operationId in the OpenAPI spec. The file should contain one exported function named after the operationId plus the word "Handler". Use the HandlerMap type from `src/types.ts` to explicitly define the type of the handler function. This function should parse the request, call the corresponding Service function, catch any errors, and return a response.
+6. Add the handler to the `handlers` map in `src/handlers/index.ts`.
+
 ## Setup
 
 ### GitHub App
@@ -62,7 +90,7 @@ Add them as environment variables:
 - `GITHUB_BASE_URL` (`base-url`): The URL you use to access GitHub, including the protocol, with no trailing slash. Typically this is `https://github.com`, but it will vary if you're using GitHub Enterprise.
 - `GITHUB_API_URL` (`api-url`): The URL of the GitHub API, including the protocol, with no trailing slash. For GitHub.com, this is `https://api.github.com`, but on GitHub Enterprise, it will likely be `https://<your GHES server>/api/v3`.
 
-### CILogon
+### OIDC
 
 Environment variables:
 
@@ -88,7 +116,7 @@ docker run -p 5432:5432 --rm -it -v anvilops:/var/lib/postgresql/data -e POSTGRE
 
 For access control, AnvilOps can integrate with the Rancher API. If you are not using Rancher, leave the following values unset.
 
-In development, set the environment variable `RANCHER_API_BASE` to the Rancher v3 API base URL (e.g. https://composable.anvil.rcac.purdue.edu/v3). Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of the secret `rancher-config`.
+In development, set the environment variable `RANCHER_BASE_URL` to the Rancher base URL (e.g. https://composable.anvil.rcac.purdue.edu). Also provide a non-cluster scoped token (base64-encoded) for the AnvilOps service user's account, under the `RANCHER_TOKEN` environment variable or the `api-token` key of the secret `rancher-config`.
 
 If you would like to make a sandbox project available to users, set the environment variable `SANDBOX_ID` to its project ID. In production, set the the `sandbox-id` key of the `rancher-config` secret.
 
@@ -112,7 +140,7 @@ Ensure that the user associated with the kubeconfig file has permissions to view
 
 Finally, in order to link users with their Rancher accounts, AnvilOps needs additional information about how to match login information with user ids.
 
-Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE>/authConfigs` and use the `id` field for the configuration matching your selected login method. Also set the environment variable `LOGIN_CLAIM` to the CILogon OIDC claim that Rancher uses to set principalIds. See available claims at `https://www.cilogon.org/oidc`. It should represent the same value as the UID field of your Rancher authentication config.
+Set the environment variable `LOGIN_TYPE` to the name of the login method that AnvilOps users use to sign into Rancher, e.g. `shibboleth`, `azuread`, or `github`. To obtain the exact name, visit `https://<RANCHER_API_BASE_URL>/v3/authConfigs` and use the `id` field for the configuration matching your selected login method. Also set the environment variable `LOGIN_CLAIM` to the CILogon OIDC claim that Rancher uses to set principalIds. See available claims at `https://www.cilogon.org/oidc`. It should represent the same value as the UID field of your Rancher authentication config.
 
 ### Kubernetes API
 

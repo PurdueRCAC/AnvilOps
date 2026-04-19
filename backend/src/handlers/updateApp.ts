@@ -2,8 +2,8 @@ import {
   AppNotFoundError,
   DeploymentError,
   ValidationError,
-} from "../service/common/errors.ts";
-import { updateApp } from "../service/updateApp.ts";
+} from "../service/errors/index.ts";
+import { updateAppService } from "../service/index.ts";
 import { empty, type HandlerMap, json } from "../types.ts";
 import { type AuthenticatedRequest } from "./index.ts";
 
@@ -14,7 +14,11 @@ export const updateAppHandler: HandlerMap["updateApp"] = async (
 ) => {
   const appData = ctx.request.requestBody;
   try {
-    await updateApp(ctx.request.params.appId, req.user.id, appData);
+    await updateAppService.updateApp(
+      ctx.request.params.appId,
+      req.user.id,
+      appData,
+    );
     return empty(204, res);
   } catch (e) {
     if (e instanceof AppNotFoundError) {

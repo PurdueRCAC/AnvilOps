@@ -1,5 +1,5 @@
-import { AppNotFoundError } from "../service/common/errors.ts";
-import { deleteAppPod } from "../service/deleteAppPod.ts";
+import { AppNotFoundError } from "../service/errors/index.ts";
+import { deleteAppPodService } from "../service/index.ts";
 import { empty, json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -9,7 +9,7 @@ export const deleteAppPodHandler: HandlerMap["deleteAppPod"] = async (
   res,
 ) => {
   try {
-    await deleteAppPod(
+    await deleteAppPodService.deleteAppPod(
       ctx.request.params.appId,
       ctx.request.params.podName,
       req.user.id,

@@ -55,6 +55,11 @@ anvilops:
       allowedIngressMatchLabels:
         - kubernetes.io/metadata.name: kube-system
         - kubernetes.io/metadata.name: ingress-nginx
+rancher:
+  enabled: false
+  baseURL: "https://rancher.127.0.0.1.nip.io"
+  useRancherOIDC: false
+  refreshTokens: false
 
 postgres:
   generateCredentials: false
@@ -77,3 +82,5 @@ harbor:
 tenants:
   storageClassName: standard
   accessModes: [ReadWriteOnce]
+
+withRootCaCert: false

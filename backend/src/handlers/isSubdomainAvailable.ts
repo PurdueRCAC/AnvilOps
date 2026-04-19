@@ -1,5 +1,5 @@
-import { ValidationError } from "../service/common/errors.ts";
-import { isSubdomainAvailable } from "../service/isSubdomainAvailable.ts";
+import { ValidationError } from "../service/errors/index.ts";
+import { isSubdomainAvailableService } from "../service/index.ts";
 import { json, type HandlerMap } from "../types.ts";
 import type { AuthenticatedRequest } from "./index.ts";
 
@@ -7,7 +7,8 @@ export const isSubdomainAvailableHandler: HandlerMap["isSubdomainAvailable"] =
   async (ctx, req: AuthenticatedRequest, res) => {
     const subdomain = ctx.request.query.subdomain;
     try {
-      const available = await isSubdomainAvailable(subdomain);
+      const available =
+        await isSubdomainAvailableService.isSubdomainAvailable(subdomain);
       return json(200, res, { available });
     } catch (e) {
       if (e instanceof ValidationError) {
