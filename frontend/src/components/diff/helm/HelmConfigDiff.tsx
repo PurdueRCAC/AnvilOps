@@ -17,7 +17,9 @@ const getFlattenedValueSpec = (
   valueSpec: HelmValuesBranch,
 ): Record<string, HelmValueMeta> => {
   const flattened: Record<string, HelmValueMeta> = {};
-  for (const [key, spec] of Object.entries(valueSpec.children)) {
+  for (const [rawKey, spec] of Object.entries(valueSpec.children)) {
+    // Dots are used to parse the path in the values object, so they should be escaped
+    const key = rawKey.replace(".", "\\.");
     const childPath = jsonPath ? jsonPath + "." + key : key;
     if (spec._anvilopsValue) {
       flattened[childPath] = spec;

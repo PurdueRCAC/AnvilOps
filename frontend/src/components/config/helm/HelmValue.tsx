@@ -24,7 +24,10 @@ export const HelmValue = ({
       ? ""
       : typeof value === "number" && !Number.isFinite(value)
         ? ""
-        : String(value);
+        : typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">

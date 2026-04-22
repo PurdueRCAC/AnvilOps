@@ -35,7 +35,7 @@ export const getDefaultChartValues = (
   path: string[],
   storageClassName?: string,
 ) => {
-  const values: Record<string, any> = {};
+  const values: HelmFormFields["values"] = {};
   const parentKey = path.join(".");
   for (const [key, spec] of Object.entries(valueSpec.children)) {
     const childKey = parentKey ? parentKey + "." + key : key;
@@ -49,13 +49,13 @@ export const getDefaultChartValues = (
         spec.type === "number"
           ? randRange(spec.min ?? 0, spec.max ?? 100)
           : randomString();
-    } else if (spec.default) {
-      values[childKey] = spec.default;
     } else if (
       key === "storageClassName" ||
       (key === "className" && path.slice(-1)[0] === "storage")
     ) {
       values[childKey] = storageClassName ?? "";
+    } else if (spec.default) {
+      values[childKey] = spec.default;
     }
   }
   return values;

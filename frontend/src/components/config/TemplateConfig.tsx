@@ -23,7 +23,7 @@ export const TemplateConfig = ({
     const states = [state];
     if (!isLoading && charts) {
       const defaultState = createDefaultCommonFormFields();
-      for (let chart of charts) {
+      for (const chart of charts) {
         if (selected.has(chart.url)) {
           const templateState: CommonFormFields = {
             ...defaultState,

@@ -1,5 +1,5 @@
 import { V1Pod } from "@kubernetes/client-node";
-import { Ajv } from "ajv";
+import { Ajv, type Schema } from "ajv";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { App, Deployment, HelmConfig } from "../../db/models.ts";
@@ -11,6 +11,7 @@ import { createNamespaceConfig } from "./cluster/resources.ts";
 import type { LogCollectionService } from "./cluster/resources/logs.ts";
 
 type RegistryChart = {
+  repoName: string;
   name: string;
   version: string;
   description?: string;
@@ -72,7 +73,7 @@ export class HelmService {
     try {
       const schema = JSON.parse(
         readFileSync("anvilops-values-schema.json").toString(),
-      );
+      ) as Schema;
       this.ajv.addSchema(schema, "anvilops-values");
     } catch (e) {
       logger.warn(
@@ -98,9 +99,13 @@ export class HelmService {
       const json = JSON.parse(text) as T;
       return json;
     } catch (err) {
-      throw new Error(
-        `Failed to parse JSON from chart registry ${path}: ${text.slice(0, 500)}...`,
-      );
+      if (err instanceof SyntaxError) {
+        throw new Error(
+          `Failed to parse JSON from chart registry ${path}: ${text.slice(0, 500)}...`,
+          { cause: err },
+        );
+      }
+      throw err;
     }
   }
 
@@ -114,7 +119,7 @@ export class HelmService {
       return token;
     } catch (err) {
       logger.error(err, "Failed to get Helm chart pull token");
-      throw new Error(`Failed to get Helm chart pull token: ${err}`);
+      throw new Error("Failed to get Helm chart pull token", { cause: err });
     }
   }
 
@@ -125,7 +130,7 @@ export class HelmService {
       );
     } catch (err) {
       logger.error(err, "Failed to get Helm chart repositories");
-      throw new Error(`Failed to get Helm chart repositories: ${err}`);
+      throw new Error("Failed to get Helm chart repositories", { cause: err });
     }
   }
 
@@ -147,9 +152,9 @@ export class HelmService {
       annotations = res.annotations;
     } catch (err) {
       logger.error(err, "Failed to get Helm chart");
-      throw new Error(
-        `Failed to get Helm chart ${repository} ${version}: ${err}`,
-      );
+      throw new Error(`Failed to get Helm chart ${repository} ${version}`, {
+        cause: err,
+      });
     }
 
     if (annotations["anvilops-values"]) {
@@ -157,7 +162,7 @@ export class HelmService {
       try {
         anvilopsValues = JSON.parse(annotations["anvilops-values"]);
         if (!this.ajv.validate("anvilops-values", anvilopsValues)) {
-          throw new Error(this.ajv.errors.toString());
+          throw new Error(this.ajv.errorsText());
         }
       } catch (err) {
         logger.warn(
@@ -167,13 +172,15 @@ export class HelmService {
             annotation: annotations["anvilops-values"],
             error: err,
           },
-          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}: ${err}`,
+          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
         );
         throw new Error(
-          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}: ${err}`,
+          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
+          { cause: err },
         );
       }
       return {
+        repoName: repository,
         name: annotations["org.opencontainers.image.title"],
         version: annotations["org.opencontainers.image.version"],
         description: annotations["org.opencontainers.image.description"],
@@ -218,7 +225,9 @@ export class HelmService {
       try {
         await this.kubernetesService.ensureNamespace(api, namespace);
       } catch (err) {
-        throw new Error(`Failed to create namespace ${namespaceName}: ${err}`);
+        throw new Error(`Failed to create namespace ${namespaceName}`, {
+          cause: err,
+        });
       }
     }
 
@@ -227,9 +236,24 @@ export class HelmService {
     const { urlType, url, version, values } = config;
     const release = app.name;
 
-    for (const [key, value] of Object.entries(values)) {
-      args.push("--set", `${key}=${value}`);
+    if (values) {
+      const helmValues: PrismaJson.HelmValues = values;
+      for (const [key, value] of Object.entries(helmValues)) {
+        if (typeof value === "string") {
+          // Ensure that number or boolean-like strings("1", "false") remain strings
+          args.push("--set-string", `${key}=${value}`);
+        } else if (typeof value === "object") {
+          // matches null
+          args.push("--set-json", `${key}=${JSON.stringify(value)}`);
+        } else if (typeof value === "number" || typeof value === "boolean") {
+          args.push("--set", `${key}=${value}`);
+        } else if (value !== undefined) {
+          // This should not happen
+          throw new ValidationError(`Invalid Helm value type: ${typeof value}`);
+        }
+      }
     }
+
     switch (urlType) {
       // example: helm install mynginx https://example.com/charts/nginx-1.2.3.tgz
       case "absolute": {

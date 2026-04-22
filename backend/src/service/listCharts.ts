@@ -52,7 +52,7 @@ export class ListChartsService {
       name: chart.name,
       description: chart.description,
       note: chart.note,
-      url: `oci://${this.registryHostname}/${this.chartProjectName}/${chart.name}`,
+      url: `oci://${this.registryHostname}/${chart.repoName}`,
       urlType: "oci",
       version: chart.version,
       watchLabels: chart.watchLabels,

@@ -102,7 +102,7 @@ COPY --chown=65532:65532 --from=backend_prod_deps /app/node_modules ./node_modul
 COPY --chown=65532:65532 openapi/*.yaml /openapi/
 COPY --chown=65532:65532 templates/templates.json ./templates.json
 COPY --chown=65532:65532 --from=backend_build --exclude=**/node_modules/** /app .
-COPY --chown=65532:65532 charts/anvilops-values-schema.json /anvilops-values-schema.json
+COPY --chown=65532:65532 charts/anvilops-values-schema.json ./anvilops-values-schema.json
 
 USER 65532
 # ^ This user already exists in the distroless base image

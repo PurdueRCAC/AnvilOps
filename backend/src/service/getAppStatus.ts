@@ -8,7 +8,7 @@ import {
   type V1StatefulSet,
   type Watch,
 } from "@kubernetes/client-node";
-import { metrics, ValueType } from "@opentelemetry/api";
+import { ValueType, metrics } from "@opentelemetry/api";
 import type { AppRepo } from "../db/repo/app.ts";
 import { logger } from "../logger.ts";
 import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
@@ -57,7 +57,7 @@ export class GetAppStatusService {
     let events: CoreV1EventList;
 
     const update = async () => {
-      if (!pods || !events || !statefulSet) return;
+      if (!pods) return;
       const newStatus = {
         pods: pods.items.map((pod) => {
           const rawDeploymentId = parseInt(
@@ -68,9 +68,9 @@ export class GetAppStatusService {
             name: pod.metadata?.name,
             createdAt: pod.metadata?.creationTimestamp,
             startedAt: pod.status?.startTime,
-            ...(Number.isFinite(rawDeploymentId)
-              ? { deploymentId: rawDeploymentId }
-              : {}),
+            deploymentId: Number.isFinite(rawDeploymentId)
+              ? rawDeploymentId
+              : null,
             node: pod.spec?.nodeName,
             podScheduled:
               getCondition(pod?.status?.conditions, "PodScheduled")?.status ===

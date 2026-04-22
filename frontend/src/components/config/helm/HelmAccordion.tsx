@@ -27,7 +27,9 @@ export const HelmAccordion = ({
   if (valueSpec._anvilopsRender.type === "dropdown") {
     return (
       <Accordion type="single" collapsible>
-        {Object.entries(valueSpec.children).map(([key, spec]) => {
+        {Object.entries(valueSpec.children).map(([rawKey, spec]) => {
+          // Dots are used to parse the path in the values object, so they should be escaped
+          const key = rawKey.replace(".", "\\.");
           const childJsonPath = jsonPath ? jsonPath + "." + key : key;
           return spec._anvilopsValue ? (
             <HelmValue

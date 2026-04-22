@@ -25,7 +25,7 @@ export class RancherService {
       "fetchRancherResource",
       async (span) => {
         try {
-          const res = await fetch(`${this.baseURL}/${endpoint}`, {
+          const res = await fetch(`${this.baseURL}/v3/${endpoint}`, {
             headers: { Authorization: `Basic ${this.token}` },
             signal: AbortSignal.timeout(5000),
           });
@@ -40,9 +40,13 @@ export class RancherService {
           try {
             json = JSON.parse(text);
           } catch (err) {
-            throw new Error(
-              `Failed to parse JSON from ${this.baseURL}/${endpoint}: ${text.slice(0, 500)}...`,
-            );
+            if (err instanceof SyntaxError) {
+              throw new Error(
+                `Failed to parse JSON from ${this.baseURL}/${endpoint}: ${text.slice(0, 500)}...`,
+                { cause: err },
+              );
+            }
+            throw err;
           }
 
           const content = json as T;
