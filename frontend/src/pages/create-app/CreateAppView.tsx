@@ -135,7 +135,7 @@ export default function CreateAppView() {
           />
         </FormContext>
         {selectedTemplateChartUrls.size > 0 && (
-          <p className="text-sm text-red-500">
+          <p className="text-sm text-amber-600">
             Finish template configuration or clear template selections before
             deploying.
           </p>
