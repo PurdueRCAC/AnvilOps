@@ -20,13 +20,7 @@ export const HelmValue = ({
 }) => {
   const value = values?.[jsonPath];
   const displayValue =
-    value === undefined || value === null
-      ? ""
-      : typeof value === "number" && !Number.isFinite(value)
-        ? ""
-        : typeof value === "object"
-          ? JSON.stringify(value)
-          : String(value);
+    typeof value === "string" ? value : JSON.stringify(value);
 
   return (
     <div className="space-y-2">

@@ -3,9 +3,14 @@ import { createDefaultCommonFormFields, generateNamespace } from "@/lib/form";
 import type { CommonFormFields } from "@/lib/form.types";
 import { ArrowRight, ShipWheel } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAppConfig } from "../AppConfigProvider";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
+import {
+  getDefaultChartValues,
+  type HelmValuesBranch,
+} from "./helm/HelmConfigFields";
 
 export const TemplateConfig = ({
   state,
@@ -18,7 +23,7 @@ export const TemplateConfig = ({
 }) => {
   const { data: charts, isLoading } = api.useQuery("get", "/templates/charts");
   const navigate = useNavigate();
-
+  const { storageClassName } = useAppConfig();
   const exportToGroupStates = () => {
     const states = [state];
     if (!isLoading && charts) {
@@ -34,6 +39,11 @@ export const TemplateConfig = ({
               urlType: chart.urlType as "absolute" | "oci",
               version: chart.version,
               watchLabels: chart.watchLabels,
+              values: getDefaultChartValues(
+                chart.valueSpec as HelmValuesBranch,
+                [],
+                storageClassName,
+              ),
             },
           };
           templateState.namespace = generateNamespace(templateState);

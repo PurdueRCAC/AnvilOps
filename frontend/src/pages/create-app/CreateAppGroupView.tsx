@@ -42,8 +42,9 @@ export default function CreateAppGroupView() {
     groupOption: { name: groupName },
   } = groupState as { orgId?: number; groupOption: GroupCreate };
 
-  const initialStates = loadAppStates() ?? [createDefaultCommonFormFields()];
-  const [appStates, setAppStates] = useState<CommonFormFields[]>(initialStates);
+  const [appStates, setAppStates] = useState<CommonFormFields[]>(() => {
+    return loadAppStates() ?? [createDefaultCommonFormFields()];
+  });
   const [tab, setTab] = useState("0");
 
   const navigate = useNavigate();
@@ -255,7 +256,6 @@ export default function CreateAppGroupView() {
 
 const loadAppStates = () => {
   const appStates = sessionStorage.getItem("appStates");
-  console.log(appStates);
   if (appStates) {
     sessionStorage.removeItem("appStates");
     window.scrollTo(0, 0);
