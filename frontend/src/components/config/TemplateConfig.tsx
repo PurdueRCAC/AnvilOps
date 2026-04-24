@@ -32,6 +32,7 @@ export const TemplateConfig = ({
         if (selected.has(chart.url)) {
           const templateState: CommonFormFields = {
             ...defaultState,
+            projectId: state.projectId,
             appType: "helm",
             source: "helm",
             helm: {
