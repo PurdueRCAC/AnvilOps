@@ -13,7 +13,6 @@ import {
   getGroupStateFromApp,
 } from "@/lib/form";
 import type { CommonFormFields, GroupFormFields } from "@/lib/form.types";
-import { isWorkloadConfig } from "@/lib/utils";
 import type { RefetchOptions } from "@tanstack/react-query";
 import { Loader, Save, Scale3D, TextCursorInput } from "lucide-react";
 import { useContext, useState, type Dispatch } from "react";
@@ -48,14 +47,6 @@ export const ConfigTab = ({
   );
 
   const { user } = useContext(UserContext);
-
-  if (!isWorkloadConfig(app.config)) {
-    return (
-      <div className="py-8 text-center">
-        <p>Configuration editing is not available for Helm-based apps.</p>
-      </div>
-    );
-  }
 
   const enableSaveButton =
     state.source !== "git" ||
@@ -107,40 +98,42 @@ export const ConfigTab = ({
           }
         />
       </div>
-      <div>
-        <div className="mb-2 flex items-baseline gap-2">
-          <Label className="pb-1">
-            <Scale3D className="inline" size={16} /> Replicas
-          </Label>
-          <HelpTooltip size={16}>
-            <p>
-              The number of instances of your application running at once.
-              Having multiple replicas improves fault tolerance and improves
-              performance by distributing traffic.
-            </p>
-          </HelpTooltip>
-          <span
-            className="cursor-default text-red-500"
-            title="This field is required."
-          >
-            *
-          </span>
+      {state.appType === "workload" && (
+        <div>
+          <div className="mb-2 flex items-baseline gap-2">
+            <Label className="pb-1">
+              <Scale3D className="inline" size={16} /> Replicas
+            </Label>
+            <HelpTooltip size={16}>
+              <p>
+                The number of instances of your application running at once.
+                Having multiple replicas improves fault tolerance and improves
+                performance by distributing traffic.
+              </p>
+            </HelpTooltip>
+            <span
+              className="cursor-default text-red-500"
+              title="This field is required."
+            >
+              *
+            </span>
+          </div>
+          <Input
+            name="replicas"
+            placeholder="1"
+            type="number"
+            required
+            value={state.workload?.replicas ?? "1"}
+            onChange={(e) => {
+              const value = e.target.value;
+              setState((s) => ({
+                ...s,
+                workload: { ...s.workload, replicas: value },
+              }));
+            }}
+          />
         </div>
-        <Input
-          name="replicas"
-          placeholder="1"
-          type="number"
-          required
-          value={state.workload?.replicas ?? "1"}
-          onChange={(e) => {
-            const value = e.target.value;
-            setState((s) => ({
-              ...s,
-              workload: { ...s.workload, replicas: value },
-            }));
-          }}
-        />
-      </div>
+      )}
       <GroupConfigFields state={groupState} setState={setGroupState} />
       <FormContext value="UpdateApp">
         <AppConfigFormFields

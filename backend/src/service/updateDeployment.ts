@@ -94,7 +94,10 @@ export class UpdateDeploymentService {
       "Updated deployment status via /api/deployment/update",
     );
 
-    if (config.source != "GIT") {
+    if (config.source === "HELM") {
+      if (newStatus === "COMPLETE") {
+        await this.appRepo.setConfig(deployment.appId, deployment.configId);
+      }
       return;
     }
 

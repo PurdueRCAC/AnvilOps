@@ -107,6 +107,10 @@ export class GetOrgByIDService {
                 ? `${appDomain.protocol}//${config.subdomain}.${appDomain.host}`
                 : undefined,
           }),
+          ...(config.appType === "helm" && {
+            chartUrl: config.url,
+            chartVersion: config.version,
+          }),
         };
       }),
     );

@@ -16,7 +16,7 @@ export const ImageConfigFields = ({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
-        <Label htmlFor="imageTag" className="mb-2 pb-1">
+        <Label htmlFor="imageTag" className="pb-1">
           <Tag className="inline" size={16} /> Image tag
         </Label>
         <span

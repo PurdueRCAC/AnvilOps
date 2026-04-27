@@ -420,10 +420,15 @@ export class DeploymentRepo {
           status: deployment.status,
           updatedAt: deployment.updatedAt,
           workflowRunId: deployment.workflowRunId,
-          source: deployment.config.workloadConfig?.source,
+          source:
+            deployment.config.appType === "workload"
+              ? deployment.config.workloadConfig?.source
+              : "HELM",
           commitHash: deployment.config.workloadConfig?.commitHash,
           imageTag: deployment.config.workloadConfig?.imageTag,
           repositoryId: deployment.config.workloadConfig?.repositoryId,
+          chartUrl: deployment.config.helmConfig?.url,
+          chartVersion: deployment.config.helmConfig?.version,
         }) satisfies DeploymentWithSourceInfo,
     );
   }

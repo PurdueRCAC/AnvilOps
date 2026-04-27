@@ -8,7 +8,7 @@ import {
   type V1StatefulSet,
   type Watch,
 } from "@kubernetes/client-node";
-import { metrics, ValueType } from "@opentelemetry/api";
+import { ValueType, metrics } from "@opentelemetry/api";
 import type { AppRepo } from "../db/repo/app.ts";
 import { logger } from "../logger.ts";
 import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
@@ -57,29 +57,34 @@ export class GetAppStatusService {
     let events: CoreV1EventList;
 
     const update = async () => {
-      if (!pods || !events || !statefulSet) return;
+      if (!pods) return;
       const newStatus = {
-        pods: pods.items.map((pod) => ({
-          id: pod.metadata?.uid,
-          name: pod.metadata?.name,
-          createdAt: pod.metadata?.creationTimestamp,
-          startedAt: pod.status?.startTime,
-          deploymentId: parseInt(
-            pod.metadata.labels["anvilops.rcac.purdue.edu/deployment-id"],
-          ),
-          node: pod.spec?.nodeName,
-          podScheduled:
-            getCondition(pod?.status?.conditions, "PodScheduled")?.status ===
-            "True",
-          podReady:
-            getCondition(pod?.status?.conditions, "Ready")?.status === "True",
-          image: pod.status?.containerStatuses?.[0]?.image,
-          containerReady: pod.status?.containerStatuses?.[0]?.ready,
-          containerState: pod.status?.containerStatuses?.[0]?.state,
-          lastState: pod.status?.containerStatuses?.[0].lastState,
-          ip: pod.status.podIP,
-        })),
-        events: events.items.map((event) => ({
+        pods: pods.items.map((pod) => {
+          const rawDeploymentId = parseInt(
+            pod.metadata?.labels?.["anvilops.rcac.purdue.edu/deployment-id"],
+          );
+          return {
+            id: pod.metadata?.uid,
+            name: pod.metadata?.name,
+            createdAt: pod.metadata?.creationTimestamp,
+            startedAt: pod.status?.startTime,
+            deploymentId: Number.isFinite(rawDeploymentId)
+              ? rawDeploymentId
+              : null,
+            node: pod.spec?.nodeName,
+            podScheduled:
+              getCondition(pod?.status?.conditions, "PodScheduled")?.status ===
+              "True",
+            podReady:
+              getCondition(pod?.status?.conditions, "Ready")?.status === "True",
+            image: pod.status?.containerStatuses?.[0]?.image,
+            containerReady: pod.status?.containerStatuses?.[0]?.ready,
+            containerState: pod.status?.containerStatuses?.[0]?.state,
+            lastState: pod.status?.containerStatuses?.[0].lastState,
+            ip: pod.status.podIP,
+          };
+        }),
+        events: events?.items.map((event) => ({
           id: event.metadata.uid,
           reason: event.reason,
           message: event.message,
@@ -87,15 +92,17 @@ export class GetAppStatusService {
           firstTimestamp: event.firstTimestamp.toISOString(),
           lastTimestamp: event.lastTimestamp.toISOString(),
         })),
-        statefulSet: {
-          readyReplicas: statefulSet.status.readyReplicas,
-          updatedReplicas: statefulSet.status.currentReplicas,
-          replicas: statefulSet.status.replicas,
-          generation: statefulSet.metadata.generation,
-          observedGeneration: statefulSet.status.observedGeneration,
-          currentRevision: statefulSet.status.currentRevision,
-          updateRevision: statefulSet.status.updateRevision,
-        },
+        ...(statefulSet && {
+          statefulSet: {
+            readyReplicas: statefulSet.status.readyReplicas,
+            updatedReplicas: statefulSet.status.currentReplicas,
+            replicas: statefulSet.status.replicas,
+            generation: statefulSet.metadata.generation,
+            observedGeneration: statefulSet.status.observedGeneration,
+            currentRevision: statefulSet.status.currentRevision,
+            updateRevision: statefulSet.status.updateRevision,
+          },
+        }),
       };
 
       await callback(newStatus);
@@ -123,6 +130,13 @@ export class GetAppStatusService {
     );
 
     try {
+      const config = await this.appRepo.getDeploymentConfig(appId);
+
+      // Selects any pod when undefined
+      const podLabelSelector =
+        config.appType === "helm"
+          ? config.watchLabels
+          : "anvilops.rcac.purdue.edu/deployment-id";
       const {
         CoreV1Api: core,
         AppsV1Api: apps,
@@ -138,9 +152,9 @@ export class GetAppStatusService {
         async () =>
           await core.listNamespacedPod({
             namespace: ns,
-            labelSelector: "anvilops.rcac.purdue.edu/deployment-id",
+            labelSelector: podLabelSelector,
           }),
-        { labelSelector: "anvilops.rcac.purdue.edu/deployment-id" },
+        { labelSelector: podLabelSelector },
         async (newValue) => {
           pods = newValue;
           await update();
@@ -151,47 +165,49 @@ export class GetAppStatusService {
         podWatcher.abort(),
       );
 
-      const statefulSetWatcher = await watchList(
-        watch,
-        `/apis/apps/v1/namespaces/${ns}/statefulsets`,
-        async () =>
-          await apps.listNamespacedStatefulSet({
-            namespace: ns,
-          }),
-        {},
-        async (newValue) => {
-          statefulSet = newValue.items.find(
-            (it) => it.metadata.name === app.name,
-          );
-          await update();
-        },
-        close,
-      );
-      abortController.signal.addEventListener("abort", () =>
-        statefulSetWatcher.abort(),
-      );
+      if (config.appType !== "helm") {
+        const statefulSetWatcher = await watchList(
+          watch,
+          `/apis/apps/v1/namespaces/${ns}/statefulsets`,
+          async () =>
+            await apps.listNamespacedStatefulSet({
+              namespace: ns,
+            }),
+          {},
+          async (newValue) => {
+            statefulSet = newValue.items.find(
+              (it) => it.metadata.name === app.name,
+            );
+            await update();
+          },
+          close,
+        );
+        abortController.signal.addEventListener("abort", () =>
+          statefulSetWatcher.abort(),
+        );
 
-      const fieldSelector = `involvedObject.kind=StatefulSet,involvedObject.name=${app.name},type=Warning`;
+        const fieldSelector = `involvedObject.kind=StatefulSet,involvedObject.name=${app.name},type=Warning`;
 
-      const eventsWatcher = await watchList(
-        watch,
-        `/api/v1/namespaces/${ns}/events`,
-        async () =>
-          await core.listNamespacedEvent({
-            namespace: ns,
-            fieldSelector,
-            limit: 15,
-          }),
-        { fieldSelector, limit: 15 },
-        async (newValue) => {
-          events = newValue;
-          await update();
-        },
-        close,
-      );
-      abortController.signal.addEventListener("abort", () =>
-        eventsWatcher.abort(),
-      );
+        const eventsWatcher = await watchList(
+          watch,
+          `/api/v1/namespaces/${ns}/events`,
+          async () =>
+            await core.listNamespacedEvent({
+              namespace: ns,
+              fieldSelector,
+              limit: 15,
+            }),
+          { fieldSelector, limit: 15 },
+          async (newValue) => {
+            events = newValue;
+            await update();
+          },
+          close,
+        );
+        abortController.signal.addEventListener("abort", () =>
+          eventsWatcher.abort(),
+        );
+      }
     } catch (e) {
       close(e);
     }

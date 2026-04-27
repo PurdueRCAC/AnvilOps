@@ -87,7 +87,7 @@ export default function AppView() {
           <TabsTrigger value="overview">
             <span>Overview</span>
           </TabsTrigger>
-          {isWorkloadConfig(app.config) && !!app.activeDeployment && (
+          {(!!app.activeDeployment || app.config.appType === "helm") && (
             <TabsTrigger value="status">
               <span>Status</span>
             </TabsTrigger>
@@ -95,20 +95,20 @@ export default function AppView() {
           <TabsTrigger value="configuration">
             <span>Configuration</span>
           </TabsTrigger>
-          {settings.storageEnabled && !!app.activeDeployment && (
-            <>
-              {isWorkloadConfig(app.config) && (
+          {settings.storageEnabled &&
+            (!!app.activeDeployment || app.config.appType === "helm") && (
+              <>
                 <TabsTrigger value="logs">
                   <span>Logs</span>
                 </TabsTrigger>
-              )}
-              {isWorkloadConfig(app.config) && app.config.mounts.length > 0 && (
-                <TabsTrigger value="files">
-                  <span>Files</span>
-                </TabsTrigger>
-              )}
-            </>
-          )}
+                {isWorkloadConfig(app.config) &&
+                  app.config.mounts.length > 0 && (
+                    <TabsTrigger value="files">
+                      <span>Files</span>
+                    </TabsTrigger>
+                  )}
+              </>
+            )}
           <TabsTrigger value="danger">
             <span>Danger</span>
           </TabsTrigger>

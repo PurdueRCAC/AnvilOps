@@ -2,16 +2,6 @@ import type { ImageConfig } from "regclient-napi";
 import * as regclient from "regclient-napi";
 import { logger } from "../../logger.ts";
 
-type HarborRepository = {
-  artifact_count: number;
-  creation_time: string;
-  id: number;
-  name: string;
-  project_id: number;
-  pull_count: number;
-  update_time: string;
-};
-
 export class RegistryService {
   private registryHostname: string;
   private registryProtocol: string;
@@ -48,30 +38,20 @@ export class RegistryService {
       authorization: `Basic ${Buffer.from(this.deleteRepoUsername + ":" + this.deleteRepoPassword).toString("base64")}`,
     };
 
-    await fetch(
+    const res = await fetch(
       `${this.registryProtocol}://${this.registryHostname}/api/v2.0/projects/${this.harborProjectName}/repositories/${name}`,
       {
         method: "DELETE",
         headers,
+        signal: AbortSignal.timeout(5000),
       },
-    ).then((response) => {
-      if (!response.ok && response.status !== 404) {
-        // ^ 404 means the repository doesn't exist, so it has already been deleted or was never created
-        throw new Error(response.statusText);
-      }
-    });
-  }
-
-  async getRepositoriesByProject(projectName: string) {
-    const response = await fetch(
-      `${this.registryProtocol}://${this.registryHostname}/api/v2.0/projects/${projectName}/repositories`,
     );
 
-    if (!response.ok) {
-      throw new Error(response.statusText);
+    if (!res.ok) {
+      throw new Error(
+        `Failed to delete image repository ${name}: ${res.status} ${res.statusText}`,
+      );
     }
-
-    return (await response.json()) as HarborRepository[];
   }
 
   async getImageConfig(reference: string): Promise<ImageConfig> {

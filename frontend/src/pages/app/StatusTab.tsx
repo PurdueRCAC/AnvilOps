@@ -70,6 +70,7 @@ export const StatusTab = ({
     isPending: podDeleting,
   } = api.useMutation("delete", "/app/{appId}/pods/{podName}");
 
+  const isWorkload = app.config.appType === "workload";
   return (
     <>
       <h2 className="mb-2 text-xl font-medium">
@@ -131,20 +132,24 @@ export const StatusTab = ({
         </div>
       ) : (
         <>
-          {oldPods && oldPods.length > 0 ? (
-            <h3 className="mt-8">Active Deployment</h3>
-          ) : null}
-          {activePods && activePods.length > 0 ? (
-            activePods?.map((pod) => <PodInfo pod={pod} key={pod.id} />)
-          ) : (
-            <p className="mt-2 opacity-50">
-              There are no pods from the current deployment.
-            </p>
+          {isWorkload && (
+            <>
+              {oldPods && oldPods.length > 0 ? (
+                <h3 className="mt-8">Active Deployment</h3>
+              ) : null}
+              {activePods && activePods.length > 0 ? (
+                activePods?.map((pod) => <PodInfo pod={pod} key={pod.id} />)
+              ) : (
+                <p className="mt-2 opacity-50">
+                  There are no pods from the current deployment.
+                </p>
+              )}
+            </>
           )}
 
           {oldPods && oldPods.length > 0 ? (
             <>
-              <h3 className="mt-8">Previous Deployments</h3>
+              {isWorkload && <h3 className="mt-8">Previous Deployments</h3>}
               {oldPods?.map((pod) => (
                 <PodInfo pod={pod} key={pod.id}>
                   {(updating && containerState(pod, "terminated")) ||

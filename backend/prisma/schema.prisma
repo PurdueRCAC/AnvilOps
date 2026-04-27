@@ -146,6 +146,7 @@ enum AppType {
 enum DeploymentSource {
   GIT
   IMAGE
+  HELM
 }
 
 model App {
@@ -265,6 +266,7 @@ model HelmConfig {
   url                String
   version            String
   urlType            HelmUrlType
+  watchLabels        String?
   ///[HelmValues]
   values             Json?
 }

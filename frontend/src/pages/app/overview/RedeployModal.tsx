@@ -98,15 +98,23 @@ export const RedeployModal = ({
 
   const _setRadioValue = useEffectEvent(setRadioValue);
 
+  const isHelmDeployment = pastDeployment?.config?.appType === "helm";
+
   useEffect(() => {
     if (
       !pastDeploymentLoading &&
       pastDeployment &&
       redeployState.radioValue === undefined
     ) {
-      _setRadioValue("useBuild");
+      _setRadioValue(isHelmDeployment ? "useConfig" : "useBuild");
     }
-  }, [pastDeployment, pastDeploymentLoading, isOpen, redeployState.radioValue]);
+  }, [
+    pastDeployment,
+    pastDeploymentLoading,
+    isOpen,
+    redeployState.radioValue,
+    isHelmDeployment,
+  ]);
 
   const setOpen = (open: boolean) => {
     _setOpen(open);
@@ -198,56 +206,58 @@ export const RedeployModal = ({
                     setRadioValue(value);
                   }}
                 >
-                  <Label className="flex-col items-start">
-                    <div className="flex gap-2">
-                      <RadioGroupItem
-                        value="useBuild"
-                        className="whitespace-nowrap"
-                      />
-                      Redeploy from this{" "}
-                      {pastDeployment.config.source === "git"
-                        ? "commit"
-                        : "image"}{" "}
-                      with your current configuration:
-                    </div>
-                    <div className="my-2 ml-6">
-                      {pastDeployment.config.source === "git" ? (
-                        <a
-                          href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
-                          className="flex items-start gap-2"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <span className="text-black-2 -mt-1 flex items-center gap-1">
-                            <GitCommit className="shrink-0" />
-                            {pastDeployment.commitHash?.substring(0, 7) ??
-                              "Unknown"}
-                          </span>
-                          {pastDeployment.commitMessage}
-                        </a>
-                      ) : isWorkloadConfig(pastDeployment.config) &&
-                        pastDeployment.config.source === "image" ? (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <p className="flex items-center gap-2">
-                              <Container className="text-black-2" />{" "}
-                              <span className="max-w-96 overflow-x-clip text-ellipsis whitespace-nowrap">
-                                {pastDeployment.config.imageTag}
-                              </span>
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {pastDeployment.config.imageTag}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : null}
-                    </div>
-                    <p className="text-black-3 mb-4 ml-6 text-sm">
-                      AnvilOps will combine this version of your application
-                      with your latest configuration, so that you can roll back
-                      your application while keeping your new settings.
-                    </p>
-                  </Label>
+                  {!isHelmDeployment && (
+                    <Label className="flex-col items-start">
+                      <div className="flex gap-2">
+                        <RadioGroupItem
+                          value="useBuild"
+                          className="whitespace-nowrap"
+                        />
+                        Redeploy from this{" "}
+                        {pastDeployment.config.source === "git"
+                          ? "commit"
+                          : "image"}{" "}
+                        with your current configuration:
+                      </div>
+                      <div className="my-2 ml-6">
+                        {pastDeployment.config.source === "git" ? (
+                          <a
+                            href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
+                            className="flex items-start gap-2"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span className="text-black-2 -mt-1 flex items-center gap-1">
+                              <GitCommit className="shrink-0" />
+                              {pastDeployment.commitHash?.substring(0, 7) ??
+                                "Unknown"}
+                            </span>
+                            {pastDeployment.commitMessage}
+                          </a>
+                        ) : isWorkloadConfig(pastDeployment.config) &&
+                          pastDeployment.config.source === "image" ? (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <p className="flex items-center gap-2">
+                                <Container className="text-black-2" />{" "}
+                                <span className="max-w-96 overflow-x-clip text-ellipsis whitespace-nowrap">
+                                  {pastDeployment.config.imageTag}
+                                </span>
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {pastDeployment.config.imageTag}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                      <p className="text-black-3 mb-4 ml-6 text-sm">
+                        AnvilOps will combine this version of your application
+                        with your latest configuration, so that you can roll
+                        back your application while keeping your new settings.
+                      </p>
+                    </Label>
+                  )}
                   <Label className="flex-col items-start">
                     <div className="flex gap-2">
                       <RadioGroupItem value="useConfig" />
@@ -274,45 +284,56 @@ export const RedeployModal = ({
                 >
                   Review deployment configuration
                 </Button>
-                <p className="my-4">
-                  <strong>Step 3</strong>: Toggle continuous deployment
-                </p>
-                <Label>
-                  <Switch
-                    checked={redeployState.enableCD}
-                    onCheckedChange={(checked) =>
-                      setRedeployState((rs) => ({ ...rs, enableCD: checked }))
-                    }
-                  />
-                  <span>
-                    Continuous deployment will be turned{" "}
-                    <strong>{redeployState.enableCD ? "on." : "off."}</strong>
-                  </span>
-                </Label>
-                <p className="text-black-4 my-2 text-sm">
-                  {redeployState.enableCD ? (
-                    <>
-                      If this app is linked to a Git repository and a commit is
-                      pushed, the app may be rebuilt and redeployed
-                      automatically.{" "}
-                      {redeployState.radioValue === "useBuild" &&
-                        redeployState.configState.source === "git" && (
-                          <>
-                            AnvilOps will{" "}
-                            <strong>run this newer version of your app,</strong>{" "}
-                            instead of the selected commit.
-                          </>
-                        )}
-                    </>
-                  ) : (
-                    <>
-                      If this app is linked to a Git repository, this app{" "}
-                      <strong>will not be updated</strong> on the cluster in
-                      response to repository events until continuous deployment
-                      is re-enabled.
-                    </>
-                  )}
-                </p>
+                {!isHelmDeployment && (
+                  <>
+                    <p className="my-4">
+                      <strong>Step 3</strong>: Toggle continuous deployment
+                    </p>
+                    <Label>
+                      <Switch
+                        checked={redeployState.enableCD}
+                        onCheckedChange={(checked) =>
+                          setRedeployState((rs) => ({
+                            ...rs,
+                            enableCD: checked,
+                          }))
+                        }
+                      />
+                      <span>
+                        Continuous deployment will be turned{" "}
+                        <strong>
+                          {redeployState.enableCD ? "on." : "off."}
+                        </strong>
+                      </span>
+                    </Label>
+                    <p className="text-black-4 my-2 text-sm">
+                      {redeployState.enableCD ? (
+                        <>
+                          If this app is linked to a Git repository and a commit
+                          is pushed, the app may be rebuilt and redeployed
+                          automatically.{" "}
+                          {redeployState.radioValue === "useBuild" &&
+                            redeployState.configState.source === "git" && (
+                              <>
+                                AnvilOps will{" "}
+                                <strong>
+                                  run this newer version of your app,
+                                </strong>{" "}
+                                instead of the selected commit.
+                              </>
+                            )}
+                        </>
+                      ) : (
+                        <>
+                          If this app is linked to a Git repository, this app{" "}
+                          <strong>will not be updated</strong> on the cluster in
+                          response to repository events until continuous
+                          deployment is re-enabled.
+                        </>
+                      )}
+                    </p>
+                  </>
+                )}
                 <Button
                   type="submit"
                   className="mt-4 w-full"
