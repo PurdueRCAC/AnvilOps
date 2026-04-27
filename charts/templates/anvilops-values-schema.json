@@ -1,5 +1,6 @@
 {
-  "$id": "https://raw.githubusercontent.com/PurdueRCAC/AnvilOps/refs/heads/main/charts/anvilops-values-schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/PurdueRCAC/AnvilOps/refs/heads/main/charts/templates/anvilops-values-schema.json",
   "title": "anvilops-values",
   "description": "The schema for anvilops-values objects in Chart.yaml",
   "type": "object",
@@ -55,9 +56,6 @@
       "properties": {
         "_anvilopsValue": {
           "const": true
-        },
-        "name": {
-          "type": "string"
         },
         "displayName": {
           "type": "string"

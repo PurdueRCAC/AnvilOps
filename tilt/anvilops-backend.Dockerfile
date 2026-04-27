@@ -75,4 +75,4 @@ COPY --from=backend_codegen /app/src/generated/prisma/ ./src/generated/prisma
 COPY openapi/*.yaml /openapi/
 COPY --from=openapi_codegen /app/backend/src/generated/openapi.ts ./src/generated/openapi.ts
 COPY backend/ .
-COPY charts/anvilops-values-schema.json ./anvilops-values-schema.json
+COPY charts/templates/anvilops-values-schema.json ./anvilops-values-schema.json

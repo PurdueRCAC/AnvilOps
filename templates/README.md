@@ -1,6 +1,6 @@
 # Templates
 
-A collection of templates for deploying applications with [AnvilOps](https://anvilops.rcac.purdue.edu).
+A collection of GitHub templates for deploying applications with [AnvilOps](https://anvilops.rcac.purdue.edu).
 
 ## Usage
 

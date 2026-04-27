@@ -20,7 +20,11 @@ export const HelmValue = ({
 }) => {
   const value = values?.[jsonPath];
   const displayValue =
-    typeof value === "string" ? value : JSON.stringify(value);
+    value == null || value == undefined
+      ? ""
+      : typeof value === "string"
+        ? value
+        : JSON.stringify(value);
 
   return (
     <div className="space-y-2">
@@ -63,7 +67,7 @@ export const HelmValue = ({
                 }
               }
             } else {
-              next[jsonPath] = raw;
+              next[jsonPath] = raw ? raw : null;
             }
             setState({ values: next });
           }}
