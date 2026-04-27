@@ -253,7 +253,7 @@ export class DeploymentConfigService {
       version: helm.version,
       urlType: helm.urlType,
       ...(helm.values !== undefined && {
-        values: helm.values as Record<string, string | number | boolean | null>,
+        values: helm.values,
       }),
       ...(helm.watchLabels !== undefined && {
         watchLabels: helm.watchLabels,
