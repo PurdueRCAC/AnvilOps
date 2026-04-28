@@ -1,5 +1,5 @@
 import { V1Pod } from "@kubernetes/client-node";
-import { Ajv, type Schema } from "ajv";
+import { Ajv2020, type Schema } from "ajv/dist/2020.js";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { App, Deployment, HelmConfig } from "../../db/models.ts";
@@ -66,10 +66,11 @@ export class HelmService {
     this.initAjv();
   }
 
-  private ajv: Ajv;
+  private ajv: Ajv2020;
 
   private initAjv() {
-    this.ajv = new Ajv();
+    // Default `Ajv` targets draft-07; schema uses JSON Schema draft 2020-12.
+    this.ajv = new Ajv2020();
     try {
       const schema = JSON.parse(
         readFileSync("anvilops-values-schema.json").toString(),

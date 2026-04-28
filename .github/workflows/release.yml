@@ -29,11 +29,29 @@ jobs:
 
       - name: Log in to image registry (Production)
         if: ${{ inputs.environment == 'production' }}
-        run: docker login -u '${{ secrets.DOCKER_USERNAME }}' -p '${{ secrets.DOCKER_PASSWORD }}' registry.anvil.rcac.purdue.edu
+        run: |
+          echo '${{ secrets.DOCKER_PASSWORD }}' | docker login registry.anvil.rcac.purdue.edu \
+            -u '${{ secrets.DOCKER_USERNAME }}' --password-stdin
+
+      - name: Log in to chart project (Production)
+        if: ${{ inputs.environment == 'production' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/helm"
+          echo '${{ secrets.CHART_PROJECT_PASSWORD }}' | helm registry login registry.anvil.rcac.purdue.edu \
+            -u '${{ secrets.CHART_PROJECT_USERNAME }}' --password-stdin --registry-config "$RUNNER_TEMP/helm/registry-config.json"
 
       - name: Log in to image registry (Staging)
         if: ${{ inputs.environment == 'staging' }}
-        run: docker login -u '${{ secrets.DOCKER_USERNAME_STAGING }}' -p '${{ secrets.DOCKER_PASSWORD_STAGING }}' registry.anvil.rcac.purdue.edu
+        run: |
+          echo '${{ secrets.DOCKER_PASSWORD_STAGING }}' | docker login registry.anvil.rcac.purdue.edu \
+            -u '${{ secrets.DOCKER_USERNAME_STAGING }}' --password-stdin
+
+      - name: Log in to chart project (Staging)
+        if: ${{ inputs.environment == 'staging' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/helm"
+          echo '${{ secrets.CHART_PROJECT_PASSWORD_STAGING }}' | helm registry login registry.anvil.rcac.purdue.edu \
+            -u '${{ secrets.CHART_PROJECT_USERNAME_STAGING }}' --password-stdin --registry-config "$RUNNER_TEMP/helm/registry-config.json"
 
       - name: Set up Git (Production)
         if: ${{ inputs.environment == 'production' }}
@@ -52,6 +70,7 @@ jobs:
         run: ./.github/workflows/release/release-${{ inputs.environment }}.sh "${{ inputs.version }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEMPLATE_REG_CONFIG: ${{ runner.temp }}/helm/registry-config.json
 
       - name: Log out of container registry
         if: always()

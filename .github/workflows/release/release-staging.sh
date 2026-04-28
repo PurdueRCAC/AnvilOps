@@ -5,6 +5,7 @@
 
 export REGISTRY_BASE="registry.anvil.rcac.purdue.edu/anvilops-staging"
 export HELM_ARTIFACT_TAG="oci://registry.anvil.rcac.purdue.edu/anvilops-staging/chart"
+export HELM_TEMPLATE_TARGET="oci://registry.anvil.rcac.purdue.edu/anvilops-chart-staging"
 # note that GENERATE_GITHUB_RELEASE is not exported in this script, but it is in release-production.sh
 
 COMMIT="$(git rev-parse HEAD)"
