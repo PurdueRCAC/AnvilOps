@@ -1,6 +1,6 @@
 import { type KVCacheService } from "./common/cache.ts";
 import type { HelmService } from "./common/helm.ts";
-import { ValidationError } from "./errors/index.ts";
+import { ChartsMissingError, ValidationError } from "./errors/index.ts";
 
 export class ListChartsService {
   private helmService: HelmService;
@@ -48,7 +48,12 @@ export class ListChartsService {
       }),
     );
 
-    return charts.filter(Boolean).map((chart) => ({
+    const validCharts = charts.filter(Boolean);
+    if (validCharts.length == 0) {
+      throw new ChartsMissingError();
+    }
+
+    return validCharts.map((chart) => ({
       name: chart.name,
       description: chart.description,
       note: chart.note,
