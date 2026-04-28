@@ -74,6 +74,8 @@ An individual value is represented with the `leaf` schema, which AnvilOps will u
 
 `min, max`: Minimum and maximum values for numeric input.
 
+`minLength, maxLength`: Minimum and maximum lengths for text input.
+
 ### Example
 
 Suppose we have a `values.yaml` file like

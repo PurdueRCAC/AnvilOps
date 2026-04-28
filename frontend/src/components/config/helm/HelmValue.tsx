@@ -73,6 +73,8 @@ export const HelmValue = ({
           }}
           min={valueSpec.min}
           max={valueSpec.max}
+          minLength={valueSpec.minLength}
+          maxLength={valueSpec.maxLength}
         />
         {valueSpec.unit}
       </div>

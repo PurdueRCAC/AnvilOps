@@ -18,10 +18,15 @@ import { useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Namespace } from "../Namespace";
 
-const randomString = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID().replace(/-/g, "").slice(0, 16)
-    : Math.random().toString(36).slice(2, 18);
+const randomString = (length: number = 64) => {
+  if (crypto === undefined) {
+    return "";
+  }
+
+  const rand = new Uint8Array(Math.ceil(length / 2));
+  crypto.getRandomValues(rand);
+  return rand.toHex().substring(0, length);
+};
 
 const randRange = (min: number, max: number) => {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
@@ -48,7 +53,7 @@ export const getDefaultChartValues = (
       values[childKey] =
         spec.type === "number"
           ? randRange(spec.min ?? 0, spec.max ?? 100)
-          : randomString();
+          : randomString(spec.maxLength ?? spec.minLength);
     } else if (
       key === "storageClassName" ||
       (key === "className" && path.slice(-1)[0] === "storage")
@@ -81,6 +86,8 @@ export type HelmValueMeta = {
   unit?: string;
   min?: number;
   max?: number;
+  minLength?: number;
+  maxLength?: number;
   random?: boolean;
   noUpdate: boolean;
 };

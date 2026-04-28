@@ -81,6 +81,12 @@
         },
         "max": {
           "type": "number"
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
         }
       },
       "additionalProperties": false,
