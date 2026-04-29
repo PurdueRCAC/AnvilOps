@@ -30,7 +30,6 @@ export type WorkloadFormFields = {
   collectLogs: boolean;
   cpuCores: string;
   memoryInMiB: string;
-  namespace?: string;
 
   git: GitFormFields;
   image: ImageFormFields;
@@ -42,8 +41,9 @@ export type WorkloadUpdate =
       prev: WorkloadFormFields,
     ) => Partial<Omit<WorkloadFormFields, "git" | "image">>);
 
-export type HelmFormFields = Partial<
-  Omit<components["schemas"]["HelmConfigOptions"], "source" | "appType">
+export type HelmFormFields = Omit<
+  components["schemas"]["HelmConfigOptions"],
+  "source" | "appType" | "namespace"
 >;
 
 export type CommonFormFields = {
@@ -51,6 +51,7 @@ export type CommonFormFields = {
   projectId: string | null;
   appType: "workload" | "helm";
   source: "git" | "image" | "helm";
+  namespace?: string;
   workload: WorkloadFormFields;
   helm: HelmFormFields;
 };

@@ -22,16 +22,10 @@ CURRENT_DIR=$(dirname "$0")
 PROJECT_ROOT="$CURRENT_DIR/../../../"
 VERSION="$1"
 
-CHART_DIR="$PROJECT_ROOT/charts/anvilops"
-VALUES_FILE="$CHART_DIR/values.yaml"
-CHART_FILE="$CHART_DIR/Chart.yaml"
+CHART_DIR="$PROJECT_ROOT/charts"
+VALUES_FILE="$CHART_DIR/anvilops/values.yaml"
 
 NOTES_FILE="$(mktemp)"
-BACKUP_DIR="$(mktemp -d)"
-
-echo "Storing old Chart files in $BACKUP_DIR"
-cp "$VALUES_FILE" "$BACKUP_DIR"
-cp "$CHART_FILE" "$BACKUP_DIR"
 
 echo "Releasing AnvilOps version $VERSION..."
 
@@ -122,18 +116,42 @@ copy_railpack_images() {
   copy_image ".anvilops.env.railpackInternalRuntimeImage" "ghcr.io/railwayapp/railpack-runtime:$RAILPACK_VERSION" "$RAILPACK_INTERNAL_RUNTIME_IMAGE"
 }
 
-publish_chart() {
-  set_value "$CHART_FILE" ".version" "$VERSION"
-  set_value "$CHART_FILE" ".appVersion" "$VERSION"
+push_chart() {
+  CHART_PATH="$1"
+  TARGET="$2"
+  shift 2
+  PUSH_FLAGS=("$@")
+
+  set_value "$CHART_PATH/Chart.yaml" ".version" "$VERSION"
+  set_value "$CHART_PATH/Chart.yaml" ".appVersion" "$VERSION"
 
   CHART_PACKAGE_DIR=$(mktemp -d)
 
-  helm package --destination "$CHART_PACKAGE_DIR" "$CHART_DIR"
+  helm package --destination "$CHART_PACKAGE_DIR" "$CHART_PATH"
   CHART_PACKAGE_FILE="$CHART_PACKAGE_DIR/$(ls "$CHART_PACKAGE_DIR")"
 
-  helm push "$CHART_PACKAGE_FILE" "$HELM_ARTIFACT_TAG"
+  helm push "$CHART_PACKAGE_FILE" "$TARGET" "${PUSH_FLAGS[@]}"
   rm -rf "$CHART_PACKAGE_DIR"
+}
 
+publish_charts() {
+  TEMPLATE_PUSH_FLAGS=()
+  if [[ -z "${TEMPLATE_REG_CONFIG:-}" ]]; then
+    echo "Warning: TEMPLATE_REG_CONFIG is not set, using default registry config for templates"
+  else
+    TEMPLATE_PUSH_FLAGS=("--registry-config" "$TEMPLATE_REG_CONFIG")
+  fi
+
+  # Make empty templates expand to nothing, skipping the loop 
+  shopt -s nullglob
+  for template in "$CHART_DIR"/templates/*; do
+    if [[ -d "$template" && -f "$template/Chart.yaml" ]]; then
+      push_chart "$template" "$HELM_TEMPLATE_TARGET" "${TEMPLATE_PUSH_FLAGS[@]}"
+    fi
+  done
+  shopt -u nullglob
+
+  push_chart "$CHART_DIR/anvilops" "$HELM_ARTIFACT_TAG"
   cat << EOF >> "$NOTES_FILE"
 
 ### Install with Helm
@@ -145,21 +163,20 @@ EOF
 
 generate_github_release() {
   if [ -v GENERATE_GITHUB_RELEASE ]; then
-    git add "$VALUES_FILE" "$CHART_FILE"
+    git add "$CHART_DIR"
     git commit -m "Release version $VERSION"
     git push
     gh release create --draft --generate-notes --notes-file "$NOTES_FILE" --title "v$VERSION" "v$VERSION"
   else
     echo "Skipping GitHub release."
-    # Undo the changes we made to the chart since they're not going to be saved anywhere
-    cp "$BACKUP_DIR/values.yaml" "$VALUES_FILE"
-    cp "$BACKUP_DIR/Chart.yaml" "$CHART_FILE"
+    # Discard chart edits (templates + root values) when we're not committing
+    git restore "$CHART_DIR"
   fi
 }
 
 build_images
 copy_railpack_images
-publish_chart
+publish_charts
 generate_github_release
 
 echo ""

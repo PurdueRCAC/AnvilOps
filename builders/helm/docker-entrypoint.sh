@@ -7,7 +7,7 @@ set_status() {
 }
 
 run_job() {
-  read -r -a args <<< "$HELM_ARGS"
+  IFS=$'\n' read -r -d '' -a args <<< "$HELM_ARGS"
   helm "${args[@]}"
 }
 

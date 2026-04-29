@@ -1,8 +1,15 @@
-import { Button } from "@/components/ui/button";
 import { UserContext } from "@/components/UserProvider";
+import { Button } from "@/components/ui/button";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { Container, ExternalLink, GitBranch, Loader, Plus } from "lucide-react";
+import {
+  Container,
+  ExternalLink,
+  GitBranch,
+  Loader,
+  Plus,
+  ShipWheel,
+} from "lucide-react";
 import { Fragment, useContext } from "react";
 import { Link } from "react-router-dom";
 import { Status } from "./app/AppView";
@@ -142,6 +149,11 @@ const AppCard = ({ app }: { app: components["schemas"]["AppSummary"] }) => {
         ) : app.source === "IMAGE" ? (
           <p className="text-black-4 truncate text-sm text-ellipsis">
             <Container className="inline" size={16} /> {app.imageTag}
+          </p>
+        ) : app.source === "HELM" ? (
+          <p className="text-black-4 truncate text-sm text-ellipsis">
+            <ShipWheel className="inline" size={16} /> {app.chartUrl}:
+            {app.chartVersion}
           </p>
         ) : null}
       </div>

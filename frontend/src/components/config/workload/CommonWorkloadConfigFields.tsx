@@ -19,7 +19,6 @@ import {
   Cog,
   Cpu,
   Database,
-  FolderLock,
   Link,
   Loader,
   Logs,
@@ -28,19 +27,29 @@ import {
   X,
 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
+import { Namespace } from "../Namespace";
+import { TemplateConfig } from "../TemplateConfig";
 import { EnvVarGrid } from "./EnvVarGrid";
 import { MountsGrid } from "./MountsGrid";
 
 export const CommonWorkloadConfigFields = ({
   appState,
+  setAppState,
   setState,
   disabled,
   originalConfig,
+  templateChartSelection,
+  setTemplateChartSelection,
 }: {
   appState: CommonFormFields;
+  setAppState: (update: Partial<CommonFormFields>) => void;
   setState: (update: WorkloadUpdate) => void;
   disabled?: boolean;
   originalConfig?: components["schemas"]["DeploymentConfig"];
+  templateChartSelection?: Set<string>;
+  setTemplateChartSelection?: (
+    setter: (templateChartSelection: Set<string>) => Set<string>,
+  ) => void;
 }) => {
   const appConfig = useAppConfig();
   const appDomain = URL.parse(appConfig?.appDomain ?? "");
@@ -55,19 +64,12 @@ export const CommonWorkloadConfigFields = ({
     cpuCores,
     memoryInMiB,
     collectLogs,
-    namespace,
   } = state;
 
   const showSubdomainError =
     !!subdomain &&
     (subdomain.length > MAX_SUBDOMAIN_LENGTH ||
       subdomain.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
-
-  const MAX_NAMESPACE_LEN = 63;
-  const showNamespaceError =
-    !!namespace &&
-    (namespace.length > MAX_NAMESPACE_LEN ||
-      namespace.match(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/) === null);
 
   const context = useContext(FormContext);
   const isExistingApp = context === "UpdateApp" && !!originalConfig;
@@ -77,16 +79,12 @@ export const CommonWorkloadConfigFields = ({
       ? originalConfig.subdomain
       : undefined;
   const debouncedSub = useDebouncedValue(subdomain);
-  const debouncedNamespace = useDebouncedValue(namespace);
 
   const enableSubdomainCheck =
     !!subdomain &&
     subdomain === debouncedSub &&
     subdomain !== originalSubdomain &&
     !showSubdomainError;
-
-  const enableNamespaceCheck =
-    !!namespace && namespace === debouncedNamespace && !showNamespaceError;
 
   const { data: subStatus, isPending: subLoading } = api.useQuery(
     "get",
@@ -101,30 +99,6 @@ export const CommonWorkloadConfigFields = ({
     { enabled: enableSubdomainCheck },
   );
 
-  const { data: namespaceStatus, isPending: namespaceLoading } = api.useQuery(
-    "get",
-    "/app/namespace",
-    {
-      params: {
-        query: {
-          namespace: debouncedNamespace ?? "",
-        },
-      },
-    },
-    { enabled: enableNamespaceCheck },
-  );
-
-  const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
-
-  useEffect(() => {
-    if (!hasChangedNamespace) {
-      setState((state) => ({
-        ...state,
-        namespace: generateNamespace(appState),
-      }));
-    }
-  }, [state.git.repositoryId, state.image.imageTag]);
-
   const fixedSensitiveVars =
     originalConfig?.appType === "workload"
       ? originalConfig.env
@@ -136,6 +110,19 @@ export const CommonWorkloadConfigFields = ({
           )
       : {};
 
+  const [hasChangedNamespace, setHasChangedNamespace] = useState(false);
+  const [localTemplateChartSelection, setLocalTemplateChartSelection] =
+    useState(() => new Set<string>());
+  const selectedTemplateChartUrls =
+    templateChartSelection ?? localTemplateChartSelection;
+  const setSelectedTemplateChartUrls =
+    setTemplateChartSelection ?? setLocalTemplateChartSelection;
+
+  useEffect(() => {
+    if (!hasChangedNamespace) {
+      setAppState({ namespace: generateNamespace(appState) });
+    }
+  }, [appState.source, state.git.repositoryId, state.image.imageTag]);
   return (
     <>
       <h3 className="mt-4 border-b pb-1 font-bold">Deployment Options</h3>
@@ -337,7 +324,7 @@ export const CommonWorkloadConfigFields = ({
                 <Database className="inline" size={16} /> Volume Mounts
               </Label>
             </AccordionTrigger>
-            <AccordionContent className="px-4">
+            <AccordionContent className="space-y-4 px-4">
               {!!isExistingApp && (
                 <p className="col-span-full text-amber-600">
                   Volume mounts cannot be edited after an app has been created.
@@ -400,64 +387,23 @@ export const CommonWorkloadConfigFields = ({
             )}
 
             {!isExistingApp && (
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <Label className="pb-1" htmlFor="portNumber">
-                    <FolderLock className="inline" size={16} /> Namespace
-                  </Label>
-                  <span
-                    className="cursor-default text-red-500"
-                    title="This field is required."
-                  >
-                    *
-                  </span>
+              <Namespace
+                state={appState}
+                setState={setAppState}
+                setHasChangedNamespace={setHasChangedNamespace}
+              />
+            )}
+
+            {context === "CreateApp" && (
+              <>
+                <div>
+                  <TemplateConfig
+                    state={appState}
+                    selected={selectedTemplateChartUrls}
+                    setSelected={setSelectedTemplateChartUrls}
+                  />
                 </div>
-                <Input
-                  disabled={disabled}
-                  name="namespace"
-                  id="namespace"
-                  placeholder="my-app"
-                  className="w-full"
-                  required
-                  value={namespace ?? ""}
-                  onChange={(e) => {
-                    setHasChangedNamespace(true);
-                    setState({ namespace: e.currentTarget.value });
-                  }}
-                />
-                {namespace && showNamespaceError && (
-                  <div className="flex gap-5 text-sm">
-                    <X className="text-red-500" />
-                    <ul className="text-black-3 list-disc">
-                      <li>
-                        A namespace must have between 1 and {MAX_NAMESPACE_LEN}{" "}
-                        characters.
-                      </li>
-                      <li>
-                        A namespace must only contain lowercase alphanumeric
-                        characters or dashes(-).
-                      </li>
-                      <li>
-                        A namespace must start and end with an alphanumeric
-                        character.
-                      </li>
-                    </ul>
-                  </div>
-                )}
-                {namespace &&
-                  !showNamespaceError &&
-                  (namespace !== debouncedNamespace || namespaceLoading ? (
-                    <span className="text-sm">
-                      <Loader className="inline animate-spin" /> Checking
-                      namespace...
-                    </span>
-                  ) : (
-                    <NameStatus
-                      available={namespaceStatus!.available}
-                      resourceName="Namespace"
-                    />
-                  ))}
-              </div>
+              </>
             )}
           </AccordionContent>
         </AccordionItem>

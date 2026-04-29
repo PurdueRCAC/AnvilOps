@@ -90,3 +90,8 @@ export class InvalidIDPError extends Error {}
  * Rancher cluster username during the login process.
  */
 export class RancherIDNotFoundError extends Error {}
+
+/**
+ * Thrown from the listCharts service when no charts could be retrieved.
+ */
+export class ChartsMissingError extends Error {}

@@ -1,3 +1,4 @@
+import { UserContext } from "@/components/UserProvider";
 import { AppConfigFormFields } from "@/components/config/AppConfigFormFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserContext } from "@/components/UserProvider";
 import { api } from "@/lib/api";
 import {
   createDefaultCommonFormFields,
@@ -42,9 +42,9 @@ export default function CreateAppGroupView() {
     groupOption: { name: groupName },
   } = groupState as { orgId?: number; groupOption: GroupCreate };
 
-  const [appStates, setAppStates] = useState<CommonFormFields[]>([
-    createDefaultCommonFormFields(),
-  ]);
+  const [appStates, setAppStates] = useState<CommonFormFields[]>(() => {
+    return loadAppStates() ?? [createDefaultCommonFormFields()];
+  });
   const [tab, setTab] = useState("0");
 
   const navigate = useNavigate();
@@ -253,3 +253,13 @@ export default function CreateAppGroupView() {
     </div>
   );
 }
+
+const loadAppStates = () => {
+  const appStates = sessionStorage.getItem("appStates");
+  if (appStates) {
+    sessionStorage.removeItem("appStates");
+    window.scrollTo(0, 0);
+    return JSON.parse(appStates) as CommonFormFields[];
+  }
+  return null;
+};

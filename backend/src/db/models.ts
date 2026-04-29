@@ -103,6 +103,8 @@ export interface Deployment {
 
 export interface DeploymentWithSourceInfo extends Omit<Deployment, "secret"> {
   imageTag?: string;
+  chartUrl?: string;
+  chartVersion?: string;
   commitHash?: string;
   repositoryId?: number;
   source?: DeploymentSource;
@@ -195,9 +197,10 @@ export type HelmConfig = {
   version: string;
   urlType: HelmUrlType;
   values?: PrismaJson.HelmValues;
+  watchLabels?: string;
 };
 
-export type HelmConfigCreate = Omit<HelmConfig, "id">;
+export type HelmConfigCreate = HelmConfig;
 
 export interface Log {
   id: number;
