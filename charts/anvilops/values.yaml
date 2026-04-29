@@ -130,6 +130,54 @@ buildkitd:
   # Check for support: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#set-up-a-node-to-support-user-namespaces
   # More on motivation: https://github.com/kubernetes/enhancements/tree/217d790720c5aef09b8bd4d6ca96284a0affe6c2/keps/sig-node/127-user-namespaces#motivation
   enableUserNamespaces: false
+  netpol:
+    ingress:
+      - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: buildctl
+    egress:
+      - to:
+          # Needed to pull and push images
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except:
+                - 10.0.0.0/8
+                - 172.16.0.0/12
+                - 192.168.0.0/16
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                k8s-app: kube-dns
+    buildctlIngress: []
+    buildctlEgress:
+      - to:
+          # Needed to clone repositories
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except:
+                - 10.0.0.0/8
+                - 172.16.0.0/12
+                - 192.168.0.0/16
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                k8s-app: kube-dns
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: anvilops-buildkitd
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: anvilops
+
 harbor:
   # Set this to `true` to install the Harbor container image registry in the cluster.
   # This is required, but if you already have it installed, you should set this to `false`.

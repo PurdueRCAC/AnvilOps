@@ -132,6 +132,7 @@ export class BuilderService {
     const podTemplate: V1Pod = {
       metadata: {
         labels: {
+          "app.kubernetes.io/name": "buildctl",
           "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
           "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
         },
@@ -308,6 +309,7 @@ export class BuilderService {
           labels: {
             "anvilops.rcac.purdue.edu/app-id": app.id.toString(),
             "anvilops.rcac.purdue.edu/deployment-id": deployment.id.toString(),
+            "app.kubernetes.io/name": "buildctl",
           },
         },
         spec: {
