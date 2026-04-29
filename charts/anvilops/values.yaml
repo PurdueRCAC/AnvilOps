@@ -138,7 +138,8 @@ buildkitd:
                 app.kubernetes.io/name: buildctl
     egress:
       - to:
-          # Needed to pull and push images
+          # Allowlist the internet to pull and push images
+          # https://stackoverflow.com/questions/73049535/kubernetes-networkpolicy-allow-egress-only-to-internet-and-allow-ingress-only
           - ipBlock:
               cidr: 0.0.0.0/0
               except:
@@ -155,7 +156,8 @@ buildkitd:
     buildctlIngress: []
     buildctlEgress:
       - to:
-          # Needed to clone repositories
+          # Allowlist the internet to clone repositories
+          # https://stackoverflow.com/questions/73049535/kubernetes-networkpolicy-allow-egress-only-to-internet-and-allow-ingress-only
           - ipBlock:
               cidr: 0.0.0.0/0
               except:
