@@ -10,7 +10,7 @@ import {
 import createFetchClient from "openapi-fetch";
 import createClient from "openapi-react-query";
 import { toast } from "sonner";
-import { type paths } from "../generated/openapi";
+import { type components, type paths } from "../generated/openapi";
 
 const acceptJson = new Headers();
 acceptJson.set("Accept", "application/json");
@@ -19,8 +19,6 @@ const fetchClient = createFetchClient<paths>({
   baseUrl: "/api",
   headers: acceptJson,
 });
-
-export const api = createClient(fetchClient);
 
 /**
  * When the user visits one of these pages, they won't be redirected to the sign-in page if they're logged out.
@@ -60,3 +58,23 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({ onError }),
   mutationCache: new MutationCache({ onError }),
 });
+
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const USER_ME_QUERY_KEY = ["get", "/user/me", {}] as const;
+
+fetchClient.use({
+  async onRequest({ request }) {
+    if (MUTATING_METHODS.has(request.method)) {
+      const user =
+        queryClient.getQueryData<components["schemas"]["User"]>(
+          USER_ME_QUERY_KEY,
+        );
+      if (user?.csrfToken) {
+        request.headers.set("X-CSRF-Token", user.csrfToken);
+      }
+    }
+    return request;
+  },
+});
+
+export const api = createClient(fetchClient);

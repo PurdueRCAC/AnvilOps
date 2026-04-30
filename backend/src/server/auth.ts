@@ -1,5 +1,6 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import express, { type Request } from "express";
+import crypto from "node:crypto";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
 import { env } from "../lib/env.ts";
@@ -34,10 +35,13 @@ router.get("/oauth_callback", async (req, res) => {
       req.session.nonce,
     );
 
+    const csrfToken = crypto.randomBytes(32).toString("hex");
+
     req.session.user = {
       id: user.id,
       name: user.name,
       email: user.email,
+      csrfToken,
     };
     return res.redirect("/dashboard");
   } catch (err) {
@@ -108,30 +112,40 @@ router.use((req, res, next) => {
 });
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+const validateOrigin = (req: Request) => {
+  for (const value of [req.get("origin"), req.get("referer")]) {
+    let source: string;
+    try {
+      source = new URL(value).origin;
+    } catch {
+      continue;
+    }
+
+    if (source === env.BASE_URL) {
+      return true;
+    }
+  }
+  return false;
+};
+
 router.use((req, res, next) => {
   if (isAllowedAnonymousRoute(req) || !UNSAFE_METHODS.has(req.method)) {
     next();
     return;
   }
-  for (const header of [req.get("origin"), req.get("referer")]) {
-    let source: string | null;
-    try {
-      source = new URL(header).origin;
-    } catch {
-      source = null;
-    }
 
-    if (source) {
-      if (source === env.APP_DOMAIN) {
-        next();
-        return;
-      }
-      res.status(401).json({ code: 401, message: "Unauthorized" });
-      return;
-    }
+  if (!validateOrigin(req)) {
+    res.status(401).json({ code: 401, message: "Unauthorized" });
+    return;
   }
-  res.status(401).json({ code: 401, message: "No origin or referer" });
-  return;
+
+  if (req.session["user"].csrfToken !== req.headers["x-csrf-token"]) {
+    res.status(401).json({ code: 401, message: "Unauthorized" });
+    return;
+  }
+
+  next();
 });
 
 export default router;
