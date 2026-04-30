@@ -1,7 +1,8 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import express from "express";
+import express, { type Request } from "express";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
+import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import {
   InvalidIDPError,
@@ -82,8 +83,14 @@ export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
   "getTemplates",
 ];
 
+const isAllowedAnonymousRoute = (req: Request) => {
+  return ALLOWED_ANONYMOUS_ROUTES.some(
+    (path) => req.path === path || req.path.startsWith(`${path}/`),
+  );
+};
+
 router.use((req, res, next) => {
-  if (ALLOWED_ANONYMOUS_ROUTES.some((path) => req.url.startsWith(path))) {
+  if (isAllowedAnonymousRoute(req)) {
     next();
     return;
   }
@@ -98,6 +105,33 @@ router.use((req, res, next) => {
   trace.getActiveSpan()?.setAttribute("user.id", req.session["user"].id);
 
   next();
+});
+
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+router.use((req, res, next) => {
+  if (isAllowedAnonymousRoute(req) || !UNSAFE_METHODS.has(req.method)) {
+    next();
+    return;
+  }
+  for (const header of [req.get("origin"), req.get("referer")]) {
+    let source: string | null;
+    try {
+      source = new URL(header).origin;
+    } catch {
+      source = null;
+    }
+
+    if (source) {
+      if (source === env.APP_DOMAIN) {
+        next();
+        return;
+      }
+      res.status(401).json({ code: 401, message: "Unauthorized" });
+      return;
+    }
+  }
+  res.status(401).json({ code: 401, message: "No origin or referer" });
+  return;
 });
 
 export default router;
