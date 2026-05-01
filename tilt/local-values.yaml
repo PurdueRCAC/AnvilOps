@@ -73,6 +73,28 @@ postgres:
 buildkitd:
   install: true
   address: "tcp://anvilops-buildkitd.default.svc.cluster.local:1234"
+  netpol:
+    # Override default egress rule to allowlist ctlptl-registry
+    egress:
+      - to:
+          # allowlist ctlptl-registry
+          - ipBlock:
+              cidr: 172.18.0.3/32
+      - to:
+          # Needed to pull and push images
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except:
+                - 10.0.0.0/8
+                - 172.16.0.0/12
+                - 192.168.0.0/16
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                k8s-app: kube-dns
 harbor:
   install: false
   expose:
