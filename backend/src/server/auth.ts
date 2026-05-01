@@ -1,7 +1,9 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import express from "express";
+import express, { type Request } from "express";
+import crypto from "node:crypto";
 import type { operations } from "../generated/openapi.ts";
 import type { AuthenticatedRequest } from "../handlers/index.ts";
+import { env } from "../lib/env.ts";
 import { logger } from "../logger.ts";
 import {
   InvalidIDPError,
@@ -33,10 +35,13 @@ router.get("/oauth_callback", async (req, res) => {
       req.session.nonce,
     );
 
+    const csrfToken = crypto.randomBytes(32).toString("hex");
+
     req.session.user = {
       id: user.id,
       name: user.name,
       email: user.email,
+      csrfToken,
     };
     return res.redirect("/dashboard");
   } catch (err) {
@@ -82,8 +87,14 @@ export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
   "getTemplates",
 ];
 
+const isAllowedAnonymousRoute = (req: Request) => {
+  return ALLOWED_ANONYMOUS_ROUTES.some(
+    (path) => req.path === path || req.path.startsWith(`${path}/`),
+  );
+};
+
 router.use((req, res, next) => {
-  if (ALLOWED_ANONYMOUS_ROUTES.some((path) => req.url.startsWith(path))) {
+  if (isAllowedAnonymousRoute(req)) {
     next();
     return;
   }
@@ -96,6 +107,43 @@ router.use((req, res, next) => {
   (req as AuthenticatedRequest).user = req.session["user"];
 
   trace.getActiveSpan()?.setAttribute("user.id", req.session["user"].id);
+
+  next();
+});
+
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+const validateOrigin = (req: Request) => {
+  for (const value of [req.get("origin"), req.get("referer")]) {
+    let source: string;
+    try {
+      source = new URL(value).origin;
+    } catch {
+      continue;
+    }
+
+    if (source === env.BASE_URL) {
+      return true;
+    }
+  }
+  return false;
+};
+
+router.use((req, res, next) => {
+  if (isAllowedAnonymousRoute(req) || !UNSAFE_METHODS.has(req.method)) {
+    next();
+    return;
+  }
+
+  if (!validateOrigin(req)) {
+    res.status(401).json({ code: 401, message: "Unauthorized" });
+    return;
+  }
+
+  if (req.session["user"].csrfToken !== req.headers["x-csrf-token"]) {
+    res.status(401).json({ code: 401, message: "Unauthorized" });
+    return;
+  }
 
   next();
 });

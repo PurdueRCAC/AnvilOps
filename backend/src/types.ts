@@ -123,6 +123,7 @@ declare module "express-session" {
       id: number;
       name: string;
       email?: string;
+      csrfToken?: string;
     };
 
     code_verifier?: string;

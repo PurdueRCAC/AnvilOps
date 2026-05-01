@@ -37,7 +37,17 @@ app.use(
 );
 
 // Sets several security-related HTTP headers
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        "script-src": ["'self'"], // blocks inline <script></script>
+        "connect-src": ["'self'"],
+        "frame-ancestors": ["'none'"],
+      },
+    },
+  }),
+);
 
 app.use(cookieParser());
 
