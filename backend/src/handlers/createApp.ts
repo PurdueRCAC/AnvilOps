@@ -14,7 +14,7 @@ export const createAppHandler: HandlerMap["createApp"] = async (
   res,
 ) => {
   let appId: number;
-  let createFirstDeployment: () => void;
+  let createFirstDeployment: () => Promise<void>;
   try {
     const res = await createAppService.createApp(
       ctx.request.requestBody,
@@ -43,7 +43,7 @@ export const createAppHandler: HandlerMap["createApp"] = async (
   // although the deployment may fail for other reasons
 
   try {
-    createFirstDeployment();
+    await createFirstDeployment();
   } catch (e) {
     if (e instanceof DeploymentError) {
       // The app was created, but a Deployment couldn't be created
