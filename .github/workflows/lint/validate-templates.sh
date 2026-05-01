@@ -4,7 +4,7 @@ set -uo pipefail
 
 CURRENT_DIR=$(dirname "$0")
 TEMPLATE_DIR="$PWD/$CURRENT_DIR/../../../charts/templates"
-cd $TEMPLATE_DIR || exit 1
+cd "$TEMPLATE_DIR" || exit 1
 
 tmp="$(mktemp -d)"
 
