@@ -133,19 +133,23 @@ export class CreateAppService {
       throw err;
     }
 
-    try {
-      await this.deploymentService.create({
-        org: organization,
-        app,
-        commitMessage,
-        config: deploymentConfig,
-      });
-    } catch (err) {
-      const span = trace.getActiveSpan();
-      span?.recordException(err as Error);
-      span?.setStatus({ code: SpanStatusCode.ERROR });
-      throw new DeploymentError(err as Error);
-    }
-    return app.id;
+    return {
+      appId: app.id,
+      createFirstDeployment: async () => {
+        try {
+          await this.deploymentService.create({
+            org: organization,
+            app,
+            commitMessage,
+            config: deploymentConfig,
+          });
+        } catch (err) {
+          const span = trace.getActiveSpan();
+          span?.recordException(err as Error);
+          span?.setStatus({ code: SpanStatusCode.ERROR });
+          throw new DeploymentError(err as Error);
+        }
+      },
+    };
   }
 }
