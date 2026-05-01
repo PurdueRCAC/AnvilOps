@@ -1,6 +1,11 @@
 #!/bin/bash
 set -uo pipefail
 
+
+CURRENT_DIR=$(dirname "$0")
+TEMPLATE_DIR="$PWD/$CURRENT_DIR/../../../charts/templates"
+cd "$TEMPLATE_DIR" || exit 1
+
 tmp="$(mktemp -d)"
 
 status=0
@@ -10,7 +15,7 @@ for template in *; do
   if [[ -d "$template" && -f "$template/Chart.yaml" ]]; then
     echo "Validating $template"
     yq '.annotations."anvilops-values"' "$template/Chart.yaml" > "$tmp/$template-values.json"
-    if ! npx --yes ajv-cli@5 test \
+    if ! npx ajv test \
       -s anvilops-values-schema.json \
       -d "$tmp/$template-values.json" \
       --valid \
