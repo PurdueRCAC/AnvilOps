@@ -63,7 +63,7 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const USER_ME_QUERY_KEY = ["get", "/user/me", {}] as const;
 
 fetchClient.use({
-  async onRequest({ request }) {
+  onRequest({ request }) {
     if (MUTATING_METHODS.has(request.method)) {
       const user =
         queryClient.getQueryData<components["schemas"]["User"]>(
