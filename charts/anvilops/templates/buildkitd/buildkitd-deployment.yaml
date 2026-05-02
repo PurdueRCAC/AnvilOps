@@ -15,16 +15,19 @@ spec:
     metadata:
       labels:
         {{- include "anvilops.buildkitd.labels" . | nindent 8 }}
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/buildkitd: unconfined
     spec:
       {{ if .Values.buildkitd.enableUserNamespaces -}}
       hostUsers: false
       {{- end }}
       containers:
         - name: buildkitd
-          image: moby/buildkit:master
+          image: moby/buildkit:v0.29.0-rootless
           args:
+            - --oci-worker-no-process-sandbox
             - --addr
-            - unix:///run/buildkit/buildkitd.sock
+            - unix:///run/user/1000/buildkit/buildkitd.sock
             - --addr
             - tcp://0.0.0.0:1234
             - --tlscacert
@@ -58,14 +61,20 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 30
           securityContext:
-            privileged: true
+            privileged: false
             allowPrivilegeEscalation: true
+            seccompProfile:
+              type: Unconfined
+            runAsUser: 1000
+            runAsGroup: 1000
           ports:
             - containerPort: 1234
           volumeMounts:
             - name: certs
               readOnly: true
               mountPath: /certs
+            - mountPath: /home/user/.local/share/buildkit
+              name: buildkitd
       volumes:
         # buildkit-daemon-certs must contain ca.pem, cert.pem, and key.pem
         - name: certs
