@@ -113,7 +113,7 @@ export class GetDeploymentService {
         title = config.imageTag;
         break;
       case "HELM":
-        title = config.url;
+        title = config.asHelmConfig().url;
         break;
       default:
         title = "Unknown";

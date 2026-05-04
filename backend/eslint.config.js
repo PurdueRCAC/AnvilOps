@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig({
   files: ["**/*.{ts,tsx}"],
-  ignores: ["src/generated/prisma/**"],
+  ignores: ["src/generated/prisma/**", "src/generated/openapi.ts"],
   languageOptions: {
     ecmaVersion: 2024,
     globals: globals.node,

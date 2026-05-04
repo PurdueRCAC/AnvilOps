@@ -244,12 +244,21 @@ export class DeploymentConfigService {
   ): components["schemas"]["DeploymentConfig"] {
     if (config.appType === "workload") {
       return this.formatWorkloadConfig(config);
-    } else {
-      return {
-        ...config,
-        source: "helm",
-      };
     }
+    const helm = config.asHelmConfig();
+    return {
+      appType: "helm",
+      source: "helm",
+      url: helm.url,
+      version: helm.version,
+      urlType: helm.urlType,
+      ...(helm.values !== undefined && {
+        values: helm.values,
+      }),
+      ...(helm.watchLabels !== undefined && {
+        watchLabels: helm.watchLabels,
+      }),
+    };
   }
 
   private formatWorkloadConfig(

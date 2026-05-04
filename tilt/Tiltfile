@@ -50,7 +50,7 @@ if separate_frontend_and_backend:
       sync("../backend/src", "/app/src"),
       run("touch /app/src/index.ts") # In some cases, Node doesn't detect file changes (i.e. the --watch flag doesn't work). This command seems to improve reliability of automatic restarts.
     ],
-    only=["backend", "templates", "openapi"]
+    only=["backend", "templates", "openapi", "charts"]
   )
 
   deployment_create(
@@ -60,7 +60,7 @@ if separate_frontend_and_backend:
 else:
   docker_build(
     "anvilops/anvilops", "../",
-    only=["frontend", "backend", "swagger-ui", "templates", "openapi"]
+    only=["frontend", "backend", "swagger-ui", "templates", "openapi", "charts"]
   )
 docker_build("anvilops/migrate-db", "../backend", dockerfile="../backend/prisma/Dockerfile", only=["package.json", "package-lock.json", "prisma", "prisma.config.ts"])
 docker_build("anvilops/file-browser", "../filebrowser", match_in_env_vars=True)
@@ -77,7 +77,7 @@ modified_kubeconfig = encode_yaml_stream(kubeconfig)
 k8s_yaml(secret_from_dict("kube-auth", inputs={'kubeconfig': modified_kubeconfig}))
 
 # Get the hostname of Tilt's internal registry so that we can use it for AnvilOps user images 
-registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | cut -d \":\" -f2-")).strip()
+registry_host = str(local("kubectl get cm -n kube-public local-registry-hosting -o jsonpath='{.data.localRegistryHosting\\.v1}' | grep hostFromClusterNetwork | awk '{print $2}'")).strip()
 print("Using local registry from within the cluster at " + registry_host)
 
 k8s_yaml(secret_from_dict("oidc-credentials", inputs={
@@ -133,10 +133,15 @@ ingress_clusterip = "10.96.33.248"
 for i, object in enumerate(parsed):
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops":
     # Pass our registry hostname to AnvilOps as an environment variable
-    for variable in object["spec"]["template"]["spec"]["containers"][0]["env"]:
+    env = object["spec"]["template"]["spec"]["containers"][0]["env"]
+    for variable in env:
       if variable["name"] == "REGISTRY_HOSTNAME":
         variable["value"] = registry_host
-    
+      if variable["name"] == "CHART_REGISTRY_HOSTNAME":
+        variable["value"] = "registry.anvil.rcac.purdue.edu"
+      if variable["name"] == "CHART_REGISTRY_PROTOCOL":
+        variable["value"] = "https"
+        
     # Alias Rancher hostname to the ingress controller ClusterIP
     hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
     object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]

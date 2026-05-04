@@ -1,0 +1,80 @@
+apiVersion: v1
+name: spilo
+description: A minimal Spilo/Patroni HA Postgres deployment.
+type: application
+version: 0.1.4
+annotations:
+  anvilops-note: |
+    A minimal Spilo/Patroni high-availability Postgres deployment, adapted from https://github.com/zalando/spilo/kubernetes.
+    Requires permission to create Roles and RoleBindings. Rancher Project Owners have this permission.
+    The usernames of the superuser, admin, and replication user respectively are 'postgres', 'admin', and 'standby'.
+  anvilops-watch-labels: application=spilo
+  anvilops-values: |
+    {
+      "_anvilopsRender": {
+        "type": "dropdown"
+      },
+      "children": {
+        "replicas": {
+          "_anvilopsValue": true,
+          "displayName": "Replicas",
+          "type": "number",
+          "default": 3,
+          "required": true
+        },
+        "passwords": {
+          "_anvilopsRender": {
+            "type": "section",
+            "displayName": "Passwords"
+          },
+          "children": {
+            "superuser": {
+              "_anvilopsValue": true,
+              "displayName": "Superuser Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            },
+            "replication": {
+              "_anvilopsValue": true,
+              "displayName": "Replication Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            },
+            "admin": {
+              "_anvilopsValue": true,
+              "displayName": "Admin Password",
+              "type": "text",
+              "random": true,
+              "required": true
+            }
+          }
+        },
+        "storage": {
+          "_anvilopsRender": {
+            "type": "section",
+            "displayName": "Storage"
+          },
+          "children": {
+            "className": {
+              "_anvilopsValue": true,
+              "displayName": "Storage Class",
+              "type": "text",
+              "noUpdate": true,
+              "default": "standard",
+              "required": true
+            },
+            "size": {
+              "_anvilopsValue": true,
+              "displayName": "Size",
+              "type": "number",
+              "noUpdate": true,
+              "unit": "Gi",
+              "default": 1,
+              "required": true
+            }
+          }
+        }
+      }
+    }

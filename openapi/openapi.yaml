@@ -70,6 +70,8 @@ paths:
                         type: string
                   storageEnabled:
                     type: boolean
+                  storageClassName:
+                    type: string
                   isRancherManaged:
                     type: boolean
                   allowHelmDeployments:
@@ -2029,6 +2031,8 @@ paths:
                   properties:
                     name:
                       type: string
+                    description:
+                      type: string
                     note:
                       type: string
                     url:
@@ -2040,7 +2044,10 @@ paths:
                     valueSpec:
                       type: object
                       additionalProperties: true
-                  required: [name, note, url, urlType, version]
+                    watchLabels:
+                      type: string
+                  required:
+                    [name, description, note, url, urlType, version, valueSpec]
         "400":
           description: Validation failed
           content:
@@ -2234,6 +2241,13 @@ components:
           type: string
           format: uri
           nullable: true
+        chartUrl:
+          type: string
+          format: uri
+          nullable: true
+        chartVersion:
+          type: string
+          nullable: true
         branch:
           type: string
           nullable: true
@@ -2250,6 +2264,8 @@ components:
         - source
         - imageTag
         - repositoryURL
+        - chartUrl
+        - chartVersion
         - branch
         - commitHash
         - link
@@ -2475,6 +2491,8 @@ components:
         values:
           type: object
           additionalProperties: true
+        watchLabels:
+          type: string
       required: [appType, source, url, urlType, version]
 
     Mount:
@@ -2523,8 +2541,14 @@ components:
           $ref: "#/components/schemas/DeploymentStatus"
         source:
           type: string
-          enum: [GIT, IMAGE]
+          enum: [GIT, IMAGE, HELM]
         imageTag:
+          type: string
+          nullable: true
+        chartUrl:
+          type: string
+          nullable: true
+        chartVersion:
           type: string
           nullable: true
       required:
@@ -2537,6 +2561,8 @@ components:
         - status
         - source
         - imageTag
+        - chartUrl
+        - chartVersion
     Deployment:
       type: object
       properties:
@@ -2772,6 +2798,8 @@ components:
               deploymentId:
                 type: number
                 format: int64
+                nullable: true
+                description: Present when the pod carries the AnvilOps deployment-id label.
               node:
                 type: string
               podScheduled:

@@ -40,6 +40,13 @@ const createDefaultWorkloadState = (
   image: getDefaultImageState(),
 });
 
+const createDefaultHelmState = (): HelmFormFields => ({
+  urlType: "oci",
+  url: "",
+  version: "",
+  values: {},
+});
+
 export const createDefaultCommonFormFields = (
   git?: Partial<GitFormFields>,
 ): CommonFormFields => ({
@@ -47,9 +54,7 @@ export const createDefaultCommonFormFields = (
   source: "git",
   projectId: null,
   workload: createDefaultWorkloadState(git),
-  helm: {
-    urlType: "oci",
-  },
+  helm: createDefaultHelmState(),
 });
 
 export const createDeploymentConfig = (
@@ -90,9 +95,8 @@ export const createDeploymentConfig = (
         };
     }
   } else {
-    const helmConfig = formFields.helm as Required<HelmFormFields>;
     return {
-      ...helmConfig,
+      ...formFields.helm,
       source: "helm",
       appType: "helm",
     };
@@ -102,8 +106,9 @@ export const createDeploymentConfig = (
 };
 
 export const generateNamespace = (appState: CommonFormFields): string => {
+  const NAMESPACE_MAX_LENGTH = 63;
   return (
-    getAppName(appState)
+    getAppName(appState, NAMESPACE_MAX_LENGTH - 7)
       .toLowerCase()
       .replaceAll(/[^a-zA-Z0-9-_]/g, "-") +
     "-" +
@@ -111,19 +116,12 @@ export const generateNamespace = (appState: CommonFormFields): string => {
   );
 };
 
-const getNamespace = (appState: Required<CommonFormFields>): string => {
-  if (appState.appType === "workload") {
-    return appState.workload.namespace as string;
-  }
-  return generateNamespace(appState);
-};
-
 export const createNewAppWithoutGroup = (
   appState: Required<CommonFormFields>,
 ): components["schemas"]["NewAppWithoutGroupInfo"] => {
   return {
     name: getAppName(appState),
-    namespace: getNamespace(appState),
+    namespace: appState.namespace,
     projectId: appState.projectId ?? undefined,
     config: createDeploymentConfig(appState),
   };
@@ -166,32 +164,37 @@ const createImageDeploymentOptions = (
   };
 };
 
-const getCleanedAppName = (name: string) =>
+const getCleanedAppName = (name: string, maxLength: number = 60) =>
   name.length > 0
     ? name
         .toLowerCase()
-        .substring(0, 60)
+        .substring(0, maxLength)
         .replace(/[^a-z0-9-]/g, "")
     : "new-app";
 
-export const getAppName = ({
-  source,
-  workload,
-  helm,
-}: Pick<CommonFormFields, "source" | "workload" | "helm">): string => {
+export const getAppName = (
+  {
+    source,
+    workload,
+    helm,
+  }: Pick<CommonFormFields, "source" | "workload" | "helm">,
+  maxLength: number = 60,
+): string => {
   switch (source) {
     case "git": {
       const gitConfig = workload.git as Required<GitFormFields>;
-      return getCleanedAppName(gitConfig.repoName);
+      return getCleanedAppName(gitConfig.repoName, maxLength);
     }
     case "image": {
       const imageConfig = workload.image as Required<ImageFormFields>;
       const image = imageConfig.imageTag.split("/");
       const imageName = image[image.length - 1].split(":")[0];
-      return getCleanedAppName(imageName);
+      return getCleanedAppName(imageName, maxLength);
     }
-    case "helm":
-      return getCleanedAppName(helm.url!);
+    case "helm": {
+      const words = helm.url.split("/");
+      return getCleanedAppName(words[words.length - 1], maxLength);
+    }
     default:
       throw new Error("Invalid source");
   }
@@ -222,9 +225,7 @@ export const getFormStateFromApp = (
     helm:
       app.config.appType === "helm"
         ? getHelmFormFieldsFromAppConfig(app.config)
-        : {
-            urlType: "oci",
-          },
+        : createDefaultHelmState(),
   };
 };
 
@@ -274,6 +275,7 @@ const getHelmFormFieldsFromAppConfig = (
     url: config.url,
     urlType: config.urlType,
     version: config.version,
+    watchLabels: config.watchLabels,
     values: config.values,
   };
 };
@@ -324,3 +326,12 @@ export const makeFunctionalWorkloadSetter = (
     }));
   };
 };
+
+export function getFromSessionStorage<T>(name: string) {
+  const data = sessionStorage.getItem(name);
+  if (data == null) {
+    throw new Error(`Failed to read ${name} from session storage`);
+  }
+  sessionStorage.removeItem(name);
+  return JSON.parse(data) as T;
+}

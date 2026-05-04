@@ -99,3 +99,8 @@ export class RancherIDNotFoundError extends Error {}
  * Users shouldn't be able to use these for custom domains.
  */
 export class PrivateSuffixError extends Error {}
+
+/**
+ * Thrown from the listCharts service when no charts could be retrieved.
+ */
+export class ChartsMissingError extends Error {}

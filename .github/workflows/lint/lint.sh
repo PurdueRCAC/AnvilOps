@@ -48,6 +48,12 @@ golangci-lint run ./...
 
 check_error
 
+# Ajv: Helm templates
+printf "\n======================================\nRunning Ajv (charts/templates)\n======================================\n"
+cd "$PROJECT_ROOT/charts/templates" || exit 1
+./validate-templates.sh
+check_error
+
 # ESLint: TypeScript files
 cd "$PROJECT_ROOT/openapi" || exit 1
 npm ci

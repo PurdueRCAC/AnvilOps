@@ -1,10 +1,8 @@
 import { type KVCacheService } from "./common/cache.ts";
 import type { HelmService } from "./common/helm.ts";
-import type { RegistryService } from "./common/registry.ts";
-import { ValidationError } from "./errors/index.ts";
+import { ChartsMissingError, ValidationError } from "./errors/index.ts";
 
 export class ListChartsService {
-  private registryService: RegistryService;
   private helmService: HelmService;
   private cacheService: KVCacheService;
   private helmDeploymentsEnabled: boolean;
@@ -12,14 +10,12 @@ export class ListChartsService {
   private chartProjectName: string;
 
   constructor(
-    registryService: RegistryService,
     helmService: HelmService,
     cacheService: KVCacheService,
     helmDeploymentsEnabled: boolean,
     registryHostname: string,
     chartProjectName: string,
   ) {
-    this.registryService = registryService;
     this.helmService = helmService;
     this.cacheService = cacheService;
     this.helmDeploymentsEnabled = helmDeploymentsEnabled;
@@ -40,23 +36,32 @@ export class ListChartsService {
 
   async listChartsFromRegistry() {
     const [repos, token] = await Promise.all([
-      this.registryService.getRepositoriesByProject(this.chartProjectName),
+      this.helmService.getChartRepositories(),
       this.helmService.getChartToken(),
     ]);
 
     const charts = await Promise.all(
       repos.map(async (repo) => {
-        return await this.helmService.getLatestChart(repo.name, token);
+        return await this.helmService
+          .getLatestChart(repo.name, token)
+          .catch((): null => null); // A warning is printed in getChart
       }),
     );
 
-    return charts.filter(Boolean).map((chart) => ({
+    const validCharts = charts.filter(Boolean);
+    if (validCharts.length == 0) {
+      throw new ChartsMissingError();
+    }
+
+    return validCharts.map((chart) => ({
       name: chart.name,
+      description: chart.description,
       note: chart.note,
-      url: `oci://${this.registryHostname}/${this.chartProjectName}/${chart.name}`,
+      url: `oci://${this.registryHostname}/${chart.repoName}`,
       urlType: "oci",
       version: chart.version,
-      valueSpec: chart.values,
+      watchLabels: chart.watchLabels,
+      valueSpec: chart.anvilopsValues,
     }));
   }
 }

@@ -221,7 +221,7 @@ export const helmService = new HelmService(
   logCollectionService,
   kubernetesClientService,
   rancherService,
-  `${env.REGISTRY_PROTOCOL}://${env.REGISTRY_HOSTNAME}`,
+  `${env.CHART_REGISTRY_PROTOCOL}://${env.CHART_REGISTRY_HOSTNAME}`,
   env.CHART_PROJECT_NAME,
   env.CURRENT_NAMESPACE,
   env.HELM_DEPLOYER_IMAGE,
@@ -420,11 +420,10 @@ export const isSubdomainAvailableService = new IsSubdomainAvailableService(
 );
 
 export const listChartsService = new ListChartsService(
-  registryService,
   helmService,
   cacheService,
   !!env.ALLOW_HELM_DEPLOYMENTS,
-  env.REGISTRY_HOSTNAME,
+  env.CHART_REGISTRY_HOSTNAME,
   env.CHART_PROJECT_NAME,
 );
 

@@ -440,7 +440,6 @@ export class DeploymentService {
     );
     try {
       await this.helmService.upgrade(app, deployment, config);
-      await this.appRepo.setConfig(app.id, deployment.configId);
     } catch (e) {
       await this.deploymentRepo.setStatus(deployment.id, "ERROR");
       log(

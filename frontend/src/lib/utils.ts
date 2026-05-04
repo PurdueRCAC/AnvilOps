@@ -30,3 +30,9 @@ export function isWorkloadConfig(
 ): config is components["schemas"]["WorkloadConfigOptions"] {
   return config.source !== "helm";
 }
+
+export function capitalizeAndJoin(words: string[]) {
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}

@@ -1,5 +1,7 @@
 import { V1Pod } from "@kubernetes/client-node";
+import { Ajv2020, type Schema } from "ajv/dist/2020.js";
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import type { App, Deployment, HelmConfig } from "../../db/models.ts";
 import { logger } from "../../logger.ts";
 import { ValidationError } from "../errors/index.ts";
@@ -8,17 +10,29 @@ import type { RancherService } from "./cluster/rancher.ts";
 import { createNamespaceConfig } from "./cluster/resources.ts";
 import type { LogCollectionService } from "./cluster/resources/logs.ts";
 
-type Chart = {
+type RegistryChart = {
+  repoName: string;
   name: string;
   version: string;
   description?: string;
   note?: string;
-  values: PrismaJson.HelmValues;
+  watchLabels?: string;
+  anvilopsValues: Record<string, unknown>;
 };
 
 type ChartTagList = {
   name: string;
   tags: string[];
+};
+
+type HarborRepository = {
+  artifact_count: number;
+  creation_time: string;
+  id: number;
+  name: string;
+  project_id: number;
+  pull_count: number;
+  update_time: string;
 };
 
 export class HelmService {
@@ -49,67 +63,131 @@ export class HelmService {
     this.namespace = namespace;
     this.helmDeployerImageTag = helmDeployerImageTag;
     this.internalBaseURL = internalBaseURL;
+    this.initAjv();
   }
 
-  async getChartToken() {
-    return await fetch(
-      `${this.registryBaseURL}/v2/service/token?service=harbor-registry&scope=repository:${this.chartsProjectName}/charts:pull`,
-    )
-      .then((res) => {
-        if (!res.ok) {
-          logger.error(
-            { status: res.status },
-            "Failed to get Helm chart pull token",
-          );
-          throw new Error(res.statusText);
-        }
-        return res;
-      })
-      .then((res) => res.text())
-      .then(
-        (res) =>
-          // https://distribution.github.io/distribution/spec/auth/jwt/#getting-a-bearer-token
-          JSON.parse(res) as { token: string },
-      )
-      .then((res) => {
-        return res.token;
-      });
+  private ajv: Ajv2020;
+
+  private initAjv() {
+    // Default `Ajv` targets draft-07; schema uses JSON Schema draft 2020-12.
+    this.ajv = new Ajv2020();
+    try {
+      const schema = JSON.parse(
+        readFileSync("anvilops-values-schema.json").toString(),
+      ) as Schema;
+      this.ajv.addSchema(schema, "anvilops-values");
+    } catch (e) {
+      logger.warn(
+        { error: e },
+        "AnvilOps values validator could not be initialized",
+      );
+    }
+  }
+
+  async fetchJSONFromChartRegistry<T>(path: string, init?: RequestInit) {
+    const res = await fetch(`${this.registryBaseURL}/${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch JSON from chart registry ${path}: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text) as T;
+      return json;
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error(
+          `Failed to parse JSON from chart registry ${path}: ${text.slice(0, 500)}...`,
+          { cause: err },
+        );
+      }
+      throw err;
+    }
+  }
+
+  async getChartToken(): Promise<string> {
+    try {
+      const { token } = await this.fetchJSONFromChartRegistry<{
+        token: string;
+      }>(
+        `service/token?service=harbor-registry&scope=repository:${this.chartsProjectName}/charts:pull`,
+      );
+      return token;
+    } catch (err) {
+      logger.error(err, "Failed to get Helm chart pull token");
+      throw new Error("Failed to get Helm chart pull token", { cause: err });
+    }
+  }
+
+  async getChartRepositories(): Promise<HarborRepository[]> {
+    try {
+      return await this.fetchJSONFromChartRegistry<HarborRepository[]>(
+        `api/v2.0/projects/${this.chartsProjectName}/repositories`,
+      );
+    } catch (err) {
+      logger.error(err, "Failed to get Helm chart repositories");
+      throw new Error("Failed to get Helm chart repositories", { cause: err });
+    }
   }
 
   async getChart(
     repository: string,
     version: string,
     token: string,
-  ): Promise<Chart> {
-    const res = await fetch(
-      `${this.registryBaseURL}/v2/${repository}/manifests/${version}`,
-      {
+  ): Promise<RegistryChart> {
+    let annotations: Record<string, string>;
+    try {
+      const res = await this.fetchJSONFromChartRegistry<{
+        annotations: Record<string, string>;
+      }>(`v2/${repository}/manifests/${version}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/vnd.oci.image.manifest.v1+json",
         },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(res.statusText);
+      });
+      annotations = res.annotations;
+    } catch (err) {
+      logger.error(err, "Failed to get Helm chart");
+      throw new Error(`Failed to get Helm chart ${repository} ${version}`, {
+        cause: err,
+      });
     }
-    const json = (await res.json()) as { annotations: Record<string, string> };
-    const annotations = json.annotations;
-    if ("anvilops-values" in annotations) {
-      const values = JSON.parse(annotations["anvilops-values"]) as unknown;
-      if (typeof values !== "object") {
+
+    if (annotations["anvilops-values"]) {
+      let anvilopsValues: unknown;
+      try {
+        anvilopsValues = JSON.parse(annotations["anvilops-values"]);
+        if (!this.ajv.validate("anvilops-values", anvilopsValues)) {
+          throw new Error(this.ajv.errorsText());
+        }
+      } catch (err) {
         logger.warn(
-          { valuesType: typeof values },
-          "Invalid anvilops-values annotation on Helm chart: values was not an object",
+          {
+            repository,
+            version,
+            annotation: annotations["anvilops-values"],
+            error: err,
+          },
+          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
         );
-        return null;
+        throw new Error(
+          `Invalid anvilops-values annotation on Helm chart ${repository} ${version}`,
+          { cause: err },
+        );
       }
       return {
+        repoName: repository,
         name: annotations["org.opencontainers.image.title"],
         version: annotations["org.opencontainers.image.version"],
         description: annotations["org.opencontainers.image.description"],
         note: annotations["anvilops-note"],
-        values: values as Record<string, unknown>,
+        watchLabels: annotations["anvilops-watch-labels"],
+        anvilopsValues: anvilopsValues as Record<string, unknown>,
       };
     } else {
       return null;
@@ -119,22 +197,13 @@ export class HelmService {
   async getLatestChart(
     repository: string,
     token: string,
-  ): Promise<Chart | null> {
-    const chartTagList = await fetch(
-      `${this.registryBaseURL}/v2/${repository}/tags/list`,
+  ): Promise<RegistryChart | null> {
+    const chartTagList = await this.fetchJSONFromChartRegistry<ChartTagList>(
+      `v2/${repository}/tags/list`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       },
-    )
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(res.statusText);
-        }
-        return res;
-      })
-      .then((res) => res.json() as Promise<ChartTagList>);
+    );
 
     return await this.getChart(
       chartTagList.name,
@@ -168,9 +237,24 @@ export class HelmService {
     const { urlType, url, version, values } = config;
     const release = app.name;
 
-    for (const [key, value] of Object.entries(values)) {
-      args.push("--set-json", `${key}=${JSON.stringify(value)}`);
+    if (values) {
+      const helmValues: PrismaJson.HelmValues = values;
+      for (const [key, value] of Object.entries(helmValues)) {
+        if (typeof value === "string") {
+          // Ensure that number or boolean-like strings("1", "false") remain strings
+          args.push("--set-string", `${key}=${value}`);
+        } else if (typeof value === "object") {
+          // matches null
+          args.push("--set-json", `${key}=${JSON.stringify(value)}`);
+        } else if (typeof value === "number" || typeof value === "boolean") {
+          args.push("--set", `${key}=${value}`);
+        } else if (value !== undefined) {
+          // This should not happen
+          throw new ValidationError(`Invalid Helm value type: ${typeof value}`);
+        }
+      }
     }
+
     switch (urlType) {
       // example: helm install mynginx https://example.com/charts/nginx-1.2.3.tgz
       case "absolute": {
@@ -218,7 +302,7 @@ export class HelmService {
               },
               {
                 name: "HELM_ARGS",
-                value: `${args.join(" ")}`,
+                value: args.join("\n"),
               },
             ],
             name: "helm",

@@ -69,4 +69,9 @@ spec:
       storageClassName: {{ .Values.storage.className | quote }}
       resources:
         requests:
-          storage: {{ .Values.storage.size | quote }}
+          {{- $sz := .Values.storage.size | toString }}
+          {{- if hasSuffix "Gi" $sz }}
+          storage: {{ $sz | quote }}
+          {{- else }}
+          storage: {{ printf "%vGi" .Values.storage.size | quote }}
+          {{- end }}

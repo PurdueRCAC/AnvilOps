@@ -54,6 +54,7 @@ export class GetSettingsService {
       clusterName: clusterConfig?.name,
       faq: clusterConfig?.faq,
       storageEnabled: this.storageClassName !== undefined,
+      storageClassName: this.storageClassName,
       isRancherManaged: this.rancherService.isRancherManaged(),
       allowHelmDeployments: this.allowHelmDeployments,
     };
