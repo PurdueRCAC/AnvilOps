@@ -268,7 +268,6 @@ export class GitHubWebhookService {
 
     await Promise.all(
       apps.map(async (app) => {
-        const org = await this.orgRepo.getById(app.orgId);
         const oldConfig = (
           await this.appRepo.getDeploymentConfig(app.id)
         ).asGitConfig();
@@ -278,8 +277,7 @@ export class GitHubWebhookService {
           payload.head_commit.id,
         );
         await this.deploymentService.create({
-          org,
-          app,
+          appId: app.id,
           commitMessage: payload.head_commit.message,
           config,
           git: {
@@ -338,7 +336,6 @@ export class GitHubWebhookService {
     if (payload.action === "requested") {
       await Promise.all(
         apps.map(async (app) => {
-          const org = await this.orgRepo.getById(app.orgId);
           const oldConfig = (
             await this.appRepo.getDeploymentConfig(app.id)
           ).asGitConfig();
@@ -348,8 +345,7 @@ export class GitHubWebhookService {
             payload.workflow_run.head_commit.id,
           );
           await this.deploymentService.create({
-            org,
-            app,
+            appId: app.id,
             commitMessage: payload.workflow_run.head_commit.message,
             workflowRunId: payload.workflow_run.id,
             config,

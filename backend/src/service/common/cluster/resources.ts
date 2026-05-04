@@ -12,6 +12,7 @@ import type {
   App,
   AppGroup,
   Deployment,
+  Domain,
   Organization,
   WorkloadConfig,
 } from "../../../db/models.ts";
@@ -112,6 +113,7 @@ export class ClusterResourcesService {
     appGroup,
     deployment,
     config,
+    customDomains,
     migrating = false,
   }: {
     org: Organization;
@@ -119,6 +121,7 @@ export class ClusterResourcesService {
     appGroup: AppGroup;
     deployment: Deployment;
     config: WorkloadConfig;
+    customDomains: Domain[];
     migrating?: boolean;
   }) {
     const namespace = createNamespaceConfig(app.namespace, app.projectId);
@@ -167,14 +170,15 @@ export class ClusterResourcesService {
       mounts: config.mounts,
       requests: config.requests,
       limits: config.limits,
+      customDomains: customDomains,
     };
 
-    const svc = this.serviceConfigService.createServiceConfig(params);
+    const services = this.serviceConfigService.createServiceConfig(params);
     const ingress = this.ingressConfigService.createIngressConfig(params);
     const statefulSet =
       await this.statefulSetConfigService.createStatefulSetConfig(params);
 
-    configs.push(statefulSet, svc);
+    configs.push(statefulSet, ...services);
     if (ingress !== null) {
       // ^ Can be null if APP_DOMAIN is not set, meaning no Ingress should be created for the app
       configs.push(ingress);

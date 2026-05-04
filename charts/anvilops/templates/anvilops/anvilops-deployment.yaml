@@ -241,6 +241,10 @@ spec:
               value: {{ join "," .Values.tenants.accessModes }}
             - name: APP_DOMAIN
               value: {{ .Values.anvilops.env.appDomain }}
+            - name: CNAME_DOMAIN
+              value: {{ .Values.anvilops.env.cnameDomain | quote }}
+            - name: ACME_SERVER_ADDRESS
+              value: {{ .Values.anvilops.env.acmeServerAddress | quote }}
             - name: HARBOR_PROJECT_NAME
               value: {{ .Values.anvilops.env.harborProjectName }}
             - name: CHART_REGISTRY_HOSTNAME

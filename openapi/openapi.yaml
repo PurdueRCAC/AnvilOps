@@ -13,6 +13,25 @@ tags:
   - name: app
     description: Operations about apps
 paths:
+  /.well-known/acme-challenge/{token}:
+    get:
+      description: "Fulfills ACME challenge requests to generate certificates for custom domains. Read more: https://letsencrypt.org/docs/challenge-types/#http-01-challenge"
+      operationId: acmeChallenge
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: A random string that uniquely identifies the challenge
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: The ASCII form of the key authorization (see https://datatracker.ietf.org/doc/html/rfc8555/#section-8.3)
   /liveness:
     get:
       operationId: livenessProbe
@@ -1646,6 +1665,102 @@ paths:
               schema:
                 description: A server-sent events (SSE) response. Each event will follow the format in '#/components/schemas/LogLine'.
                 type: string
+  /app/{appId}/domains:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      operationId: listDomains
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domains:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CustomDomain"
+                required: [domains]
+    post:
+      operationId: addDomain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+              required: [name]
+      responses:
+        "201":
+          description: Success
+        "404":
+          description: App not found
+        "409":
+          description: Custom domain already exists with that name
+        "400":
+          description: Domain name is invalid (malformed or uses a public suffix)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /app/{appId}/domains/{domainId}/verify:
+    description: Attempts to verify a domain by checking its DNS records for the ones AnvilOps expects.
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: domainId
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      operationId: verifyDomain
+      responses:
+        "200":
+          description: Success
+        "404":
+          description: App or domain not found
+        "400":
+          description: Domain couldn't be verified because the DNS records are missing or incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /app/{appId}/domains/{domainId}/retry:
+    description: If a certificate couldn't be generated for the domain, call this endpoint to retry the process.
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: domainId
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      operationId: retryCertGen
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /logs/ingest:
     post:
       operationId: ingestLogs
@@ -2747,3 +2862,38 @@ components:
         description:
           type: string
       required: [id, name, description]
+    CustomDomain:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        domain:
+          type: string
+        status:
+          type: string
+          enum: [UNVERIFIED, PENDING, GENERATING, GENERATED, ERROR]
+        updatedAt:
+          type: string
+          format: date-time
+        dnsRecords:
+          type: array
+          description: The DNS records that need to be added to the domain to verify it. Only present when status == UNVERIFIED.
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              content:
+                type: string
+            required: [name, type, content]
+      required: [id, appId, domain, status, updatedAt]
+    CustomDomainInput:
+      type: object
+      properties:
+        domain:
+          type: string
+      required: [domain]
