@@ -63,4 +63,20 @@ export const decryptEnv = (
   }));
 };
 
+export const encryptCachedValue = (
+  masterKey: Buffer,
+  plaintext: string,
+  key: string,
+) => {
+  return encrypt(plaintext, unwrapKey(masterKey, key));
+};
+
+export const decryptCachedValue = (
+  masterKey: Buffer,
+  ciphertext: string,
+  key: string,
+) => {
+  return decrypt(ciphertext, unwrapKey(masterKey, key));
+};
+
 export const generateKey = (masterKey: Buffer) => wrapKey(masterKey, genKey());

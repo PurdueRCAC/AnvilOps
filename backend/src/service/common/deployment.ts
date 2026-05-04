@@ -13,6 +13,8 @@ import type {
 import type { AppRepo } from "../../db/repo/app.ts";
 import type { AppGroupRepo } from "../../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../../db/repo/deployment.ts";
+import type { DomainRepo } from "../../db/repo/domain.ts";
+import type { OrganizationRepo } from "../../db/repo/organization.ts";
 import { logger } from "../../logger.ts";
 import { DeploymentError } from "../errors/index.ts";
 import { log } from "../githubWebhook.ts";
@@ -34,9 +36,11 @@ type GitOptions =
     };
 
 export class DeploymentService {
+  private orgRepo: OrganizationRepo;
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private deploymentRepo: DeploymentRepo;
+  private domainRepo: DomainRepo;
   private helmService: HelmService;
   private gitProviderFactoryService: GitProviderFactoryService;
   private builderService: BuilderService;
@@ -45,9 +49,11 @@ export class DeploymentService {
   private baseURL: string;
 
   constructor(
+    orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
+    domainRepo: DomainRepo,
     helmService: HelmService,
     gitProviderFactoryService: GitProviderFactoryService,
     builderService: BuilderService,
@@ -55,9 +61,11 @@ export class DeploymentService {
     kubernetesClientService: KubernetesClientService,
     baseURL: string,
   ) {
+    this.orgRepo = orgRepo;
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
+    this.domainRepo = domainRepo;
     this.helmService = helmService;
     this.gitProviderFactoryService = gitProviderFactoryService;
     this.builderService = builderService;
@@ -71,27 +79,29 @@ export class DeploymentService {
    * @throws DeploymentError
    */
   async create({
-    org,
-    app,
+    appId,
     commitMessage,
     workflowRunId,
     config: configIn,
     git,
   }: {
-    org: Organization;
-    app: App;
+    appId: number;
     commitMessage: string;
     workflowRunId?: number;
     config: WorkloadConfigCreate | GitConfigCreate | HelmConfigCreate;
     git?: GitOptions;
   }) {
-    const deployment = await this.deploymentRepo.create({
-      appId: app.id,
-      commitMessage,
-      workflowRunId,
-      config: configIn,
-      ...(git?.checkRun?.pending && { status: "PENDING" }),
-    });
+    const app = await this.appRepo.getById(appId);
+    const [org, deployment] = await Promise.all([
+      this.orgRepo.getById(app.orgId),
+      this.deploymentRepo.create({
+        appId: app.id,
+        commitMessage,
+        workflowRunId,
+        config: configIn,
+        ...(git?.checkRun?.pending && { status: "PENDING" }),
+      }),
+    ]);
     const config = await this.deploymentRepo.getConfig(deployment.id);
 
     if (!app.configId) {
@@ -367,7 +377,7 @@ export class DeploymentService {
   }
 
   /**
-   * Generates Kuernetes configs from the AnvilOps deployment object, applies them to the cluster, and updates the deployment's status to Complete.
+   * Generates Kubernetes configs from the AnvilOps deployment object, applies them to the cluster, and updates the deployment's status to Complete.
    */
   async finishDeployment(
     org: Organization,
@@ -377,12 +387,14 @@ export class DeploymentService {
     config: WorkloadConfig,
   ) {
     try {
+      const customDomains = await this.domainRepo.listByAppId(app.id);
       const { namespace, configs, postCreate } =
         await this.clusterResourcesService.createAppConfigsFromDeployment({
           org,
           app,
           appGroup,
           deployment,
+          customDomains,
           config,
         });
       await this.kubernetesClientService.createOrUpdateApp(

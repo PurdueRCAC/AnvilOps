@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pebble-config
+  namespace: default
+data:
+  # Make HTTP-01 challenges use port 80, which ingress-nginx is already listening on, instead of the default 5002
+  # The rest of this is copied from https://github.com/letsencrypt/pebble/blob/main/test/config/pebble-config.json
+  pebble-config.json: |
+    {
+      "pebble": {
+        "listenAddress": "0.0.0.0:14000",
+        "managementListenAddress": "0.0.0.0:15000",
+        "certificate": "test/certs/localhost/cert.pem",
+        "privateKey": "test/certs/localhost/key.pem",
+        "httpPort": 80,
+        "tlsPort": 5001,
+        "ocspResponderURL": "",
+        "externalAccountBindingRequired": false,
+        "domainBlocklist": ["blocked-domain.example"],
+        "retryAfter": {
+            "authz": 3,
+            "order": 5
+        },
+        "keyAlgorithm": "ecdsa",
+        "profiles": {
+          "default": {
+            "description": "The profile you know and love",
+            "validityPeriod": 7776000
+          },
+          "shortlived": {
+            "description": "A short-lived cert profile, without actual enforcement",
+            "validityPeriod": 518400
+          }
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: pebble
+  name: pebble
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pebble
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: pebble
+    spec:
+      containers:
+        - image: ghcr.io/letsencrypt/pebble:latest
+          name: pebble
+          ports:
+            - containerPort: 15000 # Web-based management interface
+            - containerPort: 14000 # The ACME server address, used to request certificates
+          args: [
+              "-config",
+              "/etc/pebble/pebble-config.json",
+              "-dnsserver",
+              "127.0.0.1:8053",
+            ] # Send DNS queries to the challtestsrv container
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/pebble
+              readOnly: true
+        - image: ghcr.io/letsencrypt/pebble-challtestsrv:latest
+          name: challtestsrv
+          ports:
+            - containerPort: 5002
+            - containerPort: 5003
+            - containerPort: 8053 # DNS server address
+            - containerPort: 8055
+            - containerPort: 8443
+          args: # Disable all challenge types - we're only using this as a mock DNS server
+            - "-http01"
+            - ""
+            - "-https01"
+            - ""
+            - "-management"
+            - ""
+            - "-tlsalpn01"
+            - ""
+            - "-defaultIPv6"
+            - "" # Don't use IPv6
+            # ... In the Tiltfile, the args will be updated to respond to all DNS queries with the IP address of the Ingress controller
+      volumes:
+        - name: config-volume
+          configMap:
+            name: pebble-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pebble
+spec:
+  selector:
+    app: pebble
+  ports:
+    - name: acme
+      port: 14000
+      targetPort: 14000
+    - name: management
+      port: 15000
+      targetPort: 15000

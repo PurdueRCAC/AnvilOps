@@ -10,10 +10,14 @@ dotenv(fn='../backend/.env')
 separate_frontend_and_backend = True
 
 # Deploy a minimal instance of the Grafana LGTM + Alloy stack to collect logs, metrics, and traces from AnvilOps
-enable_monitoring = True
+enable_monitoring = False
 
 # Deploy Rancher locally
 with_rancher = False
+
+# Deploy Pebble, a Let's Encrypt ACME-compatible server used to test certificate generation for custom domains (https://github.com/letsencrypt/pebble)
+# Note: When using Pebble, you'll need to run `tilt/add-pebble-ca.sh` to get AnvilOps to trust Pebble's CA certificate. See the comments there for more info.
+enable_pebble = True
 
 # Requires kubeVersion <1.35.0-0 
 RANCHER_VERSION="v2.13.2"
@@ -30,15 +34,18 @@ if separate_frontend_and_backend:
     ],
     only=["frontend", "openapi"]
   )
+  flags = [
+    "/usr/local/bin/node",
+    "--experimental-strip-types",
+    "--watch"
+  ]
+  if enable_monitoring:
+    flags.append("--require")
+    flags.append("/app/src/instrumentation.ts")
   docker_build(
     "anvilops/anvilops", "../",
     dockerfile="./anvilops-backend.Dockerfile",
-    entrypoint=[
-      "/usr/local/bin/node",
-      "--experimental-strip-types",
-      "--require", "/app/src/instrumentation.ts",
-      "--watch"
-    ],
+    entrypoint=flags,
     live_update=[
       sync("../backend/src", "/app/src"),
       run("touch /app/src/index.ts") # In some cases, Node doesn't detect file changes (i.e. the --watch flag doesn't work). This command seems to improve reliability of automatic restarts.
@@ -97,6 +104,17 @@ k8s_yaml(secret_from_dict("image-pull-secret", inputs={'server': registry_host, 
 # Hard-code these values so that the secret value doesn't drift from the value that Postgres used when creating the user
 k8s_yaml(secret_from_dict("postgres-credentials", inputs={'password': 'super-insecure-local-dev-password', 'field-encryption-key': '96WYSbPNEYi65gb8BRCzbf5ISIywNVV8Dm1rFCnRUFk='}))
 
+helm_values = []
+
+if enable_monitoring:
+  helm_values.append("anvilops.env.otelEndpoint=http://lgtm:4317")
+
+if enable_pebble:
+  # Use HTTPS to communicate with Pebble
+  helm_values.append("withRootCaCert=true")
+  # Send ACME (Let's Encrypt certificate generation) requests to the local Pebble server instead of the public staging server
+  helm_values.append("anvilops.env.acmeServerAddress=https://pebble:14000/dir")
+
 yaml = helm(
   '../charts/anvilops',
   # The release name, equivalent to helm --name
@@ -106,7 +124,7 @@ yaml = helm(
   # The values file to substitute into the chart.
   values=['./local-values.yaml'],
   # Values to override from the command-line
-  set=['anvilops.env.otelEndpoint=http://lgtm:4317'] if enable_monitoring else []
+  set=helm_values
 )
 
 parsed = decode_yaml_stream(yaml)
@@ -122,7 +140,7 @@ for i, object in enumerate(parsed):
     # Alias Rancher hostname to the ingress controller ClusterIP
     hostAliases = object["spec"]["template"]["spec"].get("hostAliases", [])
     object["spec"]["template"]["spec"]["hostAliases"] = hostAliases + [{ "ip": ingress_clusterip, "hostnames": [ "rancher.127.0.0.1.nip.io" ] }]
-    
+
     # Add an IN_TILT environment variable to redirect `localhost` registry lookups to the REGISTRY_HOSTNAME instead (see backend/src/lib/cluster/resources/logs.ts)
     object["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "IN_TILT", "value": "true"})
     if separate_frontend_and_backend:
@@ -192,7 +210,7 @@ helm_resource(
     '--set=controller.service.clusterIP=%s' % ingress_clusterip
   ],
   resource_deps=['ingress-nginx_repo'],
-  port_forwards=('3000:80','0.0.0.0:443:443')
+  port_forwards=('3000:80', '3001:443', '0.0.0.0:443:443')
 )
 
 if enable_monitoring:
@@ -210,3 +228,19 @@ if enable_monitoring:
   )
 
   k8s_resource("lgtm", port_forwards=["3001:3000"])
+
+if enable_pebble:
+  # Deploy Pebble
+  pebble_yaml = read_yaml_stream("pebble.manifest.yaml")
+
+  for obj in pebble_yaml:
+    if obj["kind"] == "Deployment" and obj["metadata"]["name"] == "pebble":
+      containers = obj["spec"]["template"]["spec"]["containers"]
+      for c in containers:
+        if c["name"] == "challtestsrv":
+          c["args"].append("-defaultIPv4")
+          c["args"].append(ingress_clusterip)
+
+  k8s_yaml(encode_yaml_stream(pebble_yaml))
+  k8s_resource("pebble", port_forwards=["14000:14000", "15000:15000"])
+

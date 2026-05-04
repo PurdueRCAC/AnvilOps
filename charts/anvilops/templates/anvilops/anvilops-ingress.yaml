@@ -40,4 +40,20 @@ spec:
                   number: {{ $.Values.anvilops.service.port }}
           {{- end }}
     {{- end }}
+    # Create an extra entry for custom domain name handling. Custom domains will have a CNAME that points to this domain. When the user
+    # visits a custom domain with a properly-configured CNAME, the Ingress controller will proxy the traffic to their app instead of here,
+    # but this is still necessary to reserve the name (if the ingress controller prevents duplicate hostnames) and to create a DNS record
+    # (in setups where DNS records aren't created for subdomains of the ingress controller's domain without an Ingress resource).
+    {{- with .Values.anvilops.env.cnameDomain }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "anvilops.fullname" $ }}
+                port:
+                  number: {{ $.Values.anvilops.service.port }}
+    {{- end }}
 {{- end }}

@@ -1,7 +1,9 @@
 import { PgDatabase, type Database } from "../db/index.ts";
 import { env, parseCsv } from "../lib/env.ts";
 import { AcceptInvitationService } from "./acceptInvitation.ts";
+import { AddDomainService } from "./addDomain.ts";
 import { AuthService } from "./auth.ts";
+import { CertGenerationService } from "./certGeneration.ts";
 import { ClaimOrgService } from "./claimOrg.ts";
 import { AppService } from "./common/app.ts";
 import { BuilderService } from "./common/builder.ts";
@@ -23,6 +25,7 @@ import { RegistryService } from "./common/registry.ts";
 import { CreateAppService } from "./createApp.ts";
 import { CreateAppGroupService } from "./createAppGroup.ts";
 import { CreateOrgService } from "./createOrg.ts";
+import { CustomDomainService } from "./customDomain.ts";
 import { DeleteAppService } from "./deleteApp.ts";
 import { DeleteAppPodService } from "./deleteAppPod.ts";
 import { DeleteOrgByIDService } from "./deleteOrgByID.ts";
@@ -47,15 +50,18 @@ import { IsNamespaceAvailableService } from "./isNamespaceAvailable.ts";
 import { IsSubdomainAvailableService } from "./isSubdomainAvailable.ts";
 import { ListChartsService } from "./listCharts.ts";
 import { ListDeploymentsService } from "./listDeployments.ts";
+import { ListDomainsService } from "./listDomains.ts";
 import { ListOrgGroupsService } from "./listOrgGroups.ts";
 import { ListOrgReposService } from "./listOrgRepos.ts";
 import { ListRepoBranchesService } from "./listRepoBranches.ts";
 import { ListRepoWorkflowsService } from "./listRepoWorkflows.ts";
 import { RemoveUserFromOrgService } from "./removeUserFromOrg.ts";
+import { RetryCertGenService } from "./retryCertGen.ts";
 import { RevokeInvitationService } from "./revokeInvitation.ts";
 import { SetAppCDService } from "./setAppCD.ts";
 import { UpdateAppService } from "./updateApp.ts";
 import { UpdateDeploymentService } from "./updateDeployment.ts";
+import { VerifyDomainService } from "./verifyDomain.ts";
 
 export const db: Database = new PgDatabase(
   env.DATABASE_URL ??
@@ -136,7 +142,9 @@ export const authService = new AuthService(
   env.LOGIN_CLAIM,
 );
 
-export const serviceConfigService = new ServiceConfigService();
+export const serviceConfigService = new ServiceConfigService(
+  env.CLUSTER_INTERNAL_BASE_URL,
+);
 
 export const logCollectionService = new LogCollectionService(
   registryService,
@@ -221,9 +229,11 @@ export const helmService = new HelmService(
 );
 
 export const deploymentService = new DeploymentService(
+  db.org,
   db.app,
   db.appGroup,
   db.deployment,
+  db.domain,
   helmService,
   gitProviderFactoryService,
   builderService,
@@ -265,6 +275,7 @@ export const deleteAppService = new DeleteAppService(
   db.app,
   db.appGroup,
   db.deployment,
+  db.domain,
   registryService,
   clusterResourcesService,
   kubernetesClientService,
@@ -469,4 +480,42 @@ export const updateDeploymentService = new UpdateDeploymentService(
   db.deployment,
   gitProviderFactoryService,
   deploymentService,
+);
+
+export const certGenerationService = new CertGenerationService(
+  cacheService,
+  db.app,
+  db.domain,
+  ingressConfigService,
+  kubernetesClientService,
+  env.ACME_SERVER_ADDRESS,
+);
+
+export const customDomainService = new CustomDomainService(
+  db.domain,
+  env.CNAME_DOMAIN,
+);
+
+export const listDomainsService = new ListDomainsService(
+  db.domain,
+  customDomainService,
+);
+
+export const addDomainService = new AddDomainService(
+  db.domain,
+  customDomainService,
+);
+
+export const verifyDomainService = new VerifyDomainService(
+  db.app,
+  db.domain,
+  customDomainService,
+  certGenerationService,
+  ingressConfigService,
+  kubernetesClientService,
+);
+
+export const retryCertGenService = new RetryCertGenService(
+  certGenerationService,
+  db.domain,
 );

@@ -95,6 +95,10 @@ export default defineConfig({
             allow: ["prisma-generated"],
           },
           {
+            from: "jobs",
+            allow: ["db", "services"],
+          },
+          {
             from: "index",
             allow: ["env", "db", "server", "services/index"],
           },
@@ -112,8 +116,8 @@ export default defineConfig({
     "boundaries/elements": [
       // Modules that can only access the modules which are directly related.
       // Handlers -> Services -> DB
-      { type: "services", pattern: "service/**" },
-      { type: "db", pattern: "db/**" },
+      { type: "services", pattern: "src/service/**" },
+      { type: "db", pattern: "src/db/**" },
       { type: "handlers", pattern: "handlers/**" },
       { type: "lib", pattern: "lib/**" },
       // Jobs should be separate because some files have side effects that are undesirable in jobs (e.g. validating environment variables and throwing an error if they aren't present)

@@ -1,6 +1,7 @@
 import type {
   DeploymentSource,
   DeploymentStatus,
+  DomainVerificationStatus,
   GitHubOAuthAction,
   HelmUrlType,
   ImageBuilder,
@@ -234,4 +235,18 @@ export interface GitHubOAuthState {
   userId: number;
   orgId: number;
   action: GitHubOAuthAction;
+}
+
+export interface Domain {
+  id: number;
+  appId: number;
+  name: string;
+  status: DomainVerificationStatus;
+  certIssuedAt: Date | null;
+  certExpiresAt: Date | null;
+  verificationToken: string;
+  orderURL: string | null;
+  token: string | null;
+  keyAuthorization: string | null;
+  updatedAt: Date;
 }

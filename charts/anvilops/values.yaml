@@ -24,6 +24,7 @@ anvilops:
     allowHelmDeployments: false
     otelEndpoint: ""
     otelServiceName: anvilops
+    acmeServerAddress: https://acme-v02.api.letsencrypt.org/directory
     extra:
     # If you need to add extra environment variables, put them here with the standard Kubernetes syntax. For example:
     # - name: DEBUG

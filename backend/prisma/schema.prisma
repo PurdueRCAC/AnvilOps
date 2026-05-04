@@ -162,6 +162,7 @@ model App {
   imageRepo       String            @default("")
   deployments     Deployment[]
   logIngestSecret String            @unique
+  domains         Domain[]
   // The config to use when creating a new deployment
   config          DeploymentConfig? @relation(fields: [configId], references: [id])
   configId        Int?              @unique
@@ -171,6 +172,36 @@ model App {
   // Project ID the apps are part of (used in Rancher-managed clusters)
   projectId       String?
   enableCD        Boolean @default(true)
+}
+
+model Domain {
+  id                Int                      @id @default(autoincrement())
+  app               App                      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  appId             Int
+  name              String
+  status            DomainVerificationStatus @default(UNVERIFIED)
+  certIssuedAt      DateTime?
+  certExpiresAt     DateTime?
+  // Should match a TXT record on the custom domain
+  verificationToken String                   @default(ulid())
+  // Fields used during verification
+  orderURL          String?
+  token             String?                  @unique
+  keyAuthorization  String?
+  updatedAt         DateTime                 @updatedAt
+}
+
+enum DomainVerificationStatus {
+  // The domain hasn't been verified, so the certificate hasn't been requested yet.
+  UNVERIFIED
+  // The challenge has been created, but the ACME server hasn't sent us a request yet.
+  PENDING
+  // The ACME server has requested the challenge URL, but the certificate hasn't been created yet.
+  GENERATING
+  // A certificate has successfully been generated for the domain.
+  GENERATED
+  // There was a problem verifying the domain. The process should be restarted.
+  ERROR
 }
 
 model AppGroup {
@@ -300,9 +331,10 @@ model RepoImportState {
 // Used to cache things like GitHub API responses so that we don't have to fetch them every time.
 // This reduces load on the upstream and makes the site faster.
 model Cache {
-  key       String   @id
-  value     String
-  expiresAt DateTime
+  key           String   @id
+  value         String
+  expiresAt     DateTime
+  encryptionKey String?
 }
 
 enum WebhookEvent {
