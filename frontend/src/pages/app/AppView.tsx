@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ConfigTab } from "./ConfigTab";
 import { DangerZoneTab } from "./DangerZoneTab";
+import { DomainsTab } from "./DomainsTab";
 import { FilesTab } from "./FilesTab";
 import { LogsTab } from "./LogsTab";
 import { OverviewTab } from "./OverviewTab";
@@ -95,6 +96,11 @@ export default function AppView() {
           <TabsTrigger value="configuration">
             <span>Configuration</span>
           </TabsTrigger>
+          {isWorkloadConfig(app.config) && app.config.createIngress && (
+            <TabsTrigger value="domains">
+              <span>Domains</span>
+            </TabsTrigger>
+          )}
           {settings.storageEnabled &&
             (!!app.activeDeployment || app.config.appType === "helm") && (
               <>
@@ -125,6 +131,9 @@ export default function AppView() {
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigTab app={app} tab={tab} setTab={setTab} refetch={refetch} />
+        </TabsContent>
+        <TabsContent value="domains">
+          <DomainsTab app={app} />
         </TabsContent>
         <TabsContent value="logs">
           <LogsTab appId={app.id} />

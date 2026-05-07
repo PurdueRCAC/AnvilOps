@@ -183,8 +183,7 @@ export class UpdateAppService {
 
     try {
       await this.deploymentService.create({
-        org: organization,
-        app,
+        appId: app.id,
         commitMessage,
         config: updatedConfig,
         git: {

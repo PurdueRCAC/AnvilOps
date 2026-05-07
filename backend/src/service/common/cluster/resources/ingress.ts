@@ -1,4 +1,5 @@
 import { ApiException, type V1Ingress } from "@kubernetes/client-node";
+import type { Domain } from "../../../../db/models.ts";
 import type { KubernetesClientService } from "../kubernetes.ts";
 import type { K8sObject } from "../resources.ts";
 
@@ -9,6 +10,7 @@ interface IngressInterface {
   port: number;
   servicePort?: number;
   subdomain: string;
+  customDomains: Domain[];
   createIngress: boolean;
 }
 
@@ -42,6 +44,8 @@ export class IngressConfigService {
     const appDomain = new URL(this.appDomain);
     const hostname = app.subdomain + "." + appDomain.hostname;
 
+    const domains = [{ id: -1, name: hostname }, ...app.customDomains];
+
     return {
       apiVersion: "networking.k8s.io/v1",
       kind: "Ingress",
@@ -50,30 +54,50 @@ export class IngressConfigService {
         namespace: app.namespace,
       },
       spec: {
+        tls: domains
+          .filter((it) => "status" in it && it.status === "GENERATED")
+          .map((d) => ({
+            hosts: [d.name],
+            secretName: `anvilops-tls-${d.id}`,
+          })),
         ingressClassName: this.ingressClassName,
-        rules: [
-          {
-            host: hostname,
-            http: {
-              paths: [
-                {
-                  pathType: "Prefix",
-                  path: "/",
-                  backend: {
-                    service: {
-                      name: app.serviceName,
-                      port: {
-                        number: 80,
-                      },
+        rules: domains.map((domain) => ({
+          host: domain.name,
+          http: {
+            paths: [
+              {
+                pathType: "Prefix",
+                path: "/",
+                backend: {
+                  service: {
+                    name: app.serviceName,
+                    port: {
+                      number: 80,
                     },
                   },
                 },
-              ],
-            },
+              },
+              ...(domain.id !== -1 // Custom domains need to be able to respond to ACME challenges for generating certificates
+                ? [
+                    {
+                      pathType: "Prefix",
+                      path: "/.well-known/acme-challenge/",
+                      backend: {
+                        service: {
+                          // This is an ExternalName Service that points to the AnvilOps backend in the main namespace.
+                          // We need this because Ingress rules must point to services within their namespace.
+                          name: "anvilops-backend",
+                          port: { number: 80 },
+                        },
+                      },
+                    },
+                  ]
+                : []),
+            ],
           },
-        ],
+        })),
       },
-    };
+    } satisfies V1Ingress;
   }
 
   /**
@@ -88,6 +112,7 @@ export class IngressConfigService {
       port: 80,
       serviceName: "anvilops-ingress-probe",
       subdomain: subdomain,
+      customDomains: [],
       servicePort: 80,
     });
 

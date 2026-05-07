@@ -7,6 +7,7 @@ anvilops:
   env:
     baseURL: http://localhost:3000
     appDomain: http://127.0.0.1.nip.io:3000 # Any subdomains of this will resolve to 127.0.0.1 (see https://nip.io/ for more info)
+    cnameDomain: anvilops-cname.127.0.0.1.nip.io
     harborProjectName: anvilops
     allowedIdps: https://access-ci.org/idp
     loginType: shibboleth
@@ -23,6 +24,7 @@ anvilops:
     registryProtocol: http
     otelEndpoint: "" # the Tiltfile overrides this if monitoring is enabled
     otelServiceName: anvilops
+    acmeServerAddress: https://acme-staging-v02.api.letsencrypt.org/directory
   cluster:
     name: "Local"
     faq:
