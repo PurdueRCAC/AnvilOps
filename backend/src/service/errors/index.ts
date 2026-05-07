@@ -24,6 +24,8 @@ export class UserAlreadyInvitedError extends Error {}
 
 export class DeploymentNotFoundError extends Error {}
 
+export class DomainNotFoundError extends Error {}
+
 export class ValidationError extends Error {}
 
 export class DeploymentError extends Error {
@@ -90,6 +92,13 @@ export class InvalidIDPError extends Error {}
  * Rancher cluster username during the login process.
  */
 export class RancherIDNotFoundError extends Error {}
+
+/**
+ * Thrown when trying to add a domain that has a private suffix.
+ * Private suffixes are domains like *.vercel.app or *.firebaseapp.com that the end user doesn't control.
+ * Users shouldn't be able to use these for custom domains.
+ */
+export class PrivateSuffixError extends Error {}
 
 /**
  * Thrown from the listCharts service when no charts could be retrieved.

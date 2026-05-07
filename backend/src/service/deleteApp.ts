@@ -2,6 +2,7 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
+import type { DomainRepo } from "../db/repo/domain.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import { logger } from "../logger.ts";
 import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
@@ -17,12 +18,14 @@ export class DeleteAppService {
   private registryService: RegistryService;
   private clusterResourcesService: ClusterResourcesService;
   private kubernetesService: KubernetesClientService;
+  private domainRepo: DomainRepo;
 
   constructor(
     orgRepo: OrganizationRepo,
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     deploymentRepo: DeploymentRepo,
+    domainRepo: DomainRepo,
     registryService: RegistryService,
     clusterResourcesService: ClusterResourcesService,
     kubernetesService: KubernetesClientService,
@@ -31,6 +34,7 @@ export class DeleteAppService {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.deploymentRepo = deploymentRepo;
+    this.domainRepo = domainRepo;
     this.registryService = registryService;
     this.clusterResourcesService = clusterResourcesService;
     this.kubernetesService = kubernetesService;
@@ -84,9 +88,10 @@ export class DeleteAppService {
       config.collectLogs = false; // <-- Disable log shipping
 
       const app = await this.appRepo.getById(lastDeployment.appId);
-      const [org, appGroup] = await Promise.all([
+      const [org, appGroup, domains] = await Promise.all([
         this.orgRepo.getById(app.orgId),
         this.appGroupRepo.getById(app.appGroupId),
+        this.domainRepo.listByAppId(app.id),
       ]);
 
       const { namespace, configs, postCreate } =
@@ -96,6 +101,7 @@ export class DeleteAppService {
           appGroup,
           deployment: lastDeployment,
           config,
+          customDomains: domains,
           migrating: true, // Deploy without any anvilops-related labels
         });
 
