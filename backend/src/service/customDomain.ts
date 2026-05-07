@@ -11,6 +11,16 @@ interface RequiredDnsRecord {
   content: string;
 }
 
+// Prefer Cloudflare's DNS service - it's likely to have more up-to-date results than the system's DNS service
+// https://one.one.one.one/dns/
+dns.setServers([
+  "1.1.1.1",
+  "1.0.0.1",
+  "2606:4700:4700::1111",
+  "2606:4700:4700::1001",
+  ...(dns.getServers() ?? []),
+]);
+
 export class CustomDomainService {
   private domainRepo: DomainRepo;
   private cnameDomain: string;
