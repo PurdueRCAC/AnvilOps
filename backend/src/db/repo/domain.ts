@@ -20,6 +20,33 @@ export class DomainRepo {
     });
   }
 
+  async delete(
+    domainId: number,
+    options?: {
+      requireUser?: { id: number; permissionLevel?: PermissionLevel };
+    },
+  ) {
+    await this.client.domain.delete({
+      where: {
+        id: domainId,
+        ...(options?.requireUser
+          ? {
+              app: {
+                org: {
+                  users: {
+                    some: {
+                      userId: options.requireUser.id,
+                      permissionLevel: options.requireUser.permissionLevel,
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
+      },
+    });
+  }
+
   async getById(
     domainId: number,
     options?: {

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { components } from "@/generated/openapi";
 import { api } from "@/lib/api";
-import { Check, Loader, Plus } from "lucide-react";
+import { Check, Loader, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { App } from "./AppView";
@@ -120,41 +120,87 @@ const DomainCard = ({
     "/app/{appId}/domains/{domainId}/verify",
   );
 
+  const { mutateAsync: remove, isPending: isPendingDelete } = api.useMutation(
+    "delete",
+    "/app/{appId}/domains/{domainId}",
+  );
+
   const canRetry =
     domain.status === "ERROR" ||
     ((domain.status === "GENERATING" || domain.status === "PENDING") &&
       new Date().getTime() - new Date(domain.updatedAt).getTime() >
         DOMAIN_RETRY_COOLDOWN);
 
+  const [deleting, setDeleting] = useState(false);
+
   return (
     <div className="rounded-md border p-4">
       <div className="mb-2 flex items-center justify-between border-b pb-2">
         <h3 className="text-lg font-medium">{domain.domain}</h3>
-        {domain.status === "UNVERIFIED" ? (
-          <span className="rounded-full border border-orange-500 px-2 py-1 text-sm text-orange-600">
-            Verification Needed
-          </span>
-        ) : domain.status === "PENDING" ? (
-          <span className="rounded-full border border-yellow-500 px-2 py-1 text-sm text-yellow-600">
-            Pending
-          </span>
-        ) : domain.status === "GENERATING" ? (
-          <span className="rounded-full border border-blue-500 px-2 py-1 text-sm text-blue-600">
-            Generating Certificate
-          </span>
-        ) : domain.status === "GENERATED" ? (
-          <span className="rounded-full border border-green-500 px-2 py-1 text-sm text-green-600">
-            Ready
-          </span>
-        ) : domain.status === "ERROR" ? (
-          <span className="rounded-full border border-red-500 px-2 py-1 text-sm text-red-600">
-            Error
-          </span>
-        ) : (
-          <span className="rounded-full border border-purple-500 px-2 py-1 text-sm text-purple-600">
-            Unknown Status
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {domain.status === "UNVERIFIED" ? (
+            <span className="rounded-full border border-orange-500 px-2 py-1 text-sm text-orange-600">
+              Verification Needed
+            </span>
+          ) : domain.status === "PENDING" ? (
+            <span className="rounded-full border border-yellow-500 px-2 py-1 text-sm text-yellow-600">
+              Pending
+            </span>
+          ) : domain.status === "GENERATING" ? (
+            <span className="rounded-full border border-blue-500 px-2 py-1 text-sm text-blue-600">
+              Generating Certificate
+            </span>
+          ) : domain.status === "GENERATED" ? (
+            <span className="rounded-full border border-green-500 px-2 py-1 text-sm text-green-600">
+              Ready
+            </span>
+          ) : domain.status === "ERROR" ? (
+            <span className="rounded-full border border-red-500 px-2 py-1 text-sm text-red-600">
+              Error
+            </span>
+          ) : (
+            <span className="rounded-full border border-purple-500 px-2 py-1 text-sm text-purple-600">
+              Unknown Status
+            </span>
+          )}
+
+          <Dialog open={deleting} onOpenChange={setDeleting}>
+            <DialogTrigger asChild>
+              <Button variant="secondary">
+                <Trash />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Remove Domain</DialogTitle>
+              </DialogHeader>
+              <p>
+                Are you sure you want to disconnect <code>{domain.domain}</code>{" "}
+                from your app? Users will no longer be able to access your app
+                at that domain until you re-register it, which will require
+                verifying the domain again.
+              </p>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await remove({
+                    params: {
+                      path: { appId: domain.appId, domainId: domain.id },
+                    },
+                  });
+                  setDeleting(false);
+                  invalidate();
+                }}
+              >
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isPendingDelete}>
+                    <Trash /> Remove
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       {domain.status === "UNVERIFIED" ? (
         <>

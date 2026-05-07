@@ -55,6 +55,7 @@ import { ListOrgGroupsService } from "./listOrgGroups.ts";
 import { ListOrgReposService } from "./listOrgRepos.ts";
 import { ListRepoBranchesService } from "./listRepoBranches.ts";
 import { ListRepoWorkflowsService } from "./listRepoWorkflows.ts";
+import { RemoveDomainService } from "./removeDomain.ts";
 import { RemoveUserFromOrgService } from "./removeUserFromOrg.ts";
 import { RetryCertGenService } from "./retryCertGen.ts";
 import { RevokeInvitationService } from "./revokeInvitation.ts";
@@ -517,4 +518,11 @@ export const verifyDomainService = new VerifyDomainService(
 export const retryCertGenService = new RetryCertGenService(
   certGenerationService,
   db.domain,
+);
+
+export const removeDomainService = new RemoveDomainService(
+  db.domain,
+  db.app,
+  ingressConfigService,
+  kubernetesClientService,
 );

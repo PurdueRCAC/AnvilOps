@@ -1711,6 +1711,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /app/{appId}/domains/{domainId}:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: domainId
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      description: Removes a domain and its associated cerificates.
+      operationId: removeDomain
+      responses:
+        "204":
+          description: Success
+        "404":
+          description: App or domain not found
   /app/{appId}/domains/{domainId}/verify:
     description: Attempts to verify a domain by checking its DNS records for the ones AnvilOps expects.
     parameters:

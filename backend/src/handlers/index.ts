@@ -45,6 +45,7 @@ import { listOrgReposHandler } from "./listOrgRepos.ts";
 import { listRepoBranchesHandler } from "./listRepoBranches.ts";
 import { listRepoWorkflowsHandler } from "./listRepoWorkflows.ts";
 import { livenessProbe } from "./liveness.ts";
+import { removeDomainHandler } from "./removeDomain.ts";
 import { removeUserFromOrgHandler } from "./removeUserFromOrg.ts";
 import { retryCertGenHandler } from "./retryCertGen.ts";
 import { revokeInvitationHandler } from "./revokeInvitation.ts";
@@ -102,6 +103,7 @@ export const handlers = {
   listRepoBranches: listRepoBranchesHandler,
   listRepoWorkflows: listRepoWorkflowsHandler,
   livenessProbe,
+  removeDomain: removeDomainHandler,
   removeUserFromOrg: removeUserFromOrgHandler,
   retryCertGen: retryCertGenHandler,
   revokeInvitation: revokeInvitationHandler,
