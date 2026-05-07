@@ -11,6 +11,6 @@ spec:
       {{- include "anvilops.buildkitd.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
-  egress:
+  ingress:
     {{- toYaml .Values.buildkitd.netpol.buildctlIngress | nindent 4 }}
 {{- end }}
