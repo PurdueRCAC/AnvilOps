@@ -18,6 +18,16 @@ const app = express();
 const port = process.env.PORT ?? 3000;
 
 app.use((req, res, next) => {
+  if (req.url.startsWith("/.well-known/acme-challenge/")) {
+    // These requests are for HTTP-01 certificate generation challenges.
+    // They need to be at /.well-known/..., but the route is defined in the OpenAPI
+    // spec as /api/.well-known/..., so here we just rewrite the former to the latter.
+    req.url = "/api" + req.url;
+  }
+  next();
+});
+
+app.use((req, res, next) => {
   const traceId = trace.getActiveSpan()?.spanContext()?.traceId;
   if (traceId) {
     res.setHeader("x-trace-id", traceId);

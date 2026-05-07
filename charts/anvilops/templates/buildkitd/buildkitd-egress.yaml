@@ -1,0 +1,16 @@
+{{ if and .Values.buildkitd.install .Values.buildkitd.netpol .Values.buildkitd.netpol.egress -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: anvilops-buildkitd-egress
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "anvilops.buildkitd.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    {{- toYaml .Values.buildkitd.netpol.egress | nindent 4 }}
+{{- end }}

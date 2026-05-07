@@ -8,7 +8,9 @@ import { AppRepo } from "./repo/app.ts";
 import { AppGroupRepo } from "./repo/appGroup.ts";
 import { CacheRepo } from "./repo/cache.ts";
 import { DeploymentRepo } from "./repo/deployment.ts";
+import { DomainRepo } from "./repo/domain.ts";
 import { InvitationRepo } from "./repo/invitation.ts";
+import { LogRepo } from "./repo/logs.ts";
 import { OrganizationRepo } from "./repo/organization.ts";
 import { RepoImportStateRepo } from "./repo/repoImportState.ts";
 import { UserRepo } from "./repo/user.ts";
@@ -32,6 +34,8 @@ export abstract class Database {
   abstract org: OrganizationRepo;
   abstract repoImportState: RepoImportStateRepo;
   abstract user: UserRepo;
+  abstract domain: DomainRepo;
+  abstract log: LogRepo;
   abstract sessionStore: session.Store;
   abstract subscribe(
     channel: string,
@@ -53,13 +57,15 @@ export class PrismaDatabase extends Database {
   org: OrganizationRepo;
   repoImportState: RepoImportStateRepo;
   user: UserRepo;
+  domain: DomainRepo;
+  log: LogRepo;
   sessionStore: session.Store;
 
   constructor(client: PrismaClientType, masterKey: Buffer) {
     super();
     this.client = client;
     this.appGroup = new AppGroupRepo(this.client);
-    this.cache = new CacheRepo(this.client);
+    this.cache = new CacheRepo(this.client, masterKey);
     this.deployment = new DeploymentRepo(
       this.client,
       this.publish.bind(this),
@@ -70,6 +76,8 @@ export class PrismaDatabase extends Database {
     this.org = new OrganizationRepo(this.client);
     this.repoImportState = new RepoImportStateRepo(this.client);
     this.user = new UserRepo(this.client);
+    this.domain = new DomainRepo(this.client);
+    this.log = new LogRepo(this.client);
   }
 
   /* eslint-disable @typescript-eslint/no-unused-vars */

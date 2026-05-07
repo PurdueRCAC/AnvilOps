@@ -65,7 +65,7 @@ COPY backend/package*.json .
 COPY backend/regclient-napi ./regclient-napi
 COPY --from=backend_deps /app/node_modules ./node_modules
 RUN --mount=type=cache,target=/root/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/root/.cache \
     npm rebuild --foreground-scripts=true regclient-napi
 
 # BACKEND: run type checker

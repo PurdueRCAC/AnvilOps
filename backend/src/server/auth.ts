@@ -75,6 +75,7 @@ export const ALLOWED_ANONYMOUS_ROUTES = [
   "/logs/ingest",
   "/settings",
   "/templates",
+  "/.well-known/acme-challenge/",
 ];
 
 export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
@@ -85,6 +86,7 @@ export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
   "ingestLogs",
   "getSettings",
   "getTemplates",
+  "acmeChallenge",
 ];
 
 const isAllowedAnonymousRoute = (req: Request) => {

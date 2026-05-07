@@ -1,3 +1,5 @@
+import { ACME_DIRECTORY_URLS } from "@fishballpkg/acme";
+
 type EnvVarDefinition =
   | {
       required: true;
@@ -65,6 +67,20 @@ const variables = {
    * If this variable is not specified, subdomains will not be shown to users.
    */
   APP_DOMAIN: { required: false },
+  /**
+   * The hostname that AnvilOps recommends users set as a CNAME on their custom domains to point them to AnvilOps.
+   * Must resolve to an address of the K8s ingress controller.
+   */
+  CNAME_DOMAIN: { required: false },
+  /**
+   * The URL of an ACME server (https://datatracker.ietf.org/doc/html/rfc8555),
+   * used to generate certificates for custom domains. Defaults to the Let's Encrypt staging endpoint,
+   * which isn't suitable for production and isn't trusted by browsers.
+   */
+  ACME_SERVER_ADDRESS: {
+    required: false,
+    defaultValue: ACME_DIRECTORY_URLS.LETS_ENCRYPT_STAGING,
+  },
   /**
    * Path to the JSON file describing the cluster on which AnvilOps is installed.
    */

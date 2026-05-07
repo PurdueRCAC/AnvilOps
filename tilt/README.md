@@ -26,7 +26,24 @@
 
    Make sure this command outputs the name of your local cluster. If you aren't sure, check your kubeconfig (`kubectl config view`) and make sure the name corresponds to an address that starts with `localhost`.
 
-3. Run Tilt:
+3. Ensure that buildkitd can reach the local registry
+
+   The AnvilOps Helm chart includes configurable network policies for buildkitd and the build jobs. To get the IP address of the registry, run
+
+   ```sh
+   docker inspect ctlptl-registry --format '{{.NetworkSettings.Networks.kind.IPAddress}}'
+   ```
+
+   and allowlist this IP in `local-values.yaml` under `.buildkitd.netpol.egress`. In particular, add this rule under the `egress` list:
+
+   ```yaml
+   egress:
+     - to:
+         - ipBlock:
+             cidr: <IP_ADDRESS>/32
+   ```
+
+4. Run Tilt:
 
    ```sh
    tilt up
@@ -34,7 +51,7 @@
 
    Make sure you run this command from the `tilt` directory in the AnvilOps project. If you run `ls`, you should be able to see the `Tiltfile`.
 
-4. After waiting a few minutes, you should be able to access AnvilOps at http://localhost:3000 in your browser.
+5. After waiting a few minutes, you should be able to access AnvilOps at http://localhost:3000 in your browser.
 
 ## (Optional) Setting up TLS
 
