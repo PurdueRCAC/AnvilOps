@@ -50,7 +50,7 @@ check_error
 
 # Ajv: Helm templates
 printf "\n======================================\nRunning Ajv (charts/templates)\n======================================\n"
-cd "$PROJECT_ROOT/charts/templates" || exit 1
+cd "$PROJECT_ROOT/.github/workflows/lint" || exit 1
 ./validate-templates.sh
 check_error
 
