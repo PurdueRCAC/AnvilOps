@@ -2113,6 +2113,8 @@ components:
           nullable: true
         name:
           type: string
+        csrfToken:
+          type: string
         orgs:
           type: array
           items:
@@ -2134,6 +2136,7 @@ components:
         - email
         - name
         - orgs
+        - csrfToken
     UnassignedInstallation:
       type: object
       properties:

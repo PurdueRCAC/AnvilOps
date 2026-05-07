@@ -59,6 +59,7 @@ export type AuthenticatedRequest = ExpressRequest & {
     id: number;
     email?: string;
     name?: string;
+    csrfToken?: string;
   };
 };
 
