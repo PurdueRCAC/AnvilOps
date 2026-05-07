@@ -1,4 +1,4 @@
-import { resolve4, resolveAny } from "node:dns/promises";
+import { resolve4, resolveCname, resolveTxt } from "node:dns/promises";
 import { expect, test, vi } from "vitest";
 import { CustomDomainService } from "../../src/service/customDomain.ts";
 
@@ -50,12 +50,13 @@ test("required DNS records", async () => {
 });
 
 test("verify top-level domain", async () => {
-  const svc = new CustomDomainService(null, "cname-domain.test.local");
+  const cnameDomain = "cname-domain.test.local";
+  const svc = new CustomDomainService(null, cnameDomain);
 
+  vi.clearAllMocks();
   vi.mocked(resolve4).mockResolvedValue(["1.1.1.1"]);
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "A", address: "1.1.1.1", ttl: 300 },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
 
   const isValid = await svc.verifyDNSRecords(
@@ -68,71 +69,84 @@ test("verify top-level domain", async () => {
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification456"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching TXT record]`,
   );
 
   // Missing TXT record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "A", address: "1.1.1.1", ttl: 300 },
-  ]);
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockResolvedValue(["1.1.1.1"]);
+  vi.mocked(resolveTxt).mockResolvedValue([]);
 
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching TXT record]`,
   );
 
   // Missing A record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockImplementation((host) =>
+    Promise.resolve(host === cnameDomain ? ["1.1.1.1"] : []),
+  );
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching A record]`,
   );
 
   // Missing both records
-  vi.mocked(resolveAny).mockResolvedValue([]);
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockImplementation((host) =>
+    Promise.resolve(host === cnameDomain ? ["1.1.1.1"] : []),
+  );
+  vi.mocked(resolveTxt).mockResolvedValue([]);
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching A record]`,
   );
 
   // Invalid A record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "A", address: "2.2.2.2", ttl: 300 },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockImplementation((host) =>
+    Promise.resolve(host === cnameDomain ? ["1.1.1.1"] : ["2.2.2.2"]),
+  );
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching A record]`,
   );
 
   // CNAMEs aren't acceptable in place of A records for top-level domains
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "CNAME", value: "cname-domain.test.local" },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockImplementation((host) =>
+    Promise.resolve(host === cnameDomain ? ["1.1.1.1"] : []),
+  );
+  vi.mocked(resolveCname).mockResolvedValue(["cname-domain.test.local"]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching A record]`,
   );
 
   // TXT record with multiple entries
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "A", address: "1.1.1.1", ttl: 300 },
-    {
-      type: "TXT",
-      entries: [
-        "extra-entry-1",
-        "_anvilops_domain_verification=verification123",
-        "extra-entry-2",
-      ],
-    },
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockResolvedValue(["1.1.1.1"]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    [
+      "extra-entry-1",
+      "_anvilops_domain_verification=verification123",
+      "extra-entry-2",
+    ],
   ]);
   expect(await svc.verifyDNSRecords("top-level.local", "verification123")).toBe(
     true,
@@ -142,9 +156,10 @@ test("verify top-level domain", async () => {
 test("verify subdomain", async () => {
   const svc = new CustomDomainService(null, "cname-domain.test.local");
 
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "CNAME", value: "cname-domain.test.local" },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolveCname).mockResolvedValue(["cname-domain.test.local"]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
 
   const isValid = await svc.verifyDNSRecords(
@@ -157,57 +172,66 @@ test("verify subdomain", async () => {
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification456"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching TXT record]`,
   );
 
   // Missing TXT record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "CNAME", value: "cname-domain.test.local" },
-  ]);
+  vi.clearAllMocks();
+  vi.mocked(resolveCname).mockResolvedValue(["cname-domain.test.local"]);
+  vi.mocked(resolveTxt).mockResolvedValue([[]]);
 
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching TXT record]`,
   );
 
   // Missing CNAME record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolveCname).mockResolvedValue([]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching CNAME record]`,
   );
 
   // Missing both records
-  vi.mocked(resolveAny).mockResolvedValue([]);
+  vi.clearAllMocks();
+  vi.mocked(resolveCname).mockResolvedValue([]);
+  vi.mocked(resolveTxt).mockResolvedValue([]);
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching CNAME record]`,
   );
 
   // Invalid CNAME record
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "CNAME", value: "incorrect-cname-domain.test.local" },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolveCname).mockResolvedValue([
+    "incorrect-cname-domain.test.local",
+  ]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching CNAME record]`,
   );
 
   // A records aren't acceptable in place of CNAME records for subdomains
-  vi.mocked(resolveAny).mockResolvedValue([
-    { type: "A", address: "1.1.1.1", ttl: 300 },
-    { type: "TXT", entries: ["_anvilops_domain_verification=verification123"] },
+  vi.clearAllMocks();
+  vi.mocked(resolve4).mockResolvedValue(["1.1.1.1"]);
+  vi.mocked(resolveCname).mockResolvedValue([]);
+  vi.mocked(resolveTxt).mockResolvedValue([
+    ["_anvilops_domain_verification=verification123"],
   ]);
   await expect(
     svc.verifyDNSRecords("sub.top-level.local", "verification123"),
   ).rejects.toThrowErrorMatchingInlineSnapshot(
-    `[Error: DNS records are incorrect]`,
+    `[Error: Could not find matching CNAME record]`,
   );
 });

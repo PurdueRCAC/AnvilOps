@@ -1,4 +1,3 @@
-import type { AnyRecord } from "node:dns";
 import dns from "node:dns/promises";
 import { parse } from "tldts";
 import { ConflictError } from "../db/errors/index.ts";
@@ -59,6 +58,9 @@ export class CustomDomainService {
     } else {
       // CNAMEs aren't allowed at the apex domain, so ask for an A record instead
       const ips = await dns.resolve4(this.cnameDomain); // We know this domain points to the ingress controller, so use its public IP address
+      if (ips.length === 0) {
+        throw new Error("Failed to resolve address for CNAME domain");
+      }
       records.push(
         ...ips.map((ip) => ({ name: "@", type: "A", content: ip }) as const),
       );
@@ -88,26 +90,38 @@ export class CustomDomainService {
       domainName,
       verificationToken,
     );
-    const records = await dns.resolveAny(domainName);
 
-    const isValid = expectedRecords.every((expected) =>
-      records.some((actual) => this.dnsRecordMatches(expected, actual)),
+    await Promise.all(
+      expectedRecords.map(async (expected) => {
+        switch (expected.type) {
+          case "A": {
+            const ips = await dns.resolve4(domainName);
+            if (!ips.includes(expected.content)) {
+              throw new ValidationError("Could not find matching A record");
+            }
+            break;
+          }
+          case "CNAME": {
+            const names = await dns.resolveCname(domainName);
+            if (!names.includes(expected.content)) {
+              throw new ValidationError("Could not find matching CNAME record");
+            }
+            break;
+          }
+          case "TXT": {
+            const records = await dns.resolveTxt(domainName);
+            if (!records.some((rec) => rec.includes(expected.content))) {
+              throw new ValidationError("Could not find matching TXT record");
+            }
+            break;
+          }
+          default: {
+            expected.type satisfies never;
+          }
+        }
+      }),
     );
-    if (!isValid) {
-      throw new ValidationError("DNS records are incorrect");
-    }
 
     return true;
-  }
-
-  private dnsRecordMatches(expected: RequiredDnsRecord, actual: AnyRecord) {
-    if (expected.type === "A") {
-      return actual.type === "A" && actual.address === expected.content;
-    } else if (expected.type === "CNAME") {
-      return actual.type === "CNAME" && actual.value === expected.content;
-    } else if (expected.type === "TXT") {
-      return actual.type === "TXT" && actual.entries.includes(expected.content);
-    }
-    return false;
   }
 }
