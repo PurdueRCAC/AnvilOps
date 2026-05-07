@@ -15,7 +15,7 @@ for template in *; do
   if [[ -d "$template" && -f "$template/Chart.yaml" ]]; then
     echo "Validating $template"
     yq '.annotations."anvilops-values"' "$template/Chart.yaml" > "$tmp/$template-values.json"
-    if ! npx ajv test \
+    if ! npx ajv-cli test \
       -s anvilops-values-schema.json \
       -d "$tmp/$template-values.json" \
       --valid \
