@@ -115,6 +115,10 @@ if enable_pebble:
   # Send ACME (Let's Encrypt certificate generation) requests to the local Pebble server instead of the public staging server
   helm_values.append("anvilops.env.acmeServerAddress=https://pebble:14000/dir")
 
+if not separate_frontend_and_backend:
+  helm_values.append("anvilops.securityContext.runAsUser=65532")
+  helm_values.append("anvilops.securityContext.runAsGroup=65532")
+
 yaml = helm(
   '../charts/anvilops',
   # The release name, equivalent to helm --name
