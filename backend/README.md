@@ -1,17 +1,19 @@
 # backend
 
+This directory contains AnvilOps's backend code.
+
 When AnvilOps is built as a Docker image, this Node.js app serves the static files in the `frontend` directory.
 
 ## Project Structure
 
 The backend is divided into a few major components:
 
-| Path           | Purpose                 | Allowed Imports | Notes                                                                                                                                                                      |
-| -------------- | ----------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/db`       | Database access         |                 |                                                                                                                                                                            |
-| `src/handlers` | API route handlers      | `src/service`   | Handlers should only contain the logic required to map an HTTP request to a Service function call and back to an HTTP response. They shouldn't contain any business logic. |
-| `src/service`  | Business logic          | `src/db`        | Services should explicitly list all their dependencies (repositories and other services) in their constructor so that they can be swapped out when necessary for testing.  |
-| `src/jobs`     | Scripts run as cronjobs |                 | Jobs shouldn't import any AnvilOps code directly since some files have side effects (e.g. quitting if environment variables are invalid) that are unexpected in cron jobs. |
+| Path           | Purpose                 | Allowed Imports         | Notes                                                                                                                                                                                                           |
+| -------------- | ----------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/db`       | Database access         |                         |                                                                                                                                                                                                                 |
+| `src/handlers` | API route handlers      | `src/service`           | Handlers should only contain the logic required to map an HTTP request to a Service function call and back to an HTTP response. They shouldn't contain any business logic.                                      |
+| `src/service`  | Business logic          | `src/db`                | Services should explicitly list all their dependencies (repositories and other services) in their constructor so that they can be swapped out when necessary for testing. This includes environment variables.  |
+| `src/jobs`     | Scripts run as cronjobs | `src/db`, `src/service` | Jobs shouldn't import `src/service/index.ts` directly since it imports `env.ts`, which exits if a specific environment variable is missing. Instead, jobs should create new instances of the services they use. |
 
 When a request is received, it'll go through a Handler first, which will call a function on its corresponding Service, which may execute database operations in the Database module or call other Services.
 
@@ -96,7 +98,7 @@ Environment variables:
 
 - `CLIENT_ID`
 - `CLIENT_SECRET`
-- `ALLOwED_IDPS`: Optional comma-separated list of EntityIDs for CILogon IDPs to allow, e.g. https://access-ci.org/idp,https://idp.purdue.edu/idp/shibboleth. See https://cilogon.org/idplist/ for more supported IDPs.
+- `ALLOWED_IDPS`: Optional comma-separated list of EntityIDs for CILogon IDPs to allow, e.g. https://access-ci.org/idp,https://idp.purdue.edu/idp/shibboleth. See https://cilogon.org/idplist/ for more supported IDPs.
 - `SESSION_SECRET`: generate a random value, e.g. `openssl rand -hex 32`
 - `BASE_URL`: the base URL of your AnvilOps deployment, e.g. http://localhost:3000 or https://anvilops.rcac.purdue.edu. When you set up CILogon, add "/api/oauth_callback" to this URL and use it as the OAuth callback URL.
 
