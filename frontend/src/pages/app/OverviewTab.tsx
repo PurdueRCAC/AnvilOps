@@ -133,7 +133,11 @@ export const OverviewTab = ({
             " a workflow "
           ) : (
             <a
-              href={`${app.repositoryURL}/tree/${app.config.branch}/${workflow.path}`}
+              href={
+                app.repositoryURL
+                  ? `${app.repositoryURL}/tree/${app.config.branch}/${workflow.path}`
+                  : "#"
+              }
               target="_blank"
               className="underline"
               rel="noreferrer"
@@ -174,15 +178,24 @@ export const OverviewTab = ({
               Git repository
             </p>
             <p>
-              <a
-                href={app.repositoryURL}
-                className="flex items-center gap-1 underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {URL.parse(app.repositoryURL!)?.pathname?.substring(1)}
-                <ExternalLink size={14} />
-              </a>
+              {app.repositoryURL ? (
+                <a
+                  href={app.repositoryURL ?? "#"}
+                  className="flex items-center gap-1 underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {URL.parse(app.repositoryURL)?.pathname?.substring(1)}
+                  <ExternalLink size={14} />
+                </a>
+              ) : (
+                <p>
+                  Disconnected.{" "}
+                  <Link to="?tab=configuration" className="underline">
+                    Reconnect
+                  </Link>
+                </p>
+              )}
             </p>
           </>
         ) : app.config.source === "image" ? (

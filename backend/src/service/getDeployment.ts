@@ -5,7 +5,10 @@ import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { KubernetesClientService } from "./common/cluster/kubernetes.ts";
 import type { DeploymentConfigService } from "./common/deploymentConfig.ts";
 import type { GitProviderFactoryService } from "./common/git/gitProvider.ts";
-import { DeploymentNotFoundError } from "./errors/index.ts";
+import {
+  DeploymentNotFoundError,
+  InstallationNotFoundError,
+} from "./errors/index.ts";
 
 export class GetDeploymentService {
   private orgRepo: OrganizationRepo;
@@ -57,11 +60,17 @@ export class GetDeploymentService {
     let repositoryURL: string | null = null;
     let pods: V1PodList | null = null;
     if (config.source === "GIT") {
-      const gitProvider = await this.gitProviderFactoryService.getGitProvider(
-        org.id,
-      );
-      const repo = await gitProvider?.getRepoById(config.repositoryId);
-      repositoryURL = repo?.htmlURL;
+      try {
+        const gitProvider = await this.gitProviderFactoryService.getGitProvider(
+          org.id,
+        );
+        const repo = await gitProvider?.getRepoById(config.repositoryId);
+        repositoryURL = repo?.htmlURL;
+      } catch (e) {
+        if (!(e instanceof InstallationNotFoundError)) {
+          throw e;
+        }
+      }
     }
     if (config.appType === "workload") {
       pods = await api

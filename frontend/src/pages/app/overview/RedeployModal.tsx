@@ -222,7 +222,11 @@ export const RedeployModal = ({
                       <div className="my-2 ml-6">
                         {pastDeployment.config.source === "git" ? (
                           <a
-                            href={`${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`}
+                            href={
+                              pastDeployment.repositoryURL
+                                ? `${pastDeployment.repositoryURL}/commit/${pastDeployment.commitHash}`
+                                : "#"
+                            }
                             className="flex items-start gap-2"
                             target="_blank"
                             rel="noreferrer"
