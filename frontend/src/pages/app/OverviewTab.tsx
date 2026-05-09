@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { cn, isWorkloadConfig } from "@/lib/utils";
 import { GitHubIcon } from "@/pages/create-app/CreateAppView";
 import {
+  AlertCircle,
   CheckCheck,
   ChevronLeft,
   ChevronRight,
@@ -275,8 +276,19 @@ export const OverviewTab = ({
       </div>
       <ToggleCDForm app={app} refetchApp={refetchApp} className="mt-4" />
       <h3 className="mt-8 text-xl font-medium">Recent Deployments</h3>
-      <p className="mb-2 opacity-50">
-        {app.config.source === "git" && app.cdEnabled ? (
+      <p className="mb-2 text-pretty opacity-50">
+        {app.config.source === "git" && !app.repositoryURL ? (
+          <>
+            <AlertCircle className="inline size-6" /> This organization is no
+            longer connected to its Git provider. Deployments will not be
+            created automatically from Git pushes until the app is reconnected
+            from the{" "}
+            <Link to="?tab=configuration" className="underline">
+              Configuration tab
+            </Link>
+            .
+          </>
+        ) : app.config.source === "git" && app.cdEnabled ? (
           <>
             Automatically triggered by {deployTrigger}
             <a href={`${app.repositoryURL}/tree/${app.config.branch}`}>
@@ -517,7 +529,7 @@ const ToggleCDForm = ({
     "/app/{appId}/cd",
   );
 
-  if (app.config.source !== "git") {
+  if (app.config.source !== "git" || !app.repositoryURL) {
     return null;
   }
 
