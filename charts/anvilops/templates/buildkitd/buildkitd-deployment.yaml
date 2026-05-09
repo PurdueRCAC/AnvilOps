@@ -15,8 +15,10 @@ spec:
     metadata:
       labels:
         {{- include "anvilops.buildkitd.labels" . | nindent 8 }}
+      {{ if semverCompare "<1.30" .Capabilities.KubeVersion.Version }}
       annotations:
         container.apparmor.security.beta.kubernetes.io/buildkitd: unconfined
+      {{ end }}
     spec:
       {{ if .Values.buildkitd.enableUserNamespaces -}}
       hostUsers: false
@@ -67,6 +69,10 @@ spec:
               type: Unconfined
             runAsUser: 1000
             runAsGroup: 1000
+            {{ if semverCompare ">=1.30" .Capabilities.KubeVersion.Version }}
+            appArmorProfile:
+              type: Unconfined
+            {{ end }}
           ports:
             - containerPort: 1234
           volumeMounts:
