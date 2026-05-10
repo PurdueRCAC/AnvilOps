@@ -1,4 +1,5 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { ConflictError } from "../db/errors/index.ts";
 import type {
   Deployment,
   DeploymentConfig,
@@ -97,12 +98,22 @@ export class UpdateAppService {
 
         case "create-new": {
           this.appService.validateAppGroupName(appData.appGroup.name);
-          appGroupId = await this.appGroupRepo.create(
-            originalApp.orgId,
-            appData.appGroup.name,
-            false,
-          );
-          await this.appRepo.setGroup(originalApp.id, appGroupId);
+          try {
+            appGroupId = await this.appGroupRepo.create(
+              originalApp.orgId,
+              appData.appGroup.name,
+              false,
+            );
+            await this.appRepo.setGroup(originalApp.id, appGroupId);
+          } catch (e) {
+            if (e instanceof ConflictError) {
+              throw new ValidationError(
+                "An app group already exists with that name.",
+                { cause: e },
+              );
+            }
+            throw e;
+          }
           break;
         }
 
@@ -112,12 +123,22 @@ export class UpdateAppService {
           }
           const groupName = `${originalApp.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
           this.appService.validateAppGroupName(groupName);
-          appGroupId = await this.appGroupRepo.create(
-            originalApp.orgId,
-            groupName,
-            true,
-          );
-          await this.appRepo.setGroup(originalApp.id, appGroupId);
+          try {
+            appGroupId = await this.appGroupRepo.create(
+              originalApp.orgId,
+              groupName,
+              true,
+            );
+            await this.appRepo.setGroup(originalApp.id, appGroupId);
+          } catch (e) {
+            if (e instanceof ConflictError) {
+              throw new ValidationError(
+                "An app group already exists with that name.",
+                { cause: e },
+              );
+            }
+            throw e;
+          }
           break;
         }
 

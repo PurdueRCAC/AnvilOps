@@ -87,22 +87,42 @@ export class CreateAppService {
 
       case "create-new": {
         this.appService.validateAppGroupName(appData.appGroup.name);
-        appGroupId = await this.appGroupRepo.create(
-          appData.orgId,
-          appData.appGroup.name,
-          false,
-        );
+        try {
+          appGroupId = await this.appGroupRepo.create(
+            appData.orgId,
+            appData.appGroup.name,
+            false,
+          );
+        } catch (e) {
+          if (e instanceof ConflictError) {
+            throw new ValidationError(
+              "An app group already exists with that name.",
+              { cause: e },
+            );
+          }
+          throw e;
+        }
         break;
       }
 
       case "standalone": {
         const groupName = `${appData.name.substring(0, MAX_GROUPNAME_LEN - RANDOM_TAG_LEN - 1)}-${getRandomTag()}`;
         this.appService.validateAppGroupName(groupName);
-        appGroupId = await this.appGroupRepo.create(
-          appData.orgId,
-          groupName,
-          true,
-        );
+        try {
+          appGroupId = await this.appGroupRepo.create(
+            appData.orgId,
+            groupName,
+            true,
+          );
+        } catch (e) {
+          if (e instanceof ConflictError) {
+            throw new ValidationError(
+              "An app group already exists with that name.",
+              { cause: e },
+            );
+          }
+          throw e;
+        }
         break;
       }
 

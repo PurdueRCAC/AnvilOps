@@ -89,18 +89,17 @@ export class CreateAppGroupService {
       metadata: validationResults[idx],
     }));
 
-    const groupId = await this.appGroupRepo.create(orgId, groupName, false);
-    // let groupId: number;
-    // try {
-    //   groupId = await this.appGroupRepo.create(orgId, groupName, false);
-    // } catch (e) {
-    //   if (e instanceof ConflictError) {
-    //     throw new ValidationError(
-    //       "An app group already exists with the same name.",
-    //     );
-    //   }
-    //   throw e;
-    // }
+    let groupId: number;
+    try {
+      groupId = await this.appGroupRepo.create(orgId, groupName, false);
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        throw new ValidationError(
+          "An app group already exists with the same name.",
+        );
+      }
+      throw e;
+    }
 
     for (const { appData, metadata } of appsWithMetadata) {
       const { config: _config, commitMessage } = metadata;
