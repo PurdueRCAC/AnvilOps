@@ -75,7 +75,7 @@ export const ALLOWED_ANONYMOUS_ROUTES = [
   "/logs/ingest",
   "/settings",
   "/templates",
-  "/.well-known/acme-challenge/",
+  "/.well-known/acme-challenge",
 ];
 
 export const ALLOWED_ANONYMOUS_OPERATIONS: (keyof operations)[] = [
