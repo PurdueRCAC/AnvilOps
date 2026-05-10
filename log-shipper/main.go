@@ -281,7 +281,7 @@ func send(lines []LogLine, env *EnvVars) {
 				}
 			}
 		}
-	} else if res.StatusCode != 200 {
+	} else if res.StatusCode < 200 || res.StatusCode >= 300 {
 		body, err := io.ReadAll(res.Body)
 		_ = res.Body.Close()
 
