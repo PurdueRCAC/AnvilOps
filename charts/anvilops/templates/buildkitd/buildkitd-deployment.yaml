@@ -79,8 +79,6 @@ spec:
             - name: certs
               readOnly: true
               mountPath: /certs
-            - mountPath: /home/user/.local/share/buildkit
-              name: buildkitd
       volumes:
         # buildkit-daemon-certs must contain ca.pem, cert.pem, and key.pem
         - name: certs
