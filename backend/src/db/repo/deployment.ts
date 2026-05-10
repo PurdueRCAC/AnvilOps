@@ -81,6 +81,37 @@ export class DeploymentRepo {
     return deployment;
   }
 
+  async createConfig(config: WorkloadConfigCreate | HelmConfigCreate) {
+    const configClone = structuredClone(config);
+    const appType = configClone.appType;
+    if (appType === "workload") {
+      delete configClone.appType;
+    } else if (appType === "helm") {
+      delete configClone.appType;
+      delete configClone.source;
+    }
+
+    const cfg = await this.client.deploymentConfig.create({
+      data: {
+        appType: appType,
+        ...(appType === "workload"
+          ? {
+              workloadConfig: {
+                create: this.encryptEnv(configClone),
+              },
+            }
+          : {
+              helmConfig: {
+                create: configClone,
+              },
+            }),
+      },
+      select: { id: true },
+    });
+
+    return cfg.id;
+  }
+
   async create({
     appId,
     config,
@@ -94,32 +125,12 @@ export class DeploymentRepo {
     workflowRunId?: number;
     status?: DeploymentStatus;
   }): Promise<Deployment> {
-    const configClone = structuredClone(config);
-    const appType = configClone.appType;
-    if (appType === "workload") {
-      delete configClone.appType;
-    } else if (appType === "helm") {
-      delete configClone.appType;
-      delete configClone.source;
-    }
+    const configId = await this.createConfig(config);
     return await this.client.deployment.create({
       data: {
         app: { connect: { id: appId } },
         config: {
-          create: {
-            appType: appType,
-            ...(appType === "workload"
-              ? {
-                  workloadConfig: {
-                    create: this.encryptEnv(configClone),
-                  },
-                }
-              : {
-                  helmConfig: {
-                    create: configClone,
-                  },
-                }),
-          },
+          connect: { id: configId },
         },
         commitMessage,
         workflowRunId,

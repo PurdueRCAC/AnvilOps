@@ -487,7 +487,7 @@ const RetryDeploymentPrompt = ({
     "/app/{appId}",
   );
 
-  if (deployments?.[0]?.status === "ERROR") {
+  if (deployments?.[0]?.status === "ERROR" || deployments?.length === 0) {
     return (
       <div className="flex items-center justify-between rounded-md bg-orange-100 p-4">
         <p className="flex items-center gap-2">

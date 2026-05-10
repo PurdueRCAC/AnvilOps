@@ -220,6 +220,7 @@ export interface AppCreate {
   namespace: string;
   clusterUsername: string;
   projectId: string;
+  configId: number;
 }
 
 export interface RepoImportState {

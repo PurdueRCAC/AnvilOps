@@ -3,6 +3,7 @@ import { ConflictError } from "../db/errors/index.ts";
 import type { App } from "../db/models.ts";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
+import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
@@ -28,6 +29,7 @@ export class CreateAppService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private userRepo: UserRepo;
+  private deploymentRepo: DeploymentRepo;
   private appService: AppService;
   private deploymentService: DeploymentService;
   private deploymentConfigService: DeploymentConfigService;
@@ -37,6 +39,7 @@ export class CreateAppService {
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     userRepo: UserRepo,
+    deploymentRepo: DeploymentRepo,
     appService: AppService,
     deploymentService: DeploymentService,
     deploymentConfigService: DeploymentConfigService,
@@ -45,6 +48,7 @@ export class CreateAppService {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.userRepo = userRepo;
+    this.deploymentRepo = deploymentRepo;
     this.appService = appService;
     this.deploymentService = deploymentService;
     this.deploymentConfigService = deploymentConfigService;
@@ -110,6 +114,7 @@ export class CreateAppService {
     let deploymentConfig = config;
 
     try {
+      const configId = await this.deploymentRepo.createConfig(deploymentConfig);
       app = await this.appRepo.create({
         orgId: appData.orgId,
         appGroupId: appGroupId,
@@ -117,6 +122,7 @@ export class CreateAppService {
         clusterUsername: user.clusterUsername,
         projectId: appData.projectId,
         namespace: appData.namespace,
+        configId,
       });
 
       logger.info({ orgId: appData.orgId, appId: app.id }, "App created");
