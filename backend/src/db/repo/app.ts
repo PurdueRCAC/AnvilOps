@@ -109,6 +109,7 @@ export class AppRepo {
                 id: appData.orgId,
               },
             },
+            config: { connect: { id: appData.configId } },
 
             // This cluster username will be used to automatically update the app after a build job or webhook payload
             // TODO: make this a setting in the UI

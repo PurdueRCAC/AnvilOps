@@ -155,7 +155,7 @@ export class DeploymentConfigService {
    */
   populateImageTag(
     config: GitConfigCreate | HelmConfigCreate | WorkloadConfigCreate,
-    app: App,
+    app: Pick<App, "imageRepo">,
   ) {
     if (config.source === "GIT") {
       return {

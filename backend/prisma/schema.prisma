@@ -213,6 +213,8 @@ model AppGroup {
   // Is monolith app and should be displayed to the user as a single app not part of a group.
   isMono Boolean      @default(false)
   apps   App[]
+
+  @@unique([orgId, name])
 }
 
 model Deployment {

@@ -13,12 +13,15 @@ export const createAppHandler: HandlerMap["createApp"] = async (
   req: AuthenticatedRequest,
   res,
 ) => {
+  let appId: number;
+  let createFirstDeployment: () => Promise<void>;
   try {
-    const appId = await createAppService.createApp(
+    const res = await createAppService.createApp(
       ctx.request.requestBody,
       req.user.id,
     );
-    return json(200, res, { id: appId });
+    appId = res.appId;
+    createFirstDeployment = res.createFirstDeployment;
   } catch (e) {
     if (e instanceof OrgNotFoundError) {
       return json(400, res, { code: 400, message: "Organization not found" });
@@ -26,13 +29,6 @@ export const createAppHandler: HandlerMap["createApp"] = async (
       return json(400, res, {
         code: 400,
         message: e.message,
-      });
-    } else if (e instanceof DeploymentError) {
-      // The app was created, but a Deployment couldn't be created
-      logger.error(e, "Failed to create app's first deloyment");
-      return json(500, res, {
-        code: 500,
-        message: "Failed to create a deployment for your app.",
       });
     } else {
       logger.error(e, "Failed to create app");
@@ -42,4 +38,20 @@ export const createAppHandler: HandlerMap["createApp"] = async (
       });
     }
   }
+
+  // Always respond with 200 OK after this since an app was created,
+  // although the deployment may fail for other reasons
+
+  try {
+    await createFirstDeployment();
+  } catch (e) {
+    if (e instanceof DeploymentError) {
+      // The app was created, but a Deployment couldn't be created
+      logger.error(e, "Failed to create app's first deployment");
+    } else {
+      logger.error(e, "Failed to create app");
+    }
+  }
+
+  return json(200, res, { id: appId });
 };

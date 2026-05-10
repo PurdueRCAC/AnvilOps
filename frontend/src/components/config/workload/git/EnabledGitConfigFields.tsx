@@ -112,7 +112,7 @@ export const EnabledGitConfigFields = ({
     if (branch !== newBranch) {
       setGitState({ branch: newBranch });
     }
-  }, [branches, branch, setGitState]);
+  }, [branches]);
 
   const [importDialogShown, setImportDialogShown] = useState(false);
   return (

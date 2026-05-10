@@ -3,6 +3,7 @@ import { ConflictError } from "../db/errors/index.ts";
 import type { App } from "../db/models.ts";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
+import type { DeploymentRepo } from "../db/repo/deployment.ts";
 import type { OrganizationRepo } from "../db/repo/organization.ts";
 import type { UserRepo } from "../db/repo/user.ts";
 import type { components } from "../generated/openapi.ts";
@@ -24,6 +25,7 @@ export class CreateAppGroupService {
   private appRepo: AppRepo;
   private appGroupRepo: AppGroupRepo;
   private userRepo: UserRepo;
+  private deploymentRepo: DeploymentRepo;
   private appService: AppService;
   private deploymentService: DeploymentService;
   private deploymentConfigService: DeploymentConfigService;
@@ -33,6 +35,7 @@ export class CreateAppGroupService {
     appRepo: AppRepo,
     appGroupRepo: AppGroupRepo,
     userRepo: UserRepo,
+    deploymentRepo: DeploymentRepo,
     appService: AppService,
     deploymentService: DeploymentService,
     deploymentConfigService: DeploymentConfigService,
@@ -41,6 +44,7 @@ export class CreateAppGroupService {
     this.appRepo = appRepo;
     this.appGroupRepo = appGroupRepo;
     this.userRepo = userRepo;
+    this.deploymentRepo = deploymentRepo;
     this.appService = appService;
     this.deploymentService = deploymentService;
     this.deploymentConfigService = deploymentConfigService;
@@ -85,24 +89,24 @@ export class CreateAppGroupService {
       metadata: validationResults[idx],
     }));
 
-    const groupId = await this.appGroupRepo.create(orgId, groupName, false);
-    // let groupId: number;
-    // try {
-    //   groupId = await this.appGroupRepo.create(orgId, groupName, false);
-    // } catch (e) {
-    //   if (e instanceof ConflictError) {
-    //     throw new ValidationError(
-    //       "An app group already exists with the same name.",
-    //     );
-    //   }
-    //   throw e;
-    // }
+    let groupId: number;
+    try {
+      groupId = await this.appGroupRepo.create(orgId, groupName, false);
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        throw new ValidationError(
+          "An app group already exists with the same name.",
+        );
+      }
+      throw e;
+    }
 
     for (const { appData, metadata } of appsWithMetadata) {
       const { config: _config, commitMessage } = metadata;
       let config = _config;
       let app: App;
       try {
+        const initialConfigId = await this.deploymentRepo.createConfig(config);
         app = await this.appRepo.create({
           orgId: appData.orgId,
           appGroupId: groupId,
@@ -110,6 +114,7 @@ export class CreateAppGroupService {
           clusterUsername: user.clusterUsername,
           projectId: appData.projectId,
           namespace: appData.namespace,
+          configId: initialConfigId,
         });
         config = this.deploymentConfigService.populateImageTag(config, app);
       } catch (err) {

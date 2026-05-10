@@ -1,3 +1,4 @@
+import type { DeploymentConfig } from "../db/models.ts";
 import type { AppRepo } from "../db/repo/app.ts";
 import type { AppGroupRepo } from "../db/repo/appGroup.ts";
 import type { DeploymentRepo } from "../db/repo/deployment.ts";
@@ -64,17 +65,23 @@ export class GetAppByIDService {
       }
     };
 
-    const [org, appGroup, currentConfig, activeDeployment] = await Promise.all([
-      this.orgRepo.getById(app.orgId),
-      this.appGroupRepo.getById(app.appGroupId),
-      this.deploymentRepo.getConfig(recentDeployment.id),
-      getK8sDeployment().then(
-        (d) =>
-          d?.spec?.template?.metadata?.labels?.[
-            "anvilops.rcac.purdue.edu/deployment-id"
-          ],
-      ),
-    ]);
+    const [org, appGroup, mostRecentConfig, activeDeployment] =
+      await Promise.all([
+        this.orgRepo.getById(app.orgId),
+        this.appGroupRepo.getById(app.appGroupId),
+        recentDeployment
+          ? this.deploymentRepo.getConfig(recentDeployment.id)
+          : Promise.resolve<DeploymentConfig>(null),
+        getK8sDeployment().then(
+          (d) =>
+            d?.spec?.template?.metadata?.labels?.[
+              "anvilops.rcac.purdue.edu/deployment-id"
+            ],
+        ),
+      ]);
+
+    const currentConfig =
+      mostRecentConfig ?? (await this.appRepo.getDeploymentConfig(app.id));
 
     // Fetch repository info if this app is deployed from a Git repository
     let repoId: number = undefined,
