@@ -61,7 +61,15 @@ AnvilOps is not designed for public use. Access to AnvilOps should only be share
 
 #### Builds
 
-- By default, builds are run in a shared BuildKit pod with `privileged: true`. **This is an insecure default while we wait for rootless options to become more compatible.** In the event of a container escape vulnerability, attackers could escalate their privileges and take over the host system. If your Kubernetes and container runtime versions are recent enough, you should use [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/) to avoid running the BuildKit daemon in privileged mode. For additional isolation, consider running the BuildKit daemon in a virtual machine outside the cluster.
+- By default, builds are run in a shared, rootless BuildKit pod. Because this setup is rootless, the `--oci-worker-no-process-sandbox` flag needs to be set, which results in this warning on startup:
+
+  > NoProcessSandbox is enabled. Note that NoProcessSandbox allows build containers to kill (and potentially ptrace) an arbitrary process in the BuildKit host namespace. NoProcessSandbox should be enabled only when the BuildKit is running in a container as an unprivileged user.
+
+  The other widely-supported alternative is to run the container in privileged mode as the root user. However, that would give attackers much more access to the system in the event of a container escape vulnerability.
+
+  If your environment supports it, the best solution seems to be enabling [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/). This allows you to use the rootful mode (removing the NoProcessSandbox flag) while mapping the root user in the container to a nonroot user on the system. However, the feature was behind a flag until Kubernetes version 1.36, and it requires support from the Linux kernel and file system, so AnvilOps does not enable it by default.
+
+  For additional isolation, consider running the BuildKit daemon in a virtual machine outside the cluster.
 
 #### Images
 
