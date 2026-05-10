@@ -14,6 +14,7 @@
 # Expected environment variables:
 # - REGISTRY_BASE: the Docker registry hostname + namespace to push the image to, not including the image names or versions
 # - HELM_ARTIFACT_TAG: the OCI registry hostname + namespace to push the Helm chart to. The final tag will have "/anvilops:$VERSION" appended at the end, where $VERSION is the first argument to this script.
+# - HELM_TEMPLATE_TARGET: the OCI registry hostname + namespace to push the Helm templates to. These templates come from the "charts/templates" directory in this repository. The final tag of each template chart will have "/anvilops:$VERSION" appended at the end, where $VERSION is the first argument to this script.
 # - GENERATE_GITHUB_RELEASE: set this to any value to update the Helm chart values, commit and push them to GitHub, and create a new GitHub release
 
 set -euo pipefail

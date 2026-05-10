@@ -26,12 +26,13 @@ export class KVCacheService {
     key: string,
     ttl: number | Date,
     mapper: () => Promise<string>,
+    encrypt: boolean = false,
   ): Promise<string> {
-    const result = await this.get(key);
+    const result = await this.get(key, encrypt);
     if (typeof result !== "string") {
       const value = await mapper();
       try {
-        this.set(key, value, ttl).catch((err) => {
+        this.set(key, value, ttl, encrypt).catch((err) => {
           logger.error(err, "Failed to update value in cache");
         });
         // (We aren't `await`ing this because it should happen in the background)
@@ -44,7 +45,14 @@ export class KVCacheService {
     return result;
   }
 
-  async get(key: string): Promise<string | undefined> {
+  async remove(key: string) {
+    await this.cacheRepo.remove(key);
+  }
+
+  async get(
+    key: string,
+    encrypt: boolean = false,
+  ): Promise<string | undefined> {
     const localResult = this.localCache.get(key);
     if (localResult) {
       return Promise.resolve(localResult);
@@ -59,14 +67,21 @@ export class KVCacheService {
     }
 
     try {
-      return await this.cacheRepo.get(key);
+      return encrypt
+        ? await this.cacheRepo.getEncrypted(key)
+        : await this.cacheRepo.get(key);
     } catch (e) {
       logger.warn({ cacheKey: key, error: e }, "Failed to look up cache key");
       return undefined;
     }
   }
 
-  async set(key: string, value: string, ttl: Date | number): Promise<void> {
+  async set(
+    key: string,
+    value: string,
+    ttl: Date | number,
+    encrypt: boolean = false,
+  ): Promise<void> {
     const expiresAt =
       ttl instanceof Date ? ttl : new Date(new Date().getTime() + ttl * 1000);
 
@@ -79,6 +94,10 @@ export class KVCacheService {
       noUpdateTTL: true,
     });
 
-    await this.cacheRepo.set(key, value, expiresAt);
+    if (encrypt) {
+      await this.cacheRepo.setEncrypted(key, value, expiresAt);
+    } else {
+      await this.cacheRepo.set(key, value, expiresAt);
+    }
   }
 }

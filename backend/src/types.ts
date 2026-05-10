@@ -55,6 +55,7 @@ export type ResponseMap = {
     headers: { [name: string]: unknown };
     content?: {
       "application/json"?: unknown;
+      "text/plain"?: unknown;
       "text/event-stream"?: unknown;
       "application/octet-stream"?: unknown;
     };
@@ -123,6 +124,7 @@ declare module "express-session" {
       id: number;
       name: string;
       email?: string;
+      csrfToken?: string;
     };
 
     code_verifier?: string;

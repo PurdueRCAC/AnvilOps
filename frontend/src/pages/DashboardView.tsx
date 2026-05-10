@@ -135,10 +135,15 @@ const AppCard = ({ app }: { app: components["schemas"]["AppSummary"] }) => {
           </Link>
         </p>
         {app.source === "GIT" ? (
-          <p className="text-black-4 z-10 text-sm">
+          <p className="text-black-4 text-sm">
             Commit <code>{app.commitHash?.slice(0, 8)}</code> on{" "}
             <a
-              href={`${app.repositoryURL}/tree/${app.branch}`}
+              className="relative z-10"
+              href={
+                app.repositoryURL
+                  ? `${app.repositoryURL}/tree/${app.branch}`
+                  : "#"
+              }
               target="_blank"
               rel="noreferrer"
             >

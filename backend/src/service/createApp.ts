@@ -138,8 +138,7 @@ export class CreateAppService {
       createFirstDeployment: async () => {
         try {
           await this.deploymentService.create({
-            org: organization,
-            app,
+            appId: app.id,
             commitMessage,
             config: deploymentConfig,
           });

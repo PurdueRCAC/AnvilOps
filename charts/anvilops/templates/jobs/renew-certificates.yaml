@@ -1,0 +1,96 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anvilops.fullname" . }}-renew-certificates
+  labels:
+    {{- include "anvilops.commonLabels" . | nindent 4 }}
+spec:
+  schedule: "0 0 * * *" # Run once daily at 12:00 AM local time
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: renew-certificates
+              image: {{ .Values.anvilops.image | quote }}
+              args: ["./src/jobs/renewCertificates.ts"]
+              env:
+                {{- if .Values.withRootCaCert }}
+                - name: NODE_EXTRA_CA_CERTS
+                  value: /etc/ssl/certs/anvilops-tls.crt
+                {{- end }}
+                - name: CURRENT_NAMESPACE
+                  value: {{ .Release.Namespace }}
+                - name: POSTGRES_USER
+                  value: anvilops
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: password
+                - name: POSTGRES_DB
+                  value: anvilops
+                - name: POSTGRES_HOSTNAME
+                  value: anvilops-postgres
+                - name: FIELD_ENCRYPTION_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: field-encryption-key
+                - name: INGRESS_CLASS_NAME
+                  value: {{ .Values.anvilops.apps.ingress.className }}
+                - name: APP_DOMAIN
+                  value: {{ .Values.anvilops.env.appDomain }}
+                - name: ACME_SERVER_ADDRESS
+                  value: {{ .Values.anvilops.env.acmeServerAddress | quote }}
+                {{- if .Values.rancher.enabled }}
+                {{- with .Values.rancher.baseURL }}
+                - name: RANCHER_BASE_URL
+                  value: {{ . | quote }}
+                {{- end }}
+                - name: RANCHER_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: rancher-config
+                      key: api-token
+                - name: SANDBOX_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: rancher-config
+                      key: sandbox-id
+                      optional: true
+                {{- end }}
+                {{- with .Values.anvilops.env.loginType }}
+                - name: LOGIN_TYPE
+                  value: {{ . | quote }}
+                {{- end }}
+              volumeMounts:
+              - name: ca-cert
+                mountPath: /etc/ssl/certs/anvilops-tls.crt
+                subPath: anvilops-tls.crt
+                readOnly: true
+              securityContext:
+                capabilities:
+                  drop: [ALL]
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                allowPrivilegeEscalation: false
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+          - name: ca-cert
+            secret:
+              secretName: root-ca-cert
+              optional: true
+              items:
+                - key: tls.crt
+                  path: anvilops-tls.crt

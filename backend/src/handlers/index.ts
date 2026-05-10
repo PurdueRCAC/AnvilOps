@@ -1,6 +1,8 @@
 import { type Request as ExpressRequest } from "express";
 import { type HandlerMap } from "../types.ts";
 import { acceptInvitationHandler } from "./acceptInvitation.ts";
+import { handleAcmeChallengeHandler } from "./acmeChallenge.ts";
+import { addDomainHandler } from "./addDomain.ts";
 import { claimOrgHandler } from "./claimOrg.ts";
 import { createAppHandler } from "./createApp.ts";
 import { createAppGroupHandler } from "./createAppGroup.ts";
@@ -37,27 +39,34 @@ import { isNamespaceAvailableHandler } from "./isNamespaceAvailable.ts";
 import { isSubdomainAvailableHandler } from "./isSubdomainAvailable.ts";
 import { listChartsHandler } from "./listCharts.ts";
 import { listDeploymentsHandler } from "./listDeployments.ts";
+import { listDomainsHandler } from "./listDomains.ts";
 import { listOrgGroupsHandler } from "./listOrgGroups.ts";
 import { listOrgReposHandler } from "./listOrgRepos.ts";
 import { listRepoBranchesHandler } from "./listRepoBranches.ts";
 import { listRepoWorkflowsHandler } from "./listRepoWorkflows.ts";
 import { livenessProbe } from "./liveness.ts";
+import { removeDomainHandler } from "./removeDomain.ts";
 import { removeUserFromOrgHandler } from "./removeUserFromOrg.ts";
+import { retryCertGenHandler } from "./retryCertGen.ts";
 import { revokeInvitationHandler } from "./revokeInvitation.ts";
 import { setAppCDHandler } from "./setAppCD.ts";
 import { updateAppHandler } from "./updateApp.ts";
 import { updateDeploymentHandler } from "./updateDeployment.ts";
+import { verifyDomainHandler } from "./verifyDomain.ts";
 
 export type AuthenticatedRequest = ExpressRequest & {
   user: {
     id: number;
     email?: string;
     name?: string;
+    csrfToken?: string;
   };
 };
 
 export const handlers = {
   acceptInvitation: acceptInvitationHandler,
+  acmeChallenge: handleAcmeChallengeHandler,
+  addDomain: addDomainHandler,
   claimOrg: claimOrgHandler,
   createApp: createAppHandler,
   createAppGroup: createAppGroupHandler,
@@ -89,15 +98,19 @@ export const handlers = {
   isNamespaceAvailable: isNamespaceAvailableHandler,
   listCharts: listChartsHandler,
   listDeployments: listDeploymentsHandler,
+  listDomains: listDomainsHandler,
   listOrgGroups: listOrgGroupsHandler,
   listOrgRepos: listOrgReposHandler,
   listRepoBranches: listRepoBranchesHandler,
   listRepoWorkflows: listRepoWorkflowsHandler,
   livenessProbe,
+  removeDomain: removeDomainHandler,
   removeUserFromOrg: removeUserFromOrgHandler,
+  retryCertGen: retryCertGenHandler,
   revokeInvitation: revokeInvitationHandler,
   setAppCD: setAppCDHandler,
   updateApp: updateAppHandler,
   updateDeployment: updateDeploymentHandler,
+  verifyDomain: verifyDomainHandler,
   writeAppFile: writeAppFileHandler,
 } as const satisfies HandlerMap;

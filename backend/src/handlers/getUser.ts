@@ -8,5 +8,5 @@ export const getUserHandler: HandlerMap["getUser"] = async (
   res,
 ) => {
   const user = await getUserService.getUser(req.user.id);
-  return json(200, res, user);
+  return json(200, res, { ...user, csrfToken: req.user.csrfToken });
 };

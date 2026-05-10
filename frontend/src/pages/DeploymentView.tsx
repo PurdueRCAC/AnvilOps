@@ -80,7 +80,11 @@ export const DeploymentView = () => {
         {deployment.config.source === "git" && deployment.commitHash ? (
           <a
             className="flex gap-1"
-            href={`${app.repositoryURL}/commit/${deployment.commitHash}`}
+            href={
+              app.repositoryURL
+                ? `${app.repositoryURL}/commit/${deployment.commitHash}`
+                : "#"
+            }
           >
             <GitCommit /> {deployment.commitHash.substring(0, 7)}
           </a>
