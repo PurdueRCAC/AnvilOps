@@ -161,7 +161,7 @@ for i, object in enumerate(parsed):
   # Make the BuildKit Daemon use insecure HTTP for our registry instead of the default HTTPS
   if object["kind"] == "Deployment" and object["metadata"]["name"] == "anvilops-buildkitd":
     object["spec"]["template"]["spec"]["volumes"].append({"name": "config", "configMap": {"name": "anvilops-buildkitd-config"}})
-    object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/etc/buildkit"})
+    object["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "config", "mountPath": "/home/user/.config/buildkit"})
   # Make the ingress point to the frontend (which proxies to the backend when necessary) instead of to the backend
   if separate_frontend_and_backend and object["kind"] == "Ingress" and object["metadata"]["name"] == "anvilops":
     object["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"] = "anvilops-frontend"
