@@ -704,12 +704,19 @@ const FileUpload = ({
             const promise = fetch(uploadURL, {
               method: "POST",
               body: formData,
-            })
-              .then(() => {
-                refresh();
-                setOpen(false);
-              })
-              .catch(console.error);
+            }).then((response) => {
+              if (!response.ok) {
+                throw new Error(
+                  "Unexpected status " +
+                    response.status +
+                    ": " +
+                    response.statusText,
+                );
+              }
+              refresh();
+              setOpen(false);
+            });
+            promise.catch(console.error);
             toast.promise(promise, {
               success: "Files uploaded successfully!",
               error: "There was a problem uploading files.",

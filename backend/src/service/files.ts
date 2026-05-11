@@ -1,4 +1,8 @@
-import type { ApiException, V1Job } from "@kubernetes/client-node";
+import type {
+  ApiException,
+  V1Job,
+  V1PodAffinity,
+} from "@kubernetes/client-node";
 import crypto, { randomBytes } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { AppRepo } from "../db/repo/app.ts";
@@ -124,6 +128,45 @@ export class FileBrowserService {
       }
     }
 
+    // In RWO mode, the file browser pod needs to be on the same node as the user's pod (since it already has the volume mounted).
+    // It seems like K8s isn't smart enough to do this automatically while scheduling, so we need to explicitly request that the
+    // file browser pod is scheduled on the same node as the user's pod.
+    const affinityRequired = volume.spec.accessModes?.includes("ReadWriteOnce");
+
+    let affinity: V1PodAffinity = {};
+
+    if (affinityRequired) {
+      const pods = await this.kubernetesService.listNamespacedPod({
+        namespace,
+        labelSelector: "anvilops.rcac.purdue.edu/deployment-id",
+      });
+
+      const matchingPod = pods.items.find((pod) =>
+        pod.spec.volumes.some(
+          (it) => it.persistentVolumeClaim?.claimName === volumeClaimName,
+        ),
+      );
+
+      if (matchingPod) {
+        // This is the pod we're looking for, since it mounts the volume we want to mount in our new file browser pod
+        affinity = {
+          requiredDuringSchedulingIgnoredDuringExecution: [
+            {
+              topologyKey: "kubernetes.io/hostname",
+              labelSelector: {
+                matchLabels: matchingPod.metadata.labels,
+              },
+            },
+          ],
+        };
+      } else {
+        logger.warn(
+          { namespace, volumeName: volume.spec.volumeName },
+          "Affinity required for file browser pod, but target pod not found",
+        );
+      }
+    }
+
     let job: V1Job;
     try {
       job = await this.kubernetesService.createNamespacedJob({
@@ -138,6 +181,7 @@ export class FileBrowserService {
             activeDeadlineSeconds: 30 * 60, // Kill after 30 minutes
             template: {
               spec: {
+                affinity: { podAffinity: affinity },
                 containers: [
                   {
                     name: "file-browser",
