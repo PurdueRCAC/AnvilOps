@@ -399,6 +399,9 @@ const FilePreview = ({
   const [editorVisible, setEditorVisible] = useState(false);
   const [saved, setSaved] = useState(true);
 
+  const { data: user } = api.useSuspenseQuery("get", "/user/me");
+  const csrfToken = user.csrfToken;
+
   const save = useCallback(async () => {
     const uploadURL = `/api/app/${app.id}/file?volumeClaimName=${encodeURIComponent(volumeClaimName)}&path=${encodeURIComponent(dirname(path))}`;
     const formData = new FormData();
@@ -407,7 +410,21 @@ const FilePreview = ({
     formData.set("files", blob, file.name);
     setSaving(true);
     try {
-      await fetch(uploadURL, { method: "POST", body: formData });
+      const response = await fetch(uploadURL, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRF-Token": csrfToken,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(
+          "Unexpected response status: " +
+            response.status +
+            " " +
+            response.statusText,
+        );
+      }
       toast.success("File saved!");
       setSaved(true);
     } catch (e) {
@@ -416,7 +433,7 @@ const FilePreview = ({
     } finally {
       setSaving(false);
     }
-  }, [app.id, editorContent, file.name, path, volumeClaimName]);
+  }, [app.id, editorContent, file.name, path, volumeClaimName, csrfToken]);
 
   useEffect(() => {
     if (content && !editorContent) {
@@ -687,6 +704,9 @@ const FileUpload = ({
 
   const [open, setOpen] = useState(false);
 
+  const { data: user } = api.useSuspenseQuery("get", "/user/me");
+  const csrfToken = user.csrfToken;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -704,6 +724,9 @@ const FileUpload = ({
             const promise = fetch(uploadURL, {
               method: "POST",
               body: formData,
+              headers: {
+                "X-CSRF-Token": csrfToken,
+              },
             }).then((response) => {
               if (!response.ok) {
                 throw new Error(
