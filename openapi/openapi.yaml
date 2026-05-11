@@ -24,6 +24,12 @@ paths:
           description: A random string that uniquely identifies the challenge
           schema:
             type: string
+        - name: probe
+          in: query
+          required: false
+          description: If this parameter is set, then the request is coming from AnvilOps while it's waiting for the Ingress configuration to update. These "probe" requests shouldn't trigger the next step of the certificate generation flow.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Success

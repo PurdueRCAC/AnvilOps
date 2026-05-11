@@ -141,18 +141,40 @@ export class CertGenerationService {
       );
     }
     const challenge = http01Challenges[0];
+    const keyAuth = await challenge.keyAuthorization();
 
     await this.domainRepo.updateCertOrderDetails(
       domainId,
       challenge.token,
-      await challenge.keyAuthorization(),
+      keyAuth,
       order.url,
     );
+
+    // Wait for the challenge to be ready (sometimes, the ingress controller needs time to update its routes)
+    await this.pollChallengeEndpoint(domain.name, challenge.token);
 
     // Tell the CA that we're ready to run our HTTP challenge
     await challenge.submit();
 
     // The rest of the process continues in handleAcmeChallenge, then in finalizeCertOrder
+  }
+
+  private async pollChallengeEndpoint(domain: string, token: string) {
+    const deadline = new Date().getTime() + 60 * 1000; // 1 minute from now
+    while (new Date().getTime() < deadline) {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await fetch(
+        `http://${domain}/.well-known/acme-challenge/${token}?probe=true`,
+      );
+      if (response.ok) {
+        return;
+      }
+    }
+
+    logger.warn(
+      { domain },
+      "Timed out waiting for domain's ACME challenge endpoint to become ready",
+    );
   }
 
   async handleAcmeChallenge(token: string) {
