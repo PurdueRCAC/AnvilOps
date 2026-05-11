@@ -24,13 +24,15 @@ export class CacheRepo {
     await this.client.cache.delete({ where: { key } });
   }
 
-  async get(key: string): Promise<string> {
+  async get(key: string): Promise<string | null> {
     return (
-      await this.client.cache.findUnique({
-        where: { key, expiresAt: { gt: new Date() } },
-        select: { value: true },
-      })
-    )?.value;
+      (
+        await this.client.cache.findUnique({
+          where: { key, expiresAt: { gt: new Date() } },
+          select: { value: true },
+        })
+      )?.value ?? null
+    );
   }
 
   async set(key: string, value: string, expiresAt: Date) {
@@ -41,10 +43,11 @@ export class CacheRepo {
     });
   }
 
-  async getEncrypted(key: string) {
+  async getEncrypted(key: string): Promise<string | null> {
     const row = await this.client.cache.findUnique({
       where: { key, expiresAt: { gt: new Date() } },
     });
+    if (row === null) return null;
     if (!row.encryptionKey) {
       throw new Error("getEncrypted called on a row without an encryption key");
     }

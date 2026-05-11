@@ -14,3 +14,10 @@ test("encrypted cached values", async () => {
 
   expect(value).toEqual("value");
 });
+
+test("get blank encrypted value", async () => {
+  const db = await createDB();
+
+  const value = await db.cache.getEncrypted("unknown_key");
+  expect(value).toBeNull();
+});

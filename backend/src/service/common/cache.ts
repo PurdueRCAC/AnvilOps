@@ -49,10 +49,7 @@ export class KVCacheService {
     await this.cacheRepo.remove(key);
   }
 
-  async get(
-    key: string,
-    encrypt: boolean = false,
-  ): Promise<string | undefined> {
+  async get(key: string, encrypt: boolean = false): Promise<string | null> {
     const localResult = this.localCache.get(key);
     if (localResult) {
       return Promise.resolve(localResult);
@@ -72,7 +69,7 @@ export class KVCacheService {
         : await this.cacheRepo.get(key);
     } catch (e) {
       logger.warn({ cacheKey: key, error: e }, "Failed to look up cache key");
-      return undefined;
+      return null;
     }
   }
 
