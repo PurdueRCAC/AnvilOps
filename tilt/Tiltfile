@@ -236,7 +236,7 @@ if enable_monitoring:
     #env = [{"name": "ENABLE_LOGS_ALL", "value": "true"}]
   )
 
-  k8s_resource("lgtm", port_forwards=["3001:3000"])
+  k8s_resource("lgtm", port_forwards=["3002:3000"])
 
 if enable_pebble:
   # Deploy Pebble
